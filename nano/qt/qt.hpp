@@ -271,6 +271,7 @@ public:
 	QStandardItemModel * model;
 	QTableView * view;
 	QPushButton * back;
+	QTimer* timer;
 	nano_qt::wallet & wallet;
 	void refresh_stats ();
 };

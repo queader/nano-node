@@ -803,6 +803,7 @@ nano_qt::stats_viewer::stats_viewer (nano_qt::wallet & wallet_a) :
 	model (new QStandardItemModel),
 	view (new QTableView),
 	back (new QPushButton ("Back")),
+	timer(new QTimer),
 	wallet (wallet_a)
 {
 	model->setHorizontalHeaderItem (0, new QStandardItem ("Last updated"));
@@ -831,6 +832,12 @@ nano_qt::stats_viewer::stats_viewer (nano_qt::wallet & wallet_a) :
 	QObject::connect (clear, &QPushButton::released, [this] () {
 		this->wallet.node.stats.clear ();
 		refresh_stats ();
+	});
+
+	timer->start(500);
+
+	QObject::connect(timer, &QTimer::timeout, [this]() {
+		refresh_stats();
 	});
 
 	refresh_stats ();
