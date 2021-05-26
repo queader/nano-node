@@ -26,6 +26,7 @@ class network_params;
 class node_flags;
 
 class transaction;
+class write_transaction;
 namespace transport
 {
 	class channel;
@@ -52,6 +53,7 @@ public:
 
 private:
 	void process_loop ();
+	void add_to_vote_replay_cache (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a);
 
 	nano::signature_checker & checker;
 	nano::active_transactions & active;
@@ -67,6 +69,7 @@ private:
 	std::deque<std::pair<std::shared_ptr<nano::vote>, std::shared_ptr<nano::transport::channel>>> votes;
 	/** Representatives levels for random early detection */
 	std::unordered_set<nano::account> representatives_1;
+	std::unordered_set<nano::account> representatives_1_5;
 	std::unordered_set<nano::account> representatives_2;
 	std::unordered_set<nano::account> representatives_3;
 	nano::condition_variable condition;

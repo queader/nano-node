@@ -11,6 +11,9 @@
 
 #include <crypto/cryptopp/words.h>
 
+#include <boost/format.hpp>
+#include <boost/variant/get.hpp>
+
 #include <thread>
 
 namespace
@@ -264,6 +267,11 @@ public:
 	nano::store_iterator<nano::qualified_root, nano::block_hash> final_vote_end () const override
 	{
 		return nano::store_iterator<nano::qualified_root, nano::block_hash> (nullptr);
+	}
+
+	nano::store_iterator<nano::votes_replay_key, nano::vote> vote_replay_end () const override
+	{
+		return nano::store_iterator<nano::votes_replay_key, nano::vote> (nullptr);
 	}
 
 	int version_get (nano::transaction const & transaction_a) const override
@@ -608,6 +616,86 @@ public:
 		drop (transaction_a, nano::tables::confirmation_height);
 	}
 
+	bool vote_replay_put (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a) override
+	{
+		nano::db_val<Val> value;
+
+		bool result = false;
+
+		for (auto vote_block : vote_a->blocks)
+		{
+			if (vote_block.which ())
+			{
+				auto const & block_hash (boost::get<nano::block_hash> (vote_block));
+
+				nano::votes_replay_key key (block_hash, vote_a->account);
+
+				auto status = get (transaction_a, tables::votes_replay, key, value);
+				if (success (status))
+				{
+					auto vote_b = static_cast<nano::vote> (value);
+
+					debug_assert (vote_b.account == vote_a->account);
+
+					if (vote_a->timestamp > vote_b.timestamp)
+					{
+						status = put (transaction_a, tables::votes_replay, key, *vote_a);
+					}
+				}
+				else
+				{
+					result = true;
+
+					status = put (transaction_a, tables::votes_replay, key, *vote_a);
+					release_assert_success (*this, status);
+				}
+			}
+		}
+
+		return result;
+	}
+
+	std::vector<std::shared_ptr<nano::vote>> vote_replay_get (nano::transaction const & transaction_a, nano::block_hash const & hash_a) override
+	{
+		std::vector<std::shared_ptr<nano::vote>> result;
+
+		nano::votes_replay_key key_start (hash_a, 0);
+
+		for (auto i (vote_replay_begin (transaction_a, key_start)), n (vote_replay_end ()); i != n && nano::votes_replay_key (i->first).block_hash () == hash_a; ++i)
+		{
+			result.push_back (std::make_shared<nano::vote> (i->second));
+		}
+
+		return result;
+	}
+
+	int vote_replay_del_non_final (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) override
+	{
+		std::vector<nano::votes_replay_key> vote_replay_keys;
+
+		for (auto i (vote_replay_begin (transaction_a, nano::votes_replay_key (hash_a, 0))), n (vote_replay_end ()); i != n && nano::votes_replay_key (i->first).block_hash () == hash_a; ++i)
+		{
+			if (i->second.timestamp != std::numeric_limits<uint64_t>::max ())
+			{
+				vote_replay_keys.push_back (i->first);
+			}
+		}
+
+		for (auto & key : vote_replay_keys)
+		{
+			auto status (del (transaction_a, tables::votes_replay, nano::db_val<Val> (key)));
+			release_assert_success (*this, status);
+		}
+
+		return vote_replay_keys.size ();
+	}
+
+	void vote_replay_del (nano::write_transaction const & transaction_a, nano::votes_replay_key const & key) override
+	{
+		auto status (del (transaction_a, tables::votes_replay, nano::db_val<Val> (key)));
+		release_assert_success (*this, status);
+	}
+
 	nano::store_iterator<nano::account, nano::account_info> accounts_begin (nano::transaction const & transaction_a, nano::account const & account_a) const override
 	{
 		return make_iterator<nano::account, nano::account_info> (transaction_a, tables::accounts, nano::db_val<Val> (account_a));
@@ -688,6 +776,16 @@ public:
 		return make_iterator<uint64_t, nano::amount> (transaction_a, tables::online_weight, false);
 	}
 
+	nano::store_iterator<nano::votes_replay_key, nano::vote> vote_replay_begin (nano::transaction const & transaction_a) const override
+	{
+		return make_iterator<nano::votes_replay_key, nano::vote> (transaction_a, tables::votes_replay);
+	}
+
+	nano::store_iterator<nano::votes_replay_key, nano::vote> vote_replay_begin (nano::transaction const & transaction_a, nano::votes_replay_key const & key_a) const override
+	{
+		return make_iterator<nano::votes_replay_key, nano::vote> (transaction_a, tables::votes_replay, nano::db_val<Val> (key_a));
+	}
+
 	size_t unchecked_count (nano::transaction const & transaction_a) override
 	{
 		return count (transaction_a, tables::unchecked);
@@ -746,6 +844,16 @@ public:
 		[&action_a, this] (nano::uint512_t const & start, nano::uint512_t const & end, bool const is_last) {
 			auto transaction (this->tx_begin_read ());
 			action_a (transaction, this->final_vote_begin (transaction, start), !is_last ? this->final_vote_begin (transaction, end) : this->final_vote_end ());
+		});
+	}
+
+	void votes_replay_for_each_par (std::function<void (nano::read_transaction const &, nano::store_iterator<nano::votes_replay_key, nano::vote>, nano::store_iterator<nano::votes_replay_key, nano::vote>)> const & action_a) const override
+	{
+		parallel_traversal<nano::uint512_t> (
+		[&action_a, this] (nano::uint512_t const & start, nano::uint512_t const & end, bool const is_last)
+		{
+			auto transaction (this->tx_begin_read ());
+			action_a (transaction, this->vote_replay_begin (transaction, start), !is_last ? this->vote_replay_begin (transaction, end) : this->vote_replay_end ());
 		});
 	}
 

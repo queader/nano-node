@@ -564,6 +564,12 @@ std::string nano::stat::type_to_string (uint32_t key)
 		case nano::stat::type::vote_generator:
 			res = "vote_generator";
 			break;
+		case nano::stat::type::vote_replay:
+			res = "vote_replay";
+			break;
+		case nano::stat::type::vote_replay_seed:
+			res = "vote_replay_seed";
+			break;
 	}
 	return res;
 }
@@ -876,6 +882,27 @@ std::string nano::stat::detail_to_string (uint32_t key)
 			break;
 		case nano::stat::detail::generator_spacing:
 			res = "generator_spacing";
+			break;
+		case nano::stat::detail::db_new:
+			res = "db_new";
+			break;
+		case nano::stat::detail::db_changed:
+			res = "db_changed";
+			break;
+		case nano::stat::detail::db_unchanged:
+			res = "db_unchanged";
+			break;
+		case nano::stat::detail::vote_too_big:
+			res = "vote_too_big";
+			break;
+		case nano::stat::detail::block_confirmed:
+			res = "block_confirmed";
+			break;
+		case nano::stat::detail::block_not_confirmed:
+			res = "block_not_confirmed";
+			break;
+		case nano::stat::detail::exceeded_unconfirmed_vote_threshold:
+			res = "exceeded_unconfirmed_vote_threshold";
 			break;
 	}
 	return res;

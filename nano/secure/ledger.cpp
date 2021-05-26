@@ -1544,6 +1544,42 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (boost::filesystem::path const & data
 	return error;
 }
 
+int nano::ledger::drop_non_final_replay_votes () const
+{
+	bool found_any = false;
+
+	std::atomic<int> total_count (0);
+
+	store.votes_replay_for_each_par (
+	[this, &found_any, &total_count] (nano::read_transaction const & /*unused*/, auto i, auto n)
+	{
+		auto transaction (this->store.tx_begin_write ({ nano::tables::votes_replay }));
+
+		int local_count = 0;
+		for (; i != n; ++i)
+		{
+			if (i->second.timestamp != std::numeric_limits<uint64_t>::max ())
+			{
+				this->store.vote_replay_del (transaction, i->first);
+
+				local_count++;
+				if (local_count % 50000 == 0)
+				{
+					transaction.refresh ();
+				}
+
+				int x = total_count++;
+				if (x % 100000 == 0)
+				{
+					std::cout << x << std::endl;
+				}
+			}
+		}
+	});
+
+	return total_count.load ();
+}
+
 nano::uncemented_info::uncemented_info (nano::block_hash const & cemented_frontier, nano::block_hash const & frontier, nano::account const & account) :
 	cemented_frontier (cemented_frontier), frontier (frontier), account (account)
 {

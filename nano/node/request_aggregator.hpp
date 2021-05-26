@@ -8,6 +8,7 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index_container.hpp>
+#include <boost/optional.hpp>
 
 #include <condition_variable>
 #include <thread>
@@ -80,6 +81,9 @@ private:
 	std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> & channel_a) const;
 	void reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const;
 
+	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const;
+	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const;
+
 	nano::stat & stats;
 	nano::local_vote_history & local_votes;
 	nano::ledger & ledger;
@@ -103,6 +107,9 @@ private:
 	nano::condition_variable condition;
 	nano::mutex mutex{ mutex_identifier (mutexes::request_aggregator) };
 	std::thread thread;
+
+	const nano::uint128_t replay_vote_weight_minimum;
+	const nano::uint128_t replay_unconfirmed_vote_weight_minimum;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (request_aggregator &, const std::string &);
 };

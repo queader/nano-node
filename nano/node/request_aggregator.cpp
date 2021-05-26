@@ -22,6 +22,8 @@ nano::request_aggregator::request_aggregator (nano::network_constants const & ne
 	active (active_a),
 	generator (generator_a),
 	final_generator (final_generator_a),
+	replay_vote_weight_minimum (config_a.replay_vote_weight_minimum.number ()),
+	replay_unconfirmed_vote_weight_minimum (config_a.replay_unconfirmed_vote_weight_minimum.number ()),
 	thread ([this] () { run (); })
 {
 	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
@@ -286,6 +288,12 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 				stats.inc (nano::stat::type::requests, nano::stat::detail::requests_unknown, stat::dir::in);
 			}
 		}
+
+		auto const replay_votes = get_vote_replay_cached_votes_for_hash_or_conf_frontier (transaction, hash);
+		if (replay_votes)
+		{
+			cached_votes.insert (cached_votes.end (), (*replay_votes).begin (), (*replay_votes).end ());
+		}
 	}
 	// Unique votes
 	std::sort (cached_votes.begin (), cached_votes.end ());
@@ -297,6 +305,74 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 	stats.add (nano::stat::type::requests, nano::stat::detail::requests_cached_hashes, stat::dir::in, cached_hashes);
 	stats.add (nano::stat::type::requests, nano::stat::detail::requests_cached_votes, stat::dir::in, cached_votes.size ());
 	return std::make_pair (to_generate, to_generate_final);
+}
+
+boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::request_aggregator::get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const
+{
+	auto votes_l = ledger.store.vote_replay_get (transaction_a, hash_a);
+
+	nano::uint128_t weight = 0;
+	for (auto const & vote : votes_l)
+	{
+		auto rep_weight (ledger.weight (vote->account));
+		weight += rep_weight;
+	}
+
+	boost::optional<std::vector<std::shared_ptr<nano::vote>>> result;
+
+	if (weight >= minimum_weight)
+	{
+		result = votes_l;
+	}
+
+	return result;
+}
+
+boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::request_aggregator::get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const
+{
+	boost::optional<std::vector<std::shared_ptr<nano::vote>>> result;
+
+	if (ledger.block_confirmed (transaction_a, hash_a))
+	{
+		auto account = ledger.account (transaction_a, hash_a);
+		if (!account.is_zero ())
+		{
+			stats.inc (nano::stat::type::vote_replay, nano::stat::detail::block_confirmed);
+
+			nano::confirmation_height_info conf_info;
+			ledger.store.confirmation_height_get (transaction_a, account, conf_info);
+
+			if (conf_info.frontier != 0 && conf_info.frontier != hash_a)
+			{
+				result = get_vote_replay_cached_votes_for_hash (transaction_a, conf_info.frontier, replay_vote_weight_minimum);
+				if (result)
+				{
+					stats.inc (nano::stat::type::vote_replay, nano::stat::detail::frontier_confirmation_successful);
+				}
+			}
+
+			if (!result)
+			{
+				result = get_vote_replay_cached_votes_for_hash (transaction_a, hash_a, replay_vote_weight_minimum);
+			}
+
+			if (!result)
+			{
+				stats.inc (nano::stat::type::vote_replay, nano::stat::detail::vote_invalid);
+			}
+		}
+	}
+	else
+	{
+		stats.inc (nano::stat::type::vote_replay, nano::stat::detail::block_not_confirmed);
+	}
+
+	if (result)
+	{
+		stats.inc (nano::stat::type::vote_replay, nano::stat::detail::vote_replay);
+	}
+
+	return result;
 }
 
 std::unique_ptr<nano::container_info_component> nano::collect_container_info (nano::request_aggregator & aggregator, std::string const & name)
