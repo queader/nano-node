@@ -3,6 +3,7 @@
 #include <nano/node/active_transactions.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/transport/udp.hpp>
@@ -11,7 +12,8 @@
 #include <nano/secure/blockstore.hpp>
 #include <nano/secure/ledger.hpp>
 
-nano::request_aggregator::request_aggregator (nano::network_constants const & network_constants_a, nano::node_config const & config_a, nano::stat & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a) :
+nano::request_aggregator::request_aggregator (nano::node & node_a, nano::network_constants const & network_constants_a, nano::node_config const & config_a, nano::stat & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a) :
+	node{ node_a },
 	max_delay (network_constants_a.is_dev_network () ? 50 : 300),
 	small_delay (network_constants_a.is_dev_network () ? 10 : 50),
 	max_channel_requests (config_a.max_queued_requests),
@@ -24,7 +26,8 @@ nano::request_aggregator::request_aggregator (nano::network_constants const & ne
 	final_generator (final_generator_a),
 	replay_vote_weight_minimum (config_a.replay_vote_weight_minimum.number ()),
 	replay_unconfirmed_vote_weight_minimum (config_a.replay_unconfirmed_vote_weight_minimum.number ()),
-	thread ([this] () { run (); })
+	thread ([this] () { run (); }),
+	thread_seed_votes ([this] () { run_aec_vote_seeding (); })
 {
 	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
 		this->reply_action (vote_a, channel_a);
@@ -136,6 +139,10 @@ void nano::request_aggregator::stop ()
 	if (thread.joinable ())
 	{
 		thread.join ();
+	}
+	if (thread_seed_votes.joinable ())
+	{
+		thread_seed_votes.join ();
 	}
 }
 
@@ -373,6 +380,60 @@ boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::request_aggregat
 	}
 
 	return result;
+}
+
+void nano::request_aggregator::run_aec_vote_seeding () const
+{
+	nano::thread_role::set (nano::thread_role::name::seed_votes);
+
+	node.node_initialized_latch.wait ();
+
+	const nano::uint128_t minimum_weight = replay_unconfirmed_vote_weight_minimum;
+
+	while (!stopped)
+	{
+		nano::block_hash hash;
+		nano::random_pool::generate_block (hash.bytes.data (), hash.bytes.size ());
+
+		nano::votes_replay_key prev_key (hash, 0);
+
+		auto transaction (ledger.store.tx_begin_read ());
+
+		int k = 0;
+		for (auto i = ledger.store.vote_replay_begin (transaction, prev_key), n = ledger.store.vote_replay_end (); i != n && k < 50000; ++i, ++k)
+		{
+			if (i->first.block_hash () != prev_key.block_hash ())
+			{
+				prev_key = i->first;
+
+				auto vote_a = std::make_shared<nano::vote> (i->second);
+
+				for (auto vote_block : vote_a->blocks)
+				{
+					debug_assert (vote_block.which ());
+
+					auto const & block_hash = boost::get<nano::block_hash> (vote_block);
+
+					if (!ledger.block_confirmed (transaction, block_hash))
+					{
+						auto cached = get_vote_replay_cached_votes_for_hash (transaction, block_hash, minimum_weight);
+						if (cached)
+						{
+							for (auto const & vote_b : (*cached))
+							{
+								active.vote (vote_b);
+							}
+
+							stats.inc (nano::stat::type::vote_replay_seed, nano::stat::detail::election_start);
+						}
+					}
+				}
+			}
+		}
+
+		std::this_thread::sleep_for (std::chrono::milliseconds (250));
+		std::this_thread::yield ();
+	}
 }
 
 std::unique_ptr<nano::container_info_component> nano::collect_container_info (nano::request_aggregator & aggregator, std::string const & name)

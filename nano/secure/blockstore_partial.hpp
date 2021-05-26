@@ -664,6 +664,8 @@ public:
 		for (auto i (vote_replay_begin (transaction_a, key_start)), n (vote_replay_end ()); i != n && nano::votes_replay_key (i->first).block_hash () == hash_a; ++i)
 		{
 			result.push_back (std::make_shared<nano::vote> (i->second));
+
+			debug_assert (!result.back ()->validate ());
 		}
 
 		return result;

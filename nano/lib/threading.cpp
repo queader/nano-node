@@ -39,6 +39,9 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::vote_processing:
 			thread_role_name_string = "Vote processing";
 			break;
+		case nano::thread_role::name::vote_processing_cache:
+			thread_role_name_string = "Vote replay cah";
+			break;
 		case nano::thread_role::name::block_processing:
 			thread_role_name_string = "Blck processing";
 			break;

@@ -1562,16 +1562,16 @@ int nano::ledger::drop_non_final_replay_votes () const
 			{
 				this->store.vote_replay_del (transaction, i->first);
 
-				local_count++;
-				if (local_count % 50000 == 0)
+				if (local_count++ == 50000)
 				{
 					transaction.refresh ();
-				}
 
-				int x = total_count++;
-				if (x % 100000 == 0)
-				{
-					std::cout << x << std::endl;
+					int x = total_count += local_count;
+					if (x % 100000 == 0)
+					{
+						std::cout << x << std::endl;
+					}
+					local_count = 0;
 				}
 			}
 		}

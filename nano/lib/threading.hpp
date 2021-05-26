@@ -23,6 +23,7 @@ namespace thread_role
 		work,
 		packet_processing,
 		vote_processing,
+		vote_processing_cache,
 		block_processing,
 		request_loop,
 		wallet_actions,

@@ -33,6 +33,10 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 	thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::vote_processing);
 		process_loop ();
+	}),
+	thread_replay_cache([this]() {
+		nano::thread_role::set(nano::thread_role::name::vote_processing_cache);
+		cache_loop();
 	})
 {
 	nano::unique_lock<nano::mutex> lock (mutex);
@@ -87,6 +91,36 @@ void nano::vote_processor::process_loop ()
 		else
 		{
 			condition.wait (lock);
+		}
+	}
+}
+
+void nano::vote_processor::cache_loop()
+{
+	nano::unique_lock<nano::mutex> lock(mutex_cache);
+
+	while (!stopped)
+	{
+		if (!votes_to_cache.empty())
+		{
+			decltype (votes_to_cache) votes_l;
+			votes_l.swap(votes_to_cache);
+
+			lock.unlock ();
+
+			{
+				auto transaction = ledger.store.tx_begin_write ({ tables::votes_replay });
+				for (auto const & vote : votes_l)
+				{
+					add_to_vote_replay_cache (transaction, vote);
+				}
+			}
+
+			lock.lock ();
+		}
+		else
+		{
+			condition_cache.wait(lock);
 		}
 	}
 }
@@ -167,18 +201,28 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		++i;
 	}
 
-	int j = 0;
-	auto transaction = ledger.store.tx_begin_write ({ tables::votes_replay });
-	for (auto const & vote : votes_a)
+	nano::unique_lock<nano::mutex> lock(mutex_cache);
+
+	if (votes_to_cache.size () < max_votes)
 	{
-		if (verifications[j++] == 1)
+		int j = 0;
+		for (auto const & vote : votes_a)
 		{
-			if (config.collect_non_final_votes || vote.first->timestamp == std::numeric_limits<uint64_t>::max ())
+			if (verifications[j++] == 1)
 			{
-				add_to_vote_replay_cache (transaction, vote.first);
+				if (config.collect_non_final_votes || vote.first->timestamp == std::numeric_limits<uint64_t>::max ())
+				{
+					votes_to_cache.emplace_back (vote.first);
+				}
 			}
 		}
 	}
+	else
+	{
+		stats.inc (nano::stat::type::vote_replay, nano::stat::detail::vote_overflow);
+	}
+
+	condition_cache.notify_all();
 }
 
 nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, bool validated)
@@ -220,12 +264,18 @@ void nano::vote_processor::stop ()
 {
 	{
 		nano::lock_guard<nano::mutex> lock (mutex);
+		nano::lock_guard<nano::mutex> lock_cache (mutex_cache);
 		stopped = true;
 	}
 	condition.notify_all ();
+	condition_cache.notify_all ();
 	if (thread.joinable ())
 	{
 		thread.join ();
+	}
+	if (thread_replay_cache.joinable ())
+	{
+		thread_replay_cache.join ();
 	}
 }
 

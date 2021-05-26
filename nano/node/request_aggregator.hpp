@@ -60,7 +60,7 @@ class request_aggregator final
 	// clang-format on
 
 public:
-	request_aggregator (nano::network_constants const &, nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
+	request_aggregator (nano::node &, nano::network_constants const &, nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
 
 	/** Add a new request by \p channel_a for hashes \p hashes_roots_a */
 	void add (std::shared_ptr<nano::transport::channel> const & channel_a, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots_a);
@@ -83,7 +83,9 @@ private:
 
 	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const;
 	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const;
+	void run_aec_vote_seeding () const;
 
+	nano::node & node;
 	nano::stat & stats;
 	nano::local_vote_history & local_votes;
 	nano::ledger & ledger;
@@ -107,6 +109,7 @@ private:
 	nano::condition_variable condition;
 	nano::mutex mutex{ mutex_identifier (mutexes::request_aggregator) };
 	std::thread thread;
+	std::thread thread_seed_votes;
 
 	const nano::uint128_t replay_vote_weight_minimum;
 	const nano::uint128_t replay_unconfirmed_vote_weight_minimum;
