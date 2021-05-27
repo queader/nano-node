@@ -106,6 +106,8 @@ public:
 	nano::amount replay_vote_weight_minimum{ 69100 * nano::Gxrb_ratio };
 	nano::amount replay_unconfirmed_vote_weight_minimum{ 75000 * nano::Gxrb_ratio };
 	bool collect_non_final_votes{ true };
+	bool enable_random_vote_replay{ false };
+	bool enable_vote_replay_aec_seeding{ false };
 	nano::rocksdb_config rocksdb_config;
 	nano::lmdb_config lmdb_config;
 	nano::frontiers_confirmation_mode frontiers_confirmation{ nano::frontiers_confirmation_mode::automatic };

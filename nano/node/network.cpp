@@ -202,6 +202,18 @@ void nano::network::flood_vote (std::shared_ptr<nano::vote> const & vote_a, floa
 	}
 }
 
+void nano::network::flood_vote_list_all (std::vector<std::shared_ptr<nano::vote>> const & vote_l)
+{
+	for (auto const & vote_a : vote_l)
+	{
+		nano::confirm_ack message (vote_a);
+		for (auto & i : list (size()))
+		{
+			i->send (message, nullptr);
+		}
+	}
+}
+
 void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
 {
 	nano::confirm_ack message (vote_a);

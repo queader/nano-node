@@ -570,6 +570,9 @@ std::string nano::stat::type_to_string (uint32_t key)
 		case nano::stat::type::vote_replay_seed:
 			res = "vote_replay_seed";
 			break;
+		case nano::stat::type::vote_replay_rebroadcast:
+			res = "vote_replay_rebroadcast";
+			break;
 	}
 	return res;
 }

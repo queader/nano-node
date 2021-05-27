@@ -23,6 +23,7 @@
 #include <nano/node/signatures.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/vote_processor.hpp>
+#include <nano/node/vote_replay_cache.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/write_database_queue.hpp>
 #include <nano/secure/ledger.hpp>
@@ -191,6 +192,7 @@ public:
 	nano::active_transactions active;
 	nano::election_scheduler scheduler;
 	nano::request_aggregator aggregator;
+	nano::vote_replay_cache vote_replay_cache;
 	nano::wallets wallets;
 	const std::chrono::steady_clock::time_point startup_time;
 	std::chrono::seconds unchecked_cutoff = std::chrono::seconds (7 * 24 * 60 * 60); // Week

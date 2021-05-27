@@ -201,7 +201,7 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		++i;
 	}
 
-	nano::unique_lock<nano::mutex> lock(mutex_cache);
+	nano::unique_lock<nano::mutex> lock_cache(mutex_cache);
 
 	if (votes_to_cache.size () < max_votes)
 	{
@@ -222,6 +222,7 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		stats.inc (nano::stat::type::vote_replay, nano::stat::detail::vote_overflow);
 	}
 
+	lock_cache.unlock ();
 	condition_cache.notify_all();
 }
 

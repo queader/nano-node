@@ -109,6 +109,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	application_path (application_path_a),
 	port_mapping (*this),
 	rep_crawler (*this),
+	vote_replay_cache (*this),
 	vote_processor (checker, active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params),
 	warmed_up (0),
 	block_processor (*this, write_database_queue),
@@ -118,7 +119,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	confirmation_height_processor (ledger, write_database_queue, config.conf_height_processor_batch_min_time, config.logging, logger, node_initialized_latch, flags.confirmation_height_processor_mode),
 	active (*this, confirmation_height_processor),
 	scheduler{ *this },
-	aggregator (*this, network_params.network, config, stats, active.generator, active.final_generator, history, ledger, wallets, active),
+	aggregator (network_params.network, config, stats, active.generator, active.final_generator, history, ledger, wallets, active, vote_replay_cache),
 	wallets (wallets_store.init_error (), *this),
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
@@ -661,6 +662,7 @@ void nano::node::stop ()
 		// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
 		distributed_work.stop ();
 		block_processor.stop ();
+		vote_replay_cache.stop ();
 		aggregator.stop ();
 		vote_processor.stop ();
 		scheduler.stop ();

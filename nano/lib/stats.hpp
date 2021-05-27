@@ -244,7 +244,8 @@ public:
 		telemetry,
 		vote_generator,
 		vote_replay,
-		vote_replay_seed
+		vote_replay_seed,
+		vote_replay_rebroadcast
 	};
 
 	/** Optional detail type */

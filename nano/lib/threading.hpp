@@ -40,7 +40,8 @@ namespace thread_role
 		epoch_upgrader,
 		db_parallel_traversal,
 		election_scheduler,
-		seed_votes
+		seed_votes,
+		rebroadcast_votes
 	};
 	/*
 	 * Get/Set the identifier for the current thread
