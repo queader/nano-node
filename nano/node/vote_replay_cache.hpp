@@ -25,6 +25,7 @@ public:
 
 	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const;
 	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const;
+	boost::optional<std::vector<std::shared_ptr<nano::vote>>> get_vote_replay_cached_votes_for_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const;
 
 	const nano::uint128_t replay_vote_weight_minimum;
 	const nano::uint128_t replay_unconfirmed_vote_weight_minimum;
@@ -48,5 +49,6 @@ private:
 
 	std::thread thread_seed_votes;
 	std::thread thread_rebroadcast;
+	std::thread thread_rebroadcast_random;
 };
 }
