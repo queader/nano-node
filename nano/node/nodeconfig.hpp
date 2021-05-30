@@ -103,8 +103,8 @@ public:
 	uint32_t confirm_req_batches_max{ network_params.network.is_dev_network () ? 1u : 2u };
 	std::chrono::seconds max_pruning_age{ !network_params.network.is_beta_network () ? std::chrono::seconds (24 * 60 * 60) : std::chrono::seconds (5 * 60) }; // 1 day; 5 minutes for beta network
 	uint64_t max_pruning_depth{ 0 };
-	nano::amount replay_vote_weight_minimum{ 69100 * nano::Gxrb_ratio };
-	nano::amount replay_unconfirmed_vote_weight_minimum{ 75000 * nano::Gxrb_ratio };
+	nano::amount replay_vote_weight_minimum{ 71000 * nano::Gxrb_ratio };
+	nano::amount replay_unconfirmed_vote_weight_minimum{ 90000 * nano::Gxrb_ratio };
 	bool collect_non_final_votes{ true };
 	bool enable_random_vote_replay{ false };
 	bool enable_vote_replay_aec_seeding{ false };

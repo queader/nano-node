@@ -97,6 +97,8 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	logger (config_a.logging.min_time_between_log_output),
 	store_impl (nano::make_store (logger, application_path_a, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, config_a.backup_before_upgrade)),
 	store (*store_impl),
+	vote_store_impl (nano::make_vote_store (logger, application_path_a, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, config_a.backup_before_upgrade)),
+	vote_store (*vote_store_impl),
 	wallets_store_impl (std::make_unique<nano::mdb_wallets_store> (application_path_a / "wallets.ldb", config_a.lmdb_config)),
 	wallets_store (*wallets_store_impl),
 	gap_cache (*this),
@@ -110,7 +112,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	port_mapping (*this),
 	rep_crawler (*this),
 	vote_replay_cache (*this),
-	vote_processor (checker, active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params),
+	vote_processor (checker, active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params, vote_replay_cache),
 	warmed_up (0),
 	block_processor (*this, write_database_queue),
 	online_reps (ledger, config),
@@ -1829,4 +1831,9 @@ std::unique_ptr<nano::block_store> nano::make_store (nano::logger_mt & logger, b
 	}
 
 	return std::make_unique<nano::mdb_store> (logger, add_db_postfix ? path / "data.ldb" : path, txn_tracking_config_a, block_processor_batch_max_time_a, lmdb_config_a, backup_before_upgrade);
+}
+
+std::unique_ptr<nano::block_store> nano::make_vote_store (nano::logger_mt & logger, boost::filesystem::path const & path, bool read_only, bool add_db_postfix, nano::rocksdb_config const & rocksdb_config, nano::txn_tracking_config const & txn_tracking_config_a, std::chrono::milliseconds block_processor_batch_max_time_a, nano::lmdb_config const & lmdb_config_a, bool backup_before_upgrade)
+{
+	return std::make_unique<nano::rocksdb_store> (logger, add_db_postfix ? path / "rocksdb_votes" : path, rocksdb_config, read_only);
 }

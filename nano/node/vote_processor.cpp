@@ -9,13 +9,14 @@
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/signatures.hpp>
 #include <nano/node/vote_processor.hpp>
+#include <nano/node/vote_replay_cache.hpp>
 #include <nano/secure/blockstore.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 
 #include <boost/format.hpp>
 
-nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a) :
+nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a, nano::vote_replay_cache & replay_cache_a) :
 	checker (checker_a),
 	active (active_a),
 	observers (observers_a),
@@ -26,6 +27,7 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 	rep_crawler (rep_crawler_a),
 	ledger (ledger_a),
 	network_params (network_params_a),
+	replay_cache ( replay_cache_a),
 	max_votes (flags_a.vote_processor_capacity),
 	started (false),
 	stopped (false),
@@ -109,7 +111,7 @@ void nano::vote_processor::cache_loop()
 			lock.unlock ();
 
 			{
-				auto transaction = ledger.store.tx_begin_write ({ tables::votes_replay });
+				auto transaction = replay_cache.store.tx_begin_write ({ tables::votes_replay });
 				for (auto const & vote : votes_l)
 				{
 					add_to_vote_replay_cache (transaction, vote);
@@ -373,7 +375,7 @@ void nano::vote_processor::add_to_vote_replay_cache (nano::write_transaction con
 
 		if (process)
 		{
-			bool added_new = ledger.store.vote_replay_put (transaction_a, vote_a);
+			bool added_new = replay_cache.add_vote_to_db (transaction_a, vote_a);
 			if (added_new)
 			{
 				this->stats.inc (nano::stat::type::vote_replay, nano::stat::detail::db_new, stat::dir::in);

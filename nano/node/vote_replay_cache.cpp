@@ -9,16 +9,19 @@
 #include <nano/secure/ledger.hpp>
 
 nano::vote_replay_cache::vote_replay_cache (nano::node & node_a) :
-	node{ node_a },
-	stats{ node_a.stats },
-	ledger{ node_a.ledger },
-	active{ node_a.active },
+	node ( node_a ),
+	stats ( node_a.stats ),
+	ledger ( node_a.ledger ),
+	active ( node_a.active ),
+	store (node_a.vote_store),
 	replay_vote_weight_minimum (node_a.config.replay_vote_weight_minimum.number ()),
 	replay_unconfirmed_vote_weight_minimum (node_a.config.replay_unconfirmed_vote_weight_minimum.number ()),
 	thread_seed_votes ([this] ()
 	{ run_aec_vote_seeding (); }),
 	thread_rebroadcast ([this] ()
 	{ run_rebroadcast (); }),
+	/*thread_rebroadcast_2 ([this] ()
+	{ run_rebroadcast (); }),*/
 	thread_rebroadcast_random ([this] ()
 	{ run_rebroadcast_random (); })
 {
@@ -47,15 +50,16 @@ void nano::vote_replay_cache::stop ()
 	}
 }
 
-void nano::vote_replay_cache::add (const std::vector<std::shared_ptr<nano::vote>> vote_l)
+void nano::vote_replay_cache::add (const nano::block_hash hash_a, const std::vector<std::shared_ptr<nano::vote>> vote_l)
 {
 	const int max_candidates_size = 1024;
 
 	nano::unique_lock<nano::mutex> lock (mutex_candidates);
 
-	if (replay_candidates.size () < max_candidates_size)
+	if (replay_candidates.size () < max_candidates_size && replay_candidates_hashes.find (hash_a) == replay_candidates_hashes.end())
 	{
 		replay_candidates.emplace_back (vote_l);
+		replay_candidates_hashes.emplace (hash_a);
 		lock.unlock ();
 		condition_candidates.notify_all ();
 	}
@@ -65,9 +69,14 @@ void nano::vote_replay_cache::add (const std::vector<std::shared_ptr<nano::vote>
 	}
 }
 
-boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const
+bool nano::vote_replay_cache::add_vote_to_db (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a)
 {
-	auto votes_l = ledger.store.vote_replay_get (transaction_a, hash_a);
+	return store.vote_replay_put (transaction_a, vote_a);
+}
+
+nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const
+{
+	auto votes_l = store.vote_replay_get (transaction_a, hash_a);
 
 	nano::uint128_t weight = 0;
 	for (auto const & vote : votes_l)
@@ -76,19 +85,19 @@ boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cach
 		weight += rep_weight;
 	}
 
-	boost::optional<std::vector<std::shared_ptr<nano::vote>>> result;
+	nano::vote_replay_cache::vote_cache_result result;
 
 	if (weight >= minimum_weight)
 	{
-		result = votes_l;
+		result = std::make_pair(hash_a, votes_l);
 	}
 
 	return result;
 }
 
-boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const
+nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const
 {
-	boost::optional<std::vector<std::shared_ptr<nano::vote>>> result;
+	nano::vote_replay_cache::vote_cache_result result;
 
 	if (ledger.block_confirmed (transaction_a, hash_a))
 	{
@@ -102,7 +111,7 @@ boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cach
 
 			if (conf_info.frontier != 0 && conf_info.frontier != hash_a)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_a, conf_info.frontier, replay_vote_weight_minimum);
+				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier, replay_vote_weight_minimum);
 				if (result)
 				{
 					stats.inc (nano::stat::type::vote_replay, nano::stat::detail::frontier_confirmation_successful);
@@ -111,7 +120,7 @@ boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cach
 
 			if (!result)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_a, hash_a, replay_vote_weight_minimum);
+				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, hash_a, replay_vote_weight_minimum);
 			}
 
 			if (!result)
@@ -133,9 +142,9 @@ boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cach
 	return result;
 }
 
-boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cache::get_vote_replay_cached_votes_for_conf_frontier (nano::transaction const & transaction_a, nano::block_hash hash_a) const
+nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const
 {
-	boost::optional<std::vector<std::shared_ptr<nano::vote>>> result;
+	nano::vote_replay_cache::vote_cache_result result;
 
 	if (ledger.block_or_pruned_exists (transaction_a, hash_a))
 	{
@@ -147,7 +156,7 @@ boost::optional<std::vector<std::shared_ptr<nano::vote>>> nano::vote_replay_cach
 
 			if (conf_info.frontier != 0)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_a, conf_info.frontier, replay_vote_weight_minimum);
+				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier, replay_vote_weight_minimum);
 			}
 		}
 	}
@@ -171,10 +180,10 @@ void nano::vote_replay_cache::run_aec_vote_seeding () const
 		nano::votes_replay_key prev_key (hash, 0);
 
 		{
-			auto transaction (ledger.store.tx_begin_read ());
+			auto transaction (store.tx_begin_read ());
 
 			int k = 0;
-			for (auto i = ledger.store.vote_replay_begin (transaction, prev_key), n = ledger.store.vote_replay_end (); i != n && k < 50000 && !stopped; ++i, ++k)
+			for (auto i = store.vote_replay_begin (transaction, prev_key), n = store.vote_replay_end (); i != n && k < 50000 && !stopped; ++i, ++k)
 			{
 				if (i->first.block_hash () != prev_key.block_hash ())
 				{
@@ -190,10 +199,11 @@ void nano::vote_replay_cache::run_aec_vote_seeding () const
 
 						if (!ledger.block_confirmed (transaction, block_hash))
 						{
-							auto cached = get_vote_replay_cached_votes_for_hash (transaction, block_hash, minimum_weight);
-							if (cached)
+							auto cache_result = get_vote_replay_cached_votes_for_hash (transaction, block_hash, minimum_weight);
+							if (cache_result)
 							{
-								for (auto const & vote_b : (*cached))
+								const auto & [cached_hash, cached] = (*cache_result);
+								for (auto const & vote_b : cached)
 								{
 									active.vote (vote_b);
 								}
@@ -229,18 +239,27 @@ void nano::vote_replay_cache::run_rebroadcast ()
 			decltype (replay_candidates) replay_candidates_l;
 			replay_candidates_l.swap (replay_candidates);
 
+			const int max_replay_history_size = 1024 * 1024;
+			if (replay_candidates_hashes.size () > max_replay_history_size)
+			{
+				replay_candidates_hashes.clear ();
+			}
+
 			lock.unlock ();
 
 			while (!replay_candidates_l.empty () && !stopped)
 			{
-				auto transaction (ledger.store.tx_begin_read ());
-
 				int done_this_loop = 0;
 				while (!replay_candidates_l.empty () && done_this_loop < max_rebroadcasts_per_loop)
 				{
 					auto const & vote_l = replay_candidates_l.front ();
 
 					node.network.flood_vote_list_all (vote_l);
+
+					//This didn't work that well 
+					//node.network.flood_vote_list_pr (vote_l);
+					//node.network.flood_vote_list (vote_l, 2);
+
 					++done_this_loop;
 					stats.inc (nano::stat::type::vote_replay_rebroadcast, nano::stat::detail::republish_vote, nano::stat::dir::out);
 
@@ -277,10 +296,11 @@ void nano::vote_replay_cache::run_rebroadcast_random () const
 
 		{
 			auto transaction (ledger.store.tx_begin_read ());
+			auto transaction_vote_cache (store.tx_begin_read ());
 
 			int rebroadcasts_done = 0;
 			int k = 0;
-			for (auto i = ledger.store.vote_replay_begin (transaction, prev_key), n = ledger.store.vote_replay_end (); i != n && k < 50000; ++i, ++k)
+			for (auto i = store.vote_replay_begin (transaction_vote_cache, prev_key), n = store.vote_replay_end (); i != n && k < 50000; ++i, ++k)
 			{
 				if (i->first.block_hash () != prev_key.block_hash ())
 				{
@@ -288,10 +308,11 @@ void nano::vote_replay_cache::run_rebroadcast_random () const
 
 					auto vote_a = std::make_shared<nano::vote> (i->second);
 
-					auto cached = get_vote_replay_cached_votes_for_conf_frontier (transaction, i->first.block_hash ());
-					if (cached)
+					auto cache_result = get_vote_replay_cached_votes_for_conf_frontier (transaction, transaction_vote_cache, i->first.block_hash ());
+					if (cache_result)
 					{
-						node.network.flood_vote_list_all ((*cached));
+						const auto & [cached_hash, cached] = (*cache_result);
+						node.network.flood_vote_list_all (cached);
 
 						stats.inc (nano::stat::type::vote_replay_rebroadcast, nano::stat::detail::republish_vote, nano::stat::dir::out);
 

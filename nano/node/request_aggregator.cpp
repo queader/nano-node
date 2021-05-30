@@ -171,6 +171,7 @@ void nano::request_aggregator::erase_duplicates (std::vector<std::pair<nano::blo
 std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> & channel_a) const
 {
 	auto transaction (ledger.store.tx_begin_read ());
+	auto transaction_vote_replay (vote_replay_cache.store.tx_begin_read ());
 	size_t cached_hashes = 0;
 	std::vector<std::shared_ptr<nano::block>> to_generate;
 	std::vector<std::shared_ptr<nano::block>> to_generate_final;
@@ -290,11 +291,14 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			}
 		}
 
-		auto const replay_votes = vote_replay_cache.get_vote_replay_cached_votes_for_hash_or_conf_frontier (transaction, hash);
-		if (replay_votes)
+		auto const replay_cache_result = vote_replay_cache.get_vote_replay_cached_votes_for_hash_or_conf_frontier (transaction, transaction_vote_replay, hash);
+		if (replay_cache_result)
 		{
-			cached_votes.insert (cached_votes.end (), (*replay_votes).begin (), (*replay_votes).end ());
-			vote_replay_cache.add ((*replay_votes));
+			const auto & [replay_hash, replay_votes] = (*replay_cache_result);
+
+			cached_votes.insert (cached_votes.end (), replay_votes.begin (), replay_votes.end ());
+			vote_replay_cache.add (replay_hash , replay_votes);
+
 			stats.inc (nano::stat::type::requests, nano::stat::detail::republish_vote, stat::dir::out);
 		}
 	}

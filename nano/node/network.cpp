@@ -202,6 +202,15 @@ void nano::network::flood_vote (std::shared_ptr<nano::vote> const & vote_a, floa
 	}
 }
 
+void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
+{
+	nano::confirm_ack message (vote_a);
+	for (auto const & i : node.rep_crawler.principal_representatives ())
+	{
+		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
+	}
+}
+
 void nano::network::flood_vote_list_all (std::vector<std::shared_ptr<nano::vote>> const & vote_l)
 {
 	for (auto const & vote_a : vote_l)
@@ -214,12 +223,29 @@ void nano::network::flood_vote_list_all (std::vector<std::shared_ptr<nano::vote>
 	}
 }
 
-void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
+void nano::network::flood_vote_list_pr (std::vector<std::shared_ptr<nano::vote>> const & vote_l)
 {
-	nano::confirm_ack message (vote_a);
-	for (auto const & i : node.rep_crawler.principal_representatives ())
+	for (auto const & vote_a : vote_l)
 	{
-		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
+		nano::confirm_ack message (vote_a);
+		for (auto const & i : node.rep_crawler.principal_representatives ())
+		{
+			i.channel->send (message, nullptr);
+		}
+	}
+}
+
+void nano::network::flood_vote_list (std::vector<std::shared_ptr<nano::vote>> const & vote_l, float scale)
+{
+	auto flood_list = list (fanout (scale));
+
+	for (auto const & vote_a : vote_l)
+	{
+		nano::confirm_ack message (vote_a);
+		for (auto & i : flood_list)
+		{
+			i->send (message, nullptr);
+		}
 	}
 }
 

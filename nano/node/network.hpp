@@ -138,6 +138,8 @@ public:
 	void flood_vote (std::shared_ptr<nano::vote> const &, float scale);
 	void flood_vote_pr (std::shared_ptr<nano::vote> const &);
 	void flood_vote_list_all (std::vector<std::shared_ptr<nano::vote>> const & vote_l);
+	void flood_vote_list_pr (std::vector<std::shared_ptr<nano::vote>> const & vote_l);
+	void flood_vote_list (std::vector<std::shared_ptr<nano::vote>> const & vote_l, float scale);
 	// Flood block to all PRs and a random selection of non-PRs
 	void flood_block_initial (std::shared_ptr<nano::block> const &);
 	// Flood block to a random selection of peers
