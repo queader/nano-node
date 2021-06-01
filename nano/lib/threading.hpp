@@ -41,7 +41,8 @@ namespace thread_role
 		db_parallel_traversal,
 		election_scheduler,
 		seed_votes,
-		rebroadcast_votes
+		rebroadcast_votes,
+		prune_votes
 	};
 	/*
 	 * Get/Set the identifier for the current thread

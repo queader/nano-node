@@ -23,7 +23,9 @@ nano::vote_replay_cache::vote_replay_cache (nano::node & node_a) :
 	/*thread_rebroadcast_2 ([this] ()
 	{ run_rebroadcast (); }),*/
 	thread_rebroadcast_random ([this] ()
-	{ run_rebroadcast_random (); })
+	{ run_rebroadcast_random (); }),
+	thread_prune ([this] ()
+	{ run_prunning (); })
 {
 }
 
@@ -47,6 +49,10 @@ void nano::vote_replay_cache::stop ()
 	if (thread_rebroadcast_random.joinable ())
 	{
 		thread_rebroadcast_random.join ();
+	}
+	if (thread_prune.joinable ())
+	{
+		thread_prune.join ();
 	}
 }
 
@@ -74,7 +80,7 @@ bool nano::vote_replay_cache::add_vote_to_db (nano::write_transaction const & tr
 	return store.vote_replay_put (transaction_a, vote_a);
 }
 
-nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const
+nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a) const
 {
 	auto votes_l = store.vote_replay_get (transaction_a, hash_a);
 
@@ -87,7 +93,7 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 
 	nano::vote_replay_cache::vote_cache_result result;
 
-	if (weight >= minimum_weight)
+	if (weight >= replay_vote_weight_minimum)
 	{
 		result = std::make_pair(hash_a, votes_l);
 	}
@@ -111,7 +117,7 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 
 			if (conf_info.frontier != 0 && conf_info.frontier != hash_a)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier, replay_vote_weight_minimum);
+				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier);
 				if (result)
 				{
 					stats.inc (nano::stat::type::vote_replay, nano::stat::detail::frontier_confirmation_successful);
@@ -120,7 +126,7 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 
 			if (!result)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, hash_a, replay_vote_weight_minimum);
+				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, hash_a);
 			}
 
 			if (!result)
@@ -156,7 +162,7 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 
 			if (conf_info.frontier != 0)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier, replay_vote_weight_minimum);
+				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier);
 			}
 		}
 	}
@@ -199,7 +205,7 @@ void nano::vote_replay_cache::run_aec_vote_seeding () const
 
 						if (!ledger.block_confirmed (transaction, block_hash))
 						{
-							auto cache_result = get_vote_replay_cached_votes_for_hash (transaction, block_hash, minimum_weight);
+							auto cache_result = get_vote_replay_cached_votes_for_hash (transaction, block_hash);
 							if (cache_result)
 							{
 								const auto & [cached_hash, cached] = (*cache_result);
@@ -327,6 +333,73 @@ void nano::vote_replay_cache::run_rebroadcast_random () const
 		}
 
 		std::this_thread::sleep_for (std::chrono::milliseconds (50));
+		std::this_thread::yield ();
+	}
+}
+
+void nano::vote_replay_cache::run_prunning () const
+{
+	nano::thread_role::set (nano::thread_role::name::prune_votes);
+
+	node.node_initialized_latch.wait ();
+
+	const int max_ops_per_loop = 50000;
+
+	while (!stopped)
+	{
+		nano::block_hash initial_hash;
+		nano::random_pool::generate_block (initial_hash.bytes.data (), initial_hash.bytes.size ());
+
+		nano::votes_replay_key prev_key (initial_hash, 0);
+
+		{
+			auto transaction (ledger.store.tx_begin_read ());
+			auto transaction_vote_cache = store.tx_begin_write ({ tables::votes_replay });
+
+			int done_this_loop = 0;
+			int k = 0;
+			for (auto i = store.vote_replay_begin (transaction_vote_cache, prev_key), n = store.vote_replay_end (); i != n && k < 50000; ++i, ++k)
+			{
+				const auto current_hash = i->first.block_hash ();
+
+				if (current_hash != prev_key.block_hash ())
+				{
+					prev_key = i->first;
+
+					bool prune = true;
+
+					if (ledger.block_or_pruned_exists (transaction, current_hash))
+					{
+						auto account = ledger.account (transaction, current_hash);
+						if (!account.is_zero ())
+						{
+							nano::confirmation_height_info conf_info;
+							ledger.store.confirmation_height_get (transaction, account, conf_info);
+
+							if (ledger.store.block_account_height (transaction, current_hash) >= conf_info.height)
+							{
+								prune = false;
+							}
+						}
+					}
+
+					if (prune)
+					{
+						store.vote_replay_del (transaction_vote_cache, current_hash);
+
+						stats.inc (nano::stat::type::vote_replay, nano::stat::detail::outdated_version);
+
+						++done_this_loop;
+						if (done_this_loop >= max_ops_per_loop)
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		std::this_thread::sleep_for (std::chrono::milliseconds (25));
 		std::this_thread::yield ();
 	}
 }

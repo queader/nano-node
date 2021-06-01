@@ -27,7 +27,7 @@ public:
 
 	using vote_cache_result = boost::optional<std::pair<nano::block_hash, std::vector<std::shared_ptr<nano::vote>>>>;
 
-	vote_cache_result get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a, nano::uint128_t minimum_weight) const;
+	vote_cache_result get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const;
 	vote_cache_result get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const;
 	vote_cache_result get_vote_replay_cached_votes_for_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const;
 
@@ -40,6 +40,7 @@ private:
 	void run_aec_vote_seeding () const;
 	void run_rebroadcast ();
 	void run_rebroadcast_random () const;
+	void run_prunning () const;
 
 	nano::node & node;
 	nano::stat & stats;
@@ -58,5 +59,6 @@ private:
 	std::thread thread_rebroadcast;
 	std::thread thread_rebroadcast_2;
 	std::thread thread_rebroadcast_random;
+	std::thread thread_prune;
 };
 }

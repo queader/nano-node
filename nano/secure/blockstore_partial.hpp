@@ -671,6 +671,24 @@ public:
 		return result;
 	}
 
+	int vote_replay_del (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) override
+	{
+		std::vector<nano::votes_replay_key> vote_replay_keys;
+
+		for (auto i (vote_replay_begin (transaction_a, nano::votes_replay_key (hash_a, 0))), n (vote_replay_end ()); i != n && nano::votes_replay_key (i->first).block_hash () == hash_a; ++i)
+		{
+			vote_replay_keys.push_back (i->first);
+		}
+
+		for (auto & key : vote_replay_keys)
+		{
+			auto status (del (transaction_a, tables::votes_replay, nano::db_val<Val> (key)));
+			release_assert_success (*this, status);
+		}
+
+		return vote_replay_keys.size ();
+	}
+
 	int vote_replay_del_non_final (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) override
 	{
 		std::vector<nano::votes_replay_key> vote_replay_keys;

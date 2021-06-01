@@ -800,6 +800,7 @@ public:
 
 	virtual bool vote_replay_put (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a) = 0;
 	virtual std::vector<std::shared_ptr<nano::vote>> vote_replay_get (nano::transaction const & transaction_a, nano::block_hash const & hash) = 0;
+	virtual int vote_replay_del (nano::write_transaction const & transaction_a, nano::block_hash const & hash) = 0;
 	virtual int vote_replay_del_non_final (nano::write_transaction const & transaction_a, nano::block_hash const & hash) = 0;
 	virtual void vote_replay_del (nano::write_transaction const & transaction_a, nano::votes_replay_key const & key) = 0;
 	virtual nano::store_iterator<nano::votes_replay_key, nano::vote> vote_replay_begin (nano::transaction const & transaction_a, nano::votes_replay_key const & key_a) const = 0;
