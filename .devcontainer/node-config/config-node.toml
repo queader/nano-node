@@ -86,7 +86,7 @@ allow_local_peers = true
 
 # Enable or disable voting. Enabling this option requires additional system resources, namely increased CPU, bandwidth and disk usage.
 # type:bool
-#enable_voting = false
+enable_voting = true
 
 # The external address of this node (NAT). If not set, the node will request this information via UPnP.
 # type:string,ip

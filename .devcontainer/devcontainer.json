@@ -15,7 +15,8 @@
 		"--cap-add=SYS_PTRACE",
 		"--security-opt",
 		"seccomp=unconfined",
-		"--network=nano-private-network"
+		"--network=nano-private-network",
+		"--hostname=node-dev"
 	],
 	// Set *default* container specific settings.json values on container create.
 	"settings": {},
