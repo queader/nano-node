@@ -293,11 +293,6 @@ nano::uint256_union::uint256_union (uint64_t value0)
 	*this = nano::uint256_t (value0);
 }
 
-bool nano::uint256_union::operator!= (nano::uint256_union const & other_a) const
-{
-	return !(*this == other_a);
-}
-
 bool nano::uint512_union::operator== (nano::uint512_union const & other_a) const
 {
 	return bytes == other_a.bytes;
@@ -365,11 +360,6 @@ bool nano::uint512_union::decode_hex (std::string const & text)
 		}
 	}
 	return error;
-}
-
-bool nano::uint512_union::operator!= (nano::uint512_union const & other_a) const
-{
-	return !(*this == other_a);
 }
 
 nano::uint512_union & nano::uint512_union::operator^= (nano::uint512_union const & other_a)
@@ -470,11 +460,6 @@ nano::uint128_union::uint128_union (nano::uint128_t const & number_a)
 bool nano::uint128_union::operator== (nano::uint128_union const & other_a) const
 {
 	return qwords[0] == other_a.qwords[0] && qwords[1] == other_a.qwords[1];
-}
-
-bool nano::uint128_union::operator!= (nano::uint128_union const & other_a) const
-{
-	return !(*this == other_a);
 }
 
 bool nano::uint128_union::operator< (nano::uint128_union const & other_a) const
@@ -857,9 +842,9 @@ bool nano::hash_or_account::operator== (nano::hash_or_account const & hash_or_ac
 	return bytes == hash_or_account_a.bytes;
 }
 
-bool nano::hash_or_account::operator!= (nano::hash_or_account const & hash_or_account_a) const
+bool nano::hash_or_account::operator== (nano::uint256_union const & uint256_union_a) const
 {
-	return !(*this == hash_or_account_a);
+	return bytes == uint256_union_a.bytes;
 }
 
 std::string nano::to_string_hex (uint64_t const value_a)
@@ -966,11 +951,6 @@ nano::public_key::operator nano::hash_or_account const & () const
 bool nano::public_key::operator== (std::nullptr_t) const
 {
 	return bytes == null ().bytes;
-}
-
-bool nano::public_key::operator!= (std::nullptr_t) const
-{
-	return !(*this == nullptr);
 }
 
 nano::block_hash::operator nano::link const & () const
