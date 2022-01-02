@@ -84,7 +84,10 @@ std::shared_ptr<nano::bootstrap_client> nano::bootstrap_connections::connection 
 	}
 	if (result == nullptr && connections_count == 0 && new_connections_empty && attempt_a != nullptr)
 	{
-		node.logger.try_log (boost::str (boost::format ("Bootstrap attempt stopped because there are no peers")));
+		if (node.config.logging.bulk_pull_logging ())
+		{
+			node.logger.try_log (boost::str (boost::format ("Bootstrap attempt stopped because there are no peers")));
+		}
 		lock.unlock ();
 		attempt_a->stop ();
 	}

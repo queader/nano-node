@@ -96,12 +96,18 @@ void nano::rep_crawler::validate ()
 
 		if (inserted)
 		{
-			node.logger.try_log (boost::str (boost::format ("Found representative %1% at %2%") % vote->account.to_account () % channel->to_string ()));
+			if (node.config.logging.rep_crawler_logging ())
+			{
+				node.logger.try_log (boost::str (boost::format ("Found representative %1% at %2%") % vote->account.to_account () % channel->to_string ()));
+			}
 		}
 
 		if (updated)
 		{
-			node.logger.try_log (boost::str (boost::format ("Updated representative %1% at %2% (was at: %3%)") % vote->account.to_account () % channel->to_string () % prev_channel->to_string ()));
+			if (node.config.logging.rep_crawler_logging ())
+			{
+				node.logger.try_log (boost::str (boost::format ("Updated representative %1% at %2% (was at: %3%)") % vote->account.to_account () % channel->to_string () % prev_channel->to_string ()));
+			}
 		}
 	}
 }

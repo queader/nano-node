@@ -116,13 +116,19 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 		double age_factor = (frontiers_age == std::numeric_limits<decltype (frontiers_age)>::max ()) ? 1.0 : 1.5; // Allow slower frontiers receive for requests with age
 		if (elapsed_sec > nano::bootstrap_limits::bootstrap_connection_warmup_time_sec && blocks_per_sec * age_factor < nano::bootstrap_limits::bootstrap_minimum_frontier_blocks_per_sec)
 		{
-			connection->node->logger.try_log (boost::str (boost::format ("Aborting frontier req because it was too slow: %1% frontiers per second, last %2%") % blocks_per_sec % account.to_account ()));
+			if (connection->node->config.logging.bulk_pull_logging ())
+			{
+				connection->node->logger.try_log (boost::str (boost::format ("Aborting frontier req because it was too slow: %1% frontiers per second, last %2%") % blocks_per_sec % account.to_account ()));
+			}
 			promise.set_value (true);
 			return;
 		}
 		if (attempt->should_log ())
 		{
-			connection->node->logger.always_log (boost::str (boost::format ("Received %1% frontiers from %2%") % std::to_string (count) % connection->channel->to_string ()));
+			if (connection->node->config.logging.bulk_pull_logging ())
+			{
+				connection->node->logger.always_log (boost::str (boost::format ("Received %1% frontiers from %2%") % std::to_string (count) % connection->channel->to_string ()));
+			}
 		}
 		if (!account.is_zero () && count <= count_limit)
 		{

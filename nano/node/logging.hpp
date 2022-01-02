@@ -67,6 +67,7 @@ public:
 	bool callback_logging () const;
 	bool work_generation_time () const;
 	bool active_update_logging () const;
+	bool misc_logging () const;
 	bool log_to_cerr () const;
 	bool single_line_record () const;
 	void init (boost::filesystem::path const &);
@@ -95,6 +96,7 @@ public:
 	bool upnp_details_logging_value{ false };
 	bool timing_logging_value{ false };
 	bool active_update_value{ false };
+	bool misc_logging_value{ false };
 	bool log_to_cerr_value{ false };
 	bool flush{ true };
 	uintmax_t max_size{ 128 * 1024 * 1024 };

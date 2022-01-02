@@ -430,6 +430,11 @@ bool nano::logging::active_update_logging () const
 	return active_update_value;
 }
 
+bool nano::logging::misc_logging () const
+{
+	return misc_logging_value;
+}
+
 bool nano::logging::log_to_cerr () const
 {
 	return log_to_cerr_value;
