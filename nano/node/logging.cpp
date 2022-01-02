@@ -435,6 +435,11 @@ bool nano::logging::misc_logging () const
 	return misc_logging_value;
 }
 
+bool nano::logging::wallet_logging () const
+{
+	return wallet_logging_value;
+}
+
 bool nano::logging::log_to_cerr () const
 {
 	return log_to_cerr_value;

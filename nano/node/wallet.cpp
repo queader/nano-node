@@ -864,7 +864,10 @@ std::shared_ptr<nano::block> nano::wallet::receive_action (nano::block_hash cons
 				}
 				else
 				{
-					wallets.node.logger.try_log ("Unable to receive, wallet locked");
+					if (wallets.node.config.logging.wallet_logging ())
+					{
+						wallets.node.logger.try_log ("Unable to receive, wallet locked");
+					}
 				}
 			}
 			else
@@ -879,7 +882,10 @@ std::shared_ptr<nano::block> nano::wallet::receive_action (nano::block_hash cons
 	}
 	else
 	{
-		wallets.node.logger.try_log (boost::str (boost::format ("Not receiving block %1% due to minimum receive threshold") % send_hash_a.to_string ()));
+		if (wallets.node.config.logging.wallet_logging ())
+		{
+			wallets.node.logger.try_log (boost::str (boost::format ("Not receiving block %1% due to minimum receive threshold") % send_hash_a.to_string ()));
+		}
 		// Someone sent us something below the threshold of receiving
 	}
 	if (block != nullptr)
@@ -1046,7 +1052,7 @@ bool nano::wallet::action_complete (std::shared_ptr<nano::block> const & block_a
 		auto required_difficulty{ wallets.node.network_params.work.threshold (block_a->work_version (), details_a) };
 		if (wallets.node.network_params.work.difficulty (*block_a) < required_difficulty)
 		{
-			if (wallets.node.config.logging.misc_logging ())
+			if (wallets.node.config.logging.wallet_logging ())
 			{
 				wallets.node.logger.try_log (boost::str (boost::format ("Cached or provided work for block %1% account %2% is invalid, regenerating") % block_a->hash ().to_string () % account_a.to_account ()));
 			}
@@ -1143,7 +1149,10 @@ void nano::wallet::work_update (nano::transaction const & transaction_a, nano::a
 	}
 	else
 	{
-		wallets.node.logger.try_log ("Cached work no longer valid, discarding");
+		if (wallets.node.config.logging.wallet_logging ())
+		{
+			wallets.node.logger.try_log ("Cached work no longer valid, discarding");
+		}
 	}
 }
 
@@ -1172,7 +1181,10 @@ bool nano::wallet::search_pending (nano::transaction const & wallet_transaction_
 	auto result (!store.valid_password (wallet_transaction_a));
 	if (!result)
 	{
-		wallets.node.logger.try_log ("Beginning receivable block search");
+		if (wallets.node.config.logging.wallet_logging ())
+		{
+			wallets.node.logger.try_log ("Beginning receivable block search");
+		}
 		for (auto i (store.begin (wallet_transaction_a)), n (store.end ()); i != n; ++i)
 		{
 			auto block_transaction (wallets.node.store.tx_begin_read ());
@@ -1188,7 +1200,10 @@ bool nano::wallet::search_pending (nano::transaction const & wallet_transaction_
 					auto amount (pending.amount.number ());
 					if (wallets.node.config.receive_minimum.number () <= amount)
 					{
-						wallets.node.logger.try_log (boost::str (boost::format ("Found a receivable block %1% for account %2%") % hash.to_string () % pending.source.to_account ()));
+						if (wallets.node.config.logging.wallet_logging ())
+						{
+							wallets.node.logger.try_log (boost::str (boost::format ("Found a receivable block %1% for account %2%") % hash.to_string () % pending.source.to_account ()));
+						}
 						if (wallets.node.ledger.block_confirmed (block_transaction, hash))
 						{
 							auto representative = store.representative (wallet_transaction_a);
@@ -1208,11 +1223,17 @@ bool nano::wallet::search_pending (nano::transaction const & wallet_transaction_
 				}
 			}
 		}
-		wallets.node.logger.try_log ("Receivable block search phase completed");
+		if (wallets.node.config.logging.wallet_logging ())
+		{
+			wallets.node.logger.try_log ("Receivable block search phase completed");
+		}
 	}
 	else
 	{
-		wallets.node.logger.try_log ("Stopping search, wallet is locked");
+		if (wallets.node.config.logging.wallet_logging ())
+		{
+			wallets.node.logger.try_log ("Stopping search, wallet is locked");
+		}
 	}
 	return result;
 }
@@ -1304,7 +1325,10 @@ void nano::wallet::work_cache_blocking (nano::account const & account_a, nano::r
 		}
 		else if (!wallets.node.stopped)
 		{
-			wallets.node.logger.try_log (boost::str (boost::format ("Could not precache work for root %1% due to work generation failure") % root_a.to_string ()));
+			if (wallets.node.config.logging.wallet_logging ())
+			{
+				wallets.node.logger.try_log (boost::str (boost::format ("Could not precache work for root %1% due to work generation failure") % root_a.to_string ()));
+			}
 		}
 	}
 }

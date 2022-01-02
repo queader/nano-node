@@ -292,7 +292,7 @@ void nano::frontier_req_server::send_finished ()
 		write (stream, zero.bytes);
 	}
 	auto this_l (shared_from_this ());
-	if (connection->node->config.logging.network_logging ())
+	if (connection->node->config.logging.bulk_pull_logging ())
 	{
 		connection->node->logger.try_log ("Frontier sending finished");
 	}

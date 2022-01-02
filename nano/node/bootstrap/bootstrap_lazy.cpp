@@ -212,7 +212,10 @@ void nano::bootstrap_attempt_lazy::run ()
 	}
 	if (!stopped)
 	{
-		node->logger.try_log ("Completed lazy pulls");
+		if (node->config.logging.misc_logging ())
+		{
+			node->logger.try_log ("Completed lazy pulls");
+		}
 	}
 	if (lazy_has_expired ())
 	{
@@ -548,7 +551,10 @@ void nano::bootstrap_attempt_wallet::run ()
 	}
 	if (!stopped)
 	{
-		node->logger.try_log ("Completed wallet lazy pulls");
+		if (node->config.logging.misc_logging ())
+		{
+			node->logger.try_log ("Completed wallet lazy pulls");
+		}
 	}
 	lock.unlock ();
 	stop ();
