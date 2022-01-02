@@ -26,7 +26,6 @@ public:
 	uint128_union (uint64_t);
 	uint128_union (nano::uint128_t const &);
 	bool operator== (nano::uint128_union const &) const;
-	bool operator!= (nano::uint128_union const &) const;
 	bool operator< (nano::uint128_union const &) const;
 	bool operator> (nano::uint128_union const &) const;
 	void encode_hex (std::string &) const;
@@ -73,7 +72,6 @@ public:
 	uint256_union & operator^= (nano::uint256_union const &);
 	uint256_union operator^ (nano::uint256_union const &) const;
 	bool operator== (nano::uint256_union const &) const;
-	bool operator!= (nano::uint256_union const &) const;
 	bool operator< (nano::uint256_union const &) const;
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
@@ -129,9 +127,7 @@ public:
 	operator nano::root const & () const;
 	operator nano::hash_or_account const & () const;
 	bool operator== (std::nullptr_t) const;
-	bool operator!= (std::nullptr_t) const;
 	using uint256_union::operator==;
-	using uint256_union::operator!=;
 };
 
 class wallet_id : public uint256_union
@@ -161,7 +157,7 @@ public:
 	operator nano::uint256_union const & () const;
 
 	bool operator== (nano::hash_or_account const &) const;
-	bool operator!= (nano::hash_or_account const &) const;
+	bool operator== (nano::uint256_union const &) const;
 
 	union
 	{
@@ -203,7 +199,6 @@ public:
 	uint512_union (nano::uint256_union const &, nano::uint256_union const &);
 	uint512_union (nano::uint512_t const &);
 	bool operator== (nano::uint512_union const &) const;
-	bool operator!= (nano::uint512_union const &) const;
 	nano::uint512_union & operator^= (nano::uint512_union const &);
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
