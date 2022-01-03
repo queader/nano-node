@@ -83,3 +83,6 @@ util/build_prep/*/prep.sh
 
 # Build
 build/
+samples.stat
+counters.stat
+.vscode/settings.json
