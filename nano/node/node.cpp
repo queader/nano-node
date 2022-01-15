@@ -1758,7 +1758,7 @@ void nano::node::populate_backlog ()
 		for (auto i = store.account.begin (transaction, next), n = store.account.end (); !stopped && i != n && count < chunk_size; ++i, ++count, ++total)
 		{
 			auto const & account = i->first;
-			scheduler.activate (account, transaction);
+			overflow |= scheduler.activate (account, transaction, true);
 			next = account.number () + 1;
 		}
 		done = store.account.begin (transaction, next) == store.account.end ();
