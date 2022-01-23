@@ -512,8 +512,8 @@ class telemetry_cache_cutoffs
 {
 public:
 	static std::chrono::seconds constexpr dev{ 3 };
-	static std::chrono::seconds constexpr beta{ 15 };
-	static std::chrono::seconds constexpr live{ 60 };
+	static std::chrono::seconds constexpr beta{ 5 };
+	static std::chrono::seconds constexpr live{ 5 };
 
 	static std::chrono::seconds network_to_time (network_constants const & network_constants);
 };
