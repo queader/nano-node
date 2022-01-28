@@ -1760,7 +1760,6 @@ std::pair<uint64_t, decltype (nano::ledger::bootstrap_weights)> nano::node::get_
 
 bool nano::node::populate_backlog ()
 {
-	std::cerr << "<---------------Populating...\n";
 	auto done = false;
 	uint64_t const chunk_size = 65536;
 	nano::account next = 0;
@@ -1779,7 +1778,6 @@ bool nano::node::populate_backlog ()
 		done = store.account.begin (transaction, next) == store.account.end ();
 
 	}
-	std::cerr << "<---------------Done populating...\n";
 	return overflow;
 }
 
