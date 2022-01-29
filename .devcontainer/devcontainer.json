@@ -36,7 +36,7 @@
 		"docker-from-docker": "20.10"
 	},
 	"mounts": [
-		"source=nano-node-devc,target=/root/,type=volume",
+		"source=devc-nano-node,target=/root/,type=volume",
 		"type=tmpfs,destination=/root/Nano/",
 		"source=${localWorkspaceFolder}/.devcontainer/node-config/config-node.toml,target=/root/Nano/config-node.toml,type=bind,consistency=cached",
 		"source=${localWorkspaceFolder}/.devcontainer/node-config/config-rpc.toml,target=/root/Nano/config-rpc.toml,type=bind,consistency=cached"
