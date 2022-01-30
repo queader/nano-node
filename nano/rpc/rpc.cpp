@@ -32,14 +32,14 @@ nano::rpc::~rpc ()
 
 void nano::rpc::start ()
 {
-	auto endpoint (boost::asio::ip::tcp::endpoint (boost::asio::ip::make_address_v6 (config.address), config.port));
-	bool const is_loopback = (endpoint.address ().is_loopback () || (endpoint.address ().to_v6 ().is_v4_mapped () && boost::asio::ip::make_address_v4 (boost::asio::ip::v4_mapped, endpoint.address ().to_v6 ()).is_loopback ()));
-	if (!is_loopback && config.enable_control)
-	{
-		auto warning = boost::str (boost::format ("WARNING: control-level RPCs are enabled on non-local address %1%, potentially allowing wallet access outside local computer") % endpoint.address ().to_string ());
-		std::cout << warning << std::endl;
-		logger.always_log (warning);
-	}
+	auto endpoint (boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v4::any (), config.port));
+	//	bool const is_loopback = (endpoint.address ().is_loopback () || (endpoint.address ().to_v6 ().is_v4_mapped () && boost::asio::ip::make_address_v4 (boost::asio::ip::v4_mapped, endpoint.address ().to_v6 ()).is_loopback ()));
+	//	if (!is_loopback && config.enable_control)
+	//	{
+	//		auto warning = boost::str (boost::format ("WARNING: control-level RPCs are enabled on non-local address %1%, potentially allowing wallet access outside local computer") % endpoint.address ().to_string ());
+	//		std::cout << warning << std::endl;
+	//		logger.always_log (warning);
+	//	}
 	acceptor.open (endpoint.protocol ());
 	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 
