@@ -70,5 +70,7 @@ public:
 	std::atomic<bool> stopped{ false };
 	nano::mutex mutex;
 	nano::condition_variable condition;
+
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name, std::size_t attempts_count);
 };
 }

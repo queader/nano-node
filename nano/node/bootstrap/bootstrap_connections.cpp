@@ -487,3 +487,18 @@ void nano::bootstrap_connections::stop ()
 	clients.clear ();
 	idle.clear ();
 }
+
+std::unique_ptr<nano::container_info_component> nano::bootstrap_connections::collect_container_info (const std::string & name, std::size_t attempts_count)
+{
+	auto composite = std::make_unique<container_info_composite> (name);
+
+	nano::lock_guard<nano::mutex> lock (mutex);
+
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "clients", clients.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", connections_count, 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "idle", idle.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "target_connections", target_connections (pulls.size (), attempts_count), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pulls", pulls.size (), 0 }));
+
+	return composite;
+}

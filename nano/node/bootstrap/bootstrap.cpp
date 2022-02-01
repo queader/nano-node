@@ -303,6 +303,16 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (bo
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "observers", count, sizeof_element }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pulls_cache", cache_count, sizeof_cache_element }));
+
+	{
+		nano::lock_guard<nano::mutex> lock (bootstrap_initiator.mutex);
+
+		auto attempts_count = bootstrap_initiator.attempts.size ();
+		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "running_attempts_count", attempts_count, 0 }));
+		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "total_attempts_count", bootstrap_initiator.attempts.incremental, 0 }));
+		composite->add_component (bootstrap_initiator.connections->collect_container_info ("connections", attempts_count));
+	}
+
 	return composite;
 }
 
