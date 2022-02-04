@@ -121,6 +121,8 @@ void nano::rpc_connection::parse_request (STREAM_TYPE & stream, std::shared_ptr<
 					this_l->write_result (body, version);
 					boost::beast::http::async_write (stream, this_l->res, boost::asio::bind_executor (this_l->strand, [this_l] (boost::system::error_code const & ec, size_t bytes_transferred) {
 						this_l->write_completion_handler (this_l);
+						this_l->socket.shutdown (boost::asio::ip::tcp::socket::shutdown_both);
+						this_l->socket.close ();
 					}));
 
 					std::stringstream ss;
