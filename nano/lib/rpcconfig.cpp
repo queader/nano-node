@@ -14,6 +14,7 @@ nano::error nano::rpc_secure_config::serialize_toml (nano::tomlconfig & toml) co
 	toml.put ("server_key_path", server_key_path, "Path to server key PEM file.\ntype:string,path");
 	toml.put ("server_dh_path", server_dh_path, "Path to Diffie-Hellman params file.\ntype:string,path");
 	toml.put ("client_certs_path", client_certs_path, "Directory containing client certificates.\ntype:string");
+	toml.put ("client_certs_path", client_certs_path, "Directory containing client certificates.\ntype:string");
 	return toml.get_error ();
 }
 
@@ -50,6 +51,7 @@ nano::error nano::rpc_config::serialize_toml (nano::tomlconfig & toml) const
 	toml.put ("enable_control", enable_control, "Enable or disable control-level requests.\nWARNING: Enabling this gives anyone with RPC access the ability to stop the node and access wallet funds.\ntype:bool");
 	toml.put ("max_json_depth", max_json_depth, "Maximum number of levels in JSON requests.\ntype:uint8");
 	toml.put ("max_request_size", max_request_size, "Maximum number of bytes allowed in request bodies.\ntype:uint64");
+	toml.put ("io_timeout", io_timeout, "Timeout for requests.\ntype:seconds");
 
 	nano::tomlconfig rpc_process_l;
 	rpc_process_l.put ("io_threads", rpc_process.io_threads, "Number of threads used to serve IO.\ntype:uint32");
@@ -81,6 +83,7 @@ nano::error nano::rpc_config::deserialize_toml (nano::tomlconfig & toml)
 		toml.get_optional<bool> ("enable_control", enable_control);
 		toml.get_optional<uint8_t> ("max_json_depth", max_json_depth);
 		toml.get_optional<uint64_t> ("max_request_size", max_request_size);
+		toml.get_optional<size_t> ("io_timeout", io_timeout);
 
 		auto rpc_logging_l (toml.get_optional_child ("logging"));
 		if (rpc_logging_l)

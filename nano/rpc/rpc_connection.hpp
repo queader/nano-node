@@ -4,6 +4,7 @@
 #include <nano/boost/asio/strand.hpp>
 #include <nano/boost/beast/core/flat_buffer.hpp>
 #include <nano/boost/beast/http.hpp>
+#include <nano/lib/ipc.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -22,11 +23,12 @@ class logger_mt;
 class rpc_config;
 class rpc_handler_interface;
 
-class rpc_connection : public std::enable_shared_from_this<nano::rpc_connection>
+class rpc_connection final : public nano::ipc::socket_base, public std::enable_shared_from_this<nano::rpc_connection>
 {
 public:
 	rpc_connection (nano::rpc_config const & rpc_config, boost::asio::io_context & io_ctx, nano::logger_mt & logger, nano::rpc_handler_interface & rpc_handler_interface_a);
-	virtual ~rpc_connection () = default;
+	virtual ~rpc_connection ();
+	void close () override;
 	virtual void parse_connection ();
 	virtual void write_completion_handler (std::shared_ptr<nano::rpc_connection> const & rpc_connection);
 	void prepare_head (unsigned version, boost::beast::http::status status = boost::beast::http::status::ok);
