@@ -241,7 +241,10 @@ public:
 		requests,
 		filter,
 		telemetry,
-		vote_generator
+		vote_generator,
+		vote_replay,
+		vote_replay_seed,
+		vote_replay_rebroadcast
 	};
 
 	/** Optional detail type */
@@ -397,7 +400,16 @@ public:
 		generator_broadcasts,
 		generator_replies,
 		generator_replies_discarded,
-		generator_spacing
+		generator_spacing,
+
+		// vote_replay
+		db_new,
+		db_changed,
+		db_unchanged,
+		vote_too_big,
+		block_confirmed,
+		block_not_confirmed,
+		exceeded_unconfirmed_vote_threshold
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

@@ -17,6 +17,7 @@
 #include <nano/secure/store/pruned_store_partial.hpp>
 #include <nano/secure/store/unchecked_store_partial.hpp>
 #include <nano/secure/store/version_store_partial.hpp>
+#include <nano/secure/store/vote_storage_store_partial.hpp>
 
 #include <crypto/cryptopp/words.h>
 
@@ -68,6 +69,7 @@ class store_partial : public store
 	friend class nano::confirmation_height_store_partial<Val, Derived_Store>;
 	friend class nano::final_vote_store_partial<Val, Derived_Store>;
 	friend class nano::version_store_partial<Val, Derived_Store>;
+	friend class nano::vote_storage_store_partial<Val, Derived_Store>;
 
 public:
 	// clang-format off
@@ -83,7 +85,8 @@ public:
 		nano::peer_store_partial<Val, Derived_Store> & peer_store_partial_a,
 		nano::confirmation_height_store_partial<Val, Derived_Store> & confirmation_height_store_partial_a,
 		nano::final_vote_store_partial<Val, Derived_Store> & final_vote_store_partial_a,
-		nano::version_store_partial<Val, Derived_Store> & version_store_partial_a) :
+		nano::version_store_partial<Val, Derived_Store> & version_store_partial_a,
+		nano::vote_storage_store_partial<Val, Derived_Store> & vote_sotrage_store_partial_a) :
 		constants{ constants },
 		store{
 			block_store_partial_a,
@@ -96,7 +99,8 @@ public:
 			peer_store_partial_a,
 			confirmation_height_store_partial_a,
 			final_vote_store_partial_a,
-			version_store_partial_a
+			version_store_partial_a,
+			vote_sotrage_store_partial_a
 		}
 	{}
 	// clang-format on

@@ -140,6 +140,8 @@ add_library(
   unchecked_map.hpp
   vote_processor.hpp
   vote_processor.cpp
+  vote_replay_cache.hpp
+  vote_replay_cache.cpp
   voting.hpp
   voting.cpp
   wallet.hpp

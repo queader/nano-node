@@ -244,6 +244,44 @@ void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
 	}
 }
 
+void nano::network::flood_vote_list_all (std::vector<std::shared_ptr<nano::vote>> const & vote_l)
+{
+	for (auto const & vote_a : vote_l)
+	{
+		nano::confirm_ack message{ node.network_params.network, vote_a };
+		for (auto & i : list (size()))
+		{
+			i->send (message, nullptr);
+		}
+	}
+}
+
+void nano::network::flood_vote_list_pr (std::vector<std::shared_ptr<nano::vote>> const & vote_l)
+{
+	for (auto const & vote_a : vote_l)
+	{
+		nano::confirm_ack message{ node.network_params.network, vote_a };
+		for (auto const & i : node.rep_crawler.principal_representatives ())
+		{
+			i.channel->send (message, nullptr);
+		}
+	}
+}
+
+void nano::network::flood_vote_list (std::vector<std::shared_ptr<nano::vote>> const & vote_l, float scale)
+{
+	auto flood_list = list (fanout (scale));
+
+	for (auto const & vote_a : vote_l)
+	{
+		nano::confirm_ack message{ node.network_params.network, vote_a };
+		for (auto & i : flood_list)
+		{
+			i->send (message, nullptr);
+		}
+	}
+}
+
 void nano::network::flood_block_many (std::deque<std::shared_ptr<nano::block>> blocks_a, std::function<void ()> callback_a, unsigned delay_a)
 {
 	if (!blocks_a.empty ())
