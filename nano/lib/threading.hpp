@@ -25,6 +25,7 @@ namespace thread_role
 		work,
 		packet_processing,
 		vote_processing,
+		vote_storage_add,
 		block_processing,
 		request_loop,
 		wallet_actions,
@@ -40,7 +41,9 @@ namespace thread_role
 		state_block_signature_verification,
 		epoch_upgrader,
 		db_parallel_traversal,
-		election_scheduler
+		election_scheduler,
+		unchecked,
+		vote_storage_prune
 	};
 	/*
 	 * Get/Set the identifier for the current thread

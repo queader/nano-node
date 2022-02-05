@@ -9,6 +9,7 @@
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/signatures.hpp>
 #include <nano/node/vote_processor.hpp>
+#include <nano/node/vote_storage.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
@@ -18,7 +19,7 @@
 #include <chrono>
 using namespace std::chrono_literals;
 
-nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a) :
+nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a, nano::vote_storage & vote_storage_a) :
 	checker (checker_a),
 	active (active_a),
 	observers (observers_a),
@@ -29,6 +30,7 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 	rep_crawler (rep_crawler_a),
 	ledger (ledger_a),
 	network_params (network_params_a),
+	vote_storage (vote_storage_a),
 	max_votes (flags_a.vote_processor_capacity),
 	started (false),
 	stopped (false),
@@ -38,6 +40,10 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 		nano::unique_lock<nano::mutex> lock (mutex);
 		votes.clear ();
 		condition.notify_all ();
+	}),
+	thread_replay_cache([this]() {
+		nano::thread_role::set(nano::thread_role::name::vote_storage_add);
+		cache_loop();
 	})
 {
 	nano::unique_lock<nano::mutex> lock (mutex);
@@ -87,6 +93,36 @@ void nano::vote_processor::process_loop ()
 		else
 		{
 			condition.wait (lock);
+		}
+	}
+}
+
+void nano::vote_processor::cache_loop()
+{
+	nano::unique_lock<nano::mutex> lock(mutex_cache);
+
+	while (!stopped)
+	{
+		if (!votes_to_cache.empty())
+		{
+			decltype (votes_to_cache) votes_l;
+			votes_l.swap(votes_to_cache);
+
+			lock.unlock ();
+
+			{
+				auto transaction = vote_storage.store.tx_begin_write ({ tables::votes_replay });
+				for (auto const & vote : votes_l)
+				{
+					add_to_vote_replay_cache (transaction, vote);
+				}
+			}
+
+			lock.lock ();
+		}
+		else
+		{
+			condition_cache.wait(lock);
 		}
 	}
 }
@@ -166,6 +202,30 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		}
 		++i;
 	}
+
+	nano::unique_lock<nano::mutex> lock_cache(mutex_cache);
+
+	if (votes_to_cache.size () < max_votes)
+	{
+		int j = 0;
+		for (auto const & vote : votes_a)
+		{
+			if (verifications[j++] == 1)
+			{
+//				if (vote.first->timestamp() == std::numeric_limits<uint64_t>::max ())
+//				{
+					votes_to_cache.emplace_back (vote.first);
+//				}
+			}
+		}
+	}
+	else
+	{
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::vote_overflow);
+	}
+
+	lock_cache.unlock ();
+	condition_cache.notify_all();
 }
 
 nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, bool validated)
@@ -207,12 +267,18 @@ void nano::vote_processor::stop ()
 {
 	{
 		nano::lock_guard<nano::mutex> lock (mutex);
+		nano::lock_guard<nano::mutex> lock_cache (mutex_cache);
 		stopped = true;
 	}
 	condition.notify_all ();
+	condition_cache.notify_all ();
 	if (thread.joinable ())
 	{
 		thread.join ();
+	}
+	if (thread_replay_cache.joinable ())
+	{
+		thread_replay_cache.join ();
 	}
 }
 
@@ -253,6 +319,7 @@ void nano::vote_processor::calculate_weights ()
 	if (!stopped)
 	{
 		representatives_1.clear ();
+		representatives_1_5.clear ();
 		representatives_2.clear ();
 		representatives_3.clear ();
 		auto supply (online_reps.trended ());
@@ -264,16 +331,56 @@ void nano::vote_processor::calculate_weights ()
 			if (weight > supply / 1000) // 0.1% or above (level 1)
 			{
 				representatives_1.insert (representative);
-				if (weight > supply / 100) // 1% or above (level 2)
+				if (weight > supply / 300) // 0.3% or above (level 1.5)
 				{
-					representatives_2.insert (representative);
-					if (weight > supply / 20) // 5% or above (level 3)
+					representatives_1_5.insert (representative);
+					if (weight > supply / 100) // 1% or above (level 2)
 					{
-						representatives_3.insert (representative);
+						representatives_2.insert (representative);
+						if (weight > supply / 20) // 5% or above (level 3)
+						{
+							representatives_3.insert (representative);
+						}
 					}
 				}
 			}
 		}
+	}
+}
+
+void nano::vote_processor::add_to_vote_replay_cache (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a)
+{
+	const int max_vote_size = 12;
+
+	bool process = false;
+
+	if (vote_a->blocks.size () <= max_vote_size)
+	{
+		if (representatives_1_5.find (vote_a->account) != representatives_1_5.end ())
+		{
+			process = true;
+		}
+		if (representatives_2.find (vote_a->account) != representatives_2.end ())
+		{
+			process = true;
+		}
+		else if (representatives_3.find (vote_a->account) != representatives_3.end ())
+		{
+			process = true;
+		}
+
+		if (process)
+		{
+			bool added_new = vote_storage.add_vote (transaction_a, vote_a);
+			if (added_new)
+			{
+				this->stats.inc (nano::stat::type::vote_storage, nano::stat::detail::db_new, stat::dir::in);
+			}
+		}
+	}
+	else
+	{
+		this->stats.inc (nano::stat::type::vote_storage, nano::stat::detail::vote_too_big, stat::dir::in);
 	}
 }
 

@@ -77,7 +77,8 @@ nano::rocksdb_store::rocksdb_store (nano::logger_mt & logger_a, boost::filesyste
 		peer_store_partial,
 		confirmation_height_store_partial,
 		final_vote_store_partial,
-		version_rocksdb_store
+		version_rocksdb_store,
+		vote_storage_store_partial
 	},
 	// clang-format on
 	block_store_partial{ *this },
@@ -91,6 +92,7 @@ nano::rocksdb_store::rocksdb_store (nano::logger_mt & logger_a, boost::filesyste
 	confirmation_height_store_partial{ *this },
 	final_vote_store_partial{ *this },
 	version_rocksdb_store{ *this },
+	vote_storage_store_partial{ *this},
 	logger{ logger_a },
 	constants{ constants },
 	rocksdb_config{ rocksdb_config_a },
@@ -128,7 +130,8 @@ std::unordered_map<char const *, nano::tables> nano::rocksdb_store::create_cf_na
 		{ "peers", tables::peers },
 		{ "confirmation_height", tables::confirmation_height },
 		{ "pruned", tables::pruned },
-		{ "final_votes", tables::final_votes } };
+		{ "final_votes", tables::final_votes },
+		{ "vote_storage", tables::votes_replay } };
 
 	debug_assert (map.size () == all_tables ().size () + 1);
 	return map;
@@ -301,6 +304,11 @@ rocksdb::ColumnFamilyOptions nano::rocksdb_store::get_cf_options (std::string co
 		std::shared_ptr<rocksdb::TableFactory> table_factory (rocksdb::NewBlockBasedTableFactory (get_active_table_options (block_cache_size_bytes * 2)));
 		cf_options = get_active_cf_options (table_factory, memtable_size_bytes);
 	}
+	else if (cf_name_a == "vote_storage")
+	{
+		std::shared_ptr<rocksdb::TableFactory> table_factory (rocksdb::NewBlockBasedTableFactory (get_active_table_options (block_cache_size_bytes * 2)));
+		cf_options = get_active_cf_options (table_factory, memtable_size_bytes * 2);
+	}
 	else if (cf_name_a == rocksdb::kDefaultColumnFamilyName)
 	{
 		// Do nothing.
@@ -391,6 +399,8 @@ rocksdb::ColumnFamilyHandle * nano::rocksdb_store::table_to_column_family (table
 			return get_handle ("confirmation_height");
 		case tables::final_votes:
 			return get_handle ("final_votes");
+		case tables::votes_replay:
+			return get_handle ("vote_storage");
 		default:
 			release_assert (false);
 			return get_handle ("");
@@ -751,7 +761,7 @@ void nano::rocksdb_store::on_flush (rocksdb::FlushJobInfo const & flush_job_info
 
 std::vector<nano::tables> nano::rocksdb_store::all_tables () const
 {
-	return std::vector<nano::tables>{ tables::accounts, tables::blocks, tables::confirmation_height, tables::final_votes, tables::frontiers, tables::meta, tables::online_weight, tables::peers, tables::pending, tables::pruned, tables::unchecked, tables::vote };
+	return std::vector<nano::tables>{ tables::accounts, tables::blocks, tables::confirmation_height, tables::final_votes, tables::frontiers, tables::meta, tables::online_weight, tables::peers, tables::pending, tables::pruned, tables::unchecked, tables::vote, tables::votes_replay };
 }
 
 bool nano::rocksdb_store::copy_db (boost::filesystem::path const & destination_path)

@@ -75,6 +75,11 @@ public:
 	{
 	}
 
+	db_val (nano::votes_replay_key const & val_a) :
+		db_val (sizeof (val_a), const_cast<nano::votes_replay_key *> (&val_a))
+	{
+	}
+
 	db_val (nano::account_info const & val_a) :
 		db_val (val_a.db_size (), const_cast<nano::account_info *> (&val_a))
 	{
@@ -120,6 +125,16 @@ public:
 	}
 
 	db_val (nano::confirmation_height_info const & val_a) :
+		buffer (std::make_shared<std::vector<uint8_t>> ())
+	{
+		{
+			nano::vectorstream stream (*buffer);
+			val_a.serialize (stream);
+		}
+		convert_buffer_to_value ();
+	}
+
+	db_val (nano::vote const & val_a) :
 		buffer (std::make_shared<std::vector<uint8_t>> ())
 	{
 		{
@@ -222,6 +237,16 @@ public:
 		return result;
 	}
 
+	explicit operator nano::vote () const
+	{
+		nano::bufferstream stream (reinterpret_cast<uint8_t const *> (data ()), size ());
+		nano::vote result;
+		bool error = result.deserialize (stream);
+		(void)error;
+		debug_assert (!error);
+		return result;
+	}
+
 	explicit operator nano::unchecked_info () const
 	{
 		nano::bufferstream stream (reinterpret_cast<uint8_t const *> (data ()), size ());
@@ -264,6 +289,11 @@ public:
 	explicit operator nano::qualified_root () const
 	{
 		return convert<nano::qualified_root> ();
+	}
+
+	explicit operator nano::votes_replay_key () const
+	{
+		return convert<nano::votes_replay_key> ();
 	}
 
 	explicit operator nano::uint256_union () const
@@ -551,7 +581,8 @@ enum class tables
 	pending,
 	pruned,
 	unchecked,
-	vote
+	vote,
+	votes_replay
 };
 
 class transaction_impl
@@ -780,6 +811,22 @@ public:
 };
 
 /**
+ * Manages vote storage and iteration
+ */
+class vote_storage_store
+{
+public:
+	virtual bool put (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a) = 0;
+	virtual std::vector<std::shared_ptr<nano::vote>> get (nano::transaction const & transaction_a, nano::block_hash const & hash_a) = 0;
+	virtual int del (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) = 0;
+	virtual void del (nano::write_transaction const & transaction_a, nano::votes_replay_key const & key) = 0;
+	virtual nano::store_iterator<nano::votes_replay_key, nano::vote> begin (nano::transaction const & transaction_a) const = 0;
+	virtual nano::store_iterator<nano::votes_replay_key, nano::vote> begin (nano::transaction const & transaction_a, nano::votes_replay_key const & key_a) const = 0;
+	virtual nano::store_iterator<nano::votes_replay_key, nano::vote> end () const = 0;
+	virtual void for_each_par (std::function<void (nano::read_transaction const &, nano::store_iterator<nano::votes_replay_key, nano::vote>, nano::store_iterator<nano::votes_replay_key, nano::vote>)> const & action_a) const = 0;
+};
+
+/**
  * Manages version storage
  */
 class version_store
@@ -835,7 +882,8 @@ public:
 		nano::peer_store &,
 		nano::confirmation_height_store &,
 		nano::final_vote_store &,
-		nano::version_store &
+		nano::version_store &,
+		nano::vote_storage_store &
 	);
 	// clang-format on
 	virtual ~store () = default;
@@ -853,6 +901,7 @@ public:
 	confirmation_height_store & confirmation_height;
 	final_vote_store & final_vote;
 	version_store & version;
+	vote_storage_store & vote_storage;
 
 	virtual unsigned max_block_write_batch_num () const = 0;
 
@@ -875,6 +924,7 @@ public:
 };
 
 std::unique_ptr<nano::store> make_store (nano::logger_mt & logger, boost::filesystem::path const & path, nano::ledger_constants & constants, bool open_read_only = false, bool add_db_postfix = false, nano::rocksdb_config const & rocksdb_config = nano::rocksdb_config{}, nano::txn_tracking_config const & txn_tracking_config_a = nano::txn_tracking_config{}, std::chrono::milliseconds block_processor_batch_max_time_a = std::chrono::milliseconds (5000), nano::lmdb_config const & lmdb_config_a = nano::lmdb_config{}, bool backup_before_upgrade = false);
+std::unique_ptr<nano::store> make_vote_store (nano::logger_mt & logger, boost::filesystem::path const & path, nano::ledger_constants & constants, bool open_read_only = false, bool add_db_postfix = false, nano::rocksdb_config const & rocksdb_config = nano::rocksdb_config{}, nano::txn_tracking_config const & txn_tracking_config_a = nano::txn_tracking_config{}, std::chrono::milliseconds block_processor_batch_max_time_a = std::chrono::milliseconds (5000), nano::lmdb_config const & lmdb_config_a = nano::lmdb_config{}, bool backup_before_upgrade = false);
 }
 
 namespace std
