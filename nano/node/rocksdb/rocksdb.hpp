@@ -68,6 +68,7 @@ private:
 	nano::confirmation_height_store_partial<rocksdb::Slice, rocksdb_store> confirmation_height_store_partial;
 	nano::final_vote_store_partial<rocksdb::Slice, rocksdb_store> final_vote_store_partial;
 	nano::version_rocksdb_store version_rocksdb_store;
+	nano::vote_storage_store_partial<rocksdb::Slice, rocksdb_store> vote_storage_store_partial;
 
 public:
 	friend class nano::unchecked_rocksdb_store;

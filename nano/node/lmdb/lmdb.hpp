@@ -65,6 +65,7 @@ private:
 	nano::confirmation_height_store_partial<MDB_val, mdb_store> confirmation_height_store_partial;
 	nano::final_vote_store_partial<MDB_val, mdb_store> final_vote_store_partial;
 	nano::version_store_partial<MDB_val, mdb_store> version_store_partial;
+	nano::vote_storage_store_partial<MDB_val, mdb_store> vote_storage_store_partial;
 
 	friend class nano::unchecked_mdb_store;
 
