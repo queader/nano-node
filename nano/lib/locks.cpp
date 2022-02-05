@@ -284,6 +284,8 @@ char const * nano::mutex_identifier (mutexes mutex)
 			return "votes_cache";
 		case mutexes::work_pool:
 			return "work_pool";
+		case mutexes::vote_replay_cache:
+			return "vote_replay_cache";
 	}
 
 	throw std::runtime_error ("Invalid mutexes enum specified");
