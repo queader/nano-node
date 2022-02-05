@@ -23,6 +23,7 @@ class local_vote_history;
 class node_config;
 class stat;
 class vote_generator;
+class vote_replay_cache;
 class wallets;
 /**
  * Pools together confirmation requests, separately for each endpoint.
@@ -59,7 +60,7 @@ class request_aggregator final
 	// clang-format on
 
 public:
-	request_aggregator (nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
+	request_aggregator (nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &, nano::vote_replay_cache &);
 
 	/** Add a new request by \p channel_a for hashes \p hashes_roots_a */
 	void add (std::shared_ptr<nano::transport::channel> const & channel_a, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots_a);
@@ -88,6 +89,7 @@ private:
 	nano::active_transactions & active;
 	nano::vote_generator & generator;
 	nano::vote_generator & final_generator;
+	nano::vote_replay_cache & vote_replay_cache;
 
 	// clang-format off
 	boost::multi_index_container<channel_pool,
