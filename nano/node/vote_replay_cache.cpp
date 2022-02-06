@@ -133,8 +133,6 @@ void nano::vote_replay_cache::run_prunning ()
 
 	node.node_initialized_latch.wait ();
 
-	const int max_ops_per_loop = 50000;
-
 	while (!stopped)
 	{
 		nano::block_hash initial_hash;
@@ -142,13 +140,14 @@ void nano::vote_replay_cache::run_prunning ()
 
 		nano::votes_replay_key prev_key (initial_hash, 0);
 
+		const size_t records_per_iter = 1024 * 4;
+		size_t pruned_this_iter = 0;
 		{
 			auto transaction (ledger.store.tx_begin_read ());
 			auto transaction_vote_cache = store.tx_begin_write ({ tables::votes_replay });
 
-			int done_this_loop = 0;
 			int k = 0;
-			for (auto i = store.vote_storage.begin (transaction_vote_cache, prev_key), n = store.vote_storage.end (); i != n && k < 50000; ++i, ++k)
+			for (auto i = store.vote_storage.begin (transaction_vote_cache, prev_key), n = store.vote_storage.end (); i != n && k < records_per_iter; ++i, ++k)
 			{
 				const auto current_hash = i->first.block_hash ();
 
@@ -175,21 +174,15 @@ void nano::vote_replay_cache::run_prunning ()
 
 					if (prune)
 					{
+						++pruned_this_iter;
 						store.vote_storage.del (transaction_vote_cache, current_hash);
 
 						stats.inc (nano::stat::type::vote_replay, nano::stat::detail::outdated_version);
-
-						++done_this_loop;
-						if (done_this_loop >= max_ops_per_loop)
-						{
-							break;
-						}
 					}
 				}
 			}
 		}
 
-		std::this_thread::sleep_for (std::chrono::milliseconds (25));
-//		std::this_thread::yield ();
+		std::this_thread::sleep_for (pruned_this_iter >= (records_per_iter / 8) ? std::chrono::seconds (5) : std::chrono::seconds (60));
 	}
 }
