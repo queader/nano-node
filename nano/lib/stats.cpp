@@ -534,14 +534,8 @@ std::string nano::stat::type_to_string (uint32_t key)
 		case nano::stat::type::vote_generator:
 			res = "vote_generator";
 			break;
-		case nano::stat::type::vote_replay:
-			res = "vote_replay";
-			break;
-		case nano::stat::type::vote_replay_seed:
-			res = "vote_replay_seed";
-			break;
-		case nano::stat::type::vote_replay_rebroadcast:
-			res = "vote_replay_rebroadcast";
+		case nano::stat::type::vote_storage:
+			res = "vote_storage";
 			break;
 	}
 	return res;
@@ -689,7 +683,7 @@ std::string nano::stat::detail_to_string (uint32_t key)
 			res = "vote_valid";
 			break;
 		case nano::stat::detail::vote_replay:
-			res = "vote_replay";
+			res = "vote_storage";
 			break;
 		case nano::stat::detail::vote_indeterminate:
 			res = "vote_indeterminate";

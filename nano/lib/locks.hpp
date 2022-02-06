@@ -37,7 +37,7 @@ enum class mutexes
 	vote_uniquer,
 	votes_cache,
 	work_pool,
-	vote_replay_cache
+	vote_storage
 };
 
 char const * mutex_identifier (mutexes mutex);

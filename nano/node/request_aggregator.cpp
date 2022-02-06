@@ -7,12 +7,12 @@
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/transport/udp.hpp>
 #include <nano/node/voting.hpp>
-#include <nano/node/vote_replay_cache.hpp>
+#include <nano/node/vote_storage.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
 
-nano::request_aggregator::request_aggregator (nano::node_config const & config_a, nano::stat & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a, nano::vote_replay_cache & replay_cache_a) :
+nano::request_aggregator::request_aggregator (nano::node_config const & config_a, nano::stat & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a, nano::vote_storage & vote_storage_a) :
 	config{ config_a },
 	max_delay (config_a.network_params.network.is_dev_network () ? 50 : 300),
 	small_delay (config_a.network_params.network.is_dev_network () ? 10 : 50),
@@ -24,7 +24,7 @@ nano::request_aggregator::request_aggregator (nano::node_config const & config_a
 	active (active_a),
 	generator (generator_a),
 	final_generator (final_generator_a),
-	vote_replay_cache (replay_cache_a),
+	vote_storage (vote_storage_a),
 	thread ([this] () { run (); })
 {
 	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
@@ -171,7 +171,7 @@ void nano::request_aggregator::erase_duplicates (std::vector<std::pair<nano::blo
 std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> & channel_a) const
 {
 	auto transaction (ledger.store.tx_begin_read ());
-	auto transaction_vote_replay (vote_replay_cache.store.tx_begin_read ());
+	auto transaction_vote_replay (vote_storage.store.tx_begin_read ());
 	size_t cached_hashes = 0;
 	std::vector<std::shared_ptr<nano::block>> to_generate;
 	std::vector<std::shared_ptr<nano::block>> to_generate_final;
@@ -291,7 +291,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			}
 		}
 
-		auto const replay_cache_result = vote_replay_cache.get_vote_replay_cached_votes_for_hash_or_conf_frontier (transaction, transaction_vote_replay, hash);
+		auto const replay_cache_result = vote_storage.get_votes_for_hash_or_conf_frontier (transaction, transaction_vote_replay, hash);
 		if (replay_cache_result)
 		{
 			const auto & [replay_hash, replay_votes] = (*replay_cache_result);
