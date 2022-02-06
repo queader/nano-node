@@ -4,22 +4,21 @@
 #include <nano/node/common.hpp>
 #include <nano/node/network.hpp>
 #include <nano/node/node.hpp>
-#include <nano/node/vote_replay_cache.hpp>
+#include <nano/node/vote_storage.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
 
-nano::vote_replay_cache::vote_replay_cache (nano::node & node_a) :
+nano::vote_storage::vote_storage (nano::node & node_a) :
 	node (node_a),
 	stats (node_a.stats),
 	ledger (node_a.ledger),
-	active (node_a.active),
 	store (node_a.vote_store),
 	replay_vote_weight_minimum (node_a.config.replay_vote_weight_minimum.number ()),
-	thread_prune ([this] () { run_prunning (); })
+	thread_prune ([this] () { run_pruning (); })
 {
 }
 
-void nano::vote_replay_cache::stop ()
+void nano::vote_storage::stop ()
 {
 	{
 		nano::lock_guard<nano::mutex> guard (mutex);
@@ -32,12 +31,12 @@ void nano::vote_replay_cache::stop ()
 	}
 }
 
-bool nano::vote_replay_cache::add_vote_to_db (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a)
+bool nano::vote_storage::add_vote (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a)
 {
 	return store.vote_storage.put (transaction_a, vote_a);
 }
 
-nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a) const
+nano::vote_storage::vote_storage_result nano::vote_storage::get_votes_for_hash (nano::transaction const & transaction_a, nano::block_hash hash_a) const
 {
 	auto votes_l = store.vote_storage.get (transaction_a, hash_a);
 
@@ -48,7 +47,7 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 		weight += rep_weight;
 	}
 
-	nano::vote_replay_cache::vote_cache_result result;
+	nano::vote_storage::vote_storage_result result;
 
 	if (weight >= replay_vote_weight_minimum)
 	{
@@ -58,56 +57,56 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 	return result;
 }
 
-nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const
+nano::vote_storage::vote_storage_result nano::vote_storage::get_votes_for_hash_or_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const
 {
-	nano::vote_replay_cache::vote_cache_result result;
+	nano::vote_storage::vote_storage_result result;
 
 	if (ledger.block_confirmed (transaction_a, hash_a))
 	{
 		auto account = ledger.account (transaction_a, hash_a);
 		if (!account.is_zero ())
 		{
-			stats.inc (nano::stat::type::vote_replay, nano::stat::detail::block_confirmed);
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::block_confirmed);
 
 			nano::confirmation_height_info conf_info;
 			ledger.store.confirmation_height.get (transaction_a, account, conf_info);
 
 			if (conf_info.frontier != 0 && conf_info.frontier != hash_a)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier);
+				result = get_votes_for_hash (transaction_vote_cache_a, conf_info.frontier);
 				if (result)
 				{
-					stats.inc (nano::stat::type::vote_replay, nano::stat::detail::frontier_confirmation_successful);
+					stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier_confirmation_successful);
 				}
 			}
 
 			if (!result)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, hash_a);
+				result = get_votes_for_hash (transaction_vote_cache_a, hash_a);
 			}
 
 			if (!result)
 			{
-				stats.inc (nano::stat::type::vote_replay, nano::stat::detail::vote_invalid);
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::vote_invalid);
 			}
 		}
 	}
 	else
 	{
-		stats.inc (nano::stat::type::vote_replay, nano::stat::detail::block_not_confirmed);
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::block_not_confirmed);
 	}
 
 	if (result)
 	{
-		stats.inc (nano::stat::type::vote_replay, nano::stat::detail::vote_replay);
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::vote_replay);
 	}
 
 	return result;
 }
 
-nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_replay_cached_votes_for_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const
+nano::vote_storage::vote_storage_result nano::vote_storage::get_votes_for_conf_frontier (nano::transaction const & transaction_a, nano::transaction const & transaction_vote_cache_a, nano::block_hash hash_a) const
 {
-	nano::vote_replay_cache::vote_cache_result result;
+	nano::vote_storage::vote_storage_result result;
 
 	if (ledger.block_or_pruned_exists (transaction_a, hash_a))
 	{
@@ -119,7 +118,7 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 
 			if (conf_info.frontier != 0)
 			{
-				result = get_vote_replay_cached_votes_for_hash (transaction_vote_cache_a, conf_info.frontier);
+				result = get_votes_for_hash (transaction_vote_cache_a, conf_info.frontier);
 			}
 		}
 	}
@@ -127,9 +126,9 @@ nano::vote_replay_cache::vote_cache_result nano::vote_replay_cache::get_vote_rep
 	return result;
 }
 
-void nano::vote_replay_cache::run_prunning ()
+void nano::vote_storage::run_pruning ()
 {
-	nano::thread_role::set (nano::thread_role::name::prune_votes);
+	nano::thread_role::set (nano::thread_role::name::vote_storage_prune);
 
 	node.node_initialized_latch.wait ();
 
@@ -177,7 +176,7 @@ void nano::vote_replay_cache::run_prunning ()
 						++pruned_this_iter;
 						store.vote_storage.del (transaction_vote_cache, current_hash);
 
-						stats.inc (nano::stat::type::vote_replay, nano::stat::detail::outdated_version);
+						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::outdated_version);
 					}
 				}
 			}

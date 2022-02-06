@@ -242,9 +242,7 @@ public:
 		filter,
 		telemetry,
 		vote_generator,
-		vote_replay,
-		vote_replay_seed,
-		vote_replay_rebroadcast
+		vote_storage
 	};
 
 	/** Optional detail type */
@@ -402,7 +400,7 @@ public:
 		generator_replies_discarded,
 		generator_spacing,
 
-		// vote_replay
+		// vote storage
 		db_new,
 		db_changed,
 		db_unchanged,
