@@ -155,7 +155,7 @@ void nano::vote_replay_cache::run_prunning ()
 				{
 					prev_key = i->first;
 
-					bool prune = true;
+					bool prune = false;
 
 					if (ledger.block_or_pruned_exists (transaction, current_hash))
 					{
@@ -165,9 +165,9 @@ void nano::vote_replay_cache::run_prunning ()
 							nano::confirmation_height_info conf_info;
 							ledger.store.confirmation_height.get (transaction, account, conf_info);
 
-							if (ledger.store.block.account_height (transaction, current_hash) >= conf_info.height)
+							if (ledger.store.block.account_height (transaction, current_hash) < conf_info.height)
 							{
-								prune = false;
+								prune = true;
 							}
 						}
 					}
