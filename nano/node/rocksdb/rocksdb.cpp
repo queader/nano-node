@@ -131,7 +131,7 @@ std::unordered_map<char const *, nano::tables> nano::rocksdb_store::create_cf_na
 		{ "confirmation_height", tables::confirmation_height },
 		{ "pruned", tables::pruned },
 		{ "final_votes", tables::final_votes },
-		{ "votes_replay", tables::votes_replay } };
+		{ "vote_storage", tables::votes_replay } };
 
 	debug_assert (map.size () == all_tables ().size () + 1);
 	return map;
@@ -302,7 +302,7 @@ rocksdb::ColumnFamilyOptions nano::rocksdb_store::get_cf_options (std::string co
 		std::shared_ptr<rocksdb::TableFactory> table_factory (rocksdb::NewBlockBasedTableFactory (get_active_table_options (block_cache_size_bytes * 2)));
 		cf_options = get_active_cf_options (table_factory, memtable_size_bytes);
 	}
-	else if (cf_name_a == "votes_replay")
+	else if (cf_name_a == "vote_storage")
 	{
 		std::shared_ptr<rocksdb::TableFactory> table_factory (rocksdb::NewBlockBasedTableFactory (get_active_table_options (block_cache_size_bytes * 2)));
 		cf_options = get_active_cf_options (table_factory, memtable_size_bytes * 2);
@@ -398,7 +398,7 @@ rocksdb::ColumnFamilyHandle * nano::rocksdb_store::table_to_column_family (table
 		case tables::final_votes:
 			return get_handle ("final_votes");
 		case tables::votes_replay:
-			return get_handle ("votes_replay");
+			return get_handle ("vote_storage");
 		default:
 			release_assert (false);
 			return get_handle ("");
