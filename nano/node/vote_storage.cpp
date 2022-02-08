@@ -130,6 +130,11 @@ void nano::vote_storage::run_pruning ()
 {
 	nano::thread_role::set (nano::thread_role::name::vote_storage_prune);
 
+	if (node.flags.inactive_node)
+	{
+		return;
+	}
+
 	node.node_initialized_latch.wait ();
 
 	while (!stopped)
