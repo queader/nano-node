@@ -7,9 +7,9 @@
 
 #include <condition_variable>
 #include <deque>
-#include <unordered_set>
-#include <thread>
 #include <mutex>
+#include <thread>
+#include <unordered_set>
 
 namespace nano
 {
@@ -32,8 +32,6 @@ public:
 
 	nano::store & store;
 
-	const nano::uint128_t replay_vote_weight_minimum;
-
 private:
 	void run_pruning ();
 
@@ -44,7 +42,8 @@ private:
 	bool stopped{ false };
 	nano::condition_variable condition;
 	nano::mutex mutex{ mutex_identifier (mutexes::vote_storage) };
-
 	std::thread thread_prune;
+
+	const nano::uint128_t vote_storage_weight_minimum;
 };
 }

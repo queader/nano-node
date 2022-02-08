@@ -13,7 +13,7 @@ nano::vote_storage::vote_storage (nano::node & node_a) :
 	stats (node_a.stats),
 	ledger (node_a.ledger),
 	store (node_a.vote_store),
-	replay_vote_weight_minimum (node_a.config.replay_vote_weight_minimum.number ()),
+	vote_storage_weight_minimum (node_a.config.vote_storage_weight_minimum.number ()),
 	thread_prune ([this] () { run_pruning (); })
 {
 }
@@ -49,7 +49,7 @@ nano::vote_storage::vote_storage_result nano::vote_storage::get_votes_for_hash (
 
 	nano::vote_storage::vote_storage_result result;
 
-	if (weight >= replay_vote_weight_minimum)
+	if (weight >= vote_storage_weight_minimum)
 	{
 		result = std::make_pair (hash_a, votes_l);
 	}
@@ -130,7 +130,7 @@ void nano::vote_storage::run_pruning ()
 {
 	nano::thread_role::set (nano::thread_role::name::vote_storage_prune);
 
-	if (node.flags.inactive_node)
+	if (node.flags.inactive_node || !node.config.enable_vote_storage_pruning)
 	{
 		return;
 	}
