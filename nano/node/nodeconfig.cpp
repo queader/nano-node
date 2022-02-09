@@ -151,6 +151,9 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	}
 	experimental_l.put ("max_pruning_age", max_pruning_age.count (), "Time limit for blocks age after pruning.\ntype:seconds");
 	experimental_l.put ("max_pruning_depth", max_pruning_depth, "Limit for full blocks in chain after pruning.\ntype:uint64");
+
+	experimental_l.put ("vote_storage_weight_minimum", vote_storage_weight_minimum.to_string_dec(), "Minimum combined stored votes weight to reply.\ntype:string,amount,raw");
+	experimental_l.put ("enable_vote_storage_pruning", enable_vote_storage_pruning, "Enable pruning non account frontiers from vote storage.\ntype:bool");
 	toml.put_child ("experimental", experimental_l);
 
 	nano::tomlconfig callback_l;
@@ -402,6 +405,17 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			experimental_config_l.get ("max_pruning_age", max_pruning_age_l);
 			max_pruning_age = std::chrono::seconds (max_pruning_age_l);
 			experimental_config_l.get<uint64_t> ("max_pruning_depth", max_pruning_depth);
+
+			auto vote_storage_weight_minimum_l (vote_storage_weight_minimum.to_string_dec ());
+			if (toml.has_key ("vote_storage_weight_minimum"))
+			{
+				vote_storage_weight_minimum_l = toml.get<std::string> ("vote_storage_weight_minimum");
+			}
+			if (vote_storage_weight_minimum.decode_dec (vote_storage_weight_minimum_l))
+			{
+				toml.get_error ().set ("vote_storage_weight_minimum contains an invalid decimal amount");
+			}
+			experimental_config_l.get<bool> ("enable_vote_storage_pruning", enable_vote_storage_pruning);
 		}
 
 		// Validate ranges
