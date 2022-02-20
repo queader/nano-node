@@ -365,7 +365,12 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 			{
 				/* block->destination () for legacy send blocks
 				block->link () for state blocks (send subtype) */
-				queue_unchecked (transaction_a, block->destination ().is_zero () ? block->link () : block->destination ());
+				auto destination = block->destination ().is_zero () ? block->link () : block->destination ();
+				auto block_has_balance = block->type () == nano::block_type::state || block->type () == nano::block_type::send;
+				auto balance = block_has_balance ? block->balance () : block->sideband ().balance;
+
+				queue_unchecked (transaction_a, destination);
+				node.bootstrap_prioritization.queue (transaction_a, destination.as_account(), balance);
 			}
 			break;
 		}

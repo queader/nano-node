@@ -130,6 +130,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	scheduler{ *this },
 	aggregator (config, stats, active.generator, active.final_generator, history, ledger, wallets, active, vote_replay_cache),
 	wallets (wallets_store.init_error (), *this),
+	bootstrap_prioritization (*this),
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
@@ -995,7 +996,7 @@ void nano::node::ongoing_unchecked_cleanup ()
 void nano::node::ongoing_backlog_population ()
 {
 	auto overflow = populate_backlog ();
-	auto delay = config.network_params.network.is_dev_network () ? std::chrono::seconds{ 1 } : std::chrono::duration_cast<std::chrono::seconds> (std::chrono::minutes{ 5 });
+	auto delay = config.network_params.network.is_dev_network () ? std::chrono::seconds{ 1 } : std::chrono::duration_cast<std::chrono::seconds> (std::chrono::seconds { 30 });
 	if (overflow)
 	{
 		delay = std::chrono::seconds{ 0 };

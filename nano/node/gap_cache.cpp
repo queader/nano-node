@@ -88,31 +88,31 @@ bool nano::gap_cache::bootstrap_check (std::vector<nano::account> const & voters
 	}
 	if (start_bootstrap && !node.ledger.block_or_pruned_exists (hash_a))
 	{
-		bootstrap_start (hash_a);
+//		bootstrap_start (hash_a);
 	}
 	return start_bootstrap;
 }
 
 void nano::gap_cache::bootstrap_start (nano::block_hash const & hash_a)
 {
-	auto node_l (node.shared ());
-	node.workers.add_timed_task (std::chrono::steady_clock::now () + node.network_params.bootstrap.gap_cache_bootstrap_start_interval, [node_l, hash_a] () {
-		if (!node_l->ledger.block_or_pruned_exists (hash_a))
-		{
-			if (!node_l->bootstrap_initiator.in_progress ())
-			{
-				node_l->logger.try_log (boost::str (boost::format ("Missing block %1% which has enough votes to warrant lazy bootstrapping it") % hash_a.to_string ()));
-			}
-			if (!node_l->flags.disable_lazy_bootstrap)
-			{
-				node_l->bootstrap_initiator.bootstrap_lazy (hash_a);
-			}
-			else if (!node_l->flags.disable_legacy_bootstrap)
-			{
-				node_l->bootstrap_initiator.bootstrap ();
-			}
-		}
-	});
+//	auto node_l (node.shared ());
+//	node.workers.add_timed_task (std::chrono::steady_clock::now () + node.network_params.bootstrap.gap_cache_bootstrap_start_interval, [node_l, hash_a] () {
+//		if (!node_l->ledger.block_or_pruned_exists (hash_a))
+//		{
+//			if (!node_l->bootstrap_initiator.in_progress ())
+//			{
+//				node_l->logger.try_log (boost::str (boost::format ("Missing block %1% which has enough votes to warrant lazy bootstrapping it") % hash_a.to_string ()));
+//			}
+//			if (!node_l->flags.disable_lazy_bootstrap)
+//			{
+//				node_l->bootstrap_initiator.bootstrap_lazy (hash_a);
+//			}
+//			else if (!node_l->flags.disable_legacy_bootstrap)
+//			{
+//				node_l->bootstrap_initiator.bootstrap ();
+//			}
+//		}
+//	});
 }
 
 nano::uint128_t nano::gap_cache::bootstrap_threshold ()

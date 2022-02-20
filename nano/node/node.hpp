@@ -27,6 +27,7 @@
 #include <nano/node/vote_storage.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/write_database_queue.hpp>
+#include <nano/node/bootstrap_prioritization.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/utility.hpp>
 
@@ -198,6 +199,7 @@ public:
 	nano::request_aggregator aggregator;
 	nano::vote_storage vote_replay_cache;
 	nano::wallets wallets;
+	nano::bootstrap_prioritization bootstrap_prioritization;
 	std::chrono::steady_clock::time_point const startup_time;
 	std::chrono::seconds unchecked_cutoff = std::chrono::seconds (7 * 24 * 60 * 60); // Week
 	std::atomic<bool> unresponsive_work_peers{ false };

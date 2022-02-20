@@ -79,7 +79,7 @@ void nano::bulk_pull_client::request ()
 	}
 	else if (connection->node->config.logging.network_logging () && attempt->should_log ())
 	{
-		connection->node->logger.always_log (boost::str (boost::format ("%1% accounts in pull queue") % attempt->pulling));
+		connection->node->logger.always_log (boost::str (boost::format ("%1% accounts in pull queue #1 (%2%)") % attempt->pulling % attempt->id));
 	}
 	auto this_l (shared_from_this ());
 	connection->channel->send (
@@ -310,7 +310,7 @@ void nano::bulk_pull_account_client::request ()
 	}
 	else if (connection->node->config.logging.network_logging () && attempt->should_log ())
 	{
-		connection->node->logger.always_log (boost::str (boost::format ("%1% accounts in pull queue") % attempt->wallet_size ()));
+		connection->node->logger.always_log (boost::str (boost::format ("%1% accounts in pull queue #2") % attempt->wallet_size ()));
 	}
 	auto this_l (shared_from_this ());
 	connection->channel->send (
