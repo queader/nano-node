@@ -40,6 +40,8 @@ add_library(
   bootstrap/bootstrap_top_down.hpp
   bootstrap_prioritization.cpp
   bootstrap_prioritization.hpp
+  bootstrap_v2.cpp
+  bootstrap_v2.hpp
   cli.hpp
   cli.cpp
   common.hpp
