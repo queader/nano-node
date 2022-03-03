@@ -30,7 +30,8 @@ bool nano::bootstrap_attempt_lazy::lazy_start (nano::hash_or_account const & has
 	nano::unique_lock<nano::mutex> lock (mutex);
 	bool inserted (false);
 	// Add start blocks, limit 1024 (4k with disabled legacy bootstrap)
-	std::size_t max_keys (node->flags.disable_legacy_bootstrap ? 4 * 1024 : 1024);
+//	std::size_t max_keys (node->flags.disable_legacy_bootstrap ? 4 * 1024 : 1024);
+	std::size_t max_keys = 128;
 	//	if (lazy_keys.size () < max_keys && lazy_keys.find (hash_or_account_a.as_block_hash ()) == lazy_keys.end () && !lazy_blocks_processed (hash_or_account_a.as_block_hash ()))
 	//	{
 	//		lazy_keys.insert (hash_or_account_a.as_block_hash ());
@@ -154,30 +155,28 @@ bool nano::bootstrap_attempt_lazy::lazy_finished ()
 	{
 		return true;
 	}
-
-	bool result = false;
-
-	//	uint64_t read_count (0);
-	//	auto transaction (node->store.tx_begin_read ());
-	//	for (auto it (lazy_keys.begin ()), end (lazy_keys.end ()); it != end && !stopped;)
-	//	{
-	//		if (node->ledger.block_or_pruned_exists (transaction, *it))
-	//		{
-	//			it = lazy_keys.erase (it);
-	//		}
-	//		else
-	//		{
-	//			result = false;
-	//			break;
-	//			// No need to increment `it` as we break above.
-	//		}
-	//		// We don't want to open read transactions for too long
-	//		++read_count;
-	//		if (read_count % batch_read_size == 0)
-	//		{
-	//			transaction.refresh ();
-	//		}
-	//	}
+	bool result (true);
+	uint64_t read_count (0);
+	auto transaction (node->store.tx_begin_read ());
+	for (auto it (lazy_keys.begin ()), end (lazy_keys.end ()); it != end && !stopped;)
+	{
+		if (node->ledger.block_or_pruned_exists (transaction, *it))
+		{
+			it = lazy_keys.erase (it);
+		}
+		else
+		{
+			result = false;
+			break;
+			// No need to increment `it` as we break above.
+		}
+		// We don't want to open read transactions for too long
+		++read_count;
+		if (read_count % batch_read_size == 0)
+		{
+			transaction.refresh ();
+		}
+	}
 	// Finish lazy bootstrap without lazy pulls (in combination with still_pulling ())
 	if (!result && lazy_pulls.empty ())
 	{
@@ -210,6 +209,7 @@ void nano::bootstrap_attempt_lazy::run ()
 	node->bootstrap_initiator.connections->populate_connections (false);
 	lazy_start_time = std::chrono::steady_clock::now ();
 	nano::unique_lock<nano::mutex> lock (mutex);
+
 	while ((still_pulling () || !lazy_finished ()) && !lazy_has_expired ())
 	{
 		unsigned iterations (0);
@@ -235,6 +235,14 @@ void nano::bootstrap_attempt_lazy::run ()
 			lazy_pull_flush (lock);
 		}
 	}
+
+//	while ((still_pulling () || !lazy_finished ()) && !lazy_has_expired ())
+//	{
+//		std::this_thread::sleep_for (std::chrono::milliseconds (100));
+//
+//		lazy_pull_flush (lock);
+//	}
+
 	if (!stopped)
 	{
 		node->logger.try_log ("Completed lazy pulls");

@@ -14,41 +14,71 @@ nano::bootstrap_prioritization::bootstrap_prioritization (nano::node & node_a) :
 
 nano::bootstrap_prioritization::~bootstrap_prioritization ()
 {
-	thread_lazy_bootsrap.join();
+	thread_lazy_bootsrap.join ();
 }
 
-void nano::bootstrap_prioritization::queue (nano::transaction const & transaction_a, nano::account const & account_a, nano::amount const & amount_a, bool force)
+void nano::bootstrap_prioritization::queue_send (nano::transaction const & transaction, nano::account const & origin_account, nano::account const & destination_account, nano::amount const & balance, bool force)
 {
-	if (account_a.is_zero())
+	if (destination_account.is_zero ())
 	{
 		return;
 	}
 
-	if (force || (done_accounts.count (account_a) == 0) && !node.store.account.exists (transaction_a, account_a))
+	if (force || !node.store.account.exists (transaction, destination_account))
 	{
+		debug_assert (force || priority_map.count (origin_account) > 0);
+		priority_value priority = force ? 0 : (priority_map.at (origin_account) + 1);
+		priority_map.insert_or_assign (destination_account, priority);
+
 		nano::unique_lock<nano::mutex> lock{ mutex };
-		missing.emplace (value_type{ amount_a, account_a });
-		done_accounts.emplace (account_a);
+		missing.emplace (value_type{ balance, destination_account, priority, force });
+		done_accounts.emplace (destination_account);
 	}
 }
 
-nano::account nano::bootstrap_prioritization::top ()
+void nano::bootstrap_prioritization::queue_receive (nano::transaction const & transaction, nano::account const & origin_account, nano::account const & source_account, nano::amount const & balance, bool force)
 {
-	nano::account result = 0;
+	if (source_account.is_zero ())
+	{
+		return;
+	}
 
+	if (force || !node.store.account.exists (transaction, source_account))
+	{
+		priority_value priority = force ? 0 : (priority_map.count (origin_account) == 0 ? std::numeric_limits<priority_value>::max () : priority_map.at (origin_account));
+
+		nano::unique_lock<nano::mutex> lock{ mutex };
+		missing.emplace (value_type{ balance, source_account, priority, force });
+		done_accounts.emplace (source_account);
+	}
+}
+
+nano::bootstrap_prioritization::value_type nano::bootstrap_prioritization::top ()
+{
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	if (!missing.empty ())
 	{
-		result = missing.begin ()->account;
+		auto it = missing.begin ();
+		auto result = *it;
+		missing.erase (it);
+
+		return result;
 	}
 
-	return result;
+	return nano::bootstrap_prioritization::value_type{ 0, 0, 0, false };
 }
 
-void nano::bootstrap_prioritization::erase (nano::account const & account_a)
+void nano::bootstrap_prioritization::requeue (nano::bootstrap_prioritization::value_type entry)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	missing.erase (value_type{ 0, account_a });
+	missing.emplace (entry);
+}
+
+bool nano::bootstrap_prioritization::exists (nano::account const & account)
+{
+	auto transaction = node.store.tx_begin_read ();
+
+	return node.store.account.exists (transaction, account);
 }
 
 void nano::bootstrap_prioritization::run_lazy_bootstrap ()
@@ -66,19 +96,24 @@ void nano::bootstrap_prioritization::run_lazy_bootstrap ()
 	{
 		bool inserted = false;
 
-		auto account = top ();
+		auto entry = top ();
+		auto account = entry.account;
+
+		if (!entry.forced && exists (account))
+		{
+			continue;
+		}
+
 		if (!account.is_zero ())
 		{
 			inserted = node.bootstrap_initiator.bootstrap_lazy (account, false, false);
-//			erase (account);
 			if (inserted)
 			{
-				erase (account);
-//				if (ctr++ % 1 == 0) node.logger.always_log (boost::format ("Bootstrap prioritized: %1%") % ctr);
 				node.logger.always_log (boost::format ("Bootstrap prioritized: %1%") % ++ctr);
 			}
 			else
 			{
+				requeue (entry);
 				node.logger.always_log (boost::format ("Bootstrap prioritization lazy queue full"));
 			}
 		}
@@ -89,15 +124,33 @@ void nano::bootstrap_prioritization::run_lazy_bootstrap ()
 
 		if (!inserted)
 		{
+			check_status ();
 			std::this_thread::sleep_for (std::chrono::seconds (3));
 		}
 
-		//TEMP
 //		if (inserted)
 //		{
 //			return;
 //		}
 	}
+}
+
+void nano::bootstrap_prioritization::check_status ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	auto transaction = node.store.tx_begin_read ();
+
+	int ctr = 0;
+	for (const auto & account : done_accounts)
+	{
+		if (node.store.account.exists (transaction, account))
+		{
+			ctr++;
+		}
+	}
+
+	node.logger.always_log (boost::format ("Bootstrap prioritization accounts %1% / %2%") % ctr % done_accounts.size ());
 }
 
 void nano::bootstrap_prioritization::run_initialize ()
@@ -110,17 +163,20 @@ void nano::bootstrap_prioritization::run_initialize ()
 	node.node_initialized_latch.wait ();
 
 	{
-		auto transaction = node.store.tx_begin_read();
-		queue (transaction, node.network_params.ledger.genesis->account(), 0, true);
+		auto transaction = node.store.tx_begin_read ();
+		auto genesis = node.network_params.ledger.genesis->account ();
+		queue_send (transaction, genesis, genesis, 0, true);
 	}
 }
 
-bool nano::bootstrap_prioritization::value_type::operator< (const nano::bootstrap_prioritization::value_type & other_a) const
+bool nano::bootstrap_prioritization::value_type::operator< (const nano::bootstrap_prioritization::value_type & other) const
 {
-	return account != other_a.account && amount < other_a.amount;
+	return priority == other.priority ? (amount == other.amount ? account < other.account : amount < other.amount) : priority > other.priority;
+	//	return amount == other.amount ? account < other.account : amount < other.amount;
 }
 
-bool nano::bootstrap_prioritization::value_type::operator== (const nano::bootstrap_prioritization::value_type & other_a) const
+bool nano::bootstrap_prioritization::value_type::operator== (const nano::bootstrap_prioritization::value_type & other) const
 {
-	return account == other_a.account;
+	return priority == other.priority && amount == other.amount && account == other.account;
+	//	return amount == other.amount && account == other.account;
 }

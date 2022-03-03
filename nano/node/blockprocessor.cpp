@@ -338,6 +338,7 @@ void nano::block_processor::process_live (nano::transaction const & transaction_
 
 nano::process_return nano::block_processor::process_one (nano::write_transaction const & transaction_a, block_post_events & events_a, nano::unchecked_info info_a, bool const forced_a, nano::block_origin const origin_a)
 {
+	node.stats.inc (nano::stat::type::ledger, nano::stat::detail::initiate);
 	nano::process_return result;
 	auto block (info_a.block);
 	auto hash (block->hash ());
@@ -368,9 +369,10 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 				auto destination = block->destination ().is_zero () ? block->link () : block->destination ();
 				auto block_has_balance = block->type () == nano::block_type::state || block->type () == nano::block_type::send;
 				auto balance = block_has_balance ? block->balance () : block->sideband ().balance;
+				auto account = block->account ().is_zero () ? block->sideband ().account : block->account ();
 
 				queue_unchecked (transaction_a, destination);
-				node.bootstrap_prioritization.queue (transaction_a, destination.as_account(), balance);
+				node.bootstrap_prioritization.queue_send (transaction_a, account, destination.as_account(), balance);
 			}
 			break;
 		}
@@ -401,7 +403,15 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 			{
 				info_a.modified = nano::seconds_since_epoch ();
 			}
+
+			auto source = block->source().is_zero () ? block->link () : block->source();
+			auto block_has_balance = block->type () == nano::block_type::state;
+			auto balance = block_has_balance ? block->balance () : 0;
+			auto account = block->account ().is_zero () ? (block->has_sideband() ? block->sideband ().account : 0) : block->account ();
+
 			node.unchecked.put (node.ledger.block_source (transaction_a, *(block)), info_a);
+			node.bootstrap_prioritization.queue_receive (transaction_a, account, source.as_account(), balance);
+
 			events_a.events.emplace_back ([this, hash] (nano::transaction const & /* unused */) { this->node.gap_cache.add (hash); });
 			node.stats.inc (nano::stat::type::ledger, nano::stat::detail::gap_source);
 			break;
