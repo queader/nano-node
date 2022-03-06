@@ -948,6 +948,11 @@ nano::public_key::operator nano::hash_or_account const & () const
 	return reinterpret_cast<nano::hash_or_account const &> (*this);
 }
 
+bool nano::public_key::operator== (nano::public_key const & other_a) const
+{
+	return static_cast<nano::uint256_union>(*this) == static_cast<nano::uint256_union>(other_a);
+}
+
 bool nano::public_key::operator== (std::nullptr_t) const
 {
 	return bytes == null ().bytes;
