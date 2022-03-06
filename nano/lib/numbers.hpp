@@ -127,7 +127,10 @@ public:
 	operator nano::link const & () const;
 	operator nano::root const & () const;
 	operator nano::hash_or_account const & () const;
+
+	bool operator== (nano::public_key const &) const;
 	bool operator== (std::nullptr_t) const;
+
 	using uint256_union::operator==;
 };
 
