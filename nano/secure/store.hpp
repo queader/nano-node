@@ -816,7 +816,7 @@ class vote_storage_store
 public:
 	virtual bool put (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a) = 0;
 	virtual std::vector<std::shared_ptr<nano::vote>> get (nano::transaction const & transaction_a, nano::block_hash const & hash_a) = 0;
-	virtual int del (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) = 0;
+	virtual size_t del (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) = 0;
 	virtual void del (nano::write_transaction const & transaction_a, nano::votes_replay_key const & key) = 0;
 	virtual nano::store_iterator<nano::votes_replay_key, nano::vote> begin (nano::transaction const & transaction_a) const = 0;
 	virtual nano::store_iterator<nano::votes_replay_key, nano::vote> begin (nano::transaction const & transaction_a, nano::votes_replay_key const & key_a) const = 0;

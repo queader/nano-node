@@ -108,7 +108,7 @@ public:
 		return result;
 	}
 
-	int del (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) override
+	size_t del (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a) override
 	{
 		std::vector<nano::votes_replay_key> vote_replay_keys;
 
