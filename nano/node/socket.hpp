@@ -60,9 +60,14 @@ public:
 	 */
 	explicit socket (nano::node & node, endpoint_type_t endpoint_type_a);
 	virtual ~socket ();
-	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
-	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
-	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {});
+
+	void async_connect (boost::asio::ip::tcp::endpoint const & endpoint_a, std::function<void (boost::system::error_code const &)> callback_a);
+	void async_read (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a);
+	void async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a = {});
+
+	void connect_async_fiber (boost::asio::ip::tcp::endpoint const & endpoint_a);
+	std::size_t read_async_fiber (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a);
+	std::size_t write_async_fiber (nano::shared_const_buffer const & buffer_a);
 
 	void close ();
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;
@@ -73,6 +78,7 @@ public:
 	void set_default_timeout_value (std::chrono::seconds);
 	void set_timeout (std::chrono::seconds);
 	void set_silent_connection_tolerance_time (std::chrono::seconds tolerance_time_a);
+
 	bool max () const
 	{
 		return queue_size >= queue_size_max;
@@ -93,11 +99,11 @@ public:
 	{
 		return endpoint_type_m;
 	}
-	bool is_realtime_connection ()
+	bool is_realtime_connection () const
 	{
 		return type () == nano::socket::type_t::realtime || type () == nano::socket::type_t::realtime_response_server;
 	}
-	bool is_closed ()
+	bool is_closed () const
 	{
 		return closed;
 	}

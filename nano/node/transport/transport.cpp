@@ -1,3 +1,4 @@
+#include <nano/lib/callback_to_fiber.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -131,6 +132,11 @@ void nano::transport::channel::send (nano::message & message_a, std::function<vo
 			node.logger.always_log (boost::str (boost::format ("%1% of size %2% dropped") % node.stats.detail_to_string (detail) % buffer.size ()));
 		}
 	}
+}
+
+void nano::transport::channel::send_async_fiber (nano::message & message_a, nano::buffer_drop_policy policy_a)
+{
+	callback_to_fiber<boost::system::error_code, std::size_t> ([&, this] (auto callback) { send (message_a, callback, policy_a); });
 }
 
 nano::transport::channel_loopback::channel_loopback (nano::node & node_a) :

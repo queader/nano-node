@@ -25,6 +25,7 @@ add_library(
   blockbuilders.cpp
   blocks.hpp
   blocks.cpp
+  callback_to_fiber.hpp
   cli.hpp
   cli.cpp
   config.hpp

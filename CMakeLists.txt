@@ -386,7 +386,7 @@ set(Boost_USE_MULTITHREADED ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 find_package(Boost 1.70.0 REQUIRED COMPONENTS filesystem log log_setup thread
-                                              program_options system)
+                                              program_options system fiber)
 
 # diskhash
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")

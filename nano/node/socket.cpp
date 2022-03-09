@@ -4,6 +4,7 @@
 #include <nano/boost/asio/ip/address_v6.hpp>
 #include <nano/boost/asio/ip/network_v6.hpp>
 #include <nano/boost/asio/read.hpp>
+#include <nano/lib/callback_to_fiber.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/socket.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -160,6 +161,21 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 			}
 		}));
 	}));
+}
+
+void nano::socket::connect_async_fiber (boost::asio::ip::tcp::endpoint const & endpoint_a)
+{
+	return callback_to_fiber<boost::system::error_code> ([&, this] (auto callback) { async_connect (endpoint_a, callback); });
+}
+
+std::size_t nano::socket::read_async_fiber (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a)
+{
+	return callback_to_fiber<boost::system::error_code, std::size_t> ([&, this] (auto callback) { async_read (buffer_a, size_a, callback); });
+}
+
+std::size_t nano::socket::write_async_fiber (nano::shared_const_buffer const & buffer_a)
+{
+	return callback_to_fiber<boost::system::error_code, std::size_t> ([&, this] (auto callback) { async_write (buffer_a, callback); });
 }
 
 /** Call set_timeout with default_timeout as parameter */
