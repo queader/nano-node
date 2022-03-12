@@ -115,6 +115,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	//         the latter would inherit the port from the former (if TCP is active, otherwise `network` picks first)
 	//
 	bootstrap (network.port, *this),
+	bootstrap_v2 (*this),
 	application_path (application_path_a),
 	port_mapping (*this),
 	rep_crawler (*this),

@@ -9,8 +9,10 @@
 #include <boost/thread/thread.hpp>
 
 #include <memory>
+#include <optional>
 #include <queue>
 #include <unordered_set>
+
 namespace nano
 {
 class channel;
@@ -158,6 +160,7 @@ public:
 	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
 	// Get the next peer for attempting a tcp bootstrap connection
 	nano::tcp_endpoint bootstrap_peer (bool = false);
+	std::optional<nano::tcp_endpoint> get_next_bootstrap_peer ();
 	nano::endpoint endpoint ();
 	void cleanup (std::chrono::steady_clock::time_point const &);
 	void ongoing_cleanup ();

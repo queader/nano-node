@@ -1,22 +1,30 @@
-#include <boost/fiber/all.hpp>
-#include <boost/system/system_error.hpp>
+#pragma once
+
+#include <nano/lib/errors.hpp>
+
+#include <boost/fiber/future.hpp>
+
+#include <exception>
+#include <functional>
+
+//#include <boost/system/system_error.hpp>
 
 namespace nano
 {
 template <typename Ec, typename R>
-using Callback = std::function<void (Ec const &, R)>;
+using CallbackToFiber_Callback = std::function<void (Ec const &, R)>;
 
 template <typename Ec>
-using CallbackNoResult = std::function<void (Ec const &)>;
+using CallbackToFiber_CallbackNoResult = std::function<void (Ec const &)>;
 
 template <typename Ec, typename R>
-using Api = std::function<void (Callback<Ec, R>)>;
+using CallbackToFiber_Api = std::function<void (CallbackToFiber_Callback<Ec, R>)>;
 
 template <typename Ec>
-using ApiNoResult = std::function<void (CallbackNoResult<Ec>)>;
+using CallbackToFiber_ApiNoResult = std::function<void (CallbackToFiber_CallbackNoResult<Ec>)>;
 
 template <typename Ec, typename R>
-auto callback_to_fiber (Api<Ec, R> api)
+auto callback_to_fiber (CallbackToFiber_Api<Ec, R> api)
 {
 	boost::fibers::promise<R> promise;
 	boost::fibers::future<R> future (promise.get_future ());
@@ -28,7 +36,7 @@ auto callback_to_fiber (Api<Ec, R> api)
 		}
 		else
 		{
-			promise.set_exception (std::make_exception_ptr (boost::system::system_error (ec)));
+			promise.set_exception (std::make_exception_ptr (nano::error (ec)));
 		}
 	});
 
@@ -36,7 +44,7 @@ auto callback_to_fiber (Api<Ec, R> api)
 }
 
 template <typename Ec>
-auto callback_to_fiber (ApiNoResult<Ec> api)
+auto callback_to_fiber (CallbackToFiber_ApiNoResult<Ec> api)
 {
 	boost::fibers::promise<void> promise;
 	boost::fibers::future<void> future (promise.get_future ());
@@ -48,7 +56,7 @@ auto callback_to_fiber (ApiNoResult<Ec> api)
 		}
 		else
 		{
-			promise.set_exception (std::make_exception_ptr (boost::system::system_error (ec)));
+			promise.set_exception (std::make_exception_ptr (nano::error (ec)));
 		}
 	});
 

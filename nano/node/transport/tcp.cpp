@@ -271,6 +271,16 @@ nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer (uint8_t connec
 	return result;
 }
 
+std::optional<nano::tcp_endpoint> nano::transport::tcp_channels::get_next_bootstrap_peer (uint8_t connection_protocol_version_min)
+{
+	auto result = bootstrap_peer (connection_protocol_version_min);
+	if (result == nano::tcp_endpoint (boost::asio::ip::address_v6::any (), 0))
+	{
+		return {};
+	}
+	return { result };
+}
+
 void nano::transport::tcp_channels::process_messages ()
 {
 	while (!stopped)

@@ -10,6 +10,7 @@
 #include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index_container.hpp>
 
+#include <optional>
 #include <unordered_set>
 
 namespace mi = boost::multi_index;
@@ -88,6 +89,7 @@ namespace transport
 		std::shared_ptr<nano::transport::channel_tcp> find_node_id (nano::account const &);
 		// Get the next peer for attempting a tcp connection
 		nano::tcp_endpoint bootstrap_peer (uint8_t connection_protocol_version_min);
+		std::optional<nano::tcp_endpoint> get_next_bootstrap_peer (uint8_t connection_protocol_version_min);
 		void receive ();
 		void start ();
 		void stop ();

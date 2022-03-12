@@ -4,7 +4,6 @@
 #include <nano/boost/asio/ip/address_v6.hpp>
 #include <nano/boost/asio/ip/network_v6.hpp>
 #include <nano/boost/asio/read.hpp>
-#include <nano/lib/callback_to_fiber.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/socket.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -16,6 +15,10 @@
 #include <limits>
 #include <memory>
 #include <utility>
+
+// clang-format off
+#include <nano/lib/callback_to_fiber.hpp>
+// clang-format on
 
 namespace
 {
@@ -170,7 +173,9 @@ void nano::socket::connect_async_fiber (boost::asio::ip::tcp::endpoint const & e
 
 std::size_t nano::socket::read_async_fiber (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a)
 {
-	return callback_to_fiber<boost::system::error_code, std::size_t> ([&, this] (auto callback) { async_read (buffer_a, size_a, callback); });
+	auto result = callback_to_fiber<boost::system::error_code, std::size_t> ([&, this] (auto callback) { async_read (buffer_a, size_a, callback); });
+	release_assert (result == size_a);
+	return result;
 }
 
 std::size_t nano::socket::write_async_fiber (nano::shared_const_buffer const & buffer_a)

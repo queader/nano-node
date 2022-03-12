@@ -8,6 +8,8 @@
 #include <nano/node/bootstrap/bootstrap.hpp>
 #include <nano/node/bootstrap/bootstrap_attempt.hpp>
 #include <nano/node/bootstrap/bootstrap_server.hpp>
+#include <nano/node/bootstrap_prioritization.hpp>
+#include <nano/node/bootstrap_v2.hpp>
 #include <nano/node/confirmation_height_processor.hpp>
 #include <nano/node/distributed_work_factory.hpp>
 #include <nano/node/election.hpp>
@@ -27,7 +29,6 @@
 #include <nano/node/vote_storage.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/write_database_queue.hpp>
-#include <nano/node/bootstrap_prioritization.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/utility.hpp>
 
@@ -170,7 +171,7 @@ public:
 	nano::store & store;
 	std::unique_ptr<nano::store> vote_store_impl;
 	nano::store & vote_store;
-    nano::unchecked_map unchecked;
+	nano::unchecked_map unchecked;
 	std::unique_ptr<nano::wallets_store> wallets_store_impl;
 	nano::wallets_store & wallets_store;
 	nano::gap_cache gap_cache;
@@ -180,6 +181,7 @@ public:
 	std::shared_ptr<nano::telemetry> telemetry;
 	nano::bootstrap_initiator bootstrap_initiator;
 	nano::bootstrap_listener bootstrap;
+	nano::bootstrap_v2::bootstrap bootstrap_v2;
 	boost::filesystem::path application_path;
 	nano::node_observers observers;
 	nano::port_mapping port_mapping;

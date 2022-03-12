@@ -19,19 +19,40 @@ namespace transport
 
 namespace nano::bootstrap_v2
 {
+class bootstrap_client;
+
 class bootstrap final
 {
+public:
+	explicit bootstrap (nano::node & node);
+	void stop ();
+
+	std::shared_ptr<nano::bootstrap_v2::bootstrap_client> connect_random_client ();
+
+private:
+	void run ();
+
+	std::shared_ptr<nano::bootstrap_v2::bootstrap_client> connect_client (nano::tcp_endpoint const & endpoint);
+
+	std::thread thread;
+
+	nano::node & node;
 };
 
 class bootstrap_client final
 {
 public:
-	bootstrap_client (nano::node & node, std::shared_ptr<nano::transport::channel_tcp> channel);
+	explicit bootstrap_client (nano::node & node, std::shared_ptr<nano::transport::channel_tcp> channel);
 
-	bool bulk_pull (std::vector<std::shared_ptr<nano::block>> & result, nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
-	std::future<std::vector<std::shared_ptr<nano::block>>> bulk_pull_async (nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
+	std::vector<std::shared_ptr<nano::block>> bulk_pull (nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
 
-	private : nano::node & node;
+private:
+	std::shared_ptr<nano::block> receive_block (nano::socket & socket);
+	std::size_t get_block_size (nano::block_type block_type);
+
+	std::shared_ptr<std::vector<uint8_t>> receive_buffer;
+
+	nano::node & node;
 	std::shared_ptr<nano::transport::channel_tcp> channel;
 };
 }

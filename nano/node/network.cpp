@@ -726,6 +726,11 @@ nano::tcp_endpoint nano::network::bootstrap_peer (bool lazy_bootstrap)
 	return result;
 }
 
+std::optional<nano::tcp_endpoint> nano::network::get_next_bootstrap_peer ()
+{
+	return tcp_channels.get_next_bootstrap_peer (node.network_params.network.protocol_version_min);
+}
+
 std::shared_ptr<nano::transport::channel> nano::network::find_channel (nano::endpoint const & endpoint_a)
 {
 	std::shared_ptr<nano::transport::channel> result (tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (endpoint_a)));

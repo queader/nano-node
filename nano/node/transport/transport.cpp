@@ -1,4 +1,3 @@
-#include <nano/lib/callback_to_fiber.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -9,6 +8,10 @@
 #include <boost/format.hpp>
 
 #include <numeric>
+
+// clang-format off
+#include <nano/lib/callback_to_fiber.hpp>
+// clang-format on
 
 namespace
 {
