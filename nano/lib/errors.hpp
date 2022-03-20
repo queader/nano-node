@@ -207,11 +207,11 @@ namespace error_conversion
 
 namespace std
 {
-template <>
-struct is_error_code_enum<boost::system::errc::errc_t>
-	: public std::true_type
-{
-};
+//template <>
+//struct is_error_code_enum<boost::system::errc::errc_t>
+//	: public std::true_type
+//{
+//};
 
 std::error_code make_error_code (boost::system::errc::errc_t const & e);
 }
@@ -244,13 +244,13 @@ public:
 	error (nano::error && error_a) = default;
 
 	error (std::error_code code_a);
-	error (boost::system::error_code const & code_a);
+//	error (boost::system::error_code const & code_a);
 	error (std::string message_a);
 	error (std::exception const & exception_a);
 	error & operator= (nano::error const & err_a);
 	error & operator= (nano::error && err_a);
 	error & operator= (std::error_code code_a);
-	error & operator= (boost::system::error_code const & code_a);
+//	error & operator= (boost::system::error_code const & code_a);
 	error & operator= (boost::system::errc::errc_t const & code_a);
 	error & operator= (std::string message_a);
 	error & operator= (std::exception const & exception_a);

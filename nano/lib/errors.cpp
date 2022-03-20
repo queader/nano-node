@@ -313,10 +313,10 @@ nano::error::error (std::error_code code_a)
 	code = code_a;
 }
 
-nano::error::error (boost::system::error_code const & code_a)
-{
-	code = std::make_error_code (static_cast<std::errc> (code_a.value ()));
-}
+//nano::error::error (boost::system::error_code const & code_a)
+//{
+//	code = std::make_error_code (static_cast<std::errc> (code_a.value ()));
+//}
 
 nano::error::error (std::string message_a)
 {
@@ -352,13 +352,13 @@ nano::error & nano::error::operator= (std::error_code const code_a)
 	return *this;
 }
 
-/** Assign boost error code (as converted to std::error_code) */
-nano::error & nano::error::operator= (boost::system::error_code const & code_a)
-{
-	code = nano::error_conversion::convert (code_a);
-	message.clear ();
-	return *this;
-}
+///** Assign boost error code (as converted to std::error_code) */
+//nano::error & nano::error::operator= (boost::system::error_code const & code_a)
+//{
+//	code = nano::error_conversion::convert (code_a);
+//	message.clear ();
+//	return *this;
+//}
 
 /** Assign boost error code (as converted to std::error_code) */
 nano::error & nano::error::operator= (boost::system::errc::errc_t const & code_a)

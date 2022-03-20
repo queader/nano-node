@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/functional/hash.hpp>
 
 namespace nano
 {
