@@ -16,7 +16,7 @@ endif()
 
 # compatibility for osx sierra and on needs to be set before project
 set(CMAKE_OSX_DEPLOYMENT_TARGET
-    10.14
+    12
     CACHE STRING "")
 
 project(nano-node)
@@ -319,6 +319,7 @@ if(WIN32)
   add_definitions(/bigobj)
 else()
   if(APPLE)
+    add_compile_options(-stdlib=libc++ -fvisibility-inlines-hidden -fvisibility=hidden)
     set(PLATFORM_LINK_FLAGS "-framework Foundation -framework OpenCL")
   else()
     set(PLATFORM_LINK_FLAGS "-static-libgcc -static-libstdc++")
