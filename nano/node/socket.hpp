@@ -12,6 +12,10 @@
 #include <memory>
 #include <vector>
 
+// clang-format off
+#include <nano/lib/callback_to_fiber.hpp>
+// clang-format on
+
 namespace boost::asio::ip
 {
 class network_v6;
@@ -65,9 +69,35 @@ public:
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a);
 	void async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a = {});
 
-	void connect_async_fiber (boost::asio::ip::tcp::endpoint const & endpoint_a);
-	std::size_t read_async_fiber (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a);
-	std::size_t write_async_fiber (nano::shared_const_buffer const & buffer_a);
+	template <class CompletionToken>
+	auto async_connect_async (boost::asio::ip::tcp::endpoint const & endpoint_a, CompletionToken && token)
+	{
+		return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &)> (
+		[&, this] (auto && handler) {
+			this->async_connect (endpoint_a, make_shared_function (std::forward<decltype (handler)> (handler)));
+		},
+		token);
+	}
+
+	template <class CompletionToken>
+	auto async_read_async (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, CompletionToken && token)
+	{
+		return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &, std::size_t)> (
+		[&, this] (auto && handler) {
+			this->async_read (buffer_a, size_a, make_shared_function (std::forward<decltype (handler)> (handler)));
+		},
+		token);
+	}
+
+	template <class CompletionToken>
+	auto async_write_async (nano::shared_const_buffer const & buffer_a, CompletionToken && token)
+	{
+		return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &, std::size_t)> (
+		[&, this] (auto && handler) {
+			this->async_write (buffer_a, make_shared_function (std::forward<decltype (handler)> (handler)));
+		},
+		token);
+	}
 
 	void close ();
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;

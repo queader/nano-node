@@ -4,6 +4,8 @@
 #include <nano/node/common.hpp>
 #include <nano/node/socket.hpp>
 
+#include <boost/asio.hpp>
+
 #include <future>
 #include <vector>
 
@@ -27,12 +29,13 @@ public:
 	explicit bootstrap (nano::node & node);
 	void stop ();
 
-	std::shared_ptr<nano::bootstrap_v2::bootstrap_client> connect_random_client ();
+	boost::asio::awaitable<std::shared_ptr<nano::bootstrap_v2::bootstrap_client>> connect_random_client ();
 
 private:
 	void run ();
+	boost::asio::awaitable<void> run_bootstrap ();
 
-	std::shared_ptr<nano::bootstrap_v2::bootstrap_client> connect_client (nano::tcp_endpoint const & endpoint);
+	boost::asio::awaitable<std::shared_ptr<nano::bootstrap_v2::bootstrap_client>> connect_client (nano::tcp_endpoint const & endpoint);
 
 	std::thread thread;
 
@@ -44,10 +47,10 @@ class bootstrap_client final
 public:
 	explicit bootstrap_client (nano::node & node, std::shared_ptr<nano::transport::channel_tcp> channel);
 
-	std::vector<std::shared_ptr<nano::block>> bulk_pull (nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
+	boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bulk_pull (nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
 
 private:
-	std::shared_ptr<nano::block> receive_block (nano::socket & socket);
+	boost::asio::awaitable<std::shared_ptr<nano::block>> receive_block (nano::socket & socket);
 	std::size_t get_block_size (nano::block_type block_type);
 
 	std::shared_ptr<std::vector<uint8_t>> receive_buffer;

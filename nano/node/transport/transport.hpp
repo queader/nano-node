@@ -6,7 +6,13 @@
 #include <nano/node/common.hpp>
 #include <nano/node/socket.hpp>
 
+#include <boost/asio.hpp>
+#include <boost/asio/bind_executor.hpp>
 #include <boost/asio/ip/network_v6.hpp>
+
+// clang-format off
+#include <nano/lib/callback_to_fiber.hpp>
+// clang-format on
 
 namespace nano
 {
@@ -54,7 +60,16 @@ namespace transport
 		virtual bool operator== (nano::transport::channel const &) const = 0;
 
 		void send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a = nullptr, nano::buffer_drop_policy policy_a = nano::buffer_drop_policy::limiter);
-		void send_async_fiber (nano::message & message_a, nano::buffer_drop_policy policy_a = nano::buffer_drop_policy::limiter);
+
+		template <class CompletionToken>
+		auto send_async (nano::message & message_a, CompletionToken && token, nano::buffer_drop_policy policy_a = nano::buffer_drop_policy::limiter)
+		{
+			return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &, std::size_t)> (
+			[&, this] (auto && handler) {
+				this->send (message_a, unique_function<void (boost::system::error_code const &, std::size_t)> (std::forward<decltype (handler)> (handler)), policy_a);
+			},
+			token);
+		}
 
 		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
 		//

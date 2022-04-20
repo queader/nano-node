@@ -137,11 +137,6 @@ void nano::transport::channel::send (nano::message & message_a, std::function<vo
 	}
 }
 
-void nano::transport::channel::send_async_fiber (nano::message & message_a, nano::buffer_drop_policy policy_a)
-{
-	callback_to_fiber<boost::system::error_code, std::size_t> ([&, this] (auto callback) { send (message_a, callback, policy_a); });
-}
-
 nano::transport::channel_loopback::channel_loopback (nano::node & node_a) :
 	channel (node_a), endpoint (node_a.network.endpoint ())
 {
