@@ -15,7 +15,18 @@ nano::bootstrap_prioritization::bootstrap_prioritization (nano::node & node_a) :
 nano::bootstrap_prioritization::~bootstrap_prioritization ()
 {
 	thread_lazy_bootsrap.join ();
+	thread_initialize.join ();
 }
+
+// void nano::bootstrap_prioritization::stop()
+//{
+//	nano::unique_lock<nano::mutex> lock{ mutex };
+//	if (!stopped)
+//	{
+//		stopped = true;
+//		condition.notify_all (); // Notify flush (), run ()
+//	}
+// }
 
 void nano::bootstrap_prioritization::queue_send (nano::transaction const & transaction, nano::account const & origin_account, nano::account const & destination_account, nano::amount const & balance, bool force)
 {
@@ -128,10 +139,10 @@ void nano::bootstrap_prioritization::run_lazy_bootstrap ()
 			std::this_thread::sleep_for (std::chrono::seconds (3));
 		}
 
-//		if (inserted)
-//		{
-//			return;
-//		}
+		//		if (inserted)
+		//		{
+		//			return;
+		//		}
 	}
 }
 
@@ -169,7 +180,7 @@ void nano::bootstrap_prioritization::run_initialize ()
 	}
 }
 
-bool nano::bootstrap_prioritization::value_type::operator< (const nano::bootstrap_prioritization::value_type & other) const
+bool nano::bootstrap_prioritization::value_type::operator<(const nano::bootstrap_prioritization::value_type & other) const
 {
 	return priority == other.priority ? (amount == other.amount ? account < other.account : amount < other.amount) : priority > other.priority;
 	//	return amount == other.amount ? account < other.account : amount < other.amount;

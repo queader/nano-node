@@ -62,11 +62,11 @@ namespace transport
 		void send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a = nullptr, nano::buffer_drop_policy policy_a = nano::buffer_drop_policy::limiter);
 
 		template <class CompletionToken>
-		auto send_async (nano::message & message_a, CompletionToken && token, nano::buffer_drop_policy policy_a = nano::buffer_drop_policy::limiter)
+		auto async_send (nano::message & message_a, CompletionToken && token, nano::buffer_drop_policy policy_a = nano::buffer_drop_policy::limiter)
 		{
 			return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &, std::size_t)> (
-			[&, this] (auto && handler) {
-				this->send (message_a, unique_function<void (boost::system::error_code const &, std::size_t)> (std::forward<decltype (handler)> (handler)), policy_a);
+			[this, &message_a, policy_a] (auto && handler) {
+				this->send (message_a, make_shared_function (std::forward<decltype (handler)> (handler)), policy_a);
 			},
 			token);
 		}

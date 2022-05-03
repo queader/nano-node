@@ -27,6 +27,8 @@ class bootstrap final
 {
 public:
 	explicit bootstrap (nano::node & node);
+	~bootstrap ();
+
 	void stop ();
 
 	boost::asio::awaitable<std::shared_ptr<nano::bootstrap_v2::bootstrap_client>> connect_random_client ();
@@ -58,4 +60,6 @@ private:
 	nano::node & node;
 	std::shared_ptr<nano::transport::channel_tcp> channel;
 };
+
+boost::asio::awaitable<void> sleep_for (boost::asio::io_context & io_ctx, const std::chrono::nanoseconds & sleep_duration);
 }

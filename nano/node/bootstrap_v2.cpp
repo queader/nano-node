@@ -3,7 +3,8 @@
 #include <nano/node/node.hpp>
 #include <nano/node/transport/tcp.hpp>
 
-#include <boost/fiber/all.hpp>
+#include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <utility>
 
@@ -13,58 +14,56 @@ nano::bootstrap_v2::bootstrap::bootstrap (nano::node & node) :
 {
 }
 
+nano::bootstrap_v2::bootstrap::~bootstrap ()
+{
+	thread.join ();
+}
+
 void nano::bootstrap_v2::bootstrap::stop ()
 {
 }
 
 void nano::bootstrap_v2::bootstrap::run ()
 {
-	//	std::this_thread::sleep_for (std::chrono::seconds (10));
+	boost::asio::co_spawn (node.io_ctx, run_bootstrap (), boost::asio::detached);
+}
 
-	//	boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing> (1);
-	//
-	//	boost::fibers::fiber ([this] {
-	//		//		while (true)
-	//		//		{
-	//		boost::this_fiber::sleep_for (std::chrono::seconds (10));
-	//		//		}
-	//	})
-	//	.detach ();
-
-	boost::this_fiber::sleep_for (std::chrono::seconds (10));
-
-	//	boost::fibers::fiber ([this] {
-	//		std::cout << "bootstrap_v2: Running " << std::endl;
-	//
-	//		while (true)
-	//		{
-	//			std::cout << "bootstrap_v2: Try connect client " << std::endl;
-	//
-	//			try
-	//			{
-	//				auto client = connect_random_client ();
-	//				if (!client)
-	//				{
-	//					boost::this_fiber::sleep_for (std::chrono::seconds (1));
-	//					std::cout << "bootstrap_v2: Fail " << std::endl;
-	//					continue;
-	//				}
-	//
-	//				std::cout << "bootstrap_v2: Success " << std::endl;
-	//			}
-	//			catch (nano::error const & err)
-	//			{
-	//				std::cout << "bootstrap_v2: Error " << std::endl;
-	//
-	//				boost::this_fiber::sleep_for (std::chrono::seconds (1));
-	//			}
-	//		}
-	//	})
-	//	.detach ();
+boost::asio::awaitable<void> nano::bootstrap_v2::sleep_for (boost::asio::io_context & io_ctx, const std::chrono::nanoseconds & sleep_duration)
+{
+	boost::asio::steady_timer timer (io_ctx, sleep_duration);
+	co_await timer.async_wait (boost::asio::use_awaitable);
 }
 
 boost::asio::awaitable<void> nano::bootstrap_v2::bootstrap::run_bootstrap ()
 {
+	std::cout << "bootstrap_v2: Running " << std::endl;
+
+	while (true)
+	{
+		std::cout << "bootstrap_v2: try connect client " << std::endl;
+
+		try
+		{
+			auto client = co_await connect_random_client ();
+			if (!client)
+			{
+				//				boost::this_fiber::sleep_for (std::chrono::seconds (1));
+				std::cout << "bootstrap_v2: Fail " << std::endl;
+				continue;
+			}
+
+			std::cout << "bootstrap_v2: client connected " << std::endl;
+
+
+		}
+		catch (nano::error const & err)
+		{
+			std::cout << "bootstrap_v2: error " << std::endl;
+		}
+
+		co_await sleep_for (node.io_ctx, std::chrono::seconds (5));
+	}
+
 	co_return;
 }
 
@@ -119,7 +118,7 @@ boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> nano::bootstra
 
 	node.logger.try_log (boost::format ("Bulk pull frontier: %1%, end: %2% count: %3%") % frontier.to_account () % end.to_string () % count);
 
-	co_await channel->send_async (req, boost::asio::use_awaitable, buffer_drop_policy::no_limiter_drop);
+	co_await channel->async_send (req, boost::asio::use_awaitable, buffer_drop_policy::no_limiter_drop);
 
 	auto socket = channel->socket.lock ();
 

@@ -73,7 +73,7 @@ public:
 	auto async_connect_async (boost::asio::ip::tcp::endpoint const & endpoint_a, CompletionToken && token)
 	{
 		return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &)> (
-		[&, this] (auto && handler) {
+		[this, endpoint_a] (auto && handler) {
 			this->async_connect (endpoint_a, make_shared_function (std::forward<decltype (handler)> (handler)));
 		},
 		token);
@@ -83,7 +83,7 @@ public:
 	auto async_read_async (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, CompletionToken && token)
 	{
 		return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &, std::size_t)> (
-		[&, this] (auto && handler) {
+		[this, &buffer_a, size_a] (auto && handler) {
 			this->async_read (buffer_a, size_a, make_shared_function (std::forward<decltype (handler)> (handler)));
 		},
 		token);
@@ -93,7 +93,7 @@ public:
 	auto async_write_async (nano::shared_const_buffer const & buffer_a, CompletionToken && token)
 	{
 		return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code const &, std::size_t)> (
-		[&, this] (auto && handler) {
+		[this, &buffer_a] (auto && handler) {
 			this->async_write (buffer_a, make_shared_function (std::forward<decltype (handler)> (handler)));
 		},
 		token);

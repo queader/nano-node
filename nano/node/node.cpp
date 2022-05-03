@@ -702,6 +702,7 @@ void nano::node::stop ()
 		}
 		bootstrap_initiator.stop ();
 		bootstrap.stop ();
+		bootstrap_v2.stop ();
 		port_mapping.stop ();
 		checker.stop ();
 		wallets.stop ();
