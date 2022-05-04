@@ -51,9 +51,19 @@ public:
 
 	boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bulk_pull (nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
 
+	struct frontier_info
+	{
+		nano::public_key frontier{};
+		nano::block_hash latest{};
+	};
+
+	boost::asio::awaitable<std::vector<frontier_info>> request_frontiers (nano::account const & start_account, uint32_t frontiers_age, uint32_t count);
+
 private:
 	boost::asio::awaitable<std::shared_ptr<nano::block>> receive_block (nano::socket & socket);
 	std::size_t get_block_size (nano::block_type block_type);
+
+	boost::asio::awaitable<frontier_info> receive_frontier (nano::socket & socket);
 
 	std::shared_ptr<std::vector<uint8_t>> receive_buffer;
 
