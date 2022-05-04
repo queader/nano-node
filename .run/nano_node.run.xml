@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="nano_node" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="--daemon --config node.logging.log_to_cerr=true --disable_legacy_bootstrap" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="true" PASS_PARENT_ENVS_2="true" PROJECT_NAME="nano-node" TARGET_NAME="nano_node" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="nano-node" RUN_TARGET_NAME="nano_node">
-    <method v="2">
-      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-    </method>
-  </configuration>
-</component>

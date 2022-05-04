@@ -49,7 +49,7 @@ class bootstrap_client final
 public:
 	explicit bootstrap_client (nano::node & node, std::shared_ptr<nano::transport::channel_tcp> channel);
 
-	boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bulk_pull (nano::account frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
+	boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bulk_pull (nano::account const & frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
 
 	struct frontier_info
 	{

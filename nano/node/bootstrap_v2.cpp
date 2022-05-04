@@ -52,20 +52,28 @@ boost::asio::awaitable<void> bootstrap::run_bootstrap ()
 			auto client = co_await connect_random_client ();
 			if (!client)
 			{
-				//				boost::this_fiber::sleep_for (std::chrono::seconds (1));
 				std::cout << "bootstrap_v2: Fail " << std::endl;
 				continue;
 			}
 
 			std::cout << "bootstrap_v2: client connected " << std::endl;
 
-			auto frontiers = co_await client->request_frontiers (0, std::numeric_limits<uint32_t>::max (), 1024);
+			auto frontier_infos = co_await client->request_frontiers (0, std::numeric_limits<uint32_t>::max (), 1024 * 64);
+
+			std::cout << "bootstrap_v2: got frontiers: " << frontier_infos.size() << std::endl;
+
+			for (auto const & info : frontier_infos)
+			{
+				auto blocks = co_await client->bulk_pull (info.frontier, 0, 1024);
+
+				std::cout << "bootstrap_v2: got blocks: " << blocks.size() << std::endl;
+			}
 
 			std::cout << "bootstrap_v2: received frontiers " << std::endl;
 		}
 		catch (nano::error const & err)
 		{
-			std::cout << "bootstrap_v2: error " << std::endl;
+			std::cout << "bootstrap_v2: error: " << err.get_message() << std::endl;
 		}
 
 		co_await sleep_for (node.io_ctx, std::chrono::seconds (5));
@@ -117,7 +125,7 @@ bootstrap_client::bootstrap_client (nano::node & node, std::shared_ptr<nano::tra
 	receive_buffer->resize (256);
 }
 
-boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap_client::bulk_pull (nano::account frontier, nano::block_hash end, nano::bulk_pull::count_t count)
+boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap_client::bulk_pull (nano::account const & frontier, nano::block_hash end, nano::bulk_pull::count_t count)
 {
 	nano::bulk_pull req{ node.network_params.network };
 	req.start = frontier;
@@ -125,6 +133,7 @@ boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap_clie
 	req.count = count;
 	req.set_count_present (count != 0);
 
+	std::cout << "bootstrap_v2: bulk_pull started: " << frontier.to_account() << std::endl;
 	node.logger.try_log (boost::format ("Bulk pull frontier: %1%, end: %2% count: %3%") % frontier.to_account () % end.to_string () % count);
 
 	co_await channel->async_send (req, boost::asio::use_awaitable, buffer_drop_policy::no_limiter_drop);
@@ -133,15 +142,18 @@ boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap_clie
 
 	std::vector<std::shared_ptr<nano::block>> result;
 
-	for (nano::bulk_pull::count_t n = 0; n < count; ++n)
+	for (nano::bulk_pull::count_t n = 0; count == 0 || n < count; ++n)
 	{
 		auto block = co_await receive_block (*socket);
 		if (block == nullptr)
 		{
+			std::cout << "bootstrap_v2: bulk_pull: zero block" << std::endl;
 			break;
 		}
 
-		node.logger.try_log (boost::str (boost::format ("Received bulk pull block: %1%") % block->hash ().to_string ()));
+		std::cout << "bootstrap_v2: bulk_pull: " << n << " hash: " << block->hash ().to_string () << std::endl;
+
+//		node.logger.try_log (boost::str (boost::format ("Received bulk pull block: %1%") % block->hash ().to_string ()));
 
 		result.push_back (block);
 	}
@@ -199,9 +211,8 @@ boost::asio::awaitable<std::vector<bootstrap_client::frontier_info>> bootstrap_c
 	request.age = frontiers_age;
 	request.count = count;
 
-	node.logger.always_log (boost::format ("Request frontiers: start %1%, age: %2% count: %3%") % start_account.to_account () % frontiers_age % count);
-
 	std::cout << "bootstrap_v2: request_frontiers starting " << std::endl;
+//	node.logger.always_log (boost::format ("Request frontiers: start %1%, age: %2% count: %3%") % start_account.to_account () % frontiers_age % count);
 
 	co_await channel->async_send (request, boost::asio::use_awaitable);
 
@@ -209,12 +220,13 @@ boost::asio::awaitable<std::vector<bootstrap_client::frontier_info>> bootstrap_c
 
 	std::vector<bootstrap_client::frontier_info> result;
 
-	for (uint32_t n = 0; n < count; ++n)
+//	for (uint32_t n = 0; n < count; ++n)
+	while (true)
 	{
 		auto frontier = co_await receive_frontier (*socket);
-		std::cout << "bootstrap_v2: request_frontiers: " << n << std::endl;
+//		std::cout << "bootstrap_v2: request_frontiers: " << n << std::endl;
 
-		if (frontier.frontier.is_zero())
+		if (frontier.frontier.is_zero ())
 		{
 			std::cout << "bootstrap_v2: request_frontiers: zero frontier" << std::endl;
 			break;
