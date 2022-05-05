@@ -23,6 +23,12 @@ namespace nano::bootstrap_v2
 {
 class bootstrap_client;
 
+struct frontier_info
+{
+	nano::public_key frontier{};
+	nano::block_hash latest{};
+};
+
 class bootstrap final
 {
 public:
@@ -36,6 +42,7 @@ public:
 private:
 	void run ();
 	boost::asio::awaitable<void> run_bootstrap ();
+	boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> run_bulk_pull (frontier_info const & info);
 
 	boost::asio::awaitable<std::shared_ptr<nano::bootstrap_v2::bootstrap_client>> connect_client (nano::tcp_endpoint const & endpoint);
 
@@ -50,12 +57,6 @@ public:
 	explicit bootstrap_client (nano::node & node, std::shared_ptr<nano::transport::channel_tcp> channel);
 
 	boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bulk_pull (nano::account const & frontier, nano::block_hash end = 0, nano::bulk_pull::count_t count = 0);
-
-	struct frontier_info
-	{
-		nano::public_key frontier{};
-		nano::block_hash latest{};
-	};
 
 	boost::asio::awaitable<std::vector<frontier_info>> request_frontiers (nano::account const & start_account, uint32_t frontiers_age, uint32_t count);
 

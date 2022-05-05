@@ -5,6 +5,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <utility>
 
@@ -39,45 +40,67 @@ boost::asio::awaitable<void> sleep_for (boost::asio::io_context & io_ctx, const 
 
 boost::asio::awaitable<void> bootstrap::run_bootstrap ()
 {
-	std::cout << "bootstrap_v2: Running " << std::endl;
+	BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: started";
 
 	while (true)
 	{
-		std::cout << "bootstrap_v2: try connect client " << std::endl;
+		BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: try connect client";
 
 		try
 		{
 			auto client = co_await connect_random_client ();
 			if (!client)
 			{
-				std::cout << "bootstrap_v2: Fail " << std::endl;
+				BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: failed to connect client";
 				continue;
 			}
 
-			std::cout << "bootstrap_v2: client connected " << std::endl;
+			BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: client connected";
 
 			auto frontier_infos = co_await client->request_frontiers (0, std::numeric_limits<uint32_t>::max (), 1024 * 64);
 
-			std::cout << "bootstrap_v2: got frontiers: " << frontier_infos.size () << std::endl;
+			BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: got frontiers: " << frontier_infos.size ();
 
 			for (auto const & info : frontier_infos)
 			{
-				auto blocks = co_await client->bulk_pull (info.frontier, 0, 1024);
+				auto blocks = co_await client->bulk_pull (info.frontier);
 
-				std::cout << "bootstrap_v2: got blocks: " << blocks.size () << std::endl;
+				BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: got blocks: " << blocks.size ();
 			}
 
 			std::cout << "bootstrap_v2: received frontiers " << std::endl;
 		}
 		catch (nano::error const & err)
 		{
-			std::cout << "bootstrap_v2: error: " << err.get_message () << std::endl;
+			BOOST_LOG_TRIVIAL(debug) << "run_bootstrap: error: " << err.get_message ();
 		}
 
 		co_await sleep_for (node.io_ctx, std::chrono::seconds (5));
 	}
+}
 
-	co_return;
+boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap::run_bulk_pull (frontier_info const & info)
+{
+	while (true)
+	{
+		try
+		{
+			auto client = co_await connect_random_client ();
+			if (!client)
+			{
+				BOOST_LOG_TRIVIAL(debug) << "run_bulk_pull: failed to connect client";
+				continue;
+			}
+
+			auto blocks = co_await client->bulk_pull (info.frontier);
+
+			co_return blocks;
+		}
+		catch (nano::error const & err)
+		{
+			BOOST_LOG_TRIVIAL(debug) << "run_bulk_pull: error: " << err.get_message();
+		}
+	}
 }
 
 boost::asio::awaitable<std::shared_ptr<bootstrap_client>> bootstrap::connect_client (nano::tcp_endpoint const & endpoint)
@@ -110,7 +133,7 @@ boost::asio::awaitable<std::shared_ptr<bootstrap_client>> bootstrap::connect_ran
 		}
 		catch (nano::error const & err)
 		{
-			node.logger.try_log (boost::str (boost::format ("Error connecting bootstrap client: %1%") % endpoint));
+			BOOST_LOG_TRIVIAL(debug) << "connect_random_client: error connecting: " << endpoint;
 		}
 	}
 }
@@ -131,8 +154,7 @@ boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap_clie
 	req.count = count;
 	req.set_count_present (count != 0);
 
-	std::cout << "bootstrap_v2: bulk_pull started: " << frontier.to_account () << std::endl;
-	node.logger.try_log (boost::format ("Bulk pull frontier: %1%, end: %2% count: %3%") % frontier.to_account () % end.to_string () % count);
+	BOOST_LOG_TRIVIAL(debug) << "bulk_pull: started: " << frontier.to_account ();
 
 	co_await channel->async_send (req, boost::asio::use_awaitable, buffer_drop_policy::no_limiter_drop);
 
@@ -145,13 +167,11 @@ boost::asio::awaitable<std::vector<std::shared_ptr<nano::block>>> bootstrap_clie
 		auto block = co_await receive_block (*socket);
 		if (block == nullptr)
 		{
-			std::cout << "bootstrap_v2: bulk_pull: zero block" << std::endl;
+			BOOST_LOG_TRIVIAL(debug) << "bulk_pull: zero block";
 			break;
 		}
 
-		std::cout << "bootstrap_v2: bulk_pull: " << n << " hash: " << block->hash ().to_string () << std::endl;
-
-		//		node.logger.try_log (boost::str (boost::format ("Received bulk pull block: %1%") % block->hash ().to_string ()));
+		BOOST_LOG_TRIVIAL(debug) << "bulk_pull: " << n << " hash: " << block->hash ().to_string ();
 
 		result.push_back (block);
 	}
@@ -202,21 +222,20 @@ std::size_t bootstrap_client::get_block_size (nano::block_type block_type)
 	}
 }
 
-boost::asio::awaitable<std::vector<bootstrap_client::frontier_info>> bootstrap_client::request_frontiers (const nano::account & start_account, const uint32_t frontiers_age, const uint32_t count)
+boost::asio::awaitable<std::vector<frontier_info>> bootstrap_client::request_frontiers (const nano::account & start_account, const uint32_t frontiers_age, const uint32_t count)
 {
 	nano::frontier_req request{ node.network_params.network };
 	request.start = start_account;
 	request.age = frontiers_age;
 	request.count = count;
 
-	std::cout << "bootstrap_v2: request_frontiers starting " << std::endl;
-	//	node.logger.always_log (boost::format ("Request frontiers: start %1%, age: %2% count: %3%") % start_account.to_account () % frontiers_age % count);
+	BOOST_LOG_TRIVIAL(debug) << "request_frontiers: started";
 
 	co_await channel->async_send (request, boost::asio::use_awaitable);
 
 	auto socket = channel->socket.lock ();
 
-	std::vector<bootstrap_client::frontier_info> result;
+	std::vector<frontier_info> result;
 
 	//	for (uint32_t n = 0; n < count; ++n)
 	while (true)
@@ -226,7 +245,7 @@ boost::asio::awaitable<std::vector<bootstrap_client::frontier_info>> bootstrap_c
 
 		if (frontier.frontier.is_zero ())
 		{
-			std::cout << "bootstrap_v2: request_frontiers: zero frontier" << std::endl;
+			BOOST_LOG_TRIVIAL(debug) << "request_frontiers: zero frontier";
 			break;
 		}
 		else
@@ -235,14 +254,14 @@ boost::asio::awaitable<std::vector<bootstrap_client::frontier_info>> bootstrap_c
 		}
 	}
 
-	std::cout << "bootstrap_v2: request_frontiers finished " << std::endl;
+	BOOST_LOG_TRIVIAL(debug) << "request_frontiers: finished";
 
 	co_return result;
 }
 
 constexpr std::size_t frontier_info_size = sizeof (nano::account) + sizeof (nano::block_hash);
 
-boost::asio::awaitable<bootstrap_client::frontier_info> bootstrap_client::receive_frontier (nano::socket & socket)
+boost::asio::awaitable<frontier_info> bootstrap_client::receive_frontier (nano::socket & socket)
 {
 	// TODO: modify read_async to check for correct read size and throw an error in case there is a discrepancy
 	auto size = co_await socket.async_read_async (receive_buffer, frontier_info_size, boost::asio::use_awaitable);
@@ -261,7 +280,7 @@ boost::asio::awaitable<bootstrap_client::frontier_info> bootstrap_client::receiv
 	(void)error2;
 	debug_assert (!error2);
 
-	bootstrap_client::frontier_info info{ account, latest };
+	frontier_info info{ account, latest };
 	co_return info;
 }
 
