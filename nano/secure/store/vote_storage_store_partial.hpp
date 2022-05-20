@@ -62,30 +62,31 @@ public:
 
 				nano::votes_replay_key key (block_hash, vote_a->account);
 
-				//                    auto status = get (transaction_a, tables::votes_replay, key, value);
-				//                    if (success (status))
-				//                    {
-				//                        auto vote_b = static_cast<nano::vote> (value);
-				//
-				//                        debug_assert (vote_b.account == vote_a->account);
-				//
-				//                        if (vote_a->timestamp > vote_b.timestamp)
-				//                        {
-				//                            status = put (transaction_a, tables::votes_replay, key, *vote_a);
-				//                        }
-				//                    }
-				//                    else
-				//                    {
-				//                        result = true;
-				//
-				//                        status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
-				//                        release_assert_success (*this, status);
-				//                    }
+				auto status = store.get (transaction_a, tables::votes_replay, key, value);
+				if (store.success (status))
+				{
+					auto vote_b = static_cast<nano::vote> (value);
 
-				result = true;
+					debug_assert (vote_b.account == vote_a->account);
+
+					if (vote_a->timestamp () > vote_b.timestamp ())
+					{
+						result = true;
+						status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
+						release_assert_success (store, status);
+					}
+				}
+				else
+				{
+					result = true;
+					status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
+					release_assert_success (store, status);
+				}
+
+				//				result = true;
 				//
-				auto status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
-				release_assert_success (store, status);
+				//				auto status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
+				//				release_assert_success (store, status);
 			}
 		}
 

@@ -212,10 +212,10 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		{
 			if (verifications[j++] == 1)
 			{
-				if (vote.first->timestamp() == std::numeric_limits<uint64_t>::max ())
-				{
+//				if (vote.first->timestamp() == std::numeric_limits<uint64_t>::max ())
+//				{
 					votes_to_cache.emplace_back (vote.first);
-				}
+//				}
 			}
 		}
 	}

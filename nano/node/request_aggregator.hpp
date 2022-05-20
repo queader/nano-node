@@ -60,7 +60,7 @@ class request_aggregator final
 	// clang-format on
 
 public:
-	request_aggregator (nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &, nano::vote_storage &);
+	request_aggregator (nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &, nano::vote_storage &, nano::node &);
 
 	/** Add a new request by \p channel_a for hashes \p hashes_roots_a */
 	void add (std::shared_ptr<nano::transport::channel> const & channel_a, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots_a);
@@ -106,6 +106,7 @@ private:
 	nano::condition_variable condition;
 	nano::mutex mutex{ mutex_identifier (mutexes::request_aggregator) };
 	std::thread thread;
+	nano::node& node;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (request_aggregator &, std::string const &);
 };
