@@ -370,6 +370,18 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 		else
 		{
 			auto last_vote_l (last_vote_it->second);
+
+			// Look out for the case where single representative votes for conflicting blocks
+			if (last_vote_l.timestamp == timestamp_a && last_vote_l.hash != block_hash_a)
+			{
+				// TODO: Block this representative for a period of time (~1h)
+				if (node.config.logging.vote_logging ())
+				{
+					node.logger.try_log (boost::str (boost::format ("Vote timestamp conflict from: %1% timestamp: %2% hash: %3% last hash: %4%") % rep.to_account () % std::to_string (timestamp_a) % last_vote_l.hash.to_string () % block_hash_a.to_string ()));
+				}
+				node.stats.inc (nano::stat::type::election, nano::stat::detail::vote_timestamp_conflict);
+			}
+
 			if (last_vote_l.timestamp < timestamp_a || (last_vote_l.timestamp == timestamp_a && last_vote_l.hash < block_hash_a))
 			{
 				auto max_vote = timestamp_a == std::numeric_limits<uint64_t>::max () && last_vote_l.timestamp < timestamp_a;

@@ -699,6 +699,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::vote_cached:
 			res = "vote_cached";
 			break;
+		case nano::stat::detail::vote_timestamp_conflict:
+			res = "vote_timestamp_conflict";
+			break;
 		case nano::stat::detail::late_block:
 			res = "late_block";
 			break;

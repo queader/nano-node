@@ -315,6 +315,7 @@ public:
 		// election specific
 		vote_new,
 		vote_cached,
+		vote_timestamp_conflict,
 		late_block,
 		late_block_seconds,
 		election_start,
