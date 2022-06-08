@@ -48,8 +48,6 @@ public:
 
 	bool put (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a) override
 	{
-		debug_assert (vote_a->timestamp () == std::numeric_limits<uint64_t>::max ());
-
 		nano::db_val<Val> value;
 
 		bool result = false;
@@ -82,11 +80,6 @@ public:
 					status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
 					release_assert_success (store, status);
 				}
-
-				//				result = true;
-				//
-				//				auto status = store.put (transaction_a, tables::votes_replay, key, *vote_a);
-				//				release_assert_success (store, status);
 			}
 		}
 
