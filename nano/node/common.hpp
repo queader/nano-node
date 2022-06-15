@@ -347,7 +347,8 @@ public:
 enum class telemetry_maker : uint8_t
 {
 	nf_node = 0,
-	nf_pruned_node = 1
+	nf_pruned_node = 1,
+	fikumikudev_vote_storage = 111,
 };
 
 class telemetry_data
