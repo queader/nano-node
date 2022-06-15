@@ -3,6 +3,7 @@
 #include <nano/node/common.hpp>
 #include <nano/node/socket.hpp>
 
+#include <deque>
 #include <unordered_set>
 
 namespace nano
@@ -74,6 +75,10 @@ class bulk_pull_server final : public std::enable_shared_from_this<nano::bulk_pu
 {
 public:
 	bulk_pull_server (std::shared_ptr<nano::bootstrap_server> const &, std::unique_ptr<nano::bulk_pull>);
+
+	void reply ();
+
+private:
 	void set_current_end ();
 	std::shared_ptr<nano::block> get_next ();
 	void send_next ();
@@ -87,6 +92,9 @@ public:
 	bool include_start;
 	nano::bulk_pull::count_t max_count;
 	nano::bulk_pull::count_t sent_count;
+
+	void send_next_from_queue ();
+	std::deque<std::shared_ptr<nano::block>> block_queue;
 };
 class bulk_pull_account;
 class bulk_pull_account_server final : public std::enable_shared_from_this<nano::bulk_pull_account_server>

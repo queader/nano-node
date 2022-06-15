@@ -399,6 +399,61 @@ void nano::bulk_pull_account_client::receive_pending ()
 	});
 }
 
+constexpr std::size_t max_blocks = 1024;
+
+void nano::bulk_pull_server::reply ()
+{
+	for (int n = 0; n < max_blocks; ++n)
+	{
+		auto block = get_next ();
+		if (block != nullptr)
+		{
+			block_queue.push_back (block);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	send_next_from_queue ();
+}
+
+void nano::bulk_pull_server::send_next_from_queue ()
+{
+	auto block = block_queue.back ();
+	block_queue.pop_back ();
+	if (block != nullptr)
+	{
+		std::vector<uint8_t> send_buffer;
+		{
+			nano::vectorstream stream (send_buffer);
+			nano::serialize_block (stream, *block);
+		}
+		if (connection->node->config.logging.bulk_pull_logging ())
+		{
+			connection->node->logger.try_log (boost::str (boost::format ("Sending block: %1%") % block->hash ().to_string ()));
+		}
+		connection->socket->async_write (nano::shared_const_buffer (std::move (send_buffer)), [this_l = shared_from_this ()] (boost::system::error_code const & ec, std::size_t size_a) {
+			if (!ec)
+			{
+				this_l->send_next_from_queue ();
+			}
+			else
+			{
+				if (this_l->connection->node->config.logging.bulk_pull_logging ())
+				{
+					this_l->connection->node->logger.try_log (boost::str (boost::format ("Unable to bulk send block: %1%") % ec.message ()));
+				}
+			}
+		});
+	}
+	else
+	{
+		send_finished ();
+	}
+}
+
 /**
  * Handle a request for the pull of all blocks associated with an account
  * The account is supplied as the "start" member, and the final block to
@@ -466,6 +521,12 @@ void nano::bulk_pull_server::set_current_end ()
 				}
 			}
 		}
+	}
+
+	if (!request->end.is_zero ())
+	{
+		current = request->end;
+		request->end.clear ();
 	}
 
 	sent_count = 0;
@@ -620,7 +681,7 @@ void nano::bulk_pull_server::no_block_sent (boost::system::error_code const & ec
 
 bool nano::bulk_pull_server::ascending () const
 {
-	return request->header.bulk_pull_ascending ();
+	return true;
 }
 
 nano::bulk_pull_server::bulk_pull_server (std::shared_ptr<nano::bootstrap_server> const & connection_a, std::unique_ptr<nano::bulk_pull> request_a) :
