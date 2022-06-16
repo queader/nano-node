@@ -356,17 +356,20 @@ void nano::vote_processor::add_to_vote_replay_cache (nano::write_transaction con
 
 	if (vote_a->blocks.size () <= max_vote_size)
 	{
-		if (representatives_1_5.find (vote_a->account) != representatives_1_5.end ())
 		{
-			process = true;
-		}
-		if (representatives_2.find (vote_a->account) != representatives_2.end ())
-		{
-			process = true;
-		}
-		else if (representatives_3.find (vote_a->account) != representatives_3.end ())
-		{
-			process = true;
+			nano::unique_lock<nano::mutex> lock (mutex);
+			if (representatives_1_5.find (vote_a->account) != representatives_1_5.end ())
+			{
+				process = true;
+			}
+			if (representatives_2.find (vote_a->account) != representatives_2.end ())
+			{
+				process = true;
+			}
+			else if (representatives_3.find (vote_a->account) != representatives_3.end ())
+			{
+				process = true;
+			}
 		}
 
 		if (process)
