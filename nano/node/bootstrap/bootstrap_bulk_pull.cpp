@@ -421,8 +421,12 @@ void nano::bulk_pull_server::reply ()
 
 void nano::bulk_pull_server::send_next_from_queue ()
 {
-	auto block = block_queue.back ();
-	block_queue.pop_back ();
+	std::shared_ptr<nano::block> block;
+	if (!block_queue.empty())
+	{
+		block = block_queue.back ();
+		block_queue.pop_back ();
+	}
 	if (block != nullptr)
 	{
 		std::vector<uint8_t> send_buffer;
