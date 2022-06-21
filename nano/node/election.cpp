@@ -448,37 +448,6 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 	return result;
 }
 
-std::size_t nano::election::insert_inactive_votes_cache (nano::inactive_cache_information const & cache_a)
-{
-	nano::unique_lock<nano::mutex> lock (mutex);
-	for (auto const & [rep, timestamp] : cache_a.voters)
-	{
-		auto inserted (last_votes.emplace (rep, nano::vote_info{ std::chrono::steady_clock::time_point::min (), timestamp, cache_a.hash }));
-		if (inserted.second)
-		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::vote_cached);
-		}
-	}
-	if (!confirmed ())
-	{
-		if (!cache_a.voters.empty ())
-		{
-			auto delay (std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - cache_a.arrival));
-			if (delay > late_blocks_delay)
-			{
-				node.stats.inc (nano::stat::type::election, nano::stat::detail::late_block);
-				node.stats.add (nano::stat::type::election, nano::stat::detail::late_block_seconds, nano::stat::dir::in, delay.count (), true);
-			}
-		}
-		if (last_votes.size () > 1) // null account
-		{
-			// Even if no votes were in cache, they could be in the election
-			confirm_if_quorum (lock);
-		}
-	}
-	return cache_a.voters.size ();
-}
-
 nano::election_extended_status nano::election::current_status () const
 {
 	nano::lock_guard<nano::mutex> guard (mutex);

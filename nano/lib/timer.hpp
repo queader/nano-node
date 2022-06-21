@@ -98,12 +98,15 @@ private:
 	void update_ticks ();
 };
 
-inline uint64_t milliseconds_since_epoch ()
+using millis_t = uint64_t;
+using seconds_t = uint64_t;
+
+inline millis_t milliseconds_since_epoch ()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
 }
 
-inline uint64_t seconds_since_epoch ()
+inline seconds_t seconds_since_epoch ()
 {
 	return std::chrono::duration_cast<std::chrono::seconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
 }

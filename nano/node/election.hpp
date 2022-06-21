@@ -103,9 +103,8 @@ public: // Status
 public: // Interface
 	election (nano::node &, std::shared_ptr<nano::block> const &, std::function<void (std::shared_ptr<nano::block> const &)> const &, std::function<void (nano::account const &)> const &, nano::election_behavior);
 	std::shared_ptr<nano::block> find (nano::block_hash const &) const;
-	nano::election_vote_result vote (nano::account const &, uint64_t, nano::block_hash const &);
+	nano::election_vote_result vote (nano::account const & representative, uint64_t timestamp, nano::block_hash const & block_hash);
 	bool publish (std::shared_ptr<nano::block> const & block_a);
-	std::size_t insert_inactive_votes_cache (nano::inactive_cache_information const &);
 	// Confirm this block if quorum is met
 	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
 
