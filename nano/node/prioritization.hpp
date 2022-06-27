@@ -27,7 +27,7 @@ class prioritization final
 	public:
 		uint64_t time;
 		std::shared_ptr<nano::block> block;
-		bool operator< (value_type const & other_a) const;
+		bool operator<(value_type const & other_a) const;
 		bool operator== (value_type const & other_a) const;
 	};
 
@@ -64,6 +64,14 @@ public:
 	bool empty () const;
 	void dump () const;
 
+	std::shared_ptr<nano::block> bucket_top (std::size_t index) const;
+	void bucket_pop (std::size_t index);
+
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const &);
+
+	int block_bucket(nano::block const & block) const;
+
+public:
+	std::function<int (nano::block const & block)> block_bucket_query{ [] (nano::block const & block) { return 0; } };
 };
 }

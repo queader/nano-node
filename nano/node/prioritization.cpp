@@ -4,7 +4,7 @@
 
 #include <string>
 
-bool nano::prioritization::value_type::operator< (value_type const & other_a) const
+bool nano::prioritization::value_type::operator<(value_type const & other_a) const
 {
 	return time < other_a.time || (time == other_a.time && block->hash () < other_a.block->hash ());
 }
@@ -63,6 +63,15 @@ nano::prioritization::prioritization (uint64_t maximum) :
 	current = schedule.begin ();
 }
 
+int nano::prioritization::block_bucket (const nano::block & block) const
+{
+	auto block_has_balance = block.type () == nano::block_type::state || block.type () == nano::block_type::send;
+	debug_assert (block_has_balance || block.has_sideband ());
+	auto balance = block_has_balance ? block.balance () : block.sideband ().balance;
+	auto index = std::upper_bound (minimums.begin (), minimums.end (), balance.number ()) - 1 - minimums.begin ();
+	return index;
+};
+
 /**
  * Push a block and its associated time into the prioritization container.
  * The time is given here because sideband might not exist in the case of state blocks.
@@ -70,10 +79,7 @@ nano::prioritization::prioritization (uint64_t maximum) :
 void nano::prioritization::push (uint64_t time, std::shared_ptr<nano::block> block)
 {
 	auto was_empty = empty ();
-	auto block_has_balance = block->type () == nano::block_type::state || block->type () == nano::block_type::send;
-	debug_assert (block_has_balance || block->has_sideband ());
-	auto balance = block_has_balance ? block->balance () : block->sideband ().balance;
-	auto index = std::upper_bound (minimums.begin (), minimums.end (), balance.number ()) - 1 - minimums.begin ();
+	auto index = block_bucket (*block);
 	auto & bucket = buckets[index];
 	bucket.emplace (value_type{ time, block });
 	if (bucket.size () > std::max (decltype (maximum){ 1 }, maximum / buckets.size ()))
@@ -103,6 +109,22 @@ void nano::prioritization::pop ()
 	auto & bucket = buckets[*current];
 	bucket.erase (bucket.begin ());
 	seek ();
+}
+
+std::shared_ptr<nano::block> nano::prioritization::bucket_top (std::size_t index) const
+{
+	debug_assert (!empty ());
+	debug_assert (!buckets[index].empty ());
+	auto result = buckets[index].begin ()->block;
+	return result;
+}
+
+void nano::prioritization::bucket_pop (std::size_t index)
+{
+	debug_assert (!empty ());
+	debug_assert (!buckets[index].empty ());
+	auto & bucket = buckets[index];
+	bucket.erase (bucket.begin ());
 }
 
 /** Returns the total number of blocks in buckets */

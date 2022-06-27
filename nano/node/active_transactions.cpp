@@ -11,6 +11,7 @@
 #include <boost/variant/get.hpp>
 
 #include <numeric>
+#include <unordered_map>
 
 using namespace std::chrono;
 
@@ -35,6 +36,9 @@ nano::active_transactions::active_transactions (nano::node & node_a, nano::confi
 	confirmation_height_processor.add_block_already_cemented_observer ([this] (nano::block_hash const & hash_a) {
 		this->block_already_cemented_callback (hash_a);
 	});
+
+	const std::size_t hinted_limit = node.config.active_elections_hinted_limit_percentage * node.config.active_elections_size / 100;
+	reserve_bucket (BUCKET_HINTED, hinted_limit);
 
 	nano::unique_lock<nano::mutex> lock (mutex);
 	condition.wait (lock, [&started = started] { return started; });
@@ -164,19 +168,28 @@ void nano::active_transactions::block_already_cemented_callback (nano::block_has
 	remove_election_winner_details (hash_a);
 }
 
-int64_t nano::active_transactions::vacancy () const
+void nano::active_transactions::reserve_bucket (int bucket, size_t count)
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	auto result = static_cast<int64_t> (node.config.active_elections_size) - static_cast<int64_t> (roots.size ());
-	return result;
+	debug_assert (!bucket_reserved.count (bucket));
+	bucket_reserved[bucket] = count;
 }
 
-int64_t nano::active_transactions::vacancy_hinted () const
+int64_t nano::active_transactions::vacancy (int bucket) const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	const int64_t limit = node.config.active_elections_hinted_limit_percentage * node.config.active_elections_size / 100;
-	auto result = limit - active_hinted_elections_count;
-	return result;
+	auto vacancy = static_cast<int64_t> (node.config.active_elections_size) - static_cast<int64_t> (roots.size ());
+	if (vacancy > 0 || bucket == BUCKET_ALL)
+	{
+		return vacancy;
+	}
+	else
+	{
+		// Every bucket should be reserved before use
+		release_assert (bucket_reserved.count (bucket));
+		int reserved = bucket_reserved.at (bucket);
+		int count = bucket_counts.count (bucket) ? bucket_counts.at (bucket) : 0;
+		return reserved - count;
+	}
 }
 
 void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> & lock_a)
@@ -230,14 +243,14 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 	}
 }
 
-void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election> election)
+void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex> & lock_a, conflict_info info)
 {
 	debug_assert (lock_a.owns_lock ());
 
-	if (!election->confirmed ())
+	if (!info.election->confirmed ())
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_drop_all);
-		if (election->behavior == election_behavior::hinted)
+		if (info.election->behavior == election_behavior::hinted)
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::election_hinted_drop);
 		}
@@ -245,18 +258,15 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	else
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_confirmed_all);
-		if (election->behavior == election_behavior::hinted)
+		if (info.election->behavior == election_behavior::hinted)
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::election_hinted_confirmed);
 		}
 	}
 
-	if (election->behavior == election_behavior::hinted)
-	{
-		--active_hinted_elections_count;
-	}
+	bucket_counts[info.bucket]--;
 
-	auto blocks_l = election->blocks ();
+	auto blocks_l = info.election->blocks ();
 	for (auto const & [hash, block] : blocks_l)
 	{
 		auto erased (blocks.erase (hash));
@@ -264,29 +274,29 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 		debug_assert (erased == 1);
 		node.inactive_vote_cache.erase (hash);
 	}
-	roots.get<tag_root> ().erase (roots.get<tag_root> ().find (election->qualified_root));
+	roots.get<tag_root> ().erase (roots.get<tag_root> ().find (info.election->qualified_root));
 
 	lock_a.unlock ();
 	vacancy_update ();
 	for (auto const & [hash, block] : blocks_l)
 	{
 		// Notify observers about dropped elections & blocks lost confirmed elections
-		if (!election->confirmed () || hash != election->winner ()->hash ())
+		if (!info.election->confirmed () || hash != info.election->winner ()->hash ())
 		{
 			node.observers.active_stopped.notify (hash);
 		}
 
-		if (!election->confirmed ())
+		if (!info.election->confirmed ())
 		{
 			// Clear from publish filter
 			node.network.publish_filter.clear (block);
 		}
 	}
 
-	node.stats.inc (nano::stat::type::election, election->confirmed () ? nano::stat::detail::election_confirmed : nano::stat::detail::election_not_confirmed);
+	node.stats.inc (nano::stat::type::election, info.election->confirmed () ? nano::stat::detail::election_confirmed : nano::stat::detail::election_not_confirmed);
 	if (node.config.logging.election_result_logging ())
 	{
-		node.logger.try_log (boost::str (boost::format ("Election erased for root %1%, confirmed: %2$b") % election->qualified_root.to_string () % election->confirmed ()));
+		node.logger.try_log (boost::str (boost::format ("Election erased for root %1%, confirmed: %2$b") % info.election->qualified_root.to_string () % info.election->confirmed ()));
 	}
 }
 
@@ -369,7 +379,7 @@ void nano::active_transactions::stop ()
 	roots.clear ();
 }
 
-nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
+nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, int bucket, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
 {
 	debug_assert (lock_a.owns_lock ());
 	debug_assert (block_a->has_sideband ());
@@ -391,13 +401,9 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 					node.online_reps.observe (rep_a);
 				},
 				election_behavior_a);
-				roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election, epoch, election_behavior_a });
+				roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election, epoch, bucket });
 				blocks.emplace (hash, result.election);
-				// Increase hinted election counter while still holding lock
-				if (election_behavior_a == election_behavior::hinted)
-				{
-					active_hinted_elections_count++;
-				}
+				bucket_counts[bucket]++;
 				lock_a.unlock ();
 				if (auto const cache = node.inactive_vote_cache.find (hash); cache)
 				{
@@ -426,19 +432,23 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 	return result;
 }
 
+nano::election_insertion_result nano::active_transactions::insert (const std::shared_ptr<nano::block> & block, int bucket, const std::function<void (const std::shared_ptr<nano::block> &)> & confirmation_callback)
+{
+	nano::unique_lock<nano::mutex> lock (mutex);
+
+	auto result = insert_impl (lock, block, bucket, nano::election_behavior::normal);
+	if (result.election != nullptr)
+	{
+		result.election->transition_active ();
+	}
+	return result;
+}
+
 nano::election_insertion_result nano::active_transactions::insert_hinted (std::shared_ptr<nano::block> const & block_a)
 {
 	nano::unique_lock<nano::mutex> lock (mutex);
 
-	const std::size_t limit = node.config.active_elections_hinted_limit_percentage * node.config.active_elections_size / 100;
-	if (active_hinted_elections_count >= limit)
-	{
-		// Reached maximum number of hinted elections, drop new ones
-		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_hinted_overflow);
-		return {};
-	}
-
-	auto result = insert_impl (lock, block_a, nano::election_behavior::hinted);
+	auto result = insert_impl (lock, block_a, BUCKET_HINTED, nano::election_behavior::hinted);
 	if (result.inserted)
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_hinted_started);
@@ -584,7 +594,7 @@ void nano::active_transactions::erase (nano::qualified_root const & root_a)
 	auto root_it (roots.get<tag_root> ().find (root_a));
 	if (root_it != roots.get<tag_root> ().end ())
 	{
-		cleanup_election (lock, root_it->election);
+		cleanup_election (lock, *root_it);
 	}
 }
 
@@ -602,7 +612,7 @@ void nano::active_transactions::erase_oldest ()
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_drop_overflow);
 		auto item = roots.get<tag_random_access> ().front ();
-		cleanup_election (lock, item.election);
+		cleanup_election (lock, item);
 	}
 }
 

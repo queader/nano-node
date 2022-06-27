@@ -25,7 +25,7 @@ void nano::election_hinting::flush ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	condition.wait (lock, [this] () {
-		return stopped || empty () || node.active.vacancy () <= 0;
+		return stopped || empty () || node.active.vacancy (active_transactions::BUCKET_HINTED) <= 0;
 	});
 }
 
@@ -46,7 +46,7 @@ void nano::election_hinting::notify ()
 
 bool nano::election_hinting::predicate () const
 {
-	if (node.active.vacancy_hinted () > 0)
+	if (node.active.vacancy (active_transactions::BUCKET_HINTED) > 0)
 	{
 		if (node.inactive_vote_cache.peek (tally_threshold ()))
 		{

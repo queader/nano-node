@@ -61,7 +61,7 @@ class active_transactions final
 		nano::qualified_root root;
 		std::shared_ptr<nano::election> election;
 		nano::epoch epoch;
-		nano::election_behavior election_behavior; // Used to prioritize portion of AEC for vote hinting
+		int bucket;
 	};
 
 	friend class nano::election;
@@ -75,6 +75,10 @@ class active_transactions final
 	class tag_arrival {};
 	class tag_hash {};
 	// clang-format on
+
+public:
+	static constexpr int BUCKET_ALL = 0;
+	static constexpr int BUCKET_HINTED = -1;
 
 public:
 	// clang-format off
@@ -92,7 +96,10 @@ public:
 	~active_transactions ();
 	// Distinguishes replay votes, cannot be determined if the block is not in any election
 	nano::vote_code vote (std::shared_ptr<nano::vote> const &);
+
+	nano::election_insertion_result insert (std::shared_ptr<nano::block> const & block, int bucket, std::function<void(std::shared_ptr<nano::block>const&)> const & confirmation_callback = nullptr);
 	nano::election_insertion_result insert_hinted (std::shared_ptr<nano::block> const & block_a);
+
 	// Is the root of this block in the roots container
 	bool active (nano::block const &);
 	bool active (nano::qualified_root const &);
@@ -110,10 +117,10 @@ public:
 	boost::optional<nano::election_status_type> confirm_block (nano::transaction const &, std::shared_ptr<nano::block> const &);
 	void block_cemented_callback (std::shared_ptr<nano::block> const &);
 	void block_already_cemented_callback (nano::block_hash const &);
+	void reserve_bucket (int bucket, size_t count);
 
-	int64_t vacancy () const;
+	int64_t vacancy (int bucket = BUCKET_ALL) const;
 	std::function<void ()> vacancy_update{ [] () {} };
-	int64_t vacancy_hinted () const;
 
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> blocks;
 	std::deque<nano::election_status> list_recently_cemented ();
@@ -141,13 +148,13 @@ private:
 
 	// Call action with confirmed block, may be different than what we started with
 	// clang-format off
-	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const&, nano::election_behavior = nano::election_behavior::normal, std::function<void(std::shared_ptr<nano::block>const&)> const & = nullptr);
+	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const&, int bucket, nano::election_behavior = nano::election_behavior::normal, std::function<void(std::shared_ptr<nano::block>const&)> const & = nullptr);
 	// clang-format on
 	void request_loop ();
 	void request_confirm (nano::unique_lock<nano::mutex> &);
 	void erase (nano::qualified_root const &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
-	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
+	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, conflict_info info);
 	// Returns a list of elections sorted by difficulty, mutex must be locked
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 
@@ -173,12 +180,12 @@ private:
 	recently_confirmed;
 	// clang-format on
 
-	int active_hinted_elections_count{ 0 };
+	std::unordered_map<int, int> bucket_reserved;
+	std::unordered_map<int, int> bucket_counts;
 
 	boost::thread thread;
 
 	friend class election;
-	friend class election_scheduler;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
 
 	friend class active_transactions_vote_replays_Test;

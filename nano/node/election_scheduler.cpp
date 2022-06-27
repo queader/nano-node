@@ -6,12 +6,23 @@ nano::election_scheduler::election_scheduler (nano::node & node) :
 	stopped{ false },
 	thread{ [this] () { run (); } }
 {
+	reserve_aec_buckets ();
 }
 
 nano::election_scheduler::~election_scheduler ()
 {
 	stop ();
 	thread.join ();
+}
+
+void nano::election_scheduler::reserve_aec_buckets ()
+{
+	const int reserved = 4000 / priority.bucket_count ();
+
+	for (int bucket = 0; bucket < priority.bucket_count (); ++bucket)
+	{
+		node.active.reserve_bucket (bucket, reserved);
+	}
 }
 
 void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & block_a, boost::optional<nano::uint128_t> const & previous_balance_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
@@ -89,7 +100,14 @@ std::size_t nano::election_scheduler::priority_queue_size () const
 
 bool nano::election_scheduler::priority_queue_predicate () const
 {
-	return node.active.vacancy () > 0 && !priority.empty ();
+	for (int bucket = 0; bucket < priority.bucket_count (); ++bucket)
+	{
+		if (node.active.vacancy (bucket) > 0 && priority.bucket_size (bucket) > 0)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool nano::election_scheduler::manual_queue_predicate () const
@@ -100,6 +118,22 @@ bool nano::election_scheduler::manual_queue_predicate () const
 bool nano::election_scheduler::overfill_predicate () const
 {
 	return node.active.vacancy () < 0;
+}
+
+bool nano::election_scheduler::run_priority_queue (nano::unique_lock<nano::mutex> & lock)
+{
+	for (int bucket = 0; bucket < priority.bucket_count (); ++bucket)
+	{
+		if (node.active.vacancy (bucket) > 0 && priority.bucket_size (bucket) > 0)
+		{
+			auto block = priority.bucket_top (bucket);
+			priority.bucket_pop (bucket);
+			lock.unlock ();
+			auto result = node.active.insert (block, bucket);
+			return true;
+		}
+	}
+	return false;
 }
 
 void nano::election_scheduler::run ()
@@ -125,20 +159,11 @@ void nano::election_scheduler::run ()
 				manual_queue.pop_front ();
 				lock.unlock ();
 				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
-				node.active.insert_impl (lock2, block, election_behavior, confirmation_action);
+				node.active.insert (block, priority.block_bucket (*block), confirmation_action);
 			}
 			else if (priority_queue_predicate ())
 			{
-				auto block = priority.top ();
-				priority.pop ();
-				lock.unlock ();
-				std::shared_ptr<nano::election> election;
-				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
-				election = node.active.insert_impl (lock2, block).election;
-				if (election != nullptr)
-				{
-					election->transition_active ();
-				}
+				run_priority_queue (lock);
 			}
 			else
 			{
