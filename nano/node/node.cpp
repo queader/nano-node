@@ -1796,6 +1796,8 @@ std::pair<uint64_t, decltype (nano::ledger::bootstrap_weights)> nano::node::get_
 
 void nano::node::populate_backlog ()
 {
+	BOOST_LOG_TRIVIAL(info) << "Populating backlog";
+
 	auto done = false;
 	uint64_t const chunk_size = 65536;
 	nano::account next = 0;
