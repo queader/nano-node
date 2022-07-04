@@ -500,7 +500,7 @@ public:
 	}
 	void node_id_handshake (nano::node_id_handshake const & message_a) override
 	{
-		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake_2, nano::stat::dir::in);
 	}
 	void telemetry_req (nano::telemetry_req const & message_a) override
 	{

@@ -597,6 +597,18 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::node_id_handshake:
 			res = "node_id_handshake";
 			break;
+		case nano::stat::detail::node_id_handshake_1:
+			res = "node_id_handshake_1";
+			break;
+		case nano::stat::detail::node_id_handshake_2:
+			res = "node_id_handshake_2";
+			break;
+		case nano::stat::detail::node_id_handshake_3:
+			res = "node_id_handshake_3";
+			break;
+		case nano::stat::detail::node_id_handshake_4:
+			res = "node_id_handshake_4";
+			break;
 		case nano::stat::detail::confirm_req:
 			res = "confirm_req";
 			break;

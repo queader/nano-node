@@ -323,7 +323,7 @@ void nano::transport::tcp_channels::process_message (nano::message const & messa
 				{
 					// Initial node_id_handshake request without node ID
 					debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
-					node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+					node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake_3, nano::stat::dir::in);
 				}
 			}
 		}
@@ -616,7 +616,7 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 			{
 				if (!ec && channel_a)
 				{
-					node_l->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+					node_l->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake_4, nano::stat::dir::in);
 					auto error (false);
 					nano::bufferstream stream (receive_buffer_a->data (), size_a);
 					nano::message_header header (error, stream);

@@ -49,7 +49,7 @@ public:
 	}
 	void node_id_handshake (nano::node_id_handshake const & message_a) override
 	{
-		result = nano::stat::detail::node_id_handshake;
+		result = nano::stat::detail::node_id_handshake_1;
 	}
 	void telemetry_req (nano::telemetry_req const & message_a) override
 	{

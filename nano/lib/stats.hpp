@@ -281,6 +281,10 @@ public:
 		confirm_req,
 		confirm_ack,
 		node_id_handshake,
+		node_id_handshake_1,
+		node_id_handshake_2,
+		node_id_handshake_3,
+		node_id_handshake_4,
 		telemetry_req,
 		telemetry_ack,
 

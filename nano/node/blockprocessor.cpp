@@ -317,11 +317,15 @@ void nano::block_processor::process_live (nano::transaction const & transaction_
 	// Start collecting quorum on block
 	if (node.ledger.dependents_confirmed (transaction_a, *block_a))
 	{
+		node.logger.always_log (boost::str (boost::format ("Process live [scheduler]: %1%") % hash_a.to_string ()));
+
 		auto account = block_a->account ().is_zero () ? block_a->sideband ().account : block_a->account ();
 		node.scheduler.activate (account, transaction_a);
 	}
 	else
 	{
+		node.logger.always_log (boost::str (boost::format ("Process live [vote cache]: %1%") % hash_a.to_string ()));
+
 		node.inactive_vote_cache.trigger (block_a->hash ());
 	}
 
@@ -356,11 +360,15 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 			{
 				std::string block_string;
 				block->serialize_json (block_string, node.config.logging.single_line_record ());
-				node.logger.try_log (boost::str (boost::format ("Processing block %1%: %2%") % hash.to_string () % block_string));
+				node.logger.always_log (boost::str (boost::format ("Processing block %1%: %2%") % hash.to_string () % block_string));
 			}
 			if (node.block_arrival.recent (hash) || forced_a)
 			{
 				events_a.events.emplace_back ([this, hash, block = info_a.block, result, origin_a] (nano::transaction const & post_event_transaction_a) { process_live (post_event_transaction_a, hash, block, result, origin_a); });
+			}
+			else
+			{
+				node.logger.always_log (boost::str (boost::format ("Block not in recent arrivals: %1%") % hash.to_string ()));
 			}
 			queue_unchecked (transaction_a, hash);
 			/* For send blocks check epoch open unchecked (gap pending).
@@ -378,7 +386,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Gap previous for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Gap previous for: %1%") % hash.to_string ()));
 			}
 			info_a.verified = result.verified;
 
@@ -393,7 +401,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Gap source for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Gap source for: %1%") % hash.to_string ()));
 			}
 			info_a.verified = result.verified;
 
@@ -408,7 +416,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Gap pending entries for epoch open: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Gap pending entries for epoch open: %1%") % hash.to_string ()));
 			}
 			info_a.verified = result.verified;
 
@@ -422,7 +430,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_duplicate_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Old for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Old for: %1%") % hash.to_string ()));
 			}
 			node.stats.inc (nano::stat::type::ledger, nano::stat::detail::old);
 			break;
@@ -431,7 +439,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Bad signature for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Bad signature for: %1%") % hash.to_string ()));
 			}
 			events_a.events.emplace_back ([this, hash, info_a] (nano::transaction const & /* unused */) { requeue_invalid (hash, info_a); });
 			break;
@@ -440,7 +448,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Negative spend for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Negative spend for: %1%") % hash.to_string ()));
 			}
 			break;
 		}
@@ -448,7 +456,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Unreceivable for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Unreceivable for: %1%") % hash.to_string ()));
 			}
 			break;
 		}
@@ -458,7 +466,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 			events_a.events.emplace_back ([this, block] (nano::transaction const &) { this->node.active.publish (block); });
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Fork for: %1% root: %2%") % hash.to_string () % block->root ().to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Fork for: %1% root: %2%") % hash.to_string () % block->root ().to_string ()));
 			}
 			break;
 		}
@@ -466,7 +474,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Rejecting open block for burn account: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Rejecting open block for burn account: %1%") % hash.to_string ()));
 			}
 			break;
 		}
@@ -474,7 +482,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Balance mismatch for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Balance mismatch for: %1%") % hash.to_string ()));
 			}
 			break;
 		}
@@ -482,7 +490,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Representative mismatch for: %1%") % hash.to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Representative mismatch for: %1%") % hash.to_string ()));
 			}
 			break;
 		}
@@ -490,7 +498,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Block %1% cannot follow predecessor %2%") % hash.to_string () % block->previous ().to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Block %1% cannot follow predecessor %2%") % hash.to_string () % block->previous ().to_string ()));
 			}
 			break;
 		}
@@ -498,7 +506,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		{
 			if (node.config.logging.ledger_logging ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Insufficient work for %1% : %2% (difficulty %3%)") % hash.to_string () % nano::to_string_hex (block->block_work ()) % nano::to_string_hex (node.network_params.work.difficulty (*block))));
+				node.logger.always_log (boost::str (boost::format ("Insufficient work for %1% : %2% (difficulty %3%)") % hash.to_string () % nano::to_string_hex (block->block_work ()) % nano::to_string_hex (node.network_params.work.difficulty (*block))));
 			}
 			break;
 		}
