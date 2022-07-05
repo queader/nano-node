@@ -225,6 +225,7 @@ void nano::bootstrap_server::received_message (std::unique_ptr<nano::message> me
 bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> message)
 {
 	//	node->stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::bulk_pull, nano::stat::dir::in);
+	node->stats.inc (nano::stat::type::bootstrap_server, nano::message_type_to_stat_detail (message->header.type), nano::stat::dir::in);
 
 	debug_assert (is_handshake_connection () || is_realtime_connection () || is_bootstrap_connection ());
 

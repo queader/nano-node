@@ -39,6 +39,8 @@ namespace bootstrap
 
 		using callback_type = std::function<void (boost::system::error_code, std::unique_ptr<nano::message>)>;
 
+		parse_status status;
+
 		message_deserializer (nano::network_constants const & network_constants, nano::network_filter & publish_filter, nano::block_uniquer & block_uniquer, nano::vote_uniquer & vote_uniquer);
 
 		void read (std::shared_ptr<nano::socket> socket, callback_type const && callback);
@@ -63,7 +65,6 @@ namespace bootstrap
 		static bool at_end (nano::stream &);
 
 		std::shared_ptr<std::vector<uint8_t>> read_buffer;
-		parse_status status;
 
 		nano::network_constants const & network_constants;
 		nano::network_filter & publish_filter;
@@ -73,6 +74,9 @@ namespace bootstrap
 	private:
 		static constexpr std::size_t HEADER_SIZE = 8;
 		static constexpr std::size_t MAX_MESSAGE_SIZE = 1024 * 4;
+
+	public:
+		static std::string parse_status_to_string (parse_status status);
 	};
 }
 }

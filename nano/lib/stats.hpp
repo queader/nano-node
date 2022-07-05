@@ -227,6 +227,7 @@ public:
 		ledger,
 		rollback,
 		bootstrap,
+		bootstrap_server,
 		vote,
 		election,
 		http_callback,
@@ -275,6 +276,8 @@ public:
 		rollback_failed,
 
 		// message specific
+		not_a_type,
+		invalid,
 		keepalive,
 		publish,
 		republish_vote,

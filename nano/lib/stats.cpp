@@ -474,6 +474,9 @@ std::string nano::stat::type_to_string (uint32_t key)
 		case nano::stat::type::bootstrap:
 			res = "bootstrap";
 			break;
+		case nano::stat::type::bootstrap_server:
+			res = "bootstrap_server";
+			break;
 		case nano::stat::type::error:
 			res = "error";
 			break;
@@ -645,11 +648,17 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::insufficient_work:
 			res = "insufficient_work";
 			break;
+		case nano::stat::detail::invalid:
+			res = "invalid";
+			break;
 		case nano::stat::detail::invocations:
 			res = "invocations";
 			break;
 		case nano::stat::detail::keepalive:
 			res = "keepalive";
+			break;
+		case nano::stat::detail::not_a_type:
+			res = "not_a_type";
 			break;
 		case nano::stat::detail::open:
 			res = "open";
