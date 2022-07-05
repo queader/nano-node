@@ -368,6 +368,8 @@ public:
 	static std::size_t constexpr size = sizeof (start) + sizeof (age) + sizeof (count);
 };
 
+std::string message_details_to_string (message const & message);
+
 enum class telemetry_maker : uint8_t
 {
 	nf_node = 0,

@@ -165,6 +165,58 @@ nano::stat::detail nano::message_type_to_stat_detail (nano::message_type message
 	return {};
 }
 
+namespace
+{
+class message_to_string_visitor : public nano::message_visitor
+{
+public:
+	void keepalive (nano::keepalive const & message) override
+	{
+	}
+	void publish (nano::publish const & message) override
+	{
+		result = message.block->hash ().to_string ();
+	}
+	void confirm_req (nano::confirm_req const & message) override
+	{
+		result = message.roots_string ();
+	}
+	void confirm_ack (nano::confirm_ack const & message) override
+	{
+		result = message.vote->signature.to_string () + " : " + message.vote->hashes_string ();
+	}
+	void bulk_pull (nano::bulk_pull const & message) override
+	{
+	}
+	void bulk_pull_account (nano::bulk_pull_account const & message) override
+	{
+	}
+	void bulk_push (nano::bulk_push const & message) override
+	{
+	}
+	void frontier_req (nano::frontier_req const & message) override
+	{
+	}
+	void node_id_handshake (nano::node_id_handshake const & message) override
+	{
+	}
+	void telemetry_req (nano::telemetry_req const & message) override
+	{
+	}
+	void telemetry_ack (nano::telemetry_ack const & message) override
+	{
+	}
+	std::string result;
+};
+}
+
+std::string nano::message_details_to_string (nano::message const & message)
+{
+	message_to_string_visitor visitor;
+	message.visit (visitor);
+	return visitor.result;
+}
+
 std::string nano::message_header::to_string ()
 {
 	// Cast to uint16_t to get integer value since uint8_t is treated as an unsigned char in string formatting.
