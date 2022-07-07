@@ -2774,7 +2774,7 @@ TEST (node, epoch_conflict_confirm)
 	ASSERT_EQ (nano::process_result::progress, node1->process (*send).code);
 	ASSERT_EQ (nano::process_result::progress, node1->process (*send2).code);
 	ASSERT_EQ (nano::process_result::progress, node1->process (*open).code);
-	node1->block_processor.flush();
+	node1->block_processor.flush ();
 
 	std::cout << "node1: " << node1->active.size () << std::endl;
 	for (auto root : node1->active.roots)
@@ -2815,8 +2815,6 @@ TEST (node, epoch_conflict_confirm)
 	system.wallet (1)->insert_adhoc (nano::dev::genesis_key.prv);
 	ASSERT_TIMELY (500s, node0->active.election (change->qualified_root ()) == nullptr);
 
-	sleep (20);
-
 	std::cout << "node0: " << node0->active.size () << std::endl;
 	for (auto root : node0->active.roots)
 	{
@@ -2827,6 +2825,8 @@ TEST (node, epoch_conflict_confirm)
 	{
 		std::cout << "node1 active root: " << root.to_string () << std::endl;
 	}
+
+	ASSERT_TIMELY (100000s, false);
 
 	ASSERT_TIMELY (100s, node0->active.empty ());
 	{

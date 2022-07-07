@@ -43,10 +43,10 @@ void nano::request_aggregator::add (std::shared_ptr<nano::transport::channel> co
 	{
 		ss << hash.to_string () << ", ";
 	}
-	std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
-			  << std::left << std::setw (18) << "net rcv: "
-			  << ss.str ()
-			  << std::endl;
+//	std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
+//			  << std::left << std::setw (18) << "net rcv: "
+//			  << ss.str ()
+//			  << std::endl;
 
 	debug_assert (wallets.reps ().voting > 0);
 	bool error = true;
