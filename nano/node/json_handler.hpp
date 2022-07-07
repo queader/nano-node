@@ -144,6 +144,7 @@ public:
 	void work_peers_clear ();
 	void work_set ();
 	void work_validate ();
+	void populate_backlog ();
 	std::string body;
 	nano::node & node;
 	boost::property_tree::ptree request;

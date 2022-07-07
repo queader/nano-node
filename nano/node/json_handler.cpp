@@ -3161,6 +3161,13 @@ void nano::json_handler::receivable_exists ()
 
 void nano::json_handler::process ()
 {
+	bool const is_async_a = request.get<bool> ("async", false);
+	if (is_async_a)
+	{
+		response_l.put ("started", "1");
+		response_errors ();
+	}
+
 	node.workers.push_task (create_worker_task ([] (std::shared_ptr<nano::json_handler> const & rpc_l) {
 		bool const is_async = rpc_l->request.get<bool> ("async", false);
 		auto block (rpc_l->block_impl (true));
@@ -5224,6 +5231,13 @@ void nano::json_handler::work_peers_clear ()
 	response_errors ();
 }
 
+void nano::json_handler::populate_backlog ()
+{
+	node.populate_backlog();
+	response_l.put ("done", true);
+	response_errors ();
+}
+
 void nano::inprocess_rpc_handler::process_request (std::string const &, std::string const & body_a, std::function<void (std::string const &)> response_a)
 {
 	// Note that if the rpc action is async, the shared_ptr<json_handler> lifetime will be extended by the action handler
@@ -5388,6 +5402,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("work_peer_add", &nano::json_handler::work_peer_add);
 	no_arg_funcs.emplace ("work_peers", &nano::json_handler::work_peers);
 	no_arg_funcs.emplace ("work_peers_clear", &nano::json_handler::work_peers_clear);
+	no_arg_funcs.emplace ("populate_backlog", &nano::json_handler::populate_backlog);
 	return no_arg_funcs;
 }
 
