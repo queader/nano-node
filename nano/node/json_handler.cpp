@@ -3161,6 +3161,13 @@ void nano::json_handler::receivable_exists ()
 
 void nano::json_handler::process ()
 {
+	bool const is_async_a = request.get<bool> ("async", false);
+	if (is_async_a)
+	{
+		response_l.put ("started", "1");
+		response_errors ();
+	}
+
 	node.workers.push_task (create_worker_task ([] (std::shared_ptr<nano::json_handler> const & rpc_l) {
 		bool const is_async = rpc_l->request.get<bool> ("async", false);
 		auto block (rpc_l->block_impl (true));
