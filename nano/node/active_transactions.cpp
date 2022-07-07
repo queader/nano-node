@@ -427,6 +427,10 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 
 nano::election_insertion_result nano::active_transactions::insert_hinted (std::shared_ptr<nano::block> const & block_a)
 {
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "insert hinted: "
+			  << block_a->hash ().to_string () << std::endl;
+
 	nano::unique_lock<nano::mutex> lock (mutex);
 
 	const std::size_t limit = node.config.active_elections_hinted_limit_percentage * node.config.active_elections_size / 100;
@@ -725,4 +729,9 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "inactive_votes_cache", active_transactions.node.inactive_vote_cache.size (), 0 }));
 	composite->add_component (collect_container_info (active_transactions.generator, "generator"));
 	return composite;
+}
+
+std::string nano::active_transactions::conflict_info::to_string ()
+{
+	return election->to_string ();
 }

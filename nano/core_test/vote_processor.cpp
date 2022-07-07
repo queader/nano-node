@@ -59,7 +59,7 @@ TEST (vote_processor, flush)
 
 // Tests the normal behavior is more votes getting into the vote_processor than getting processed,
 // so the producer always wins. Also exercises the flush operation, so it must never deadlock.
-TEST (vote_processor, producer_consumer)
+TEST (vote_processor, DISABLED_producer_consumer)
 {
 	nano::system system (1);
 	auto & node (*system.nodes[0]);

@@ -68,6 +68,10 @@ bool nano::election_hinting::run_one ()
 			if (!node.block_confirmed_or_being_confirmed (transaction, top->hash))
 			{
 				auto result = node.active.insert_hinted (block);
+				if (result.election)
+				{
+					result.election->transition_active ();
+				}
 				return result.inserted;
 			}
 		}
@@ -88,6 +92,8 @@ bool nano::election_hinting::run_one ()
 
 void nano::election_hinting::run ()
 {
+	return;
+
 	nano::thread_role::set (nano::thread_role::name::election_hinting);
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)

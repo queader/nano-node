@@ -60,6 +60,8 @@ class active_transactions final
 	public:
 		nano::qualified_root root;
 		std::shared_ptr<nano::election> election;
+
+		std::string to_string ();
 	};
 
 	friend class nano::election;

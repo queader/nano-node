@@ -54,6 +54,11 @@ bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
 
 bool nano::confirmation_solicitor::add (nano::election const & election_a)
 {
+	std::cout << "[ node: " << network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "conf solictr add: "
+			  << election_a.to_string ()
+			  << std::endl;
+
 	debug_assert (prepared);
 	bool error (true);
 	unsigned count = 0;

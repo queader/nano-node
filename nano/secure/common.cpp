@@ -624,6 +624,11 @@ uint64_t nano::vote::packed_timestamp (uint64_t timestamp, uint8_t duration) con
 	return (timestamp & timestamp_mask) | duration;
 }
 
+bool nano::vote::is_final () const
+{
+	return timestamp_m == std::numeric_limits<uint64_t>::max ();
+}
+
 nano::block_hash nano::iterate_vote_blocks_as_hash::operator() (nano::block_hash const & item) const
 {
 	return item;
@@ -739,7 +744,7 @@ bool nano::unchecked_key::operator== (nano::unchecked_key const & other_a) const
 	return previous == other_a.previous && hash == other_a.hash;
 }
 
-bool nano::unchecked_key::operator< (nano::unchecked_key const & other_a) const
+bool nano::unchecked_key::operator<(nano::unchecked_key const & other_a) const
 {
 	return previous != other_a.previous ? previous < other_a.previous : hash < other_a.hash;
 }

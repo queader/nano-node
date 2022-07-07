@@ -241,6 +241,8 @@ public:
 	{
 		return reinterpret_cast<nano::block_hash const &> (uint256s[1]);
 	}
+
+	std::string to_qualified_root_string () const;
 };
 
 nano::signature sign_message (nano::raw_key const &, nano::public_key const &, nano::uint256_union const &);
