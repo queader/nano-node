@@ -156,5 +156,10 @@ public: // Only used in tests
 	friend class confirmation_solicitor_bypass_max_requests_cap_Test;
 	friend class votes_add_existing_Test;
 	friend class votes_add_old_Test;
+
+public: // to_string
+	std::string to_string () const;
+	std::string block_tally_to_string () const;
+	std::string state_to_string () const;
 };
 }

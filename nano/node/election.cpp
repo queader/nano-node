@@ -38,6 +38,11 @@ nano::election::election (nano::node & node_a, std::shared_ptr<nano::block> cons
 
 void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano::election_status_type type_a)
 {
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "confirm_once: "
+			  << to_string ()
+			  << std::endl;
+
 	debug_assert (lock_a.owns_lock ());
 	// This must be kept above the setting of election state, as dependent confirmed elections require up to date changes to election_winner_details
 	nano::unique_lock<nano::mutex> election_winners_lk (node.active.election_winner_details_mutex);
@@ -268,6 +273,11 @@ nano::tally_t nano::election::tally_impl () const
 
 void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 {
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "conf_if_quorum: "
+			  << to_string ()
+			  << std::endl;
+
 	debug_assert (lock_a.owns_lock ());
 	auto tally_l (tally_impl ());
 	debug_assert (!tally_l.empty ());
@@ -290,6 +300,11 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 	}
 	if (have_quorum (tally_l))
 	{
+		std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "conf_if_quorum##: "
+				  << to_string ()
+				  << std::endl;
+
 		if (node.ledger.cache.final_votes_confirmation_canary.load () && !is_quorum.exchange (true) && node.config.enable_voting && node.wallets.reps ().voting > 0)
 		{
 			auto hash = status.winner->hash ();
@@ -304,6 +319,15 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 				log_votes (tally_l);
 			}
 			confirm_once (lock_a, nano::election_status_type::active_confirmed_quorum);
+		}
+		else
+		{
+			//			std::cout << "final_weight: " << final_weight << std::endl;
+			//			std::cout << "canary: " << node.ledger.cache.final_votes_confirmation_canary.load () << std::endl;
+			//			std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			//					  << std::left << std::setw (18) << "conf_if_quorum??: "
+			//					  << to_string ()
+			//					  << std::endl;
 		}
 	}
 }
@@ -498,6 +522,12 @@ void nano::election::generate_votes () const
 		{
 			auto hash = status.winner->hash ();
 			lock.unlock ();
+
+			std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "generate_votes: "
+					  << to_string ()
+					  << std::endl;
+
 			node.active.final_generator.add (root, hash);
 			lock.lock ();
 		}
@@ -639,4 +669,60 @@ std::vector<nano::vote_with_weight_info> nano::election::votes_with_weight () co
 	result.reserve (sorted_votes.size ());
 	std::transform (sorted_votes.begin (), sorted_votes.end (), std::back_inserter (result), [] (auto const & entry) { return entry.second; });
 	return result;
+}
+
+std::string nano::election::to_string () const
+{
+	std::stringstream ss;
+
+	//	ss << "qualified root: " << qualified_root.to_qualified_root_string ()
+	//	   << " | "
+	//	   << "block-tally: "
+	//	   << "{ "
+	//	   << block_tally_to_string ()
+	//	   << " }"
+	//	   << " | "
+	//	   << "state: " << state_to_string ()
+	//	   << " | "
+	//	   << "final: " << final_weight
+	//	<< "";
+
+	ss << block_tally_to_string ()
+	   << " | "
+	   << "state: " << state_to_string ()
+	   << " | "
+	   << "final: " << final_weight
+	   << " | "
+	   << "root: " << qualified_root.to_qualified_root_string ()
+	   << "";
+
+	return ss.str ();
+}
+
+std::string nano::election::block_tally_to_string () const
+{
+	std::stringstream ss;
+	for (auto [weight, block] : tally_impl ())
+	{
+		ss << block->hash ().to_string () << ":" << weight;
+	}
+	return ss.str ();
+}
+
+std::string nano::election::state_to_string () const
+{
+	switch (state_m)
+	{
+		case state_t::passive:
+			return "passive";
+		case state_t::active:
+			return "active";
+		case state_t::confirmed:
+			return "confirmed";
+		case state_t::expired_confirmed:
+			return "expired_confirmed";
+		case state_t::expired_unconfirmed:
+			return "expired_unconfirmed";
+	}
+	return "n/a";
 }

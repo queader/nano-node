@@ -159,6 +159,11 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	node_seq (seq)
 {
 	unchecked.satisfied = [this] (nano::unchecked_info const & info) {
+		std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "satisfied: "
+				  << info.block->hash ().to_string ()
+				  << std::endl;
+
 		this->block_processor.add (info);
 	};
 	if (!init_error ())
@@ -858,7 +863,7 @@ void nano::node::ongoing_bootstrap ()
 	uint32_t frontiers_age (std::numeric_limits<uint32_t>::max ());
 	auto bootstrap_weight_reached (ledger.cache.block_count >= ledger.bootstrap_weight_max_blocks);
 	auto previous_bootstrap_count (stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate, nano::stat::dir::out) + stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate_legacy_age, nano::stat::dir::out));
-	/* 
+	/*
 	- Maximum value for 25% of attempts or if block count is below preconfigured value (initial bootstrap not finished)
 	- Node shutdown time minus 1 hour for start attempts (warm up)
 	- Default age value otherwise (1 day for live network, 1 hour for beta)
@@ -1280,6 +1285,7 @@ void nano::node::block_confirm (std::shared_ptr<nano::block> const & block_a)
 	scheduler.manual (block_a);
 	scheduler.flush ();
 	auto election = active.election (block_a->qualified_root ());
+	debug_assert (election != nullptr);
 	if (election != nullptr)
 	{
 		election->transition_active ();

@@ -796,6 +796,11 @@ void nano::active_transactions::stop ()
 
 nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, boost::optional<nano::uint128_t> const & previous_balance_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
 {
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "insert_impl: "
+			  << block_a->hash ().to_string ()
+			  << std::endl;
+
 	debug_assert (lock_a.owns_lock ());
 	debug_assert (block_a->has_sideband ());
 	nano::election_insertion_result result;
@@ -826,7 +831,7 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 					node.online_reps.observe (rep_a);
 				},
 				election_behavior_a);
-				roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election, epoch, previous_balance });
+				roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election, epoch });
 				blocks.emplace (hash, result.election);
 				auto const cache = find_inactive_votes_cache_impl (hash);
 				lock_a.unlock ();
@@ -1334,4 +1339,9 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "optimistic_elections_count", active_transactions.optimistic_elections_count, 0 })); // This isn't an extra container, is just to expose the count easily
 	composite->add_component (collect_container_info (active_transactions.generator, "generator"));
 	return composite;
+}
+
+std::string nano::active_transactions::conflict_info::to_string ()
+{
+	return election->to_string ();
 }

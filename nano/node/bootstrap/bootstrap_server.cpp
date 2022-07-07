@@ -144,6 +144,10 @@ nano::bootstrap_server::bootstrap_server (std::shared_ptr<nano::socket> const & 
 
 nano::bootstrap_server::~bootstrap_server ()
 {
+	std::cout << "[ node: " << node->network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "stop connection"
+			  << std::endl;
+
 	if (node->config.logging.bulk_pull_logging ())
 	{
 		node->logger.try_log ("Exiting incoming TCP/bootstrap server");
@@ -178,6 +182,10 @@ void nano::bootstrap_server::stop ()
 
 void nano::bootstrap_server::receive ()
 {
+	std::cout << "[ node: " << node->network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "receive"
+			  << std::endl;
+
 	// Increase timeout to receive TCP header (idle server socket)
 	socket->set_default_timeout_value (node->network_params.network.idle_timeout);
 	auto this_l (shared_from_this ());
@@ -196,6 +204,11 @@ void nano::bootstrap_server::receive ()
 
 void nano::bootstrap_server::receive_header_action (boost::system::error_code const & ec, std::size_t size_a)
 {
+	std::cout << "[ node: " << node->network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "receive header: "
+			  << ec
+			  << std::endl;
+
 	if (!ec)
 	{
 		debug_assert (size_a == 8);

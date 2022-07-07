@@ -141,19 +141,19 @@ public:
 	endpoint_key () = default;
 
 	/*
-     * @param address_a This should be in network byte order
-     * @param port_a This should be in host byte order
-     */
+	 * @param address_a This should be in network byte order
+	 * @param port_a This should be in host byte order
+	 */
 	endpoint_key (std::array<uint8_t, 16> const & address_a, uint16_t port_a);
 
 	/*
-     * @return The ipv6 address in network byte order
-     */
+	 * @return The ipv6 address in network byte order
+	 */
 	std::array<uint8_t, 16> const & address_bytes () const;
 
 	/*
-     * @return The port in host byte order
-     */
+	 * @return The port in host byte order
+	 */
 	uint16_t port () const;
 
 private:
@@ -279,6 +279,7 @@ public:
 	uint64_t timestamp () const;
 	uint8_t duration_bits () const;
 	std::chrono::milliseconds duration () const;
+	bool is_final () const;
 	static uint64_t constexpr timestamp_mask = { 0xffff'ffff'ffff'fff0ULL };
 	static uint64_t constexpr timestamp_max = { 0xffff'ffff'ffff'fff0ULL };
 	static uint64_t constexpr timestamp_min = { 0x0000'0000'0000'0010ULL };
@@ -486,7 +487,7 @@ enum class confirmation_height_mode
 };
 
 /* Holds flags for various cacheable data. For most CLI operations caching is unnecessary
-     * (e.g getting the cemented block count) so it can be disabled for performance reasons. */
+ * (e.g getting the cemented block count) so it can be disabled for performance reasons. */
 class generate_cache
 {
 public:

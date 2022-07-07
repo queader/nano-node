@@ -2717,6 +2717,7 @@ TEST (node, epoch_conflict_confirm)
 	nano::keypair key;
 	nano::keypair epoch_signer (nano::dev::genesis_key);
 	nano::state_block_builder builder;
+
 	auto send = builder.make_block ()
 				.account (nano::dev::genesis_key.pub)
 				.previous (nano::dev::genesis->hash ())
@@ -2762,24 +2763,47 @@ TEST (node, epoch_conflict_confirm)
 					  .sign (epoch_signer.prv, epoch_signer.pub)
 					  .work (*system.work.generate (open->hash ()))
 					  .build_shared ();
+
+	std::cout << "account: " << key.pub.to_string () << std::endl;
+	std::cout << "send: " << send->hash ().to_string () << std::endl;
+	std::cout << "open: " << open->hash ().to_string () << std::endl;
+	std::cout << "change: " << change->hash ().to_string () << std::endl;
+	std::cout << "send2: " << send2->hash ().to_string () << std::endl;
+	std::cout << "epoch_open: " << epoch_open->hash ().to_string () << std::endl;
+
 	ASSERT_EQ (nano::process_result::progress, node1->process (*send).code);
 	ASSERT_EQ (nano::process_result::progress, node1->process (*send2).code);
 	ASSERT_EQ (nano::process_result::progress, node1->process (*open).code);
+	node1->block_processor.flush();
+
+	std::cout << "node1: " << node1->active.size () << std::endl;
+	for (auto root : node1->active.roots)
+	{
+		std::cout << "node1 active root: " << root.to_string () << std::endl;
+	}
+
 	// Confirm block in node1 to allow generating votes
 	node1->block_confirm (open);
 	auto election (node1->active.election (open->qualified_root ()));
+
+	std::cout << "node1: " << node1->active.size () << std::endl;
+	for (auto root : node1->active.roots)
+	{
+		std::cout << "node1 active root: " << root.to_string () << std::endl;
+	}
+
 	ASSERT_NE (nullptr, election);
 	election->force_confirm ();
-	ASSERT_TIMELY (3s, node1->block_confirmed (open->hash ()));
+	ASSERT_TIMELY (300s, node1->block_confirmed (open->hash ()));
 	ASSERT_EQ (nano::process_result::progress, node0->process (*send).code);
 	ASSERT_EQ (nano::process_result::progress, node0->process (*send2).code);
 	ASSERT_EQ (nano::process_result::progress, node0->process (*open).code);
 	node0->process_active (change);
 	node0->process_active (epoch_open);
-	ASSERT_TIMELY (10s, node0->block (change->hash ()) && node0->block (epoch_open->hash ()) && node1->block (change->hash ()) && node1->block (epoch_open->hash ()));
+	ASSERT_TIMELY (1000s, node0->block (change->hash ()) && node0->block (epoch_open->hash ()) && node1->block (change->hash ()) && node1->block (epoch_open->hash ()));
 	// Confirm blocks in node1 to allow generating votes
 	nano::blocks_confirm (*node1, { change, epoch_open }, true /* forced */);
-	ASSERT_TIMELY (3s, node1->block_confirmed (change->hash ()) && node1->block_confirmed (epoch_open->hash ()));
+	ASSERT_TIMELY (300s, node1->block_confirmed (change->hash ()) && node1->block_confirmed (epoch_open->hash ()));
 	// Start elections for node0
 	nano::blocks_confirm (*node0, { change, epoch_open });
 	ASSERT_EQ (2, node0->active.size ());
@@ -2789,8 +2813,22 @@ TEST (node, epoch_conflict_confirm)
 		ASSERT_TRUE (node0->active.blocks.find (epoch_open->hash ()) != node0->active.blocks.end ());
 	}
 	system.wallet (1)->insert_adhoc (nano::dev::genesis_key.prv);
-	ASSERT_TIMELY (5s, node0->active.election (change->qualified_root ()) == nullptr);
-	ASSERT_TIMELY (5s, node0->active.empty ());
+	ASSERT_TIMELY (500s, node0->active.election (change->qualified_root ()) == nullptr);
+
+	sleep (20);
+
+	std::cout << "node0: " << node0->active.size () << std::endl;
+	for (auto root : node0->active.roots)
+	{
+		std::cout << "node0 active root: " << root.to_string () << std::endl;
+	}
+	std::cout << "node1: " << node1->active.size () << std::endl;
+	for (auto root : node1->active.roots)
+	{
+		std::cout << "node1 active root: " << root.to_string () << std::endl;
+	}
+
+	ASSERT_TIMELY (100s, node0->active.empty ());
 	{
 		auto transaction (node0->store.tx_begin_read ());
 		ASSERT_TRUE (node0->ledger.store.block.exists (transaction, change->hash ()));

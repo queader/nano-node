@@ -54,6 +54,11 @@ bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
 
 bool nano::confirmation_solicitor::add (nano::election const & election_a)
 {
+	std::cout << "[ node: " << network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "conf solictr: "
+			  << election_a.to_string ()
+			  << std::endl;
+
 	debug_assert (prepared);
 	bool error (true);
 	unsigned count = 0;
@@ -74,6 +79,11 @@ bool nano::confirmation_solicitor::add (nano::election const & election_a)
 				request_queue.emplace_back (election_a.status.winner->hash (), election_a.status.winner->root ());
 				count += different ? 0 : 1;
 				error = false;
+
+				std::cout << "[ node: " << network.endpoint ().port () << " ] "
+						  << std::left << std::setw (18) << "conf solictr!!: "
+						  << election_a.to_string ()
+						  << std::endl;
 			}
 			else
 			{
@@ -81,6 +91,14 @@ bool nano::confirmation_solicitor::add (nano::election const & election_a)
 			}
 		}
 		i = !full_queue ? i + 1 : representatives_requests.erase (i);
+	}
+
+	if (error)
+	{
+		std::cout << "[ node: " << network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "conf solictr//: "
+				  << election_a.to_string ()
+				  << std::endl;
 	}
 	return error;
 }
@@ -95,17 +113,39 @@ void nano::confirmation_solicitor::flush ()
 		for (auto const & root_hash : request_queue.second)
 		{
 			roots_hashes_l.push_back (root_hash);
-			if (roots_hashes_l.size () == nano::network::confirm_req_hashes_max)
-			{
-				nano::confirm_req req{ config.network_params.network, roots_hashes_l };
-				channel->send (req);
-				roots_hashes_l.clear ();
-			}
+			//			if (roots_hashes_l.size () == nano::network::confirm_req_hashes_max)
+			//			{
+			//				nano::confirm_req req{ config.network_params.network, roots_hashes_l };
+			//				std::cout << "send #1" << std::endl;
+			//				channel->send (req);
+			//				roots_hashes_l.clear ();
+			//			}
 		}
 		if (!roots_hashes_l.empty ())
 		{
 			nano::confirm_req req{ config.network_params.network, roots_hashes_l };
+
+			std::stringstream ss;
+			for (auto & hash : roots_hashes_l)
+			{
+				ss << hash.first.to_string () << ", ";
+			}
+
+			std::cout << "[ node: " << network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "send#2: "
+					  << ss.str ()
+					  << std::endl;
+
 			channel->send (req);
+
+			//			channel->send (req, [s = ss.str (), &network = network] (boost::system::error_code const & ec, std::size_t) {
+			//				std::cout << "[ node: " << network.endpoint ().port () << " ] "
+			//						  << std::left << std::setw (18) << "send#2 res: "
+			//						  << s
+			//						  << " | "
+			//						  << "ec: " << ec
+			//						  << std::endl;
+			//			});
 		}
 	}
 	prepared = false;

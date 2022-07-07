@@ -356,6 +356,8 @@ void nano::telemetry::fire_request_message (std::shared_ptr<nano::transport::cha
 	nano::telemetry_req message{ network_params.network };
 	// clang-format off
 	channel_a->send (message, [this_w, endpoint = channel_a->get_endpoint (), round_l](boost::system::error_code const & ec, std::size_t size_a) {
+		std::cout << "telemetry" << std::endl;
+
 		if (auto this_l = this_w.lock ())
 		{
 			if (ec)

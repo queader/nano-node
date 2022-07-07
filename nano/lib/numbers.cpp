@@ -175,7 +175,7 @@ std::string nano::uint256_union::to_string () const
 	return result;
 }
 
-bool nano::uint256_union::operator< (nano::uint256_union const & other_a) const
+bool nano::uint256_union::operator<(nano::uint256_union const & other_a) const
 {
 	return std::memcmp (bytes.data (), other_a.bytes.data (), 32) < 0;
 }
@@ -390,6 +390,11 @@ std::string nano::uint512_union::to_string () const
 	return result;
 }
 
+std::string nano::qualified_root::to_qualified_root_string () const
+{
+	return root ().to_string () + ":" + previous ().to_string ();
+}
+
 nano::raw_key::~raw_key ()
 {
 	secure_wipe_memory (bytes.data (), bytes.size ());
@@ -481,7 +486,7 @@ bool nano::uint128_union::operator!= (nano::uint128_union const & other_a) const
 	return !(*this == other_a);
 }
 
-bool nano::uint128_union::operator< (nano::uint128_union const & other_a) const
+bool nano::uint128_union::operator<(nano::uint128_union const & other_a) const
 {
 	return std::memcmp (bytes.data (), other_a.bytes.data (), 16) < 0;
 }

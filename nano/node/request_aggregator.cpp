@@ -3,6 +3,7 @@
 #include <nano/node/active_transactions.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/transport/udp.hpp>
@@ -37,6 +38,16 @@ nano::request_aggregator::request_aggregator (nano::node_config const & config_a
 
 void nano::request_aggregator::add (std::shared_ptr<nano::transport::channel> const & channel_a, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots_a)
 {
+	std::stringstream ss;
+	for (auto & [hash, root] : hashes_roots_a)
+	{
+		ss << hash.to_string () << ", ";
+	}
+	std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "net rcv: "
+			  << ss.str ()
+			  << std::endl;
+
 	debug_assert (wallets.reps ().voting > 0);
 	bool error = true;
 	auto const endpoint (nano::transport::map_endpoint_to_v6 (channel_a->get_endpoint ()));
@@ -151,6 +162,13 @@ bool nano::request_aggregator::empty ()
 
 void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const
 {
+	std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "reply vote: "
+			  << vote_a->hashes_string ()
+			  << " | "
+			  << "final: " << vote_a->is_final ()
+			  << std::endl;
+
 	nano::confirm_ack confirm{ config.network_params.network, vote_a };
 	channel_a->send (confirm);
 }
@@ -175,6 +193,11 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 	std::vector<std::shared_ptr<nano::vote>> cached_votes;
 	for (auto const & [hash, root] : requests_a)
 	{
+		std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "got request: "
+				  << hash.to_string ()
+				  << std::endl;
+
 		// 1. Votes in cache
 		auto find_votes (local_votes.votes (root, hash));
 		if (!find_votes.empty ())
@@ -188,7 +211,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			bool generate_final_vote (false);
 			std::shared_ptr<nano::block> block;
 
-			//2. Final votes
+			// 2. Final votes
 			auto final_vote_hashes (ledger.store.final_vote.get (transaction, root));
 			if (!final_vote_hashes.empty ())
 			{
@@ -259,6 +282,17 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 					}
 				}
 			}
+
+			std::cout << "[ node: " << active.node.network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "got request##: "
+					  << hash.to_string ()
+					  << " | "
+					  << "block: " << (block != nullptr)
+					  << " | "
+					  << "generate vote: " << generate_vote
+					  << " | "
+					  << "generate final vote: " << generate_final_vote
+					  << std::endl;
 
 			if (block)
 			{

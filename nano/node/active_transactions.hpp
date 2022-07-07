@@ -89,7 +89,8 @@ class active_transactions final
 		nano::qualified_root root;
 		std::shared_ptr<nano::election> election;
 		nano::epoch epoch;
-		nano::uint128_t previous_balance;
+		
+		std::string to_string ();
 	};
 
 	friend class nano::election;

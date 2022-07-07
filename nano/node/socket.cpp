@@ -59,6 +59,11 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 	checkup ();
 	auto this_l (shared_from_this ());
 	set_default_timeout ();
+
+	std::cout << "[ node: " << endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "async_connect "
+			  << std::endl;
+
 	this_l->tcp_socket.async_connect (endpoint_a,
 	boost::asio::bind_executor (this_l->strand,
 	[this_l, callback = std::move (callback_a), endpoint_a] (boost::system::error_code const & ec) {
@@ -83,10 +88,24 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 		if (!closed)
 		{
 			set_default_timeout ();
+
+			std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "nano::async_read#1"
+					  << std::endl;
+
 			boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), size_a, this_l] () mutable {
+				std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+						  << std::left << std::setw (18) << "nano::async_read#3"
+						  << std::endl;
+
 				boost::asio::async_read (this_l->tcp_socket, boost::asio::buffer (buffer_a->data (), size_a),
 				boost::asio::bind_executor (this_l->strand,
 				[this_l, buffer_a, cbk = std::move (callback)] (boost::system::error_code const & ec, std::size_t size_a) {
+					std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+							  << std::left << std::setw (18) << "nano::async_read#88: "
+							  << ec
+							  << std::endl;
+
 					if (ec)
 					{
 						this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in);
@@ -98,6 +117,10 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 						this_l->set_last_receive_time ();
 					}
 					cbk (ec, size_a);
+
+					std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+							  << std::left << std::setw (18) << "nano::async_read#99"
+							  << std::endl;
 				}));
 			}));
 		}
@@ -126,7 +149,17 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 
 	++queue_size;
 
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "nano::async_write#1: "
+			  << " | "
+			  << "size: " << buffer_a.size ()
+			  << std::endl;
+
 	boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), this_l = shared_from_this ()] () mutable {
+		std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "nano::async_write#13"
+				  << std::endl;
+
 		if (this_l->closed)
 		{
 			if (callback)
@@ -139,9 +172,18 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 
 		this_l->set_default_timeout ();
 
+		std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "nano::async_write#3"
+				  << std::endl;
+
 		nano::async_write (this_l->tcp_socket, buffer_a,
 		boost::asio::bind_executor (this_l->strand,
 		[buffer_a, cbk = std::move (callback), this_l] (boost::system::error_code ec, std::size_t size_a) {
+			std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "nano::async_write#88: "
+					  << ec
+					  << std::endl;
+
 			--this_l->queue_size;
 
 			if (ec)
@@ -158,7 +200,15 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 			{
 				cbk (ec, size_a);
 			}
+
+			std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "nano::async_write#99"
+					  << std::endl;
 		}));
+
+		std::cout << "[ node: " << this_l->node.network.endpoint ().port () << " ] "
+				  << std::left << std::setw (18) << "nano::async_write#39"
+				  << std::endl;
 	}));
 }
 
@@ -215,6 +265,8 @@ void nano::socket::checkup ()
 
 			if (condition_to_disconnect)
 			{
+				std::cout << "socket timeout" << std::endl;
+
 				if (this_l->node.config.logging.network_timeout_logging ())
 				{
 					// The remote end may have closed the connection before this side timing out, in which case the remote address is no longer available.
@@ -257,6 +309,9 @@ void nano::socket::set_silent_connection_tolerance_time (std::chrono::seconds to
 void nano::socket::close ()
 {
 	auto this_l (shared_from_this ());
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "nano::async_close#1"
+			  << std::endl;
 	boost::asio::dispatch (strand, boost::asio::bind_executor (strand, [this_l] {
 		this_l->close_internal ();
 	}));
@@ -314,6 +369,10 @@ void nano::server_socket::start (boost::system::error_code & ec_a)
 void nano::server_socket::close ()
 {
 	auto this_l (std::static_pointer_cast<nano::server_socket> (shared_from_this ()));
+
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "nano::async_close#1"
+			  << std::endl;
 
 	boost::asio::dispatch (strand, boost::asio::bind_executor (strand, [this_l] () {
 		this_l->close_internal ();
@@ -396,6 +455,10 @@ bool nano::server_socket::limit_reached_for_incoming_ip_connections (std::shared
 void nano::server_socket::on_connection (std::function<bool (std::shared_ptr<nano::socket> const &, boost::system::error_code const &)> callback_a)
 {
 	auto this_l (std::static_pointer_cast<nano::server_socket> (shared_from_this ()));
+
+	std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+			  << std::left << std::setw (18) << "nano::async_on_conn#1"
+			  << std::endl;
 
 	boost::asio::post (strand, boost::asio::bind_executor (strand, [this_l, callback = std::move (callback_a)] () mutable {
 		if (!this_l->acceptor.is_open ())

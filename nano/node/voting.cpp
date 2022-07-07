@@ -335,11 +335,25 @@ void nano::vote_generator::reply (nano::unique_lock<nano::mutex> & lock_a, reque
 			{
 				if (spacing.votable (root, hash))
 				{
+					std::cout << "[ node: " << network.endpoint ().port () << " ] "
+							  << std::left << std::setw (18) << "votable: "
+							  << hash.to_string ()
+							  << " | "
+							  << "final: " << is_final
+							  << std::endl;
+
 					roots.push_back (root);
 					hashes.push_back (hash);
 				}
 				else
 				{
+					std::cout << "[ node: " << network.endpoint ().port () << " ] "
+							  << std::left << std::setw (18) << "non votable: "
+							  << hash.to_string ()
+							  << " | "
+							  << "final: " << is_final
+							  << std::endl;
+
 					stats.inc (nano::stat::type::vote_generator, nano::stat::detail::generator_spacing);
 				}
 			}

@@ -46,10 +46,18 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 	{
 		if (!socket_l->max () || (policy_a == nano::buffer_drop_policy::no_socket_drop && !socket_l->full ()))
 		{
+			std::cout << "[ node: " << node.network.endpoint ().port () << " ] "
+					  << std::left << std::setw (18) << "send_buffer"
+					  << std::endl;
+
 			socket_l->async_write (
 			buffer_a, [endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node> (node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
 				if (auto node_l = node.lock ())
 				{
+					std::cout << "[ node: " << node_l->network.endpoint ().port () << " ] "
+							  << std::left << std::setw (18) << "async_write cbk"
+							  << std::endl;
+
 					if (!ec)
 					{
 						node_l->network.tcp_channels.update (endpoint_a);

@@ -82,6 +82,12 @@ void nano::unchecked_map::flush ()
 
 void nano::unchecked_map::trigger (nano::hash_or_account const & dependency)
 {
+	std::cout << "[ node: " << "00000" << " ] "
+			  << std::left << std::setw (18) << "trigger: "
+			  << dependency.to_string ()
+			  << std::endl;
+
+
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	buffer.push_back (dependency);
 	debug_assert (buffer.back ().which () == 1); // which stands for "query".
