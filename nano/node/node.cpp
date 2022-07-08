@@ -1835,10 +1835,9 @@ void nano::node::run_io_threads ()
 
 void nano::node::stop_io_threads ()
 {
-	// TODO: Check for concurrency issues
-	io_ctx.stop ();
 	if (io_thread_runner)
 	{
+		io_thread_runner->stop_event_processing ();
 		io_thread_runner->join ();
 	}
 };
