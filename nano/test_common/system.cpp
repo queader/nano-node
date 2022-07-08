@@ -136,6 +136,8 @@ nano::system::~system ()
 		i->stop ();
 	}
 
+	stop_test_io_threads ();
+
 #ifndef _WIN32
 	// Windows cannot remove the log and data files while they are still owned by this process.
 	// They will be removed later
@@ -581,13 +583,14 @@ void nano::system::stop_test_io_threads ()
 {
 	// TODO: Check for concurrency issues
 	test_io_ctx.stop ();
+	debug_assert (test_io_thread_runner);
 	test_io_thread_runner->join ();
 };
 
 uint16_t nano::get_available_port ()
 {
 	// Maximum possible sockets which may feasibly be used in 1 test
-	constexpr auto max = 200;
+	constexpr auto max = 25;
 	static uint16_t current = 0;
 	// Read the TEST_BASE_PORT environment and override the default base port if it exists
 	auto base_str = std::getenv ("TEST_BASE_PORT");

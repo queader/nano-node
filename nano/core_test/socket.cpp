@@ -692,6 +692,7 @@ TEST (socket_timeout, write)
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
+	std::cout << endpoint << std::endl;
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
 	acceptor.bind (endpoint);
@@ -841,7 +842,7 @@ TEST (socket_timeout, write_overlapped)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY (10s, done == true);
 	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
+	ASSERT_GE (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
 
 	// check that the socket was closed due to tcp_io_timeout timeout
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));

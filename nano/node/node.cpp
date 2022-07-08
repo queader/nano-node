@@ -158,6 +158,8 @@ nano::node::node (boost::filesystem::path const & application_path_a, nano::node
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
+	std::cout << "port: " << (config.peering_port ? *config.peering_port : -1) << std::endl;
+
 	unchecked.satisfied = [this] (nano::unchecked_info const & info) {
 		this->block_processor.add (info);
 	};
@@ -479,6 +481,7 @@ nano::node::~node ()
 	{
 		logger.always_log ("Destructing node");
 	}
+	std::cout << "destructing node: " << (config.peering_port ? *config.peering_port : -1) << std::endl;
 	stop ();
 }
 
@@ -629,6 +632,8 @@ void nano::node::process_local_async (std::shared_ptr<nano::block> const & block
 
 void nano::node::start ()
 {
+	std::cout << "start: " << (config.peering_port ? *config.peering_port : -1) << std::endl;
+
 	debug_assert (!init_error ());
 
 	long_inactivity_cleanup ();
@@ -708,7 +713,8 @@ void nano::node::stop ()
 {
 	if (!stopped.exchange (true))
 	{
-		stop_io_threads ();
+		std::cout << "stopping node: " << (config.peering_port ? *config.peering_port : -1) << std::endl;
+
 		logger.always_log ("Node stopping");
 		// Cancels ongoing work generation tasks, which may be blocking other threads
 		// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
@@ -739,6 +745,8 @@ void nano::node::stop ()
 		}
 		workers.stop ();
 		// work pool is not stopped on purpose due to testing setup
+
+		stop_io_threads ();
 	}
 }
 
@@ -1829,8 +1837,10 @@ void nano::node::stop_io_threads ()
 {
 	// TODO: Check for concurrency issues
 	io_ctx.stop ();
-	debug_assert (io_thread_runner);
-	io_thread_runner->join ();
+	if (io_thread_runner)
+	{
+		io_thread_runner->join ();
+	}
 };
 
 nano::node_wrapper::node_wrapper (boost::filesystem::path const & path_a, boost::filesystem::path const & config_path_a, nano::node_flags const & node_flags_a) :
