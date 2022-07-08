@@ -529,13 +529,13 @@ TEST (node, connect_after_junk)
 	node_flags.disable_udp = false;
 	auto node0 = system.add_node (node_flags);
 	auto node1 (std::make_shared<nano::node> (nano::get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
+	node1->start ();
+	system.nodes.push_back (node1);
 	std::vector<uint8_t> junk_buffer;
 	junk_buffer.push_back (0);
 	auto channel1 (std::make_shared<nano::transport::channel_udp> (node1->network.udp_channels, node0->network.endpoint (), node1->network_params.network.protocol_version));
 	channel1->send_buffer (nano::shared_const_buffer (std::move (junk_buffer)), [] (boost::system::error_code const &, size_t) {});
 	ASSERT_TIMELY (10s, node0->stats.count (nano::stat::type::error) != 0);
-	node1->start ();
-	system.nodes.push_back (node1);
 	auto channel2 (std::make_shared<nano::transport::channel_udp> (node1->network.udp_channels, node0->network.endpoint (), node1->network_params.network.protocol_version));
 	node1->network.send_keepalive (channel2);
 	ASSERT_TIMELY (10s, !node1->network.empty ());
@@ -3254,9 +3254,9 @@ TEST (node, peer_cache_restart)
 		nano::node_flags node_flags;
 		node_flags.read_only = true;
 		auto node3 (std::make_shared<nano::node> (nano::get_available_port (), path, system.logging, system.work, node_flags));
+		node3->start ();
 		system.nodes.push_back (node3);
 		// Check cached peers after restart
-		node3->network.start ();
 		node3->add_initial_peers ();
 
 		auto & store = node3->store;
