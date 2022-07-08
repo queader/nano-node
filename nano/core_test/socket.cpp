@@ -103,8 +103,6 @@ TEST (socket, max_connections)
 	ASSERT_TIMELY (5s, get_tcp_accept_successes () == 5);
 	ASSERT_TIMELY (5s, connection_attempts == 8); // connections initiated by the client
 	ASSERT_TIMELY (5s, server_sockets.size () == 5); // connections accepted by the server
-
-	node->stop ();
 }
 
 TEST (socket, max_connections_per_ip)
@@ -164,8 +162,6 @@ TEST (socket, max_connections_per_ip)
 	ASSERT_TIMELY (5s, get_tcp_accept_successes () == max_ip_connections);
 	ASSERT_TIMELY (5s, get_tcp_max_per_ip () == 1);
 	ASSERT_TIMELY (5s, connection_attempts == max_ip_connections + 1);
-
-	node->stop ();
 }
 
 TEST (socket, limited_subnet_address)
@@ -286,8 +282,6 @@ TEST (socket, max_connections_per_subnetwork)
 	ASSERT_TIMELY (5s, get_tcp_accept_successes () == max_subnetwork_connections);
 	ASSERT_TIMELY (5s, get_tcp_max_per_subnetwork () == 1);
 	ASSERT_TIMELY (5s, connection_attempts == max_subnetwork_connections + 1);
-
-	node->stop ();
 }
 
 TEST (socket, disabled_max_peers_per_ip)
@@ -349,8 +343,6 @@ TEST (socket, disabled_max_peers_per_ip)
 	ASSERT_TIMELY (5s, get_tcp_accept_successes () == max_ip_connections + 1);
 	ASSERT_TIMELY (5s, get_tcp_max_per_ip () == 0);
 	ASSERT_TIMELY (5s, connection_attempts == max_ip_connections + 1);
-
-	node->stop ();
 }
 
 TEST (socket, disconnection_of_silent_connections)
@@ -406,8 +398,6 @@ TEST (socket, disconnection_of_silent_connections)
 	ASSERT_EQ (0, get_tcp_io_timeout_drops ());
 	// Asserts the silent checker worked.
 	ASSERT_EQ (1, get_tcp_silent_connection_drops ());
-
-	node->stop ();
 }
 
 TEST (socket, drop_policy)

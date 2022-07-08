@@ -113,7 +113,6 @@ TEST (network, DISABLED_send_node_id_handshake)
 	ASSERT_EQ (node1->network.endpoint (), list1[0]->get_endpoint ());
 	auto list2 (node1->network.list (1));
 	ASSERT_EQ (node0->network.endpoint (), list2[0]->get_endpoint ());
-	node1->stop ();
 }
 
 TEST (network, send_node_id_handshake_tcp)
@@ -143,7 +142,6 @@ TEST (network, send_node_id_handshake_tcp)
 	auto list2 (node1->network.list (1));
 	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
 	ASSERT_EQ (node0->network.endpoint (), list2[0]->get_endpoint ());
-	node1->stop ();
 }
 
 TEST (network, last_contacted)
