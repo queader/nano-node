@@ -82,6 +82,7 @@ public:
 	uint8_t max_json_depth{ 20 };
 	uint64_t max_request_size{ 32 * 1024 * 1024 };
 	nano::rpc_logging_config rpc_logging;
+	unsigned io_threads{ std::max<unsigned> (4, std::thread::hardware_concurrency ()) };
 	/** Optional TLS config */
 	std::shared_ptr<nano::tls_config> tls_config;
 };

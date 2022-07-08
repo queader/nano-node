@@ -1140,8 +1140,6 @@ int main (int argc, char * const * argv)
 				}
 			}
 			std::cout << boost::str (boost::format ("Starting generating %1% blocks...\n") % (count * 2));
-			boost::asio::io_context io_ctx1;
-			boost::asio::io_context io_ctx2;
 			nano::work_pool work{ network_params.network, std::numeric_limits<unsigned>::max () };
 			nano::logging logging;
 			auto path1 (nano::unique_path ());
@@ -1165,7 +1163,7 @@ int main (int argc, char * const * argv)
 			flags.disable_legacy_bootstrap = true;
 			flags.disable_wallet_bootstrap = true;
 			flags.disable_bootstrap_listener = true;
-			auto node1 (std::make_shared<nano::node> (io_ctx1, path1, config1, work, flags, 0));
+			auto node1 (std::make_shared<nano::node> (path1, config1, work, flags, 0));
 			nano::block_hash genesis_latest (node1->latest (nano::dev::genesis_key.pub));
 			nano::uint128_t genesis_balance (std::numeric_limits<nano::uint128_t>::max ());
 			// Generating blocks
@@ -1205,7 +1203,6 @@ int main (int argc, char * const * argv)
 				}
 			}
 			node1->start ();
-			nano::thread_runner runner1 (io_ctx1, node1->config.io_threads);
 
 			std::cout << boost::str (boost::format ("Processing %1% blocks\n") % (count * 2));
 			for (auto & block : blocks)
@@ -1251,9 +1248,8 @@ int main (int argc, char * const * argv)
 				config2.active_elections_size = daemon_config.node.active_elections_size;
 			}
 
-			auto node2 (std::make_shared<nano::node> (io_ctx2, path2, config2, work, flags, 1));
+			auto node2 (std::make_shared<nano::node> (path2, config2, work, flags, 1));
 			node2->start ();
-			nano::thread_runner runner2 (io_ctx2, node2->config.io_threads);
 			std::cout << boost::str (boost::format ("Processing %1% blocks (test node)\n") % (count * 2));
 			// Processing block
 			while (!blocks.empty ())
@@ -1298,10 +1294,6 @@ int main (int argc, char * const * argv)
 			auto end (std::chrono::high_resolution_clock::now ());
 			auto time (std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count ());
 			std::cout << boost::str (boost::format ("%|1$ 12d| us \n%2% frontiers per second\n") % time % ((count + 1) * 1000000 / time));
-			io_ctx1.stop ();
-			io_ctx2.stop ();
-			runner1.join ();
-			runner2.join ();
 			node1->stop ();
 			node2->stop ();
 		}

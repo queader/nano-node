@@ -16,11 +16,12 @@ namespace asio
 namespace nano
 {
 class rpc_handler_interface;
+class thread_runner;
 
 class rpc
 {
 public:
-	rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
+	rpc (nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
 	virtual ~rpc ();
 	void start ();
 	virtual void accept ();
@@ -32,13 +33,19 @@ public:
 	}
 
 	nano::rpc_config config;
+	boost::asio::io_context io_ctx;
 	boost::asio::ip::tcp::acceptor acceptor;
 	nano::logger_mt logger;
-	boost::asio::io_context & io_ctx;
 	nano::rpc_handler_interface & rpc_handler_interface;
 	bool stopped{ false };
+
+private:
+	void run_io_threads ();
+	void stop_io_threads ();
+
+	std::unique_ptr<nano::thread_runner> io_thread_runner;
 };
 
 /** Returns the correct RPC implementation based on TLS configuration */
-std::unique_ptr<nano::rpc> get_rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
+std::unique_ptr<nano::rpc> get_rpc (nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
 }
