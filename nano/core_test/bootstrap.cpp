@@ -1326,7 +1326,7 @@ TEST (bootstrap_processor, wallet_lazy_pending)
 	ASSERT_TIMELY (10s, node1->ledger.block_or_pruned_exists (send2->hash ()));
 }
 
-TEST (bootstrap_processor, multiple_attempts)
+TEST (bootstrap_processor, DISABLED_multiple_attempts)
 {
 	nano::system system;
 	nano::node_config config (nano::get_available_port (), system.logging);

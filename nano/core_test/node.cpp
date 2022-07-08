@@ -277,7 +277,7 @@ TEST (node, node_receive_quorum)
 	}
 }
 
-TEST (node, auto_bootstrap)
+TEST (node, DISABLED_auto_bootstrap)
 {
 	nano::system system;
 	nano::node_config config (nano::get_available_port (), system.logging);
@@ -328,7 +328,7 @@ TEST (node, auto_bootstrap_reverse)
 	ASSERT_TIMELY (10s, node1->balance (key2.pub) == node0->config.receive_minimum.number ());
 }
 
-TEST (node, auto_bootstrap_age)
+TEST (node, DISABLED_auto_bootstrap_age)
 {
 	nano::system system;
 	nano::node_config config (nano::get_available_port (), system.logging);
