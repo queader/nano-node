@@ -406,8 +406,7 @@ TEST (socket, drop_policy)
 	node_flags.read_only = false;
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
-
-	nano::thread_runner runner (node->io_ctx, 1);
+	node->start ();
 
 	std::vector<std::shared_ptr<nano::socket>> connections;
 
@@ -459,8 +458,6 @@ TEST (socket, drop_policy)
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out));
 
 	node->stop ();
-	runner.stop_event_processing ();
-	runner.join ();
 }
 
 TEST (socket, concurrent_writes)
@@ -471,10 +468,7 @@ TEST (socket, concurrent_writes)
 	node_flags.disable_max_peers_per_subnetwork = true;
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
-
-	// This gives more realistic execution than using system#poll, allowing writes to
-	// queue up and drain concurrently.
-	nano::thread_runner runner (node->io_ctx, 1);
+	node->start ();
 
 	constexpr size_t max_connections = 4;
 	constexpr size_t client_count = max_connections;
@@ -585,8 +579,6 @@ TEST (socket, concurrent_writes)
 
 	ASSERT_FALSE (read_count_completion.await_count_for (10s));
 	node->stop ();
-	runner.stop_event_processing ();
-	runner.join ();
 
 	ASSERT_EQ (node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_accept_success, nano::stat::dir::in), client_count);
 	// We may exhaust max connections and have some tcp accept failures, but no more than the client count
@@ -632,10 +624,10 @@ TEST (socket_timeout, connect)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY (6s, done == true);
 	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in));
 
 	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
 }
 
 TEST (socket_timeout, read)
@@ -649,6 +641,7 @@ TEST (socket_timeout, read)
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
+	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -677,10 +670,10 @@ TEST (socket_timeout, read)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY (10s, done == true);
 	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in));
 
 	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
 }
 
 TEST (socket_timeout, write)
@@ -695,6 +688,7 @@ TEST (socket_timeout, write)
 	std::cout << endpoint << std::endl;
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
+	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -728,10 +722,10 @@ TEST (socket_timeout, write)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY (10s, done == true);
 	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
+	ASSERT_TIMELY (5s, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in) >= 1);
 
 	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
 }
 
 TEST (socket_timeout, read_overlapped)
@@ -745,6 +739,7 @@ TEST (socket_timeout, read_overlapped)
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
+	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -784,10 +779,10 @@ TEST (socket_timeout, read_overlapped)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY (10s, done == true);
 	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in));
+	ASSERT_TIMELY (5s, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in) >= 1);
 
 	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
 }
 
 TEST (socket_timeout, write_overlapped)
@@ -801,6 +796,7 @@ TEST (socket_timeout, write_overlapped)
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
+	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -842,8 +838,8 @@ TEST (socket_timeout, write_overlapped)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY (10s, done == true);
 	ASSERT_TRUE (ec);
-	ASSERT_GE (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
+	ASSERT_TIMELY (5s, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in) >= 1);
 
 	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (5s, 1 == node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
 }
