@@ -37,7 +37,6 @@ TEST (system, DISABLED_generate_send_existing)
 {
 	nano::system system (1);
 	auto & node1 (*system.nodes[0]);
-	nano::thread_runner runner (system.io_ctx, node1.config.io_threads);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair stake_preserver;
 	auto send_block (system.wallet (0)->send_action (nano::dev::genesis->account (), stake_preserver.pub, nano::dev::constants.genesis_amount / 3 * 2, true));
@@ -77,14 +76,12 @@ TEST (system, DISABLED_generate_send_existing)
 		ASSERT_NE (node1.ledger.amount (transaction, info2.head), 0);
 	}
 	system.stop ();
-	runner.join ();
 }
 
 TEST (system, DISABLED_generate_send_new)
 {
 	nano::system system (1);
 	auto & node1 (*system.nodes[0]);
-	nano::thread_runner runner (system.io_ctx, node1.config.io_threads);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	{
 		auto transaction (node1.store.tx_begin_read ());
@@ -127,7 +124,6 @@ TEST (system, DISABLED_generate_send_new)
 	}
 	ASSERT_TIMELY (10s, node1.balance (new_account) != 0);
 	system.stop ();
-	runner.join ();
 }
 
 TEST (system, rep_initialize_one)

@@ -31,7 +31,7 @@ std::shared_ptr<nano::node> nano::system::add_node (nano::node_flags node_flags_
 /** Returns the node added. */
 std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & node_config_a, nano::node_flags node_flags_a, nano::transport::transport_type type_a)
 {
-	auto node (std::make_shared<nano::node> (io_ctx, nano::unique_path (), node_config_a, work, node_flags_a, node_sequence++));
+	auto node (std::make_shared<nano::node> (nano::unique_path (), node_config_a, work, node_flags_a, node_sequence++));
 	for (auto i : initialization_blocks)
 	{
 		auto result = node->ledger.process (node->store.tx_begin_write (), *i);
@@ -109,6 +109,7 @@ std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & no
 
 nano::system::system ()
 {
+	run_test_io_threads ();
 	auto scale_str = std::getenv ("DEADLINE_SCALE_FACTOR");
 	if (scale_str)
 	{
@@ -273,24 +274,26 @@ void nano::system::deadline_set (std::chrono::duration<double, std::nano> const 
 
 std::error_code nano::system::poll (std::chrono::nanoseconds const & wait_time)
 {
-#if NANO_ASIO_HANDLER_TRACKING == 0
-	io_ctx.run_one_for (wait_time);
-#else
-	nano::timer<> timer;
-	timer.start ();
-	auto count = io_ctx.poll_one ();
-	if (count == 0)
-	{
-		std::this_thread::sleep_for (wait_time);
-	}
-	else if (count == 1 && timer.since_start ().count () >= NANO_ASIO_HANDLER_TRACKING)
-	{
-		auto timestamp = std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
-		std::cout << (boost::format ("[%1%] io_thread held for %2%ms") % timestamp % timer.since_start ().count ()).str () << std::endl;
-	}
-#endif
+	// TODO: Move asio handler tracking into thread_runner
+	//#if NANO_ASIO_HANDLER_TRACKING == 0
+	//	io_ctx.run_one_for (wait_time);
+	//#else
+	//	nano::timer<> timer;
+	//	timer.start ();
+	//	auto count = io_ctx.poll_one ();
+	//	if (count == 0)
+	//	{
+	//		std::this_thread::sleep_for (wait_time);
+	//	}
+	//	else if (count == 1 && timer.since_start ().count () >= NANO_ASIO_HANDLER_TRACKING)
+	//	{
+	//		auto timestamp = std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
+	//		std::cout << (boost::format ("[%1%] io_thread held for %2%ms") % timestamp % timer.since_start ().count ()).str () << std::endl;
+	//	}
+	//#endif
 
 	std::error_code ec;
+	std::this_thread::sleep_for (10ms);
 	if (std::chrono::steady_clock::now () > deadline)
 	{
 		ec = nano::error_system::deadline_expired;
@@ -321,7 +324,7 @@ void nano::system::delay_ms (std::chrono::milliseconds const & delay)
 	auto endtime = now + delay;
 	while (now <= endtime)
 	{
-		io_ctx.run_one_for (endtime - now);
+		std::this_thread::sleep_for (now - endtime);
 		now = std::chrono::steady_clock::now ();
 	}
 }
@@ -561,12 +564,25 @@ void nano::system::generate_mass_activity (uint32_t count_a, nano::node & node_a
 
 void nano::system::stop ()
 {
+	stop_test_io_threads ();
 	for (auto i : nodes)
 	{
 		i->stop ();
 	}
 	work.stop ();
 }
+
+void nano::system::run_test_io_threads ()
+{
+	test_io_thread_runner = std::make_unique<nano::thread_runner> (test_io_ctx, std::thread::hardware_concurrency ());
+}
+
+void nano::system::stop_test_io_threads ()
+{
+	// TODO: Check for concurrency issues
+	test_io_ctx.stop ();
+	test_io_thread_runner->join ();
+};
 
 uint16_t nano::get_available_port ()
 {

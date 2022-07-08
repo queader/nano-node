@@ -629,6 +629,8 @@ void nano::node::process_local_async (std::shared_ptr<nano::block> const & block
 
 void nano::node::start ()
 {
+	debug_assert (!init_error ());
+
 	long_inactivity_cleanup ();
 	network.start ();
 	add_initial_peers ();
@@ -1827,6 +1829,7 @@ void nano::node::stop_io_threads ()
 {
 	// TODO: Check for concurrency issues
 	io_ctx.stop ();
+	debug_assert (io_thread_runner);
 	io_thread_runner->join ();
 };
 

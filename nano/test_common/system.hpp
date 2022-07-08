@@ -48,7 +48,7 @@ public:
 	void deadline_set (std::chrono::duration<double, std::nano> const & delta);
 	std::shared_ptr<nano::node> add_node (nano::node_flags = nano::node_flags (), nano::transport::transport_type = nano::transport::transport_type::tcp);
 	std::shared_ptr<nano::node> add_node (nano::node_config const &, nano::node_flags = nano::node_flags (), nano::transport::transport_type = nano::transport::transport_type::tcp);
-	boost::asio::io_context io_ctx;
+
 	std::vector<std::shared_ptr<nano::node>> nodes;
 	nano::logging logging;
 	nano::work_pool work{ nano::dev::network_params.network, std::max (std::thread::hardware_concurrency (), 1u) };
@@ -56,6 +56,14 @@ public:
 	double deadline_scaling_factor{ 1.0 };
 	unsigned node_sequence{ 0 };
 	std::vector<std::shared_ptr<nano::block>> initialization_blocks;
+
+	boost::asio::io_context test_io_ctx;
+
+private:
+	void run_test_io_threads ();
+	void stop_test_io_threads ();
+
+	std::unique_ptr<nano::thread_runner> test_io_thread_runner;
 };
 std::unique_ptr<nano::state_block> upgrade_epoch (nano::work_pool &, nano::ledger &, nano::epoch);
 void blocks_confirm (nano::node &, std::vector<std::shared_ptr<nano::block>> const &, bool const = false);

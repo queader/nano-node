@@ -657,13 +657,13 @@ TEST (socket_timeout, read)
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
-	boost::asio::ip::tcp::acceptor acceptor (system.io_ctx);
+	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
 	// asynchronously accept an incoming connection and create a newsock and do not send any data
-	boost::asio::ip::tcp::socket newsock (system.io_ctx);
+	boost::asio::ip::tcp::socket newsock (system.test_io_ctx);
 	acceptor.async_accept (newsock, [] (boost::system::error_code const & ec_a) {
 		debug_assert (!ec_a);
 	});
@@ -702,13 +702,13 @@ TEST (socket_timeout, write)
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
-	boost::asio::ip::tcp::acceptor acceptor (system.io_ctx);
+	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
 	// asynchronously accept an incoming connection and create a newsock and do not receive any data
-	boost::asio::ip::tcp::socket newsock (system.io_ctx);
+	boost::asio::ip::tcp::socket newsock (system.test_io_ctx);
 	acceptor.async_accept (newsock, [] (boost::system::error_code const & ec_a) {
 		debug_assert (!ec_a);
 	});
@@ -752,13 +752,13 @@ TEST (socket_timeout, read_overlapped)
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
-	boost::asio::ip::tcp::acceptor acceptor (system.io_ctx);
+	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
 	// asynchronously accept an incoming connection and send one byte only
-	boost::asio::ip::tcp::socket newsock (system.io_ctx);
+	boost::asio::ip::tcp::socket newsock (system.test_io_ctx);
 	acceptor.async_accept (newsock, [&newsock] (boost::system::error_code const & ec_a) {
 		debug_assert (!ec_a);
 		auto buffer = std::make_shared<std::vector<uint8_t>> (1);
@@ -808,13 +808,13 @@ TEST (socket_timeout, write_overlapped)
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
-	boost::asio::ip::tcp::acceptor acceptor (system.io_ctx);
+	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
 	// asynchronously accept an incoming connection and read 2 bytes only
-	boost::asio::ip::tcp::socket newsock (system.io_ctx);
+	boost::asio::ip::tcp::socket newsock (system.test_io_ctx);
 	auto buffer = std::make_shared<std::vector<uint8_t>> (1);
 	acceptor.async_accept (newsock, [&newsock, &buffer] (boost::system::error_code const & ec_a) {
 		debug_assert (!ec_a);
