@@ -112,6 +112,7 @@ nano::node::node (boost::filesystem::path const & application_path_a, nano::node
 	io_ctx{},
 	node_initialized_latch (1),
 	config (config_a),
+	io_thread_runner{ io_ctx, config.io_threads, nano::thread_role::name::io },
 	network_params{ config.network_params },
 	stats (config.stat_config),
 	workers (std::max (3u, config.io_threads / 4), nano::thread_role::name::worker),
@@ -636,6 +637,7 @@ void nano::node::start ()
 
 	debug_assert (!init_error ());
 
+	io_thread_runner.start ();
 	long_inactivity_cleanup ();
 	network.start ();
 	add_initial_peers ();
@@ -706,7 +708,6 @@ void nano::node::start ()
 			this_l->ongoing_backlog_population ();
 		});
 	}
-	run_io_threads ();
 }
 
 void nano::node::stop ()
@@ -745,8 +746,7 @@ void nano::node::stop ()
 		}
 		workers.stop ();
 		// work pool is not stopped on purpose due to testing setup
-
-		stop_io_threads ();
+		io_thread_runner.stop ();
 	}
 }
 
@@ -1827,20 +1827,6 @@ uint64_t nano::node::get_confirmation_height (nano::transaction const & transact
 	store.confirmation_height.get (transaction_a, account_a, info);
 	return info.height;
 }
-
-void nano::node::run_io_threads ()
-{
-	io_thread_runner = std::make_unique<nano::thread_runner> (io_ctx, config.io_threads);
-}
-
-void nano::node::stop_io_threads ()
-{
-	if (io_thread_runner)
-	{
-		io_thread_runner->stop_event_processing ();
-		io_thread_runner->join ();
-	}
-};
 
 nano::node_wrapper::node_wrapper (boost::filesystem::path const & path_a, boost::filesystem::path const & config_path_a, nano::node_flags const & node_flags_a) :
 	network_params{ nano::network_constants::active_network },

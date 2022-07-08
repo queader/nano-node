@@ -218,10 +218,7 @@ private:
 	void epoch_upgrader_impl (nano::raw_key const &, nano::epoch, uint64_t, uint64_t);
 	nano::locked<std::future<void>> epoch_upgrading;
 
-	void run_io_threads ();
-	void stop_io_threads ();
-
-	std::unique_ptr<nano::thread_runner> io_thread_runner;
+	nano::thread_runner io_thread_runner;
 };
 
 nano::keypair load_or_create_node_id (boost::filesystem::path const & application_path, nano::logger_mt & logger);

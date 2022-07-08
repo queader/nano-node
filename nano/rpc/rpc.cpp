@@ -15,10 +15,11 @@
 
 nano::rpc::rpc (nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a) :
 	config (std::move (config_a)),
-	io_ctx{},
+	io_ctx (),
 	acceptor (io_ctx),
 	logger (std::chrono::milliseconds (0)),
-	rpc_handler_interface (rpc_handler_interface_a)
+	rpc_handler_interface (rpc_handler_interface_a),
+	io_thread_runner (io_ctx, config.io_threads, nano::thread_role::name::rpc_io)
 {
 	rpc_handler_interface.rpc_instance (*this);
 }
@@ -33,6 +34,8 @@ nano::rpc::~rpc ()
 
 void nano::rpc::start ()
 {
+	io_thread_runner.start ();
+
 	auto endpoint (boost::asio::ip::tcp::endpoint (boost::asio::ip::make_address_v6 (config.address), config.port));
 	bool const is_loopback = (endpoint.address ().is_loopback () || (endpoint.address ().to_v6 ().is_v4_mapped () && boost::asio::ip::make_address_v4 (boost::asio::ip::v4_mapped, endpoint.address ().to_v6 ()).is_loopback ()));
 	if (!is_loopback && config.enable_control)
@@ -53,8 +56,6 @@ void nano::rpc::start ()
 	}
 	acceptor.listen ();
 	accept ();
-
-	run_io_threads ();
 }
 
 void nano::rpc::accept ()
@@ -79,22 +80,8 @@ void nano::rpc::accept ()
 void nano::rpc::stop ()
 {
 	stopped = true;
-	// TODO: Check for concurrency issues
-	io_ctx.stop ();
 	acceptor.close ();
-}
-
-void nano::rpc::run_io_threads ()
-{
-	io_thread_runner = std::make_unique<nano::thread_runner> (io_ctx, config.io_threads);
-	io_thread_runner->join ();
-}
-
-void nano::rpc::stop_io_threads ()
-{
-	// TODO: Check for concurrency issues
-	io_ctx.stop ();
-	io_thread_runner->join ();
+	io_thread_runner.stop ();
 }
 
 std::unique_ptr<nano::rpc> nano::get_rpc (nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a)

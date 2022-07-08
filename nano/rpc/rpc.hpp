@@ -4,6 +4,7 @@
 #include <nano/lib/logger_mt.hpp>
 #include <nano/lib/rpc_handler_interface.hpp>
 #include <nano/lib/rpcconfig.hpp>
+#include <nano/lib/threading.hpp>
 
 namespace boost
 {
@@ -16,7 +17,6 @@ namespace asio
 namespace nano
 {
 class rpc_handler_interface;
-class thread_runner;
 
 class rpc
 {
@@ -40,10 +40,7 @@ public:
 	bool stopped{ false };
 
 private:
-	void run_io_threads ();
-	void stop_io_threads ();
-
-	std::unique_ptr<nano::thread_runner> io_thread_runner;
+	nano::thread_runner io_thread_runner;
 };
 
 /** Returns the correct RPC implementation based on TLS configuration */

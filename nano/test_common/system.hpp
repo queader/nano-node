@@ -60,10 +60,7 @@ public:
 	boost::asio::io_context test_io_ctx;
 
 private:
-	void run_test_io_threads ();
-	void stop_test_io_threads ();
-
-	std::unique_ptr<nano::thread_runner> test_io_thread_runner;
+	nano::thread_runner io_thread_runner;
 };
 std::unique_ptr<nano::state_block> upgrade_epoch (nano::work_pool &, nano::ledger &, nano::epoch);
 void blocks_confirm (nano::node &, std::vector<std::shared_ptr<nano::block>> const &, bool const = false);

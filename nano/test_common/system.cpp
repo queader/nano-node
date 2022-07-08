@@ -107,9 +107,10 @@ std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & no
 	return node;
 }
 
-nano::system::system ()
+nano::system::system () :
+	test_io_ctx{},
+	io_thread_runner{ test_io_ctx, std::thread::hardware_concurrency (), nano::thread_role::name::test_io }
 {
-	run_test_io_threads ();
 	auto scale_str = std::getenv ("DEADLINE_SCALE_FACTOR");
 	if (scale_str)
 	{
@@ -131,12 +132,7 @@ nano::system::system (uint16_t count_a, nano::transport::transport_type type_a, 
 
 nano::system::~system ()
 {
-	for (auto & i : nodes)
-	{
-		i->stop ();
-	}
-
-	stop_test_io_threads ();
+	stop ();
 
 #ifndef _WIN32
 	// Windows cannot remove the log and data files while they are still owned by this process.
@@ -566,26 +562,13 @@ void nano::system::generate_mass_activity (uint32_t count_a, nano::node & node_a
 
 void nano::system::stop ()
 {
-	stop_test_io_threads ();
 	for (auto i : nodes)
 	{
 		i->stop ();
 	}
 	work.stop ();
+	io_thread_runner.stop ();
 }
-
-void nano::system::run_test_io_threads ()
-{
-	test_io_thread_runner = std::make_unique<nano::thread_runner> (test_io_ctx, std::thread::hardware_concurrency ());
-}
-
-void nano::system::stop_test_io_threads ()
-{
-	// TODO: Check for concurrency issues
-	test_io_ctx.stop ();
-	debug_assert (test_io_thread_runner);
-	test_io_thread_runner->join ();
-};
 
 uint16_t nano::get_available_port ()
 {
