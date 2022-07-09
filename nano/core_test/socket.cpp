@@ -641,7 +641,6 @@ TEST (socket_timeout, read)
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
-	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -688,7 +687,6 @@ TEST (socket_timeout, write)
 	std::cout << endpoint << std::endl;
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
-	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -739,7 +737,6 @@ TEST (socket_timeout, read_overlapped)
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
-	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
@@ -796,7 +793,6 @@ TEST (socket_timeout, write_overlapped)
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
 	boost::asio::ip::tcp::acceptor acceptor (system.test_io_ctx);
 	acceptor.open (endpoint.protocol ());
-	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 	acceptor.bind (endpoint);
 	acceptor.listen (boost::asio::socket_base::max_listen_connections);
 
