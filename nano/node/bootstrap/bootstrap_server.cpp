@@ -98,7 +98,7 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 {
 	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
-		auto server = std::make_shared<nano::bootstrap_server> (socket_a, node.shared ());
+		auto server = std::make_shared<nano::bootstrap_server> (socket_a, node.shared (), true);
 		nano::lock_guard<nano::mutex> lock (mutex);
 		connections[server.get ()] = server;
 		server->start ();
@@ -134,12 +134,17 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (bo
 	return composite;
 }
 
-nano::bootstrap_server::bootstrap_server (std::shared_ptr<nano::socket> socket_a, std::shared_ptr<nano::node> node_a) :
+nano::bootstrap_server::bootstrap_server (std::shared_ptr<nano::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ std::move (socket_a) },
 	node{ std::move (node_a) },
+	allow_bootstrap{ allow_bootstrap_a },
 	message_deserializer{ std::make_shared<nano::bootstrap::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer) }
 {
 	debug_assert (socket != nullptr);
+
+	// Set remote_endpoint
+	remote_endpoint = socket->remote_endpoint ();
+	debug_assert (remote_endpoint.port () != 0);
 }
 
 nano::bootstrap_server::~bootstrap_server ()
@@ -159,7 +164,6 @@ nano::bootstrap_server::~bootstrap_server ()
 		auto exisiting_response_channel (node->network.tcp_channels.find_channel (remote_endpoint));
 		if (exisiting_response_channel != nullptr)
 		{
-			exisiting_response_channel->temporary = false;
 			node->network.tcp_channels.erase (remote_endpoint);
 		}
 	}
@@ -171,12 +175,6 @@ nano::bootstrap_server::~bootstrap_server ()
 
 void nano::bootstrap_server::start ()
 {
-	// Set remote_endpoint
-	if (remote_endpoint.port () == 0)
-	{
-		remote_endpoint = socket->remote_endpoint ();
-		debug_assert (remote_endpoint.port () != 0);
-	}
 	receive_message ();
 }
 
@@ -248,8 +246,17 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 		}
 		else if (handshake_visitor.bootstrap)
 		{
-			// Switch to bootstrap connection mode and handle message in subsequent bootstrap visitor
-			to_bootstrap_connection ();
+			if (allow_bootstrap)
+			{
+				// Switch to bootstrap connection mode and handle message in subsequent bootstrap visitor
+				to_bootstrap_connection ();
+			}
+			else
+			{
+				// Received bootstrap request in a connection that only allows for realtime traffic, abort
+				stop ();
+				return false;
+			}
 		}
 		else
 		{
@@ -304,7 +311,7 @@ void nano::bootstrap_server::handshake_message_visitor::node_id_handshake (nano:
 		return;
 	}
 
-	if (message.query && server->handshake_query_received)
+	if (message.query && server->handshake_query_received.exchange (true))
 	{
 		if (server->node->config.logging.network_node_id_handshake_logging ())
 		{
@@ -314,8 +321,6 @@ void nano::bootstrap_server::handshake_message_visitor::node_id_handshake (nano:
 		return;
 	}
 
-	server->handshake_query_received = true;
-
 	if (server->node->config.logging.network_node_id_handshake_logging ())
 	{
 		server->node->logger.try_log (boost::str (boost::format ("Received node_id_handshake message from %1%") % server->remote_endpoint));
@@ -323,14 +328,15 @@ void nano::bootstrap_server::handshake_message_visitor::node_id_handshake (nano:
 
 	if (message.query)
 	{
-		server->send_handshake_response (*message.query);
+		server->send_handshake_response (*message.query); // Sending response automatically sends query cookie too, so a response to that will switch our side to realtime too
 	}
-	else if (message.response)
+	if (message.response)
 	{
 		nano::account const & node_id (message.response->first);
 		if (!server->node->network.syn_cookies.validate (nano::transport::map_tcp_to_endpoint (server->remote_endpoint), node_id, message.response->second) && node_id != server->node->node_id.pub)
 		{
 			server->to_realtime_connection (node_id);
+			process = true; // Let the node process this message so a new channel is created
 		}
 		else
 		{
@@ -338,8 +344,36 @@ void nano::bootstrap_server::handshake_message_visitor::node_id_handshake (nano:
 			server->stop ();
 		}
 	}
+}
 
-	process = true;
+void nano::bootstrap_server::send_handshake_query ()
+{
+	// TCP node ID handshake
+	auto cookie (node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (remote_endpoint)));
+	nano::node_id_handshake message (node->network_params.network, cookie, boost::none);
+
+	if (node->config.logging.network_node_id_handshake_logging ())
+	{
+		node->logger.try_log (boost::str (boost::format ("Node ID handshake request sent with node ID %1% to %2%: query %3%") % node->node_id.pub.to_node_id () % remote_endpoint % (cookie.has_value () ? cookie->to_string () : "not set")));
+	}
+
+	auto shared_const_buffer = message.to_shared_const_buffer ();
+	socket->async_write (shared_const_buffer, [this_l = shared_from_this ()] (boost::system::error_code const & ec, std::size_t size_a) {
+		if (ec)
+		{
+			if (this_l->node->config.logging.network_node_id_handshake_logging ())
+			{
+				this_l->node->logger.try_log (boost::str (boost::format ("Error sending node_id_handshake to %1%: %2%") % this_l->remote_endpoint % ec.message ()));
+			}
+			// Stop invalid handshake
+			this_l->stop ();
+		}
+		else
+		{
+			// TODO: Differentiate between query and response stat
+			this_l->node->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::out);
+		}
+	});
 }
 
 void nano::bootstrap_server::send_handshake_response (nano::uint256_union query)
