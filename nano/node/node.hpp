@@ -89,8 +89,8 @@ std::unique_ptr<container_info_component> collect_container_info (rep_crawler & 
 class node final : public std::enable_shared_from_this<nano::node>
 {
 public:
-	node (boost::asio::io_context &, uint16_t, boost::filesystem::path const &, nano::logging const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
-	node (boost::asio::io_context &, boost::filesystem::path const &, nano::node_config const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
+	node (uint16_t, boost::filesystem::path const &, nano::logging const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
+	node (boost::filesystem::path const &, nano::node_config const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
 	~node ();
 	template <typename T>
 	void background (T action_a)
@@ -157,7 +157,7 @@ public:
 	void populate_backlog ();
 	uint64_t get_confirmation_height (nano::transaction const &, nano::account &);
 	nano::write_database_queue write_database_queue;
-	boost::asio::io_context & io_ctx;
+	boost::asio::io_context io_ctx;
 	boost::latch node_initialized_latch;
 	nano::node_config config;
 	nano::network_params & network_params;
@@ -217,6 +217,8 @@ private:
 	void long_inactivity_cleanup ();
 	void epoch_upgrader_impl (nano::raw_key const &, nano::epoch, uint64_t, uint64_t);
 	nano::locked<std::future<void>> epoch_upgrading;
+
+	nano::thread_runner io_thread_runner;
 };
 
 nano::keypair load_or_create_node_id (boost::filesystem::path const & application_path, nano::logger_mt & logger);
@@ -231,7 +233,6 @@ public:
 	~node_wrapper ();
 
 	nano::network_params network_params;
-	std::shared_ptr<boost::asio::io_context> io_context;
 	nano::work_pool work;
 	std::shared_ptr<nano::node> node;
 };

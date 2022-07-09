@@ -22,6 +22,9 @@ namespace thread_role
 	{
 		unknown,
 		io,
+		rpc_io,
+		test_io,
+		ipc_io,
 		work,
 		packet_processing,
 		vote_processing,
@@ -74,12 +77,19 @@ namespace thread_attributes
 class thread_runner final
 {
 public:
-	thread_runner (boost::asio::io_context &, unsigned);
+	thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a, nano::thread_role::name thread_role_a);
 	~thread_runner ();
+	/** Spawn threads and start processing events  */
+	void start ();
+	/** Stop processing and join */
+	void stop ();
 	/** Tells the IO context to stop processing events.*/
 	void stop_event_processing ();
 	/** Wait for IO threads to complete */
 	void join ();
+	boost::asio::io_context & io_ctx;
+	const unsigned service_threads;
+	const nano::thread_role::name thread_role;
 	std::vector<boost::thread> threads;
 	boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_guard;
 };

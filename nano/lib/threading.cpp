@@ -1,6 +1,7 @@
 #include <nano/boost/asio/post.hpp>
 #include <nano/lib/config.hpp>
 #include <nano/lib/threading.hpp>
+#include <nano/lib/timer.hpp>
 
 #include <boost/format.hpp>
 
@@ -29,6 +30,15 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 			break;
 		case nano::thread_role::name::io:
 			thread_role_name_string = "I/O";
+			break;
+		case nano::thread_role::name::rpc_io:
+			thread_role_name_string = "RPC I/O";
+			break;
+		case nano::thread_role::name::test_io:
+			thread_role_name_string = "Test I/O";
+			break;
+		case nano::thread_role::name::ipc_io:
+			thread_role_name_string = "IPC I/O";
 			break;
 		case nano::thread_role::name::work:
 			thread_role_name_string = "Work pool";
@@ -95,11 +105,11 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 	}
 
 	/*
-		 * We want to constrain the thread names to 15
-		 * characters, since this is the smallest maximum
-		 * length supported by the platforms we support
-		 * (specifically, Linux)
-		 */
+	 * We want to constrain the thread names to 15
+	 * characters, since this is the smallest maximum
+	 * length supported by the platforms we support
+	 * (specifically, Linux)
+	 */
 	debug_assert (thread_role_name_string.size () < 16);
 	return (thread_role_name_string);
 }
@@ -121,22 +131,34 @@ void nano::thread_role::set (nano::thread_role::name role)
 void nano::thread_attributes::set (boost::thread::attributes & attrs)
 {
 	auto attrs_l (&attrs);
-	attrs_l->set_stack_size (8000000); //8MB
+	attrs_l->set_stack_size (8000000); // 8MB
 }
 
-nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a) :
+nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a, nano::thread_role::name thread_role_a) :
+	io_ctx{ io_ctx_a },
+	service_threads{ service_threads_a },
+	thread_role{ thread_role_a },
 	io_guard (boost::asio::make_work_guard (io_ctx_a))
+{
+}
+
+nano::thread_runner::~thread_runner ()
+{
+	join ();
+}
+
+void nano::thread_runner::start ()
 {
 	boost::thread::attributes attrs;
 	nano::thread_attributes::set (attrs);
-	for (auto i (0u); i < service_threads_a; ++i)
+	for (auto i (0u); i < service_threads; ++i)
 	{
-		threads.emplace_back (attrs, [&io_ctx_a] () {
-			nano::thread_role::set (nano::thread_role::name::io);
+		threads.emplace_back (attrs, [&io_ctx_l = io_ctx, thread_role_l = thread_role] () {
+			nano::thread_role::set (thread_role_l);
 			try
 			{
 #if NANO_ASIO_HANDLER_TRACKING == 0
-				io_ctx_a.run ();
+				io_ctx_l.run ();
 #else
 				nano::timer<> timer;
 				timer.start ();
@@ -144,7 +166,7 @@ nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned
 				{
 					timer.restart ();
 					// Run at most 1 completion handler and record the time it took to complete (non-blocking)
-					auto count = io_ctx_a.poll_one ();
+					auto count = io_ctx_l.poll_one ();
 					if (count == 1 && timer.since_start ().count () >= NANO_ASIO_HANDLER_TRACKING)
 					{
 						auto timestamp = std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
@@ -178,8 +200,10 @@ nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned
 	}
 }
 
-nano::thread_runner::~thread_runner ()
+void nano::thread_runner::stop ()
 {
+	io_ctx.stop ();
+	stop_event_processing ();
 	join ();
 }
 

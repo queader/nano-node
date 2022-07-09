@@ -102,16 +102,17 @@ nano::keypair nano::load_or_create_node_id (boost::filesystem::path const & appl
 	}
 }
 
-nano::node::node (boost::asio::io_context & io_ctx_a, uint16_t peering_port_a, boost::filesystem::path const & application_path_a, nano::logging const & logging_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
-	node (io_ctx_a, application_path_a, nano::node_config (peering_port_a, logging_a), work_a, flags_a, seq)
+nano::node::node (uint16_t peering_port_a, boost::filesystem::path const & application_path_a, nano::logging const & logging_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
+	node (application_path_a, nano::node_config (peering_port_a, logging_a), work_a, flags_a, seq)
 {
 }
 
-nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path const & application_path_a, nano::node_config const & config_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
+nano::node::node (boost::filesystem::path const & application_path_a, nano::node_config const & config_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
 	write_database_queue (!flags_a.force_use_write_database_queue && (config_a.rocksdb_config.enable)),
-	io_ctx (io_ctx_a),
+	io_ctx{},
 	node_initialized_latch (1),
 	config (config_a),
+	io_thread_runner{ io_ctx, config.io_threads, nano::thread_role::name::io },
 	network_params{ config.network_params },
 	stats (config.stat_config),
 	workers (std::max (3u, config.io_threads / 4), nano::thread_role::name::worker),
@@ -630,6 +631,7 @@ void nano::node::process_local_async (std::shared_ptr<nano::block> const & block
 
 void nano::node::start ()
 {
+	io_thread_runner.start ();
 	long_inactivity_cleanup ();
 	network.start ();
 	add_initial_peers ();
@@ -736,6 +738,7 @@ void nano::node::stop ()
 		}
 		workers.stop ();
 		// work pool is not stopped on purpose due to testing setup
+		io_thread_runner.stop ();
 	}
 }
 
@@ -1812,11 +1815,10 @@ uint64_t nano::node::get_confirmation_height (nano::transaction const & transact
 	nano::confirmation_height_info info;
 	store.confirmation_height.get (transaction_a, account_a, info);
 	return info.height;
-};
+}
 
 nano::node_wrapper::node_wrapper (boost::filesystem::path const & path_a, boost::filesystem::path const & config_path_a, nano::node_flags const & node_flags_a) :
 	network_params{ nano::network_constants::active_network },
-	io_context (std::make_shared<boost::asio::io_context> ()),
 	work{ network_params.network, 1 }
 {
 	boost::system::error_code error_chmod;
@@ -1845,7 +1847,7 @@ nano::node_wrapper::node_wrapper (boost::filesystem::path const & path_a, boost:
 	node_config.logging.max_size = std::numeric_limits<std::uintmax_t>::max ();
 	node_config.logging.init (path_a);
 
-	node = std::make_shared<nano::node> (*io_context, path_a, node_config, work, node_flags_a);
+	node = std::make_shared<nano::node> (path_a, node_config, work, node_flags_a);
 }
 
 nano::node_wrapper::~node_wrapper ()
