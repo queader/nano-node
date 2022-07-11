@@ -304,6 +304,7 @@ void nano::server_socket::start (boost::system::error_code & ec_a)
 {
 	acceptor.open (local.protocol ());
 	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
+	acceptor.set_option (nano::socket::reuse_port (true));
 	acceptor.bind (local, ec_a);
 	if (!ec_a)
 	{
@@ -527,4 +528,18 @@ std::string nano::socket_type_to_string (nano::socket::type_t type)
 			return "realtime_response_server";
 	}
 	return "n/a";
+}
+
+nano::client_socket::client_socket (nano::node & node_a, std::optional<boost::asio::ip::tcp::endpoint> local_a) :
+	socket{ node_a, endpoint_type_t::client }
+{
+	if (local_a)
+	{
+		auto local = *local_a;
+
+		tcp_socket.open (local.protocol ());
+		tcp_socket.set_option (boost::asio::ip::tcp::socket::reuse_address (true));
+		tcp_socket.set_option (nano::socket::reuse_port (true));
+		tcp_socket.bind (local);
+	}
 }
