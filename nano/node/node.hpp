@@ -156,6 +156,7 @@ public:
 	std::pair<uint64_t, decltype (nano::ledger::bootstrap_weights)> get_bootstrap_weights () const;
 	void populate_backlog ();
 	uint64_t get_confirmation_height (nano::transaction const &, nano::account &);
+	nano::account get_node_id () const;
 	nano::write_database_queue write_database_queue;
 	boost::asio::io_context & io_ctx;
 	boost::latch node_initialized_latch;
