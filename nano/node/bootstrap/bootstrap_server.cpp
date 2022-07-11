@@ -242,7 +242,7 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 		if (handshake_visitor.process)
 		{
 			queue_realtime (std::move (message));
-			return true;
+			return true; // Continue receiving new messages
 		}
 		else if (handshake_visitor.bootstrap)
 		{
@@ -261,7 +261,7 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 		else
 		{
 			// Neither handshake nor bootstrap received when in handshake mode
-			return true;
+			return true; // Continue receiving new messages
 		}
 	}
 	else if (is_realtime_connection ())
@@ -272,7 +272,7 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 		{
 			queue_realtime (std::move (message));
 		}
-		return true;
+		return true; // Continue receiving new messages
 	}
 	// It is possible for server to switch to bootstrap mode immediately after processing handshake, thus no `else if`
 	if (is_bootstrap_connection ())
@@ -282,7 +282,7 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 		return !bootstrap_visitor.processed; // Stop receiving new messages if bootstrap serving started
 	}
 	debug_assert (false);
-	return true; // Continue receiving new messages
+	return true;
 }
 
 void nano::bootstrap_server::queue_realtime (std::unique_ptr<nano::message> message)
