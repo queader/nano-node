@@ -336,6 +336,7 @@ TEST (network, send_insufficient_work)
 	// Block zero work
 	auto block1 (std::make_shared<nano::send_block> (0, 1, 20, nano::dev::genesis_key.prv, nano::dev::genesis_key.pub, 0));
 	nano::publish publish1{ nano::dev::network_params.network, block1 };
+	std::cout << "#1" << std::endl;
 	auto tcp_channel (node1.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (node2.network.endpoint ())));
 	tcp_channel->send (publish1, [] (boost::system::error_code const & ec, size_t size) {});
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));

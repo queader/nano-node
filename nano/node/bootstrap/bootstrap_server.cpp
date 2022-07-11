@@ -144,7 +144,7 @@ nano::bootstrap_server::bootstrap_server (std::shared_ptr<nano::socket> socket_a
 
 	// Set remote_endpoint
 	remote_endpoint = socket->remote_endpoint ();
-	debug_assert (remote_endpoint.port () != 0);
+	//	debug_assert (remote_endpoint.port () != 0);
 }
 
 nano::bootstrap_server::~bootstrap_server ()

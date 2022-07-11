@@ -56,6 +56,10 @@ std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & no
 			auto starting2 (node2->network.size ());
 			size_t starting_listener2 (node2->bootstrap.realtime_count);
 			decltype (starting2) new2;
+
+			std::cout << "starting1: " << starting1 << std::endl;
+			std::cout << "starting2: " << starting2 << std::endl;
+
 			if (type_a == nano::transport::transport_type::tcp)
 			{
 				(*j)->network.merge_peer ((*i)->network.endpoint ());

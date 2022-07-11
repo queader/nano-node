@@ -110,6 +110,8 @@ nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<vo
 
 bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::socket> const & socket_a, std::shared_ptr<nano::bootstrap_server> const & bootstrap_server_a)
 {
+	std::cout << "try insert: " << channel_a->get_tcp_endpoint () << std::endl;
+
 	auto endpoint (channel_a->get_tcp_endpoint ());
 	debug_assert (endpoint.address ().is_v6 ());
 	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
@@ -120,6 +122,8 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 		auto existing (channels.get<endpoint_tag> ().find (endpoint));
 		if (existing == channels.get<endpoint_tag> ().end ())
 		{
+			std::cout << "inserting: " << channel_a->get_tcp_endpoint () << std::endl;
+
 			auto node_id (channel_a->get_node_id ());
 			channels.get<node_id_tag> ().erase (node_id);
 			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, bootstrap_server_a);
@@ -131,8 +135,11 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 			node.network.udp_channels.erase (udp_endpoint);
 			// Remove UDP channels with same node ID
 			node.network.udp_channels.clean_node_id (node_id);
+
+			std::cout << "inserted: " << channel_a->get_tcp_endpoint () << std::endl;
 		}
 	}
+	std::cout << "insert error: " << channel_a->get_tcp_endpoint () << " | " << error << std::endl;
 	return error;
 }
 
@@ -157,6 +164,9 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::fin
 	{
 		result = existing->channel;
 	}
+
+	std::cout << "find_channel: " << endpoint_a << " | " << "result: " << (result != nullptr) << std::endl;
+
 	return result;
 }
 
@@ -531,6 +541,8 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 		node.network.tcp_channels.udp_fallback (endpoint_a);
 		return;
 	}
+
+	std::cout << node.network.endpoint ().port () << " connect to: " << endpoint_a << std::endl;
 
 	auto socket = std::make_shared<nano::client_socket> (node);
 
