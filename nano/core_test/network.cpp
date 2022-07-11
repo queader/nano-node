@@ -338,6 +338,7 @@ TEST (network, send_insufficient_work)
 	nano::publish publish1{ nano::dev::network_params.network, block1 };
 	std::cout << "#1" << std::endl;
 	auto tcp_channel (node1.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (node2.network.endpoint ())));
+	ASSERT_NE (nullptr, tcp_channel);
 	tcp_channel->send (publish1, [] (boost::system::error_code const & ec, size_t size) {});
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work) != 0);
@@ -980,6 +981,7 @@ TEST (network, duplicate_detection)
 
 	// Publish duplicate detection through TCP
 	auto tcp_channel (node0.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (node1.network.endpoint ())));
+	ASSERT_NE (nullptr, tcp_channel);
 	ASSERT_EQ (1, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish));
 	tcp_channel->send (publish);
 	ASSERT_TIMELY (2s, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish) == 2);
