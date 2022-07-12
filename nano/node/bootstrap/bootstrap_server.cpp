@@ -80,11 +80,21 @@ void nano::bootstrap_listener::stop ()
 		on = false;
 		connections_l.swap (connections);
 	}
+
 	if (listening_socket)
 	{
 		nano::lock_guard<nano::mutex> lock (mutex);
 		listening_socket->close ();
 		listening_socket = nullptr;
+	}
+
+	// Close connections that are still alive
+	for (auto & [_, server_w] : connections_l)
+	{
+		if (auto server = server_w.lock ())
+		{
+			server->stop ();
+		}
 	}
 }
 
