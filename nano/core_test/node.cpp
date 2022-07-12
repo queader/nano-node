@@ -321,13 +321,14 @@ TEST (node, auto_bootstrap_reverse)
 	nano::keypair key2;
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	system.wallet (0)->insert_adhoc (key2.prv);
+	auto send_amount = node0->config.receive_minimum.number ();
+	ASSERT_NE (nullptr, system.wallet (0)->send_action (nano::dev::genesis_key.pub, key2.pub, send_amount));
 	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
 	ASSERT_FALSE (node1->init_error ());
-	ASSERT_NE (nullptr, system.wallet (0)->send_action (nano::dev::genesis_key.pub, key2.pub, node0->config.receive_minimum.number ()));
 	node1->start ();
 	system.nodes.push_back (node1);
 	ASSERT_NE (nullptr, nano::establish_tcp (system, *node0, node1->network.endpoint ()));
-	ASSERT_TIMELY (10s, node1->balance (key2.pub) == node0->config.receive_minimum.number ());
+	ASSERT_TIMELY (10s, node1->balance (key2.pub) == send_amount);
 }
 
 TEST (node, auto_bootstrap_age)
@@ -652,13 +653,13 @@ TEST (node_flags, disable_udp)
 	// Send TCP handshake
 	node1->network.merge_peer (node2->network.endpoint ());
 	ASSERT_TIMELY (5s, node1->bootstrap.realtime_count == 1 && node2->bootstrap.realtime_count == 1);
-	ASSERT_EQ (1, node1->network.size ());
+	ASSERT_TIMELY (5s, 1 == node1->network.size ());
 	auto list1 (node1->network.list (2));
-	ASSERT_EQ (node2->network.endpoint (), list1[0]->get_endpoint ());
+	ASSERT_EQ (node2->get_node_id (), list1[0]->get_node_id ());
 	ASSERT_EQ (nano::transport::transport_type::tcp, list1[0]->get_type ());
-	ASSERT_EQ (1, node2->network.size ());
+	ASSERT_TIMELY (5s, 1 == node2->network.size ());
 	auto list2 (node2->network.list (2));
-	ASSERT_EQ (node1->network.endpoint (), list2[0]->get_endpoint ());
+	ASSERT_EQ (node1->get_node_id (), list2[0]->get_node_id ());
 	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
 	node2->stop ();
 }
@@ -3234,6 +3235,8 @@ TEST (node, peers)
 	auto list2 (node2->network.list (2));
 	ASSERT_EQ (node1->get_node_id (), list2[0]->get_node_id ());
 	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
+	// Trigger storing current peers in database
+	node2->ongoing_peer_store ();
 	// Stop the peer node and check that it is removed from the store
 	node1->stop ();
 
@@ -4286,7 +4289,7 @@ TEST (rep_crawler, recently_confirmed)
 	node1.active.add_recently_confirmed (block->qualified_root (), block->hash ());
 	auto & node2 (*system.add_node ());
 	system.wallet (1)->insert_adhoc (nano::dev::genesis_key.prv);
-	auto channel = node1.network.find_channel (node2.network.endpoint ());
+	auto channel = node1.network.find_node_id (node2.get_node_id ());
 	ASSERT_NE (nullptr, channel);
 	node1.rep_crawler.query (channel);
 	ASSERT_TIMELY (3s, node1.rep_crawler.representative_count () == 1);
