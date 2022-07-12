@@ -544,9 +544,7 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 
 	std::cout << node.network.endpoint ().port () << " connect to: " << endpoint_a << std::endl;
 
-	// Initiate client connections from the same port as the listening server
-	auto local = boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::any (), node.network.port);
-	auto socket = std::make_shared<nano::client_socket> (node, local);
+	auto socket = std::make_shared<nano::client_socket> (node);
 
 	socket->async_connect (nano::transport::map_endpoint_to_tcp (endpoint_a), [socket, node = node.shared ()] (boost::system::error_code const & ec) {
 		if (ec)

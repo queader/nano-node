@@ -171,8 +171,6 @@ private:
 
 public:
 	static std::size_t constexpr queue_size_max = 128;
-
-	typedef boost::asio::detail::socket_option::boolean<SOL_SOCKET, SO_REUSEPORT> reuse_port;
 };
 
 std::string socket_type_to_string (socket::type_t type);
@@ -229,6 +227,9 @@ public:
 	 * Constructor
 	 * @param node_a Owning node
 	 */
-	explicit client_socket (nano::node & node_a, std::optional<boost::asio::ip::tcp::endpoint> local_a = {});
+	explicit client_socket (nano::node & node_a) :
+		socket{ node_a, endpoint_type_t::client }
+	{
+	}
 };
 }
