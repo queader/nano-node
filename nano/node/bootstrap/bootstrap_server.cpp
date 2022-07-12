@@ -99,8 +99,6 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
 		auto server = std::make_shared<nano::bootstrap_server> (socket_a, node.shared (), true);
-		nano::lock_guard<nano::mutex> lock (mutex);
-		connections[server.get ()] = server;
 		server->start ();
 	}
 	else
@@ -175,6 +173,9 @@ nano::bootstrap_server::~bootstrap_server ()
 
 void nano::bootstrap_server::start ()
 {
+	nano::lock_guard<nano::mutex> lock (node->bootstrap.mutex);
+	node->bootstrap.connections[this] = shared_from_this ();
+
 	receive_message ();
 }
 
