@@ -1448,7 +1448,7 @@ TEST (bootstrap_processor, wallet_lazy_pending)
 	wallet->insert_adhoc (key2.prv);
 	node1->bootstrap_wallet ();
 	// Check processed blocks
-	ASSERT_TIMELY (10s, node1->ledger.block_or_pruned_exists (send2->hash ()));
+	ASSERT_TIMELY (100s, node1->ledger.block_or_pruned_exists (send2->hash ()));
 }
 
 TEST (bootstrap_processor, multiple_attempts)
