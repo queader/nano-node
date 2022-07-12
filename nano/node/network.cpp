@@ -424,7 +424,6 @@ public:
 		if (peer0.address () == boost::asio::ip::address_v6{} && peer0.port () != 0)
 		{
 			nano::endpoint new_endpoint (channel->get_tcp_endpoint ().address (), peer0.port ());
-			node.network.merge_peer (new_endpoint);
 
 			// Remember this for future forwarding to other peers
 			channel->set_peering_endpoint (new_endpoint);
