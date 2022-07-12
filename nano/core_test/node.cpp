@@ -1933,7 +1933,7 @@ TEST (node, rep_remove)
 	// Add working representative
 	auto node1 = system.add_node (nano::node_config (nano::get_available_port (), system.logging));
 	system.wallet (1)->insert_adhoc (nano::dev::genesis_key.prv);
-	auto channel1 (node.network.find_channel (node1->network.endpoint ()));
+	auto channel1 (node.network.find_node_id (node1->get_node_id ()));
 	ASSERT_NE (nullptr, channel1);
 	auto vote2 = std::make_shared<nano::vote> (nano::dev::genesis_key.pub, nano::dev::genesis_key.prv, 0, 0, std::vector<nano::block_hash>{ nano::dev::genesis->hash () });
 	node.rep_crawler.response (channel1, vote2);
@@ -1953,7 +1953,7 @@ TEST (node, rep_remove)
 	ASSERT_EQ (nano::dev::genesis_key.pub, reps[0].account);
 	ASSERT_EQ (1, node.network.size ());
 	auto list (node.network.list (1));
-	ASSERT_EQ (node1->network.endpoint (), list[0]->get_endpoint ());
+	ASSERT_EQ (node1->get_node_id (), list[0]->get_node_id ());
 }
 
 TEST (node, rep_connection_close)
@@ -3228,11 +3228,11 @@ TEST (node, peers)
 	// Confirm that the peers match with the endpoints we are expecting
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node1->network.list (2));
-	ASSERT_EQ (node2->network.endpoint (), list1[0]->get_endpoint ());
+	ASSERT_EQ (node2->get_node_id (), list1[0]->get_node_id ());
 	ASSERT_EQ (nano::transport::transport_type::tcp, list1[0]->get_type ());
 	ASSERT_EQ (1, node2->network.size ());
 	auto list2 (node2->network.list (2));
-	ASSERT_EQ (node1->network.endpoint (), list2[0]->get_endpoint ());
+	ASSERT_EQ (node1->get_node_id (), list2[0]->get_node_id ());
 	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
 	// Stop the peer node and check that it is removed from the store
 	node1->stop ();
