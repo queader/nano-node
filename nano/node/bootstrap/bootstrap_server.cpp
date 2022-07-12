@@ -108,6 +108,7 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 		{
 			node.logger.try_log ("Rejected connection from excluded peer ", socket_a->remote_endpoint ());
 		}
+		socket_a->close ();
 	}
 }
 
