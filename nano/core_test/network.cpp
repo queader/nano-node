@@ -1408,7 +1408,13 @@ TEST (network, filter_invalid_version_using)
 TEST (network, fill_keepalive_self)
 {
 	nano::system system{ 2 };
-	std::array<nano::endpoint, 8> target;
-	system.nodes[0]->network.fill_keepalive_self (target);
-	ASSERT_TRUE (target[2].port () == system.nodes[1]->network.port);
+	system.nodes[0]->network.flood_keepalive_self (1);
+
+	auto get_keepalive_enpoint = [] (auto & node) {
+		std::array<nano::endpoint, 8> target;
+		node->network.fill_keepalive_self (target);
+		return target[2];
+	};
+
+	ASSERT_TIMELY (5s, get_keepalive_enpoint (system.nodes[0]).port () == system.nodes[1]->network.port);
 }
