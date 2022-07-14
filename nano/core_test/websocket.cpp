@@ -974,7 +974,6 @@ TEST (websocket, telemetry)
 	compare_default_telemetry_response_data (telemetry_data, node2->network_params, node2->config.bandwidth_limit, node2->default_difficulty (nano::work_version::work_1), node2->node_id);
 
 	ASSERT_EQ (contents.get<std::string> ("address"), node2->network.endpoint ().address ().to_string ());
-	ASSERT_EQ (contents.get<uint16_t> ("port"), node2->network.endpoint ().port ());
 
 	// Other node should have no subscribers
 	EXPECT_EQ (0, node2->websocket_server->subscriber_count (nano::websocket::topic::telemetry));
