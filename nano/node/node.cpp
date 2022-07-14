@@ -151,8 +151,10 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	history{ config.network_params.voting },
 	vote_uniquer (block_uniquer),
 	confirmation_height_processor (ledger, write_database_queue, config.conf_height_processor_batch_min_time, config.logging, logger, node_initialized_latch, flags.confirmation_height_processor_mode),
+	inactive_vote_cache{ flags.inactive_votes_cache_size },
 	active (*this, confirmation_height_processor),
 	scheduler{ *this },
+	election_hinting{ *this },
 	aggregator (config, stats, active.generator, active.final_generator, history, ledger, wallets, active),
 	wallets (wallets_store.init_error (), *this),
 	startup_time (std::chrono::steady_clock::now ()),
@@ -162,11 +164,16 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	unchecked.satisfied = [this] (nano::unchecked_info const & info) {
 		this->block_processor.add (info);
 	};
+
+	inactive_vote_cache.rep_weight_query = [this] (nano::account const & rep) {
+		return ledger.weight (rep);
+	};
+
 	if (!init_error ())
 	{
 		telemetry->start ();
 
-		active.vacancy_update = [this] () { scheduler.notify (); };
+		active.vacancy_update = [this] () { scheduler.notify (); election_hinting.notify(); };
 
 		if (config.websocket_config.enabled)
 		{
@@ -723,6 +730,7 @@ void nano::node::stop ()
 		aggregator.stop ();
 		vote_processor.stop ();
 		scheduler.stop ();
+		election_hinting.stop ();
 		active.stop ();
 		confirmation_height_processor.stop ();
 		network.stop ();
@@ -1820,6 +1828,15 @@ uint64_t nano::node::get_confirmation_height (nano::transaction const & transact
 	nano::confirmation_height_info info;
 	store.confirmation_height.get (transaction_a, account_a, info);
 	return info.height;
+}
+
+void nano::node::bootstrap_block (nano::transaction const & transaction, const nano::block_hash & hash)
+{
+	if (!ledger.pruning || !store.pruned.exists (transaction, hash))
+	{
+		// We don't have the block, try to bootstrap it
+		gap_cache.bootstrap_start (hash);
+	}
 }
 
 nano::account nano::node::get_node_id () const

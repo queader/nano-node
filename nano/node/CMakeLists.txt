@@ -58,6 +58,8 @@ add_library(
   distributed_work_factory.cpp
   election.hpp
   election.cpp
+  election_hinting.hpp
+  election_hinting.cpp
   election_scheduler.hpp
   election_scheduler.cpp
   gap_cache.hpp
@@ -190,6 +192,8 @@ add_library(
   transport/udp.cpp
   unchecked_map.cpp
   unchecked_map.hpp
+  vote_cache.hpp
+  vote_cache.cpp
   vote_processor.hpp
   vote_processor.cpp
   voting.hpp

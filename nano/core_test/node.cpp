@@ -2797,7 +2797,7 @@ TEST (node, epoch_conflict_confirm)
 	node0->process_active (epoch_open);
 	ASSERT_TIMELY (10s, node0->block (change->hash ()) && node0->block (epoch_open->hash ()) && node1->block (change->hash ()) && node1->block (epoch_open->hash ()));
 	// Confirm blocks in node1 to allow generating votes
-	nano::blocks_confirm (*node1, { change, epoch_open }, true /* forced */);
+	nano::blocks_confirm (*node1, { change, epoch_open, send2 }, true /* forced */);
 	ASSERT_TIMELY (3s, node1->block_confirmed (change->hash ()) && node1->block_confirmed (epoch_open->hash ()));
 	// Start elections for node0
 	nano::blocks_confirm (*node0, { change, epoch_open });
@@ -4142,10 +4142,14 @@ namespace nano
 TEST (node, deferred_dependent_elections)
 {
 	nano::system system;
+	nano::node_config node_config_1{ nano::get_available_port (), system.logging };
+	node_config_1.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
+	nano::node_config node_config_2{ nano::get_available_port (), system.logging };
+	node_config_2.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags flags;
 	flags.disable_request_loop = true;
-	auto & node = *system.add_node (flags);
-	auto & node2 = *system.add_node (flags); // node2 will be used to ensure all blocks are being propagated
+	auto & node = *system.add_node (node_config_1, flags);
+	auto & node2 = *system.add_node (node_config_2, flags); // node2 will be used to ensure all blocks are being propagated
 
 	nano::state_block_builder builder;
 	nano::keypair key;
@@ -4188,6 +4192,7 @@ TEST (node, deferred_dependent_elections)
 				.representative (nano::dev::genesis_key.pub) // was key.pub
 				.sign (key.prv, key.pub)
 				.build_shared ();
+
 	node.process_local (send1);
 	node.block_processor.flush ();
 	node.scheduler.flush ();
@@ -4226,14 +4231,6 @@ TEST (node, deferred_dependent_elections)
 	node.block_processor.flush ();
 	node.scheduler.flush ();
 	ASSERT_FALSE (node.active.active (open->qualified_root ()));
-
-	// Frontier confirmation also starts elections
-	ASSERT_NO_ERROR (system.poll_until_true (5s, [&node, &send2] {
-		nano::unique_lock<nano::mutex> lock{ node.active.mutex };
-		node.active.frontiers_confirmation (lock);
-		lock.unlock ();
-		return node.active.election (send2->qualified_root ()) != nullptr;
-	}));
 
 	// Drop both elections
 	node.active.erase (*open);

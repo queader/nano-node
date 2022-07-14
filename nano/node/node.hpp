@@ -11,6 +11,7 @@
 #include <nano/node/confirmation_height_processor.hpp>
 #include <nano/node/distributed_work_factory.hpp>
 #include <nano/node/election.hpp>
+#include <nano/node/election_hinting.hpp>
 #include <nano/node/election_scheduler.hpp>
 #include <nano/node/gap_cache.hpp>
 #include <nano/node/network.hpp>
@@ -23,6 +24,7 @@
 #include <nano/node/signatures.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/unchecked_map.hpp>
+#include <nano/node/vote_cache.hpp>
 #include <nano/node/vote_processor.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/write_database_queue.hpp>
@@ -146,6 +148,7 @@ public:
 	void block_confirm (std::shared_ptr<nano::block> const &);
 	bool block_confirmed (nano::block_hash const &);
 	bool block_confirmed_or_being_confirmed (nano::transaction const &, nano::block_hash const &);
+	void bootstrap_block (nano::transaction const &, nano::block_hash const & hash);
 	void do_rpc_callback (boost::asio::ip::tcp::resolver::iterator i_a, std::string const &, uint16_t, std::shared_ptr<std::string> const &, std::shared_ptr<std::string> const &, std::shared_ptr<boost::asio::ip::tcp::resolver> const &);
 	void ongoing_online_weight_calculation ();
 	void ongoing_online_weight_calculation_queue ();
@@ -195,8 +198,10 @@ public:
 	nano::block_uniquer block_uniquer;
 	nano::vote_uniquer vote_uniquer;
 	nano::confirmation_height_processor confirmation_height_processor;
+	nano::vote_cache inactive_vote_cache;
 	nano::active_transactions active;
 	nano::election_scheduler scheduler;
+	nano::election_hinting election_hinting;
 	nano::request_aggregator aggregator;
 	nano::wallets wallets;
 	std::chrono::steady_clock::time_point const startup_time;

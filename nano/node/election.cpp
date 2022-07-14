@@ -128,7 +128,7 @@ bool nano::election::state_change (nano::election::state_t expected_a, nano::ele
 
 void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_a)
 {
-	if ((base_latency () * (optimistic () ? 10 : 5)) < (std::chrono::steady_clock::now () - last_req))
+	if ((base_latency () * 5) < (std::chrono::steady_clock::now () - last_req))
 	{
 		nano::lock_guard<nano::mutex> guard (mutex);
 		if (!solicitor_a.add (*this))
@@ -218,11 +218,10 @@ std::chrono::milliseconds nano::election::time_to_live ()
 	{
 		case election_behavior::normal:
 			return std::chrono::milliseconds (5 * 60 * 1000);
-		case election_behavior::optimistic:
-			return std::chrono::milliseconds (node.network_params.network.is_dev_network () ? 500 : 60 * 1000);
 		case election_behavior::hinted:
 			return std::chrono::milliseconds (30 * 1000);
 	}
+	release_assert (false);
 }
 
 bool nano::election::have_quorum (nano::tally_t const & tally_a) const
@@ -350,7 +349,7 @@ std::shared_ptr<nano::block> nano::election::find (nano::block_hash const & hash
 	return result;
 }
 
-nano::election_vote_result nano::election::vote (nano::account const & rep, uint64_t timestamp_a, nano::block_hash const & block_hash_a)
+nano::election_vote_result nano::election::vote (nano::account const & rep, uint64_t timestamp_a, nano::block_hash const & block_hash_a, election_vote_source vote_source)
 {
 	auto replay (false);
 	auto online_stake (node.online_reps.trended ());
@@ -396,6 +395,10 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 		if (should_process)
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::vote_new);
+			if (vote_source == election_vote_source::vote_cache)
+			{
+				node.stats.inc (nano::stat::type::election, nano::stat::detail::vote_cached);
+			}
 			last_votes[rep] = { std::chrono::steady_clock::now (), timestamp_a, block_hash_a };
 			live_vote_action (rep);
 			if (!confirmed ())
@@ -447,42 +450,6 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 	3) given block in already in election & election contains less than 10 blocks (replacing block content with new)
 	*/
 	return result;
-}
-
-std::size_t nano::election::insert_inactive_votes_cache (nano::inactive_cache_information const & cache_a)
-{
-	nano::unique_lock<nano::mutex> lock (mutex);
-	for (auto const & [rep, timestamp] : cache_a.voters)
-	{
-		auto inserted (last_votes.emplace (rep, nano::vote_info{ std::chrono::steady_clock::time_point::min (), timestamp, cache_a.hash }));
-		if (inserted.second)
-		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::vote_cached);
-		}
-	}
-	if (!confirmed ())
-	{
-		if (!cache_a.voters.empty ())
-		{
-			auto delay (std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - cache_a.arrival));
-			if (delay > late_blocks_delay)
-			{
-				node.stats.inc (nano::stat::type::election, nano::stat::detail::late_block);
-				node.stats.add (nano::stat::type::election, nano::stat::detail::late_block_seconds, nano::stat::dir::in, delay.count (), true);
-			}
-		}
-		if (last_votes.size () > 1) // null account
-		{
-			// Even if no votes were in cache, they could be in the election
-			confirm_if_quorum (lock);
-		}
-	}
-	return cache_a.voters.size ();
-}
-
-bool nano::election::optimistic () const
-{
-	return behavior == nano::election_behavior::optimistic;
 }
 
 nano::election_extended_status nano::election::current_status () const
@@ -573,8 +540,8 @@ bool nano::election::replace_by_weight (nano::unique_lock<nano::mutex> & lock_a,
 	// Sort in ascending order
 	std::sort (sorted.begin (), sorted.end (), [] (auto const & left, auto const & right) { return left.second < right.second; });
 	// Replace if lowest tally is below inactive cache new block weight
-	auto inactive_existing (node.active.find_inactive_votes_cache (hash_a));
-	auto inactive_tally (inactive_existing.status.tally);
+	auto inactive_existing = node.inactive_vote_cache.find (hash_a);
+	auto inactive_tally = inactive_existing ? inactive_existing->tally : 0;
 	if (inactive_tally > 0 && sorted.size () < max_blocks)
 	{
 		// If count of tally items is less than 10, remove any block without tally
