@@ -85,23 +85,16 @@ std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & no
 			}
 		}
 
-		auto iterations1 (0);
-		while (std::any_of (begin, nodes.end (), [] (std::shared_ptr<nano::node> const & node_a) { return node_a->bootstrap_initiator.in_progress (); }))
-		{
-			poll ();
-			++iterations1;
-			debug_assert (iterations1 < 10000);
-		}
+		// Ensure no bootstrap initiators are in progress
+		poll_until_true (3s, [this, &begin] () {
+			return std::all_of (begin, nodes.end (), [] (std::shared_ptr<nano::node> const & node_a) { return !node_a->bootstrap_initiator.in_progress (); });
+		});
 	}
 	else
 	{
-		auto iterations1 (0);
-		while (node->bootstrap_initiator.in_progress ())
-		{
-			poll ();
-			++iterations1;
-			debug_assert (iterations1 < 10000);
-		}
+		poll_until_true (3s, [&node] () {
+			return !node->bootstrap_initiator.in_progress ();
+		});
 	}
 
 	return node;
