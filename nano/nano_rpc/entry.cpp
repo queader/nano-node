@@ -66,7 +66,7 @@ void run (boost::filesystem::path const & data_path, std::vector<std::string> co
 		try
 		{
 			nano::ipc_rpc_processor ipc_rpc_processor (io_ctx, rpc_config);
-			auto rpc = nano::get_rpc (io_ctx, rpc_config, ipc_rpc_processor);
+			auto rpc = nano::get_rpc (rpc_config, ipc_rpc_processor);
 			rpc->start ();
 
 			debug_assert (!nano::signal_handler_impl);
