@@ -53,7 +53,7 @@ class rpc_process_config final
 public:
 	rpc_process_config (nano::network_constants & network_constants);
 	nano::network_constants & network_constants;
-	unsigned io_threads{ (4 < std::thread::hardware_concurrency ()) ? std::thread::hardware_concurrency () : 4 };
+	unsigned io_threads{ std::max<unsigned> (4, std::thread::hardware_concurrency ()) };
 	std::string ipc_address;
 	uint16_t ipc_port{ network_constants.default_ipc_port };
 	unsigned num_ipc_connections{ (network_constants.is_live_network () || network_constants.is_test_network ()) ? 8u : network_constants.is_beta_network () ? 4u
@@ -82,7 +82,6 @@ public:
 	uint8_t max_json_depth{ 20 };
 	uint64_t max_request_size{ 32 * 1024 * 1024 };
 	nano::rpc_logging_config rpc_logging;
-	unsigned io_threads{ std::max<unsigned> (4, std::thread::hardware_concurrency ()) };
 	/** Optional TLS config */
 	std::shared_ptr<nano::tls_config> tls_config;
 };
