@@ -19,7 +19,7 @@ nano::rpc::rpc (nano::rpc_config config_a, nano::rpc_handler_interface & rpc_han
 	acceptor (io_ctx),
 	logger (std::chrono::milliseconds (0)),
 	rpc_handler_interface (rpc_handler_interface_a),
-	io_thread_runner{ io_ctx, config.io_threads, nano::thread_role::name::rpc_io }
+	io_thread_runner{ io_ctx, config.rpc_process.io_threads, nano::thread_role::name::rpc_io }
 {
 	rpc_handler_interface.rpc_instance (*this);
 }
