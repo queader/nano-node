@@ -207,7 +207,7 @@ rpc_context add_rpc (nano::test::system & system, std::shared_ptr<nano::node> co
 	const auto ipc_tcp_port = ipc_server->listening_tcp_port ();
 	debug_assert (ipc_tcp_port.has_value ());
 	auto ipc_rpc_processor (std::make_unique<nano::ipc_rpc_processor> (system.io_ctx, rpc_config, ipc_tcp_port.value ()));
-	auto rpc (std::make_shared<nano::rpc> (system.io_ctx, rpc_config, *ipc_rpc_processor));
+	auto rpc (std::make_shared<nano::rpc> (rpc_config, *ipc_rpc_processor));
 	rpc->start ();
 
 	return rpc_context{ rpc, ipc_server, ipc_rpc_processor, node_rpc_config, scoped_thread_name_io };
@@ -6648,7 +6648,7 @@ TEST (rpc, simultaneous_calls)
 	ASSERT_TRUE (ipc_tcp_port.has_value ());
 	rpc_config.rpc_process.num_ipc_connections = 8;
 	nano::ipc_rpc_processor ipc_rpc_processor (system.io_ctx, rpc_config, ipc_tcp_port.value ());
-	nano::rpc rpc (system.io_ctx, rpc_config, ipc_rpc_processor);
+	nano::rpc rpc (rpc_config, ipc_rpc_processor);
 	rpc.start ();
 	boost::property_tree::ptree request;
 	request.put ("action", "account_block_count");

@@ -22,6 +22,7 @@ namespace thread_role
 	{
 		unknown,
 		io,
+		rpc_io,
 		work,
 		packet_processing,
 		vote_processing,
