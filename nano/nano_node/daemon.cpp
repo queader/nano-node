@@ -191,7 +191,7 @@ void nano_daemon::daemon::run (boost::filesystem::path const & data_path, nano::
 								io_ctx.stop ();
 							});
 						});
-						rpc = nano::get_rpc (io_ctx, rpc_config, *rpc_handler);
+						rpc = nano::get_rpc (rpc_config, *rpc_handler);
 						rpc->start ();
 					}
 					else
