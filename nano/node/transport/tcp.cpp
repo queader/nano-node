@@ -88,7 +88,7 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 
 std::string nano::transport::channel_tcp::to_string () const
 {
-	return boost::str (boost::format ("%1%") % get_tcp_endpoint ());
+	return boost::str (boost::format ("%1%") % get_peering_endpoint ());
 }
 
 void nano::transport::channel_tcp::set_endpoint ()
