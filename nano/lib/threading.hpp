@@ -74,7 +74,7 @@ namespace thread_attributes
 class thread_runner final
 {
 public:
-	thread_runner (boost::asio::io_context &, unsigned);
+	thread_runner (boost::asio::io_context &, unsigned service_threads, nano::thread_role::name thread_role = nano::thread_role::name::io);
 	~thread_runner ();
 	/** Tells the IO context to stop processing events.*/
 	void stop_event_processing ();
