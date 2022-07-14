@@ -1,5 +1,6 @@
 #include <nano/boost/asio/bind_executor.hpp>
 #include <nano/lib/rpc_handler_interface.hpp>
+#include <nano/lib/threading.hpp>
 #include <nano/lib/tlsconfig.hpp>
 #include <nano/rpc/rpc.hpp>
 #include <nano/rpc/rpc_connection.hpp>
@@ -12,12 +13,13 @@
 #include <nano/rpc/rpc_secure.hpp>
 #endif
 
-nano::rpc::rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a) :
+nano::rpc::rpc (nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a) :
 	config (std::move (config_a)),
-	acceptor (io_ctx_a),
+	io_ctx (),
+	acceptor (io_ctx),
 	logger (std::chrono::milliseconds (0)),
-	io_ctx (io_ctx_a),
-	rpc_handler_interface (rpc_handler_interface_a)
+	rpc_handler_interface (rpc_handler_interface_a),
+	io_thread_runner{ io_ctx, config.rpc_process.io_threads, nano::thread_role::name::rpc_io }
 {
 	rpc_handler_interface.rpc_instance (*this);
 }
@@ -77,9 +79,11 @@ void nano::rpc::stop ()
 {
 	stopped = true;
 	acceptor.close ();
+	io_ctx.stop ();
+	io_thread_runner.stop_event_processing ();
 }
 
-std::unique_ptr<nano::rpc> nano::get_rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a)
+std::unique_ptr<nano::rpc> nano::get_rpc (nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a)
 {
 	std::unique_ptr<rpc> impl;
 
@@ -91,7 +95,7 @@ std::unique_ptr<nano::rpc> nano::get_rpc (boost::asio::io_context & io_ctx_a, na
 	}
 	else
 	{
-		impl = std::make_unique<rpc> (io_ctx_a, config_a, rpc_handler_interface_a);
+		impl = std::make_unique<rpc> (config_a, rpc_handler_interface_a);
 	}
 
 	return impl;

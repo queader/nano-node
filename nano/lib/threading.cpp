@@ -30,6 +30,9 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::io:
 			thread_role_name_string = "I/O";
 			break;
+		case nano::thread_role::name::rpc_io:
+			thread_role_name_string = "RPC I/O";
+			break;
 		case nano::thread_role::name::work:
 			thread_role_name_string = "Work pool";
 			break;
@@ -95,11 +98,11 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 	}
 
 	/*
-		 * We want to constrain the thread names to 15
-		 * characters, since this is the smallest maximum
-		 * length supported by the platforms we support
-		 * (specifically, Linux)
-		 */
+	 * We want to constrain the thread names to 15
+	 * characters, since this is the smallest maximum
+	 * length supported by the platforms we support
+	 * (specifically, Linux)
+	 */
 	debug_assert (thread_role_name_string.size () < 16);
 	return (thread_role_name_string);
 }
@@ -121,18 +124,18 @@ void nano::thread_role::set (nano::thread_role::name role)
 void nano::thread_attributes::set (boost::thread::attributes & attrs)
 {
 	auto attrs_l (&attrs);
-	attrs_l->set_stack_size (8000000); //8MB
+	attrs_l->set_stack_size (8000000); // 8MB
 }
 
-nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a) :
+nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a, const nano::thread_role::name thread_role_a) :
 	io_guard (boost::asio::make_work_guard (io_ctx_a))
 {
 	boost::thread::attributes attrs;
 	nano::thread_attributes::set (attrs);
 	for (auto i (0u); i < service_threads_a; ++i)
 	{
-		threads.emplace_back (attrs, [&io_ctx_a] () {
-			nano::thread_role::set (nano::thread_role::name::io);
+		threads.emplace_back (attrs, [&io_ctx_a, thread_role_a] () {
+			nano::thread_role::set (thread_role_a);
 			try
 			{
 #if NANO_ASIO_HANDLER_TRACKING == 0
