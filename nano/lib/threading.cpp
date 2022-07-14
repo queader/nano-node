@@ -130,15 +130,15 @@ void nano::thread_attributes::set (boost::thread::attributes & attrs)
 	attrs_l->set_stack_size (8000000); // 8MB
 }
 
-nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a) :
+nano::thread_runner::thread_runner (boost::asio::io_context & io_ctx_a, unsigned service_threads_a, const nano::thread_role::name thread_role_a) :
 	io_guard (boost::asio::make_work_guard (io_ctx_a))
 {
 	boost::thread::attributes attrs;
 	nano::thread_attributes::set (attrs);
 	for (auto i (0u); i < service_threads_a; ++i)
 	{
-		threads.emplace_back (attrs, [&io_ctx_a] () {
-			nano::thread_role::set (nano::thread_role::name::io);
+		threads.emplace_back (attrs, [&io_ctx_a, thread_role_a] () {
+			nano::thread_role::set (thread_role_a);
 			try
 			{
 #if NANO_ASIO_HANDLER_TRACKING == 0
