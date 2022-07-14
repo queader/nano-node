@@ -97,6 +97,10 @@ public:
 	{
 		return type () == nano::socket::type_t::realtime || type () == nano::socket::type_t::realtime_response_server;
 	}
+	bool is_bootstrap_connection ()
+	{
+		return type () == nano::socket::type_t::bootstrap;
+	}
 	bool is_closed ()
 	{
 		return closed;
@@ -168,6 +172,8 @@ private:
 public:
 	static std::size_t constexpr queue_size_max = 128;
 };
+
+std::string socket_type_to_string (socket::type_t type);
 
 using address_socket_mmap = std::multimap<boost::asio::ip::address, std::weak_ptr<socket>>;
 

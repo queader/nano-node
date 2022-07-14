@@ -131,18 +131,18 @@ TEST (network, send_node_id_handshake_tcp)
 	node0->network.tcp_channels.start_tcp (node1->network.endpoint ());
 	ASSERT_EQ (0, node0->network.size ());
 	ASSERT_EQ (0, node1->network.size ());
-	ASSERT_TIMELY (10s, node0->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= initial + 2);
-	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= initial_node1 + 2);
+	ASSERT_TIMELY (10s, node0->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= initial + 1);
+	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= initial_node1 + 1);
 	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in) >= initial_keepalive + 2);
 	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in) >= initial_keepalive + 2);
 	ASSERT_EQ (1, node0->network.size ());
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node0->network.list (1));
 	ASSERT_EQ (nano::transport::transport_type::tcp, list1[0]->get_type ());
-	ASSERT_EQ (node1->network.endpoint (), list1[0]->get_endpoint ());
+	ASSERT_EQ (node1->get_node_id (), list1[0]->get_node_id ());
 	auto list2 (node1->network.list (1));
 	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
-	ASSERT_EQ (node0->network.endpoint (), list2[0]->get_endpoint ());
+	ASSERT_EQ (node0->get_node_id (), list2[0]->get_node_id ());
 	node1->stop ();
 }
 
@@ -384,7 +384,8 @@ TEST (network, send_insufficient_work)
 				  .work (0)
 				  .build_shared ();
 	nano::publish publish1{ nano::dev::network_params.network, block1 };
-	auto tcp_channel (node1.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (node2.network.endpoint ())));
+	auto tcp_channel (node1.network.tcp_channels.find_node_id (node2.get_node_id ()));
+	ASSERT_NE (nullptr, tcp_channel);
 	tcp_channel->send (publish1, [] (boost::system::error_code const & ec, size_t size) {});
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work) != 0);
@@ -734,7 +735,7 @@ TEST (node, port_mapping)
 	node0->port_mapping.start ();
 	auto end (std::chrono::steady_clock::now () + std::chrono::seconds (500));
 	(void)end;
-	//while (std::chrono::steady_clock::now () < end)
+	// while (std::chrono::steady_clock::now () < end)
 	{
 		ASSERT_NO_ERROR (system.poll ());
 	}
@@ -960,7 +961,7 @@ TEST (tcp_listener, tcp_listener_timeout_node_id_handshake)
 			ASSERT_FALSE (ec);
 		});
 	});
-	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake) != 0);
+	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::bootstrap_server, nano::stat::detail::node_id_handshake) != 0);
 	{
 		nano::lock_guard<nano::mutex> guard (node0->bootstrap.mutex);
 		ASSERT_EQ (node0->bootstrap.connections.size (), 1);
@@ -1073,7 +1074,8 @@ TEST (network, duplicate_detection)
 	ASSERT_TIMELY (2s, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish) == 1);
 
 	// Publish duplicate detection through TCP
-	auto tcp_channel (node0.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (node1.network.endpoint ())));
+	auto tcp_channel (node0.network.tcp_channels.find_node_id (node1.get_node_id ()));
+	ASSERT_NE (nullptr, tcp_channel);
 	ASSERT_EQ (1, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish));
 	tcp_channel->send (publish);
 	ASSERT_TIMELY (2s, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish) == 2);
@@ -1221,8 +1223,7 @@ TEST (network, tcp_no_connect_excluded_peers)
 	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::get_available_port (), nano::unique_path (), system.logging, system.work));
 	node1->start ();
 	system.nodes.push_back (node1);
-	auto endpoint1 (node1->network.endpoint ());
-	auto endpoint1_tcp (nano::transport::map_endpoint_to_tcp (endpoint1));
+	auto endpoint1_tcp (nano::transport::map_endpoint_to_tcp (node1->network.endpoint ()));
 	while (!node0->network.excluded_peers.check (endpoint1_tcp))
 	{
 		node0->network.excluded_peers.add (endpoint1_tcp, 1);
@@ -1230,10 +1231,10 @@ TEST (network, tcp_no_connect_excluded_peers)
 	ASSERT_EQ (0, node0->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_excluded));
 	node1->network.merge_peer (node0->network.endpoint ());
 	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_excluded) >= 1);
-	ASSERT_EQ (nullptr, node0->network.find_channel (endpoint1));
+	ASSERT_EQ (nullptr, node0->network.find_node_id (node1->get_node_id ()));
 
 	// Should not actively reachout to excluded peers
-	ASSERT_TRUE (node0->network.reachout (endpoint1, true));
+	ASSERT_TRUE (node0->network.reachout (node1->network.endpoint (), true));
 
 	// Erasing from excluded peers should allow a connection
 	node0->network.excluded_peers.remove (endpoint1_tcp);
@@ -1374,7 +1375,7 @@ TEST (network, filter_invalid_network_bytes)
 	auto & node2 = *system.nodes[1];
 
 	// find the comms channel that goes from node2 to node1
-	auto channel = node2.network.find_channel (node1.network.endpoint ());
+	auto channel = node2.network.find_node_id (node1.get_node_id ());
 	ASSERT_NE (nullptr, channel);
 
 	// send a keepalive, from node2 to node1, with the wrong network bytes
@@ -1382,7 +1383,7 @@ TEST (network, filter_invalid_network_bytes)
 	const_cast<nano::networks &> (keepalive.header.network) = nano::networks::invalid;
 	channel->send (keepalive);
 
-	ASSERT_TIMELY (5s, 1 == node1.stats.count (nano::stat::type::message, nano::stat::detail::invalid_network));
+	ASSERT_TIMELY (5s, 1 == node1.stats.count (nano::stat::type::error, nano::stat::detail::invalid_network));
 }
 
 // Ensure the network filters messages with the incorrect minimum version
@@ -1393,7 +1394,7 @@ TEST (network, filter_invalid_version_using)
 	auto & node2 = *system.nodes[1];
 
 	// find the comms channel that goes from node2 to node1
-	auto channel = node2.network.find_channel (node1.network.endpoint ());
+	auto channel = node2.network.find_node_id (node1.get_node_id ());
 	ASSERT_NE (nullptr, channel);
 
 	// send a keepalive, from node2 to node1, with the wrong version_using
@@ -1401,13 +1402,19 @@ TEST (network, filter_invalid_version_using)
 	const_cast<uint8_t &> (keepalive.header.version_using) = nano::dev::network_params.network.protocol_version_min - 1;
 	channel->send (keepalive);
 
-	ASSERT_TIMELY (5s, 1 == node1.stats.count (nano::stat::type::message, nano::stat::detail::outdated_version));
+	ASSERT_TIMELY (5s, 1 == node1.stats.count (nano::stat::type::error, nano::stat::detail::outdated_version));
 }
 
 TEST (network, fill_keepalive_self)
 {
 	nano::system system{ 2 };
-	std::array<nano::endpoint, 8> target;
-	system.nodes[0]->network.fill_keepalive_self (target);
-	ASSERT_TRUE (target[2].port () == system.nodes[1]->network.port);
+	system.nodes[0]->network.flood_keepalive_self (1);
+
+	auto get_keepalive_enpoint = [] (auto & node) {
+		std::array<nano::endpoint, 8> target;
+		node->network.fill_keepalive_self (target);
+		return target[2];
+	};
+
+	ASSERT_TIMELY (5s, get_keepalive_enpoint (system.nodes[0]).port () == system.nodes[1]->network.port);
 }

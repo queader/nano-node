@@ -418,12 +418,15 @@ public:
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in);
 		node.network.merge_peers (message_a.peers);
+
 		// Check for special node port data
 		auto peer0 (message_a.peers[0]);
 		if (peer0.address () == boost::asio::ip::address_v6{} && peer0.port () != 0)
 		{
 			nano::endpoint new_endpoint (channel->get_tcp_endpoint ().address (), peer0.port ());
-			node.network.merge_peer (new_endpoint);
+
+			// Remember this for future forwarding to other peers
+			channel->set_peering_endpoint (new_endpoint);
 		}
 	}
 	void publish (nano::publish const & message_a) override
@@ -591,10 +594,10 @@ bool nano::network::reachout (nano::endpoint const & endpoint_a, bool allow_loca
 	return error;
 }
 
-std::deque<std::shared_ptr<nano::transport::channel>> nano::network::list (std::size_t count_a, uint8_t minimum_version_a, bool include_tcp_temporary_channels_a)
+std::deque<std::shared_ptr<nano::transport::channel>> nano::network::list (std::size_t count_a, uint8_t minimum_version_a)
 {
 	std::deque<std::shared_ptr<nano::transport::channel>> result;
-	tcp_channels.list (result, minimum_version_a, include_tcp_temporary_channels_a);
+	tcp_channels.list (result, minimum_version_a);
 	udp_channels.list (result, minimum_version_a);
 	nano::random_pool_shuffle (result.begin (), result.end ());
 	if (result.size () > count_a)
@@ -627,9 +630,9 @@ std::size_t nano::network::fanout (float scale) const
 	return static_cast<std::size_t> (std::ceil (scale * size_sqrt ()));
 }
 
-std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::network::random_set (std::size_t count_a, uint8_t min_version_a, bool include_temporary_channels_a) const
+std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::network::random_set (std::size_t count_a, uint8_t min_version_a) const
 {
-	std::unordered_set<std::shared_ptr<nano::transport::channel>> result (tcp_channels.random_set (count_a, min_version_a, include_temporary_channels_a));
+	std::unordered_set<std::shared_ptr<nano::transport::channel>> result (tcp_channels.random_set (count_a, min_version_a));
 	std::unordered_set<std::shared_ptr<nano::transport::channel>> udp_random (udp_channels.random_set (count_a, min_version_a));
 	for (auto i (udp_random.begin ()), n (udp_random.end ()); i != n && result.size () < count_a * 1.5; ++i)
 	{
@@ -644,7 +647,7 @@ std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::network::ran
 
 void nano::network::random_fill (std::array<nano::endpoint, 8> & target_a) const
 {
-	auto peers (random_set (target_a.size (), 0, false)); // Don't include channels with ephemeral remote ports
+	auto peers (random_set (target_a.size (), 0));
 	debug_assert (peers.size () <= target_a.size ());
 	auto endpoint (nano::endpoint (boost::asio::ip::address_v6{}, 0));
 	debug_assert (endpoint.address ().is_v6 ());
@@ -652,9 +655,9 @@ void nano::network::random_fill (std::array<nano::endpoint, 8> & target_a) const
 	auto j (target_a.begin ());
 	for (auto i (peers.begin ()), n (peers.end ()); i != n; ++i, ++j)
 	{
-		debug_assert ((*i)->get_endpoint ().address ().is_v6 ());
+		debug_assert ((*i)->get_peering_endpoint ().address ().is_v6 ());
 		debug_assert (j < target_a.end ());
-		*j = (*i)->get_endpoint ();
+		*j = (*i)->get_peering_endpoint ();
 	}
 }
 
