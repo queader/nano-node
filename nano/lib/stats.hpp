@@ -227,7 +227,7 @@ public:
 		ledger,
 		rollback,
 		bootstrap,
-		bootstrap_server,
+		network_server,
 		vote,
 		election,
 		http_callback,

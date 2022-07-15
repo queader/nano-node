@@ -13,7 +13,7 @@ nano::transport::channel_tcp::channel_tcp (nano::node & node_a, std::weak_ptr<na
 nano::transport::channel_tcp::~channel_tcp ()
 {
 	nano::lock_guard<nano::mutex> lk (channel_mutex);
-	// Close socket. Exception: socket is used by bootstrap_server
+	// Close socket. Exception: socket is used by network_server
 	if (auto socket_l = socket.lock ())
 	{
 		socket_l->close ();
@@ -108,7 +108,7 @@ nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<vo
 {
 }
 
-bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::socket> const & socket_a, std::shared_ptr<nano::bootstrap_server> const & bootstrap_server_a)
+bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::socket> const & socket_a, std::shared_ptr<nano::network_server> const & server_a)
 {
 	auto endpoint (channel_a->get_tcp_endpoint ());
 	debug_assert (endpoint.address ().is_v6 ());
@@ -122,7 +122,7 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 		{
 			auto node_id (channel_a->get_node_id ());
 			channels.get<node_id_tag> ().erase (node_id);
-			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, bootstrap_server_a);
+			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, server_a);
 			attempts.get<endpoint_tag> ().erase (endpoint);
 			error = false;
 			lock.unlock ();
@@ -542,7 +542,7 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 		}
 		else
 		{
-			auto server = std::make_shared<nano::bootstrap_server> (socket, node, false);
+			auto server = std::make_shared<nano::network_server> (socket, node, false);
 			server->start ();
 			server->send_handshake_query ();
 		}

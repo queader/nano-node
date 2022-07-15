@@ -961,7 +961,7 @@ TEST (tcp_listener, tcp_listener_timeout_node_id_handshake)
 			ASSERT_FALSE (ec);
 		});
 	});
-	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::bootstrap_server, nano::stat::detail::node_id_handshake) != 0);
+	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::network_server, nano::stat::detail::node_id_handshake) != 0);
 	{
 		nano::lock_guard<nano::mutex> guard (node0->bootstrap.mutex);
 		ASSERT_EQ (node0->bootstrap.connections.size (), 1);

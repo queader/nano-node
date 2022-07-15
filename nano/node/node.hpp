@@ -21,7 +21,7 @@
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/signatures.hpp>
 #include <nano/node/telemetry.hpp>
-#include <nano/node/transport/bootstrap_server.hpp>
+#include <nano/node/transport/network_server.hpp>
 #include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_processor.hpp>
 #include <nano/node/wallet.hpp>

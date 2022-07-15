@@ -176,8 +176,8 @@ add_library(
   state_block_signature_verification.cpp
   telemetry.hpp
   telemetry.cpp
-  transport/bootstrap_server.hpp
-  transport/bootstrap_server.cpp
+  transport/network_server.hpp
+  transport/network_server.cpp
   transport/message_deserializer.hpp
   transport/message_deserializer.cpp
   transport/inproc.hpp

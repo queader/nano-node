@@ -474,8 +474,8 @@ std::string nano::stat::type_to_string (uint32_t key)
 		case nano::stat::type::bootstrap:
 			res = "bootstrap";
 			break;
-		case nano::stat::type::bootstrap_server:
-			res = "bootstrap_server";
+		case nano::stat::type::network_server:
+			res = "network_server";
 			break;
 		case nano::stat::type::error:
 			res = "error";
