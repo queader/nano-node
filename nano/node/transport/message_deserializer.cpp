@@ -1,5 +1,5 @@
-#include <nano/node/bootstrap/message_deserializer.hpp>
 #include <nano/node/node.hpp>
+#include <nano/node/transport/message_deserializer.hpp>
 
 nano::bootstrap::message_deserializer::message_deserializer (nano::network_constants const & network_constants, nano::network_filter & publish_filter, nano::block_uniquer & block_uniquer, nano::vote_uniquer & vote_uniquer) :
 	read_buffer{ std::make_shared<std::vector<uint8_t>> () },

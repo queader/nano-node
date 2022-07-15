@@ -1,8 +1,8 @@
 #include <nano/node/bootstrap/bootstrap_bulk_push.hpp>
 #include <nano/node/bootstrap/bootstrap_frontier.hpp>
-#include <nano/node/bootstrap/bootstrap_server.hpp>
-#include <nano/node/bootstrap/message_deserializer.hpp>
 #include <nano/node/node.hpp>
+#include <nano/node/transport/bootstrap_server.hpp>
+#include <nano/node/transport/message_deserializer.hpp>
 #include <nano/node/transport/tcp.hpp>
 
 #include <boost/format.hpp>

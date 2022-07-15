@@ -32,12 +32,8 @@ add_library(
   bootstrap/bootstrap_lazy.cpp
   bootstrap/bootstrap_legacy.hpp
   bootstrap/bootstrap_legacy.cpp
-  bootstrap/bootstrap_server.hpp
-  bootstrap/bootstrap_server.cpp
   bootstrap/bootstrap.hpp
   bootstrap/bootstrap.cpp
-  bootstrap/message_deserializer.hpp
-  bootstrap/message_deserializer.cpp
   cli.hpp
   cli.cpp
   common.hpp
@@ -180,6 +176,10 @@ add_library(
   state_block_signature_verification.cpp
   telemetry.hpp
   telemetry.cpp
+  transport/bootstrap_server.hpp
+  transport/bootstrap_server.cpp
+  transport/message_deserializer.hpp
+  transport/message_deserializer.cpp
   transport/inproc.hpp
   transport/inproc.cpp
   transport/tcp.hpp
