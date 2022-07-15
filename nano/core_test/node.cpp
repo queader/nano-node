@@ -1946,7 +1946,7 @@ TEST (node, rep_remove)
 	auto vote3 = std::make_shared<nano::vote> (keypair2.pub, keypair2.prv, 0, 0, std::vector<nano::block_hash>{ nano::dev::genesis->hash () });
 	node.network.tcp_channels.start_tcp (node2->network.endpoint ());
 	std::shared_ptr<nano::transport::channel> channel2;
-	ASSERT_TIMELY (10s, (channel2 = node.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (node2->network.endpoint ()))) != nullptr);
+	ASSERT_TIMELY (10s, (channel2 = node.network.tcp_channels.find_node_id (node2->get_node_id ())) != nullptr);
 	ASSERT_FALSE (node.rep_crawler.response (channel2, vote3));
 	ASSERT_TIMELY (10s, node.rep_crawler.representative_count () == 2);
 	node2->stop ();

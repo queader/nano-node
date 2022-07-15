@@ -1903,7 +1903,7 @@ TEST (rpc, keepalive)
 	ASSERT_EQ (0, node0->network.size ());
 	auto response (wait_response (system, rpc_ctx, request));
 	system.deadline_set (10s);
-	while (node0->network.find_channel (node1->network.endpoint ()) == nullptr)
+	while (node0->network.find_node_id (node1->get_node_id ()) == nullptr)
 	{
 		ASSERT_EQ (0, node0->network.size ());
 		ASSERT_NO_ERROR (system.poll ());
@@ -5726,7 +5726,7 @@ TEST (rpc, online_reps)
 	boost::optional<std::string> weight (item->second.get_optional<std::string> ("weight"));
 	ASSERT_FALSE (weight.is_initialized ());
 	ASSERT_TIMELY (5s, node2->block (send_block->hash ()));
-	//Test weight option
+	// Test weight option
 	request.put ("weight", "true");
 	auto response2 (wait_response (system, rpc_ctx, request));
 	auto representatives2 (response2.get_child ("representatives"));
@@ -5735,7 +5735,7 @@ TEST (rpc, online_reps)
 	ASSERT_EQ (nano::dev::genesis_key.pub.to_account (), item2->first);
 	auto weight2 (item2->second.get<std::string> ("weight"));
 	ASSERT_EQ (node2->weight (nano::dev::genesis_key.pub).convert_to<std::string> (), weight2);
-	//Test accounts filter
+	// Test accounts filter
 	rpc_ctx.io_scope->reset ();
 	auto new_rep (system.wallet (1)->deterministic_insert ());
 	auto send (system.wallet (0)->send_action (nano::dev::genesis_key.pub, new_rep, node1->config.receive_minimum.number ()));
@@ -7350,7 +7350,7 @@ TEST (rpc, telemetry_all)
 	// First need to set up the cached data
 	std::atomic<bool> done{ false };
 	auto node = system.nodes.front ();
-	node1->telemetry->get_metrics_single_peer_async (node1->network.find_channel (node->network.endpoint ()), [&done] (nano::telemetry_data_response const & telemetry_data_response_a) {
+	node1->telemetry->get_metrics_single_peer_async (node1->network.find_node_id (node->get_node_id ()), [&done] (nano::telemetry_data_response const & telemetry_data_response_a) {
 		ASSERT_FALSE (telemetry_data_response_a.error);
 		done = true;
 	});
