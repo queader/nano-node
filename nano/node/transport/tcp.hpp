@@ -28,6 +28,7 @@ public:
 namespace transport
 {
 	class tcp_channels;
+
 	class channel_tcp : public nano::transport::channel
 	{
 		friend class nano::transport::tcp_channels;
@@ -80,6 +81,7 @@ namespace transport
 	private:
 		nano::tcp_endpoint endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	};
+
 	class tcp_channels final
 	{
 		friend class nano::transport::channel_tcp;
@@ -94,7 +96,8 @@ namespace transport
 		void random_fill (std::array<nano::endpoint, 8> &) const;
 		std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0) const;
 		bool store_all (bool = true);
-		std::shared_ptr<nano::transport::channel_tcp> find_node_id (nano::account const &);
+		std::shared_ptr<nano::transport::channel_tcp> find_node_id (nano::account const & node_id);
+		std::vector<std::shared_ptr<nano::transport::channel_tcp>> find_node_id_all (nano::account const & node_id);
 		// Get the next peer for attempting a tcp connection
 		nano::tcp_endpoint bootstrap_peer (uint8_t connection_protocol_version_min);
 		void receive ();
@@ -120,33 +123,18 @@ namespace transport
 
 	private:
 		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
-		class endpoint_tag
-		{
-		};
-		class ip_address_tag
-		{
-		};
-		class subnetwork_tag
-		{
-		};
-		class random_access_tag
-		{
-		};
-		class last_packet_sent_tag
-		{
-		};
-		class last_bootstrap_attempt_tag
-		{
-		};
-		class last_attempt_tag
-		{
-		};
-		class node_id_tag
-		{
-		};
-		class version_tag
-		{
-		};
+
+		// clang-format off
+		class endpoint_tag {};
+		class ip_address_tag {};
+		class subnetwork_tag {};
+		class random_access_tag {};
+		class last_packet_sent_tag {};
+		class last_bootstrap_attempt_tag {};
+		class last_attempt_tag {};
+		class node_id_tag {};
+		class version_tag {};
+		// clang-format on
 
 		class channel_tcp_wrapper final
 		{
@@ -188,6 +176,7 @@ namespace transport
 				return channel->get_network_version ();
 			}
 		};
+
 		class tcp_endpoint_attempt final
 		{
 		public:
@@ -203,7 +192,9 @@ namespace transport
 			{
 			}
 		};
+
 		mutable nano::mutex mutex;
+
 		// clang-format off
 		boost::multi_index_container<channel_tcp_wrapper,
 		mi::indexed_by<
@@ -223,6 +214,7 @@ namespace transport
 			mi::hashed_non_unique<mi::tag<subnetwork_tag>,
 				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::subnetwork>>>>
 		channels;
+
 		boost::multi_index_container<tcp_endpoint_attempt,
 		mi::indexed_by<
 			mi::hashed_unique<mi::tag<endpoint_tag>,
@@ -235,6 +227,7 @@ namespace transport
 				mi::member<tcp_endpoint_attempt, std::chrono::steady_clock::time_point, &tcp_endpoint_attempt::last_attempt>>>>
 		attempts;
 		// clang-format on
+
 		std::atomic<bool> stopped{ false };
 
 		friend class network_peer_max_tcp_attempts_subnetwork_Test;

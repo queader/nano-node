@@ -243,6 +243,17 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::fin
 	return result;
 }
 
+std::vector<std::shared_ptr<nano::transport::channel_tcp>> nano::transport::tcp_channels::find_node_id_all (nano::account const & node_id)
+{
+	std::vector<std::shared_ptr<nano::transport::channel_tcp>> result;
+	nano::lock_guard<nano::mutex> lock (mutex);
+	for (auto [i, n] = channels.get<node_id_tag> ().equal_range (node_id); i != n; ++i)
+	{
+		result.push_back (i->channel);
+	}
+	return result;
+}
+
 nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer (uint8_t connection_protocol_version_min)
 {
 	nano::tcp_endpoint result (boost::asio::ip::address_v6::any (), 0);

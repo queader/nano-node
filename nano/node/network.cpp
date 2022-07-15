@@ -718,10 +718,15 @@ std::shared_ptr<nano::transport::channel> nano::network::find_channel (nano::end
 
 std::shared_ptr<nano::transport::channel> nano::network::find_node_id (nano::account const & node_id_a)
 {
-	std::shared_ptr<nano::transport::channel> result (tcp_channels.find_node_id (node_id_a));
-	if (!result)
+	return tcp_channels.find_node_id (node_id_a);
+}
+
+std::vector<std::shared_ptr<nano::transport::channel>> nano::network::find_node_id_all (nano::account const & node_id_a)
+{
+	std::vector<std::shared_ptr<nano::transport::channel>> result;
+	for (auto & channel : tcp_channels.find_node_id_all (node_id_a))
 	{
-		result = udp_channels.find_node_id (node_id_a);
+		result.push_back (channel);
 	}
 	return result;
 }

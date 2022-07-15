@@ -25,13 +25,13 @@ public:
 	nano::endpoint endpoint;
 };
 /**
-  * A circular buffer for servicing nano realtime messages.
-  * This container follows a producer/consumer model where the operating system is producing data in to
-  * buffers which are serviced by internal threads.
-  * If buffers are not serviced fast enough they're internally dropped.
-  * This container has a maximum space to hold N buffers of M size and will allocate them in round-robin order.
-  * All public methods are thread-safe
-*/
+ * A circular buffer for servicing nano realtime messages.
+ * This container follows a producer/consumer model where the operating system is producing data in to
+ * buffers which are serviced by internal threads.
+ * If buffers are not serviced fast enough they're internally dropped.
+ * This container has a maximum space to hold N buffers of M size and will allocate them in round-robin order.
+ * All public methods are thread-safe
+ */
 class message_buffer_manager final
 {
 public:
@@ -87,8 +87,8 @@ private:
 	friend class network_tcp_message_manager_Test;
 };
 /**
-  * Node ID cookies for node ID handshakes
-*/
+ * Node ID cookies for node ID handshakes
+ */
 class syn_cookies final
 {
 public:
@@ -143,7 +143,18 @@ public:
 	void broadcast_confirm_req_base (std::shared_ptr<nano::block> const &, std::shared_ptr<std::vector<std::shared_ptr<nano::transport::channel>>> const &, unsigned, bool = false);
 	void broadcast_confirm_req_batched_many (std::unordered_map<std::shared_ptr<nano::transport::channel>, std::deque<std::pair<nano::block_hash, nano::root>>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms, bool = false);
 	void broadcast_confirm_req_many (std::deque<std::pair<std::shared_ptr<nano::block>, std::shared_ptr<std::vector<std::shared_ptr<nano::transport::channel>>>>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
-	std::shared_ptr<nano::transport::channel> find_node_id (nano::account const &);
+	/*
+	 * Returns the first channel that is connected to the specified `node id`.
+	 * WARNING: It is currently possible to MITM multiple channels with the same node id, so `find_node_id_all` should be used instead
+	 */
+	std::shared_ptr<nano::transport::channel> find_node_id (nano::account const & node_id);
+	/*
+	 * Returns all channels that are connected to the specified `node id`
+	 */
+	std::vector<std::shared_ptr<nano::transport::channel>> find_node_id_all (nano::account const & node_id);
+	/*
+	 * Returns channel that is connected to the specified endpoint.
+	 */
 	std::shared_ptr<nano::transport::channel> find_channel (nano::endpoint const &);
 	bool not_a_peer (nano::endpoint const &, bool);
 	// Should we reach out to this endpoint with a keepalive message
