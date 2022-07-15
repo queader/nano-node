@@ -41,7 +41,10 @@ bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
 			bool const different (exists && existing->second.hash != hash);
 			if (!exists || different)
 			{
-				i->channel->send (winner);
+				for (auto channel : network.find_node_id_all (i->node_id))
+				{
+					channel->send (winner);
+				}
 				count += different ? 0 : 1;
 			}
 		}
@@ -68,8 +71,9 @@ bool nano::confirmation_solicitor::add (nano::election const & election_a)
 		bool const different (exists && existing->second.hash != hash);
 		if (!exists || !is_final || different)
 		{
-			auto & request_queue (requests[rep.channel]);
-			if (!rep.channel->max ())
+			auto & request_queue (requests[rep.node_id]);
+			// TODO: Parametrize this limit
+			if (request_queue.size () < 128)
 			{
 				request_queue.emplace_back (election_a.status.winner->hash (), election_a.status.winner->root ());
 				count += different ? 0 : 1;
@@ -90,7 +94,9 @@ void nano::confirmation_solicitor::flush ()
 	debug_assert (prepared);
 	for (auto const & request_queue : requests)
 	{
-		auto const & channel (request_queue.first);
+		auto const & node_id = request_queue.first;
+		auto channels = network.find_node_id_all (node_id);
+
 		std::vector<std::pair<nano::block_hash, nano::root>> roots_hashes_l;
 		for (auto const & root_hash : request_queue.second)
 		{
@@ -98,14 +104,20 @@ void nano::confirmation_solicitor::flush ()
 			if (roots_hashes_l.size () == nano::network::confirm_req_hashes_max)
 			{
 				nano::confirm_req req{ config.network_params.network, roots_hashes_l };
-				channel->send (req);
+				for (auto channel : channels)
+				{
+					channel->send (req);
+				}
 				roots_hashes_l.clear ();
 			}
 		}
 		if (!roots_hashes_l.empty ())
 		{
 			nano::confirm_req req{ config.network_params.network, roots_hashes_l };
-			channel->send (req);
+			for (auto channel : channels)
+			{
+				channel->send (req);
+			}
 		}
 	}
 	prepared = false;

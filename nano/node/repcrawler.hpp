@@ -3,6 +3,7 @@
 #include <nano/node/common.hpp>
 #include <nano/node/transport/transport.hpp>
 
+#include <boost/multi_index/composite_key.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/member.hpp>
@@ -28,22 +29,19 @@ class representative
 {
 public:
 	representative () = default;
-	representative (nano::account account_a, nano::amount weight_a, std::shared_ptr<nano::transport::channel> const & channel_a) :
-		account (account_a), weight (weight_a), channel (channel_a)
+	representative (nano::account account_a, nano::amount weight_a, nano::account node_id_a) :
+		account (account_a),
+		weight (weight_a),
+		node_id{ node_id_a }
 	{
-		debug_assert (channel != nullptr);
 	}
-	std::reference_wrapper<nano::transport::channel const> channel_ref () const
-	{
-		return *channel;
-	};
 	bool operator== (nano::representative const & other_a) const
 	{
 		return account == other_a.account;
 	}
 	nano::account account{};
 	nano::amount weight{ 0 };
-	std::shared_ptr<nano::transport::channel> channel;
+	nano::account node_id{};
 	std::chrono::steady_clock::time_point last_request{ std::chrono::steady_clock::time_point () };
 	std::chrono::steady_clock::time_point last_response{ std::chrono::steady_clock::time_point () };
 };
@@ -57,21 +55,31 @@ class rep_crawler final
 	friend std::unique_ptr<container_info_component> collect_container_info (rep_crawler & rep_crawler, std::string const & name);
 
 	// clang-format off
-	class tag_account {};
-	class tag_channel_ref {};
+	class tag_index {};
 	class tag_last_request {};
 	class tag_weight {};
+	class tag_node_id {};
 
 	using probably_rep_t = boost::multi_index_container<representative,
 	mi::indexed_by<
-		mi::hashed_unique<mi::member<representative, nano::account, &representative::account>>,
 		mi::random_access<>,
+		/*
+		 * It is possible for single node id to host multiple representative accounts
+		 * and it is possible for single representative to be visible at multiple node ids (man in the middle)
+		 * Therefore keep track of that with a unique account-node_id index composite key
+		 */
+		mi::hashed_unique<mi::tag<tag_index>,
+			mi::composite_key<representative,
+				mi::member<representative, nano::account, &representative::account>,
+				mi::member<representative, nano::account, &representative::node_id>
+			>>,
 		mi::ordered_non_unique<mi::tag<tag_last_request>,
 			mi::member<representative, std::chrono::steady_clock::time_point, &representative::last_request>>,
 		mi::ordered_non_unique<mi::tag<tag_weight>,
 			mi::member<representative, nano::amount, &representative::weight>, std::greater<nano::amount>>,
-		mi::hashed_non_unique<mi::tag<tag_channel_ref>,
-			mi::const_mem_fun<representative, std::reference_wrapper<nano::transport::channel const>, &representative::channel_ref>>>>;
+		mi::hashed_non_unique<mi::tag<tag_node_id>,
+			mi::member<representative, nano::account, &representative::node_id>>
+	>>;
 	// clang-format on
 
 public:
@@ -111,9 +119,6 @@ public:
 	/** Request a list of the top \p count_a known principal representatives in descending order of weight, optionally with a minimum version \p opt_version_min_a */
 	std::vector<representative> principal_representatives (std::size_t count_a = std::numeric_limits<std::size_t>::max (), boost::optional<decltype (nano::network_constants::protocol_version)> const & opt_version_min_a = boost::none);
 
-	/** Request a list of the top \p count_a known representative endpoints. */
-	std::vector<std::shared_ptr<nano::transport::channel>> representative_endpoints (std::size_t count_a);
-
 	/** Total number of representatives */
 	std::size_t representative_count ();
 
@@ -127,7 +132,9 @@ private:
 	std::unordered_set<nano::block_hash> active;
 
 	// Validate responses to see if they're reps
-	void validate ();
+	void process_responses ();
+	void process_response (std::shared_ptr<nano::transport::channel> const & channel, std::shared_ptr<nano::vote> const & vote);
+	bool insert_rep (nano::account rep_account, nano::amount rep_weight, nano::account rep_node_id);
 
 	/** Called continuously to crawl for representatives */
 	void ongoing_crawl ();
@@ -140,6 +147,8 @@ private:
 
 	/** Clean representatives with inactive channels */
 	void cleanup_reps ();
+	void cleanup_reps_expired_channel ();
+	void cleanup_reps_expired_reponse ();
 
 	/** Update representatives weights from ledger */
 	void update_weights ();
