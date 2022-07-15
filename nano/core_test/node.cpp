@@ -619,7 +619,7 @@ TEST (node_flags, disable_tcp_realtime_and_bootstrap_listener)
 	node_flags.disable_tcp_realtime = true;
 	node_flags.disable_bootstrap_listener = true;
 	auto node2 = system.add_node (node_flags);
-	ASSERT_EQ (nano::tcp_endpoint (boost::asio::ip::address_v6::loopback (), 0), node2->bootstrap.endpoint ());
+	ASSERT_EQ (nano::tcp_endpoint (boost::asio::ip::address_v6::loopback (), 0), node2->listener.endpoint ());
 	ASSERT_NE (nano::endpoint (boost::asio::ip::address_v6::loopback (), 0), node2->network.endpoint ());
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node1->network.list (2));
@@ -652,7 +652,7 @@ TEST (node_flags, disable_udp)
 	ASSERT_EQ (0, node2->network.size ());
 	// Send TCP handshake
 	node1->network.merge_peer (node2->network.endpoint ());
-	ASSERT_TIMELY (5s, node1->bootstrap.realtime_count == 1 && node2->bootstrap.realtime_count == 1);
+	ASSERT_TIMELY (5s, node1->listener.realtime_count == 1 && node2->listener.realtime_count == 1);
 	ASSERT_TIMELY (5s, 1 == node1->network.size ());
 	auto list1 (node1->network.list (2));
 	ASSERT_EQ (node2->get_node_id (), list1[0]->get_node_id ());
@@ -3226,7 +3226,7 @@ TEST (node, peers)
 	node2->start ();
 	ASSERT_TIMELY (10s, !node2->network.empty () && !node1->network.empty ())
 	// Wait to finish TCP node ID handshakes
-	ASSERT_TIMELY (10s, node1->bootstrap.realtime_count != 0 && node2->bootstrap.realtime_count != 0);
+	ASSERT_TIMELY (10s, node1->listener.realtime_count != 0 && node2->listener.realtime_count != 0);
 	// Confirm that the peers match with the endpoints we are expecting
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node1->network.list (2));

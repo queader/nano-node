@@ -180,7 +180,7 @@ public:
 	nano::network network;
 	std::shared_ptr<nano::telemetry> telemetry;
 	nano::bootstrap_initiator bootstrap_initiator;
-	nano::bootstrap_listener bootstrap;
+	nano::network_listener listener;
 	boost::filesystem::path application_path;
 	nano::node_observers observers;
 	nano::port_mapping port_mapping;

@@ -8,13 +8,13 @@
 #include <boost/format.hpp>
 #include <boost/variant/get.hpp>
 
-nano::bootstrap_listener::bootstrap_listener (uint16_t port_a, nano::node & node_a) :
+nano::network_listener::network_listener (uint16_t port_a, nano::node & node_a) :
 	node (node_a),
 	port (port_a)
 {
 }
 
-void nano::bootstrap_listener::start ()
+void nano::network_listener::start ()
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
 	on = true;
@@ -54,8 +54,8 @@ void nano::bootstrap_listener::start ()
 			debug_assert (port == node.network.endpoint ().port ());
 		}
 		// (4) -- OS port choice happened at TCP socket bind time, so propagate this port value back;
-		// the propagation is done here for the `bootstrap_listener` itself, whereas for `network`, the node does it
-		// after calling `bootstrap_listener.start ()`
+		// the propagation is done here for the `network_listener` itself, whereas for `network`, the node does it
+		// after calling `network_listener.start ()`
 		//
 		else
 		{
@@ -72,7 +72,7 @@ void nano::bootstrap_listener::start ()
 	});
 }
 
-void nano::bootstrap_listener::stop ()
+void nano::network_listener::stop ()
 {
 	decltype (connections) connections_l;
 	{
@@ -88,13 +88,13 @@ void nano::bootstrap_listener::stop ()
 	}
 }
 
-std::size_t nano::bootstrap_listener::connection_count ()
+std::size_t nano::network_listener::connection_count ()
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
 	return connections.size ();
 }
 
-void nano::bootstrap_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::socket> const & socket_a)
+void nano::network_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::socket> const & socket_a)
 {
 	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
@@ -113,7 +113,7 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 	}
 }
 
-boost::asio::ip::tcp::endpoint nano::bootstrap_listener::endpoint ()
+boost::asio::ip::tcp::endpoint nano::network_listener::endpoint ()
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
 	if (on && listening_socket)
@@ -126,11 +126,11 @@ boost::asio::ip::tcp::endpoint nano::bootstrap_listener::endpoint ()
 	}
 }
 
-std::unique_ptr<nano::container_info_component> nano::collect_container_info (bootstrap_listener & bootstrap_listener, std::string const & name)
+std::unique_ptr<nano::container_info_component> nano::collect_container_info (network_listener & network_listener, std::string const & name)
 {
-	auto sizeof_element = sizeof (decltype (bootstrap_listener.connections)::value_type);
+	auto sizeof_element = sizeof (decltype (network_listener.connections)::value_type);
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", bootstrap_listener.connection_count (), sizeof_element }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", network_listener.connection_count (), sizeof_element }));
 	return composite;
 }
 
@@ -154,11 +154,11 @@ nano::network_server::~network_server ()
 	}
 	if (socket->type () == nano::socket::type_t::bootstrap)
 	{
-		--node->bootstrap.bootstrap_count;
+		--node->listener.bootstrap_count;
 	}
 	else if (socket->type () == nano::socket::type_t::realtime)
 	{
-		--node->bootstrap.realtime_count;
+		--node->listener.realtime_count;
 		// Clear temporary channel
 		auto exisiting_response_channel (node->network.tcp_channels.find_channel (remote_endpoint));
 		if (exisiting_response_channel != nullptr)
@@ -168,8 +168,8 @@ nano::network_server::~network_server ()
 	}
 	stop ();
 
-	nano::lock_guard<nano::mutex> lock (node->bootstrap.mutex);
-	node->bootstrap.connections.erase (this);
+	nano::lock_guard<nano::mutex> lock (node->listener.mutex);
+	node->listener.connections.erase (this);
 }
 
 void nano::network_server::start ()
@@ -551,8 +551,8 @@ void nano::network_server::timeout ()
 			node->logger.try_log ("Closing incoming tcp / bootstrap server by timeout");
 		}
 		{
-			nano::lock_guard<nano::mutex> lock (node->bootstrap.mutex);
-			node->bootstrap.connections.erase (this);
+			nano::lock_guard<nano::mutex> lock (node->listener.mutex);
+			node->listener.connections.erase (this);
 		}
 		socket->close ();
 	}
@@ -560,9 +560,9 @@ void nano::network_server::timeout ()
 
 bool nano::network_server::to_bootstrap_connection ()
 {
-	if (socket->type () == nano::socket::type_t::undefined && !node->flags.disable_bootstrap_listener && node->bootstrap.bootstrap_count < node->config.bootstrap_connections_max)
+	if (socket->type () == nano::socket::type_t::undefined && !node->flags.disable_bootstrap_listener && node->listener.bootstrap_count < node->config.bootstrap_connections_max)
 	{
-		++node->bootstrap.bootstrap_count;
+		++node->listener.bootstrap_count;
 		socket->type_set (nano::socket::type_t::bootstrap);
 		return true;
 	}
@@ -574,7 +574,7 @@ bool nano::network_server::to_realtime_connection (nano::account const & node_id
 	if (socket->type () == nano::socket::type_t::undefined && !node->flags.disable_tcp_realtime)
 	{
 		remote_node_id = node_id;
-		++node->bootstrap.realtime_count;
+		++node->listener.realtime_count;
 		socket->type_set (nano::socket::type_t::realtime);
 		return true;
 	}
