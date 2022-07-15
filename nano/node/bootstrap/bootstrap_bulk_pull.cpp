@@ -55,6 +55,9 @@ nano::bulk_pull_client::~bulk_pull_client ()
 
 void nano::bulk_pull_client::request ()
 {
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << " ] "
+			  << "bulk_pull_client::request" << std::endl;
+
 	debug_assert (!pull.head.is_zero () || pull.retry_limit <= connection->node->network_params.bootstrap.lazy_retry_limit);
 	expected = pull.head;
 	nano::bulk_pull req{ connection->node->network_params.network };
@@ -212,6 +215,10 @@ nano::bulk_pull_account_client::~bulk_pull_account_client ()
 
 void nano::bulk_pull_account_client::request ()
 {
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+			  << "bulk_pull_account_client::request"
+			  << std::endl;
+
 	nano::bulk_pull_account req{ connection->node->network_params.network };
 	req.account = account;
 	req.minimum_amount = connection->node->config.receive_minimum;
@@ -246,6 +253,10 @@ void nano::bulk_pull_account_client::request ()
 
 void nano::bulk_pull_account_client::receive_pending ()
 {
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+			  << "bulk_pull_account_client::receive_pending: start"
+			  << std::endl;
+
 	auto this_l (shared_from_this ());
 	std::size_t size_l (sizeof (nano::uint256_union) + sizeof (nano::uint128_union));
 	connection->socket->async_read (connection->receive_buffer, size_l, [this_l, size_l] (boost::system::error_code const & ec, std::size_t size_a) {
@@ -260,11 +271,20 @@ void nano::bulk_pull_account_client::receive_pending ()
 				auto error1 (nano::try_read (frontier_stream, pending));
 				(void)error1;
 				debug_assert (!error1);
+
 				nano::amount balance;
 				nano::bufferstream balance_stream (this_l->connection->receive_buffer->data () + sizeof (nano::uint256_union), sizeof (nano::uint128_union));
 				auto error2 (nano::try_read (balance_stream, balance));
 				(void)error2;
 				debug_assert (!error2);
+
+				std::cout << "[ " << this_l->connection->socket->local_endpoint ().port () << ":" << this_l->connection->socket->remote_endpoint ().port () << " ] "
+						  << "bulk_pull_account_client::receive_pending: "
+						  << "hash: " << pending.to_string ()
+						  << " | "
+						  << "amount: " << balance.to_string ()
+						  << std::endl;
+
 				if (this_l->pull_blocks == 0 || !pending.is_zero ())
 				{
 					if (this_l->pull_blocks == 0 || balance.number () >= this_l->connection->node->config.receive_minimum.number ())
@@ -284,15 +304,27 @@ void nano::bulk_pull_account_client::receive_pending ()
 					else
 					{
 						this_l->attempt->requeue_pending (this_l->account);
+
+						std::cout << "[ " << this_l->connection->socket->local_endpoint ().port () << ":" << this_l->connection->socket->remote_endpoint ().port () << " ] "
+								  << "bulk_pull_account_client::receive_pending: requeue_pending"
+								  << std::endl;
 					}
 				}
 				else
 				{
 					this_l->connection->connections.pool_connection (this_l->connection);
+
+					std::cout << "[ " << this_l->connection->socket->local_endpoint ().port () << ":" << this_l->connection->socket->remote_endpoint ().port () << " ] "
+							  << "bulk_pull_account_client::receive_pending: pool_connection"
+							  << std::endl;
 				}
 			}
 			else
 			{
+				std::cout << "[ " << this_l->connection->socket->local_endpoint ().port () << ":" << this_l->connection->socket->remote_endpoint ().port () << " ] "
+						  << "bulk_pull_account_client::receive_pending: err"
+						  << std::endl;
+
 				this_l->attempt->requeue_pending (this_l->account);
 				if (this_l->connection->node->config.logging.network_logging ())
 				{
@@ -302,6 +334,10 @@ void nano::bulk_pull_account_client::receive_pending ()
 		}
 		else
 		{
+			std::cout << "[ " << this_l->connection->socket->local_endpoint ().port () << ":" << this_l->connection->socket->remote_endpoint ().port () << " ] "
+					  << "bulk_pull_account_client::receive_pending: err"
+					  << std::endl;
+
 			this_l->attempt->requeue_pending (this_l->account);
 			if (this_l->connection->node->config.logging.network_message_logging ())
 			{
@@ -588,6 +624,10 @@ void nano::bulk_pull_account_server::set_params ()
 
 void nano::bulk_pull_account_server::send_frontier ()
 {
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+			  << "bulk_pull_account_server::send_frontier: start"
+			  << std::endl;
+
 	/*
 	 * This function is really the entry point into this class,
 	 * so handle the invalid_request case by terminating the
@@ -610,16 +650,33 @@ void nano::bulk_pull_account_server::send_frontier ()
 			write (output_stream, account_frontier_balance.bytes);
 		}
 
+		std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+				  << "bulk_pull_account_server::send_frontier: "
+				  << "hash: " << account_frontier_hash.to_string ()
+				  << " | "
+				  << "amount: " << account_frontier_balance.to_string ()
+				  << std::endl;
+
 		// Send the buffer to the requestor
 		auto this_l (shared_from_this ());
 		connection->socket->async_write (nano::shared_const_buffer (std::move (send_buffer)), [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
 			this_l->sent_action (ec, size_a);
 		});
 	}
+	else
+	{
+		std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+				  << "bulk_pull_account_server::send_frontier: err"
+				  << std::endl;
+	}
 }
 
 void nano::bulk_pull_account_server::send_next_block ()
 {
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+			  << "bulk_pull_account_server::send_next_block: start"
+			  << std::endl;
+
 	/*
 	 * Get the next item from the queue, it is a tuple with the key (which
 	 * contains the account and hash) and data (which contains the amount)
@@ -637,6 +694,8 @@ void nano::bulk_pull_account_server::send_next_block ()
 		std::vector<uint8_t> send_buffer;
 		if (pending_address_only)
 		{
+			debug_assert (false);
+
 			nano::vectorstream output_stream (send_buffer);
 
 			if (connection->node->config.logging.bulk_pull_logging ())
@@ -660,11 +719,20 @@ void nano::bulk_pull_account_server::send_next_block ()
 
 			if (pending_include_address)
 			{
+				debug_assert (false);
+
 				/**
 				 ** Write the source address as well, if requested
 				 **/
 				write (output_stream, block_info->source.bytes);
 			}
+
+			std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+					  << "bulk_pull_account_server::send_next_block: "
+					  << "hash: " << block_info_key->hash.to_string ()
+					  << " | "
+					  << "amount: " << block_info->amount.to_string ()
+					  << std::endl;
 		}
 
 		auto this_l (shared_from_this ());
@@ -818,6 +886,10 @@ void nano::bulk_pull_account_server::send_finished ()
 	connection->socket->async_write (nano::shared_const_buffer (std::move (send_buffer)), [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
 		this_l->complete (ec, size_a);
 	});
+
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+			  << "bulk_pull_account_server::send_finished"
+			  << std::endl;
 }
 
 void nano::bulk_pull_account_server::complete (boost::system::error_code const & ec, std::size_t size_a)

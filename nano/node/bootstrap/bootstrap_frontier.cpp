@@ -51,6 +51,10 @@ nano::frontier_req_client::frontier_req_client (std::shared_ptr<nano::bootstrap_
 
 void nano::frontier_req_client::receive_frontier ()
 {
+	std::cout << "[ " << connection->socket->local_endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+			  << "frontier_req_client::receive_frontier"
+			  << std::endl;
+
 	auto this_l (shared_from_this ());
 	connection->socket->async_read (connection->receive_buffer, nano::frontier_req_client::size_frontier, [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
 		// An issue with asio is that sometimes, instead of reporting a bad file descriptor during disconnect,
@@ -294,6 +298,7 @@ void nano::frontier_req_server::send_finished ()
 	connection->socket->async_write (nano::shared_const_buffer (std::move (send_buffer)), [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
 		this_l->no_block_sent (ec, size_a);
 	});
+	std::cout << "frontier sending finished" << std::endl;
 }
 
 void nano::frontier_req_server::no_block_sent (boost::system::error_code const & ec, std::size_t size_a)

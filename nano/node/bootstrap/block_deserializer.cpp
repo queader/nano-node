@@ -29,6 +29,12 @@ void nano::bootstrap::block_deserializer::read (nano::socket & socket, callback_
 
 void nano::bootstrap::block_deserializer::received_type (nano::socket & socket, callback_type const && callback)
 {
+	auto value = (int)read_buffer->data ()[0];
+
+	std::cout << "header: " << value << std::endl;
+
+	debug_assert (value <= 6);
+
 	nano::block_type type = static_cast<nano::block_type> (read_buffer->data ()[0]);
 	if (type == nano::block_type::not_a_block)
 	{

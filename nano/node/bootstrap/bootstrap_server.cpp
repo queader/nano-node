@@ -663,21 +663,34 @@ public:
 	}
 	void bulk_pull (nano::bulk_pull const &) override
 	{
+		std::cout << "[ " << connection->node->network.endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+				  << "bulk_pull req"
+				  << std::endl;
+
 		auto response (std::make_shared<nano::bulk_pull_server> (connection, std::unique_ptr<nano::bulk_pull> (static_cast<nano::bulk_pull *> (connection->requests.front ().release ()))));
 		response->send_next ();
 	}
 	void bulk_pull_account (nano::bulk_pull_account const &) override
 	{
+		std::cout << "[ " << connection->node->network.endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+				  << "bulk_pull_account req" << std::endl;
+
 		auto response (std::make_shared<nano::bulk_pull_account_server> (connection, std::unique_ptr<nano::bulk_pull_account> (static_cast<nano::bulk_pull_account *> (connection->requests.front ().release ()))));
 		response->send_frontier ();
 	}
 	void bulk_push (nano::bulk_push const &) override
 	{
+		std::cout << "[ " << connection->node->network.endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+				  << "bulk_push req" << std::endl;
+
 		auto response (std::make_shared<nano::bulk_push_server> (connection));
 		response->throttled_receive ();
 	}
 	void frontier_req (nano::frontier_req const &) override
 	{
+		std::cout << "[ " << connection->node->network.endpoint ().port () << ":" << connection->socket->remote_endpoint ().port () << " ] "
+				  << "frontier_req req" << std::endl;
+
 		auto response (std::make_shared<nano::frontier_req_server> (connection, std::unique_ptr<nano::frontier_req> (static_cast<nano::frontier_req *> (connection->requests.front ().release ()))));
 		response->send_next ();
 	}
