@@ -178,6 +178,8 @@ add_library(
   socket.cpp
   state_block_signature_verification.hpp
   state_block_signature_verification.cpp
+  structured_logger.hpp
+  structured_logger.cpp
   telemetry.hpp
   telemetry.cpp
   transport/inproc.hpp
