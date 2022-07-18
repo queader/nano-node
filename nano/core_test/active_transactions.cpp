@@ -896,12 +896,22 @@ TEST (active_transactions, fork_replacement_tally)
 	// Check overflow of blocks
 	ASSERT_EQ (max_blocks, election->blocks ().size ());
 	// Check that only max weight blocks remains (and start winner)
-	auto votes1 (election->votes ());
-	ASSERT_EQ (max_blocks, votes1.size ());
-	for (auto i (max_blocks + 1); i < reps_count; i++)
-	{
-		ASSERT_TRUE (votes1.find (keys[i].pub) != votes1.end ());
-	}
+
+	auto check = [&election, &keys, reps_count, max_blocks] () {
+		auto votes1 (election->votes ());
+		debug_assert (max_blocks == votes1.size ());
+		for (auto i (max_blocks + 1); i < reps_count; i++)
+		{
+			bool found = votes1.find (keys[i].pub) != votes1.end ();
+			if (!found)
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+
+	ASSERT_TIMELY (5s, check ());
 
 	// Process correct block
 	node_config.peering_port = nano::get_available_port ();
