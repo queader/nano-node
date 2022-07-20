@@ -15,9 +15,15 @@ namespace nano
 {
 enum class severity_level
 {
-	normal = 0,
+	trace,
+	debug,
+	audit,
+	info,
+	warning,
 	error
 };
+
+std::string_view severity_level_to_string (nano::severity_level severity);
 }
 
 // Attribute value tag type
@@ -25,15 +31,8 @@ struct severity_tag;
 
 inline boost::log::formatting_ostream & operator<< (boost::log::formatting_ostream & strm, boost::log::to_log_manip<nano::severity_level, severity_tag> const & manip)
 {
-	// Needs to match order in the severity_level enum
-	static std::array<char const *, 2> strings = {
-		"",
-		"Error: "
-	};
-
 	nano::severity_level level = manip.get ();
-	debug_assert (static_cast<int> (level) < strings.size ());
-	strm << strings[static_cast<int> (level)];
+	strm << nano::severity_level_to_string (level);
 	return strm;
 }
 
@@ -95,7 +94,7 @@ public:
 	template <typename... LogItems>
 	void always_log (LogItems &&... log_items)
 	{
-		always_log (nano::severity_level::normal, std::forward<LogItems> (log_items)...);
+		always_log (nano::severity_level::info, std::forward<LogItems> (log_items)...);
 	}
 
 	/*
@@ -126,7 +125,7 @@ public:
 	template <typename... LogItems>
 	bool try_log (LogItems &&... log_items)
 	{
-		return try_log (nano::severity_level::normal, std::forward<LogItems> (log_items)...);
+		return try_log (nano::severity_level::info, std::forward<LogItems> (log_items)...);
 	}
 
 	std::chrono::milliseconds min_log_delta{ 0 };

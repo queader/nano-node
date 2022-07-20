@@ -1,7 +1,7 @@
 #pragma once
 
 #include <nano/lib/config.hpp>
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/node/rocksdb/account_store.hpp>
 #include <nano/node/rocksdb/block_store.hpp>

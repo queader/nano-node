@@ -2,7 +2,7 @@
 
 #include <nano/lib/diagnosticsconfig.hpp>
 #include <nano/lib/lmdbconfig.hpp>
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/node/lmdb/account_store.hpp>
 #include <nano/node/lmdb/block_store.hpp>

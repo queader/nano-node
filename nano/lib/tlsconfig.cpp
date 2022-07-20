@@ -1,5 +1,5 @@
 #include <nano/lib/config.hpp>
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/lib/tlsconfig.hpp>
 #include <nano/lib/tomlconfig.hpp>
 

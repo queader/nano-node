@@ -1,6 +1,6 @@
 #include <nano/crypto_lib/random_pool.hpp>
 #include <nano/lib/blocks.hpp>
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/lib/timer.hpp>
 #include <nano/lib/work.hpp>
 #include <nano/node/logging.hpp>

@@ -3,7 +3,7 @@
 #include <nano/crypto_lib/random_pool.hpp>
 #include <nano/lib/diagnosticsconfig.hpp>
 #include <nano/lib/lmdbconfig.hpp>
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/lib/memory.hpp>
 #include <nano/lib/rocksdbconfig.hpp>
 #include <nano/secure/buffer.hpp>

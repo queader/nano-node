@@ -1,5 +1,5 @@
 #include <nano/lib/blockbuilders.hpp>
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/node/unchecked_map.hpp>
 #include <nano/secure/store.hpp>
 #include <nano/secure/utility.hpp>

@@ -1,4 +1,4 @@
-#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logger.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/lib/timer.hpp>
