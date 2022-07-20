@@ -42,8 +42,8 @@ void nano::vote_cache::entry::fill (std::shared_ptr<nano::election> const electi
 	}
 }
 
-nano::vote_cache::vote_cache (std::size_t max_size) :
-	max_size{ max_size }
+nano::vote_cache::vote_cache (const config & config_a) :
+	config_m{ config_a }
 {
 }
 
@@ -70,7 +70,7 @@ void nano::vote_cache::vote_impl (const nano::block_hash & hash, const nano::acc
 		cache.get<tag_hash> ().insert (std::move (ent));
 
 		// When cache overflown remove the oldest entry
-		if (cache.size () > max_size)
+		if (cache.size () > config_m.max_size)
 		{
 			cache.get<tag_random_access> ().pop_front ();
 		}

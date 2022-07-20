@@ -30,6 +30,12 @@ class election;
 
 class vote_cache final
 {
+public: // Config
+	struct config
+	{
+		std::size_t max_size;
+	};
+
 public:
 	/**
 	 * Class that stores votes associated with a single block hash
@@ -57,7 +63,7 @@ public:
 	};
 
 public:
-	explicit vote_cache (std::size_t max_size);
+	explicit vote_cache (const config &);
 
 	/**
 	 * Adds a new vote to cache
@@ -93,8 +99,6 @@ public:
 private:
 	void vote_impl (nano::block_hash const & hash, nano::account const & representative, uint64_t const & timestamp, nano::uint128_t const & rep_weight);
 
-	std::size_t max_size = 1024 * 128;
-
 	// clang-format off
 	class tag_random_access {};
 	class tag_tally {};
@@ -113,5 +117,7 @@ private:
 	ordered_cache cache;
 
 	mutable nano::mutex mutex;
+
+	const config config_m;
 };
 }

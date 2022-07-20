@@ -84,8 +84,10 @@ public:
 };
 
 std::unique_ptr<container_info_component> collect_container_info (block_arrival & block_arrival, std::string const & name);
-
 std::unique_ptr<container_info_component> collect_container_info (rep_crawler & rep_crawler, std::string const & name);
+
+// Configs
+vote_cache::config make_vote_cache_config (const node_config & config, const node_flags & flags);
 
 class node final : public std::enable_shared_from_this<nano::node>
 {
