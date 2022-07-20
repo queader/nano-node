@@ -33,11 +33,13 @@ namespace filesystem
 namespace nano
 {
 class tomlconfig;
+
 class logging final
 {
 public:
 	nano::error serialize_toml (nano::tomlconfig &) const;
 	nano::error deserialize_toml (nano::tomlconfig &);
+
 	bool ledger_logging () const;
 	bool ledger_duplicate_logging () const;
 	bool ledger_rollback_logging () const;
@@ -66,6 +68,7 @@ public:
 	bool election_result_logging () const;
 	bool log_to_cerr () const;
 	bool single_line_record () const;
+
 	void init (boost::filesystem::path const &);
 
 	bool ledger_logging_value{ false };

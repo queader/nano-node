@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nano/lib/logger.hpp>
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -17,7 +19,7 @@ public:
 	class builder final
 	{
 	public:
-		explicit builder (structured_logger &, std::string_view level);
+		explicit builder (structured_logger &, nano::severity_level severity);
 
 		void flush ();
 
@@ -34,6 +36,7 @@ public:
 		[[nodiscard]] builder & vote (nano::vote &);
 
 	private:
+		nano::severity_level severity;
 		std::stringstream stream;
 
 		structured_logger & logger;
@@ -42,13 +45,18 @@ public:
 	friend class builder;
 
 public:
-	explicit structured_logger (nano::node &, std::string_view name);
+	explicit structured_logger (nano::node &, std::string name);
+	explicit structured_logger (structured_logger & parent, std::string name);
 
+	[[nodiscard]] builder trace ();
 	[[nodiscard]] builder debug ();
+	[[nodiscard]] builder info ();
+	[[nodiscard]] builder warning ();
+	[[nodiscard]] builder error ();
 
 public:
 private:
-	std::string_view name;
+	std::string name;
 
 	nano::logger_mt & raw_logger;
 };

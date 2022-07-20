@@ -19,6 +19,7 @@ std::size_t constexpr nano::active_transactions::max_active_elections_frontier_i
 constexpr std::chrono::minutes nano::active_transactions::expired_optimistic_election_info_cutoff;
 
 nano::active_transactions::active_transactions (nano::node & node_a, nano::confirmation_height_processor & confirmation_height_processor_a) :
+	slogger{ node_a, "active_transactions" },
 	scheduler{ node_a.scheduler }, // Move dependencies requiring this circular reference
 	confirmation_height_processor{ confirmation_height_processor_a },
 	node{ node_a },
@@ -342,10 +343,13 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 	final_generator_session.flush ();
 	lock_a.lock ();
 
-	if (node.config.logging.timing_logging ())
-	{
-		node.logger.try_log (boost::str (boost::format ("Processed %1% elections (%2% were already confirmed) in %3% %4%") % this_loop_target_l % (this_loop_target_l - unconfirmed_count_l) % elapsed.value ().count () % elapsed.unit ()));
-	}
+	slogger.debug ()
+	.msg ("Processed elections")
+	.tag ("processed-elections-timing")
+	.log ("target", this_loop_target_l)
+	.log ("already-confirmed", (this_loop_target_l - unconfirmed_count_l))
+	.log ("elapsed-millis", elapsed.value ().count ())
+	.flush ();
 }
 
 void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election> election)
@@ -402,10 +406,13 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	}
 
 	node.stats.inc (nano::stat::type::election, election->confirmed () ? nano::stat::detail::election_confirmed : nano::stat::detail::election_not_confirmed);
-	if (node.config.logging.election_result_logging ())
-	{
-		node.logger.try_log (boost::str (boost::format ("Election erased for root %1%, confirmed: %2$b") % election->qualified_root.to_string () % election->confirmed ()));
-	}
+
+	slogger.debug ()
+	.msg ("Cleaning up election")
+	.tag ("cleanup-election")
+	.log ("root", election->qualified_root)
+	.log ("confirmed", election->confirmed ())
+	.flush ();
 }
 
 std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_active (std::size_t max_a)

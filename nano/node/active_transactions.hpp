@@ -4,6 +4,7 @@
 #include <nano/node/election.hpp>
 #include <nano/node/inactive_cache_information.hpp>
 #include <nano/node/inactive_cache_status.hpp>
+#include <nano/node/structured_logger.hpp>
 #include <nano/node/voting.hpp>
 #include <nano/secure/common.hpp>
 
@@ -83,6 +84,8 @@ public:
 // Holds all active blocks i.e. recently added blocks that need confirmation
 class active_transactions final
 {
+	nano::structured_logger slogger;
+
 	class conflict_info final
 	{
 	public:

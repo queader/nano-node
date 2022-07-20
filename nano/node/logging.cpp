@@ -18,6 +18,11 @@
 #include <boost/log/sinks/syslog_backend.hpp>
 #endif
 
+namespace logging = boost::log;
+namespace expr = boost::log::expressions;
+namespace sinks = boost::log::sinks;
+namespace keywords = boost::log::keywords;
+
 BOOST_LOG_ATTRIBUTE_KEYWORD (severity, "Severity", nano::severity_level)
 
 boost::shared_ptr<boost::log::sinks::synchronous_sink<boost::log::sinks::text_file_backend>> nano::logging::file_sink;
@@ -28,13 +33,27 @@ void nano::logging::init (boost::filesystem::path const & application_path_a)
 	if (!logging_already_added.test_and_set ())
 	{
 		boost::log::add_common_attributes ();
-		auto format = boost::log::expressions::stream << boost::log::expressions::attr<severity_level, severity_tag> ("Severity") << boost::log::expressions::smessage;
-		auto format_with_timestamp = boost::log::expressions::stream << "[" << boost::log::expressions::attr<boost::posix_time::ptime> ("TimeStamp") << "]: " << boost::log::expressions::attr<severity_level, severity_tag> ("Severity") << boost::log::expressions::smessage;
 
-		if (log_to_cerr ())
-		{
-			boost::log::add_console_log (std::cerr, boost::log::keywords::format = format_with_timestamp);
-		}
+		auto format = boost::log::expressions::stream
+		<< boost::log::expressions::attr<severity_level, severity_tag> ("Severity")
+		<< boost::log::expressions::smessage;
+
+		auto format_with_timestamp = boost::log::expressions::stream
+		<< "[" << boost::log::expressions::attr<boost::posix_time::ptime> ("TimeStamp") << "]: "
+		<< "[" << boost::log::expressions::attr<severity_level, severity_tag> ("Severity") << "] "
+		<< boost::log::expressions::smessage;
+
+		auto format_to_console = boost::log::expressions::stream
+		<< "[" << boost::log::expressions::attr<boost::posix_time::ptime> ("TimeStamp") << "] "
+		<< "[" << std::left << std::setw (5) << std::setfill (' ') << boost::log::expressions::attr<severity_level, severity_tag> ("Severity") << "]: "
+		<< boost::log::expressions::smessage;
+
+		//		if (log_to_cerr ())
+		//		{
+		//			boost::log::add_console_log (std::cerr, boost::log::keywords::format = format_with_timestamp);
+		//		}
+
+		boost::log::add_console_log (std::cout, boost::log::keywords::format = format_to_console);
 
 #ifdef BOOST_WINDOWS
 		if (nano::event_log_reg_entry_exists () || nano::is_windows_elevated ())

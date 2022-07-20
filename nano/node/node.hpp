@@ -21,6 +21,7 @@
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/signatures.hpp>
+#include <nano/node/structured_logger.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_processor.hpp>
@@ -162,6 +163,7 @@ public:
 	nano::node_config config;
 	nano::network_params & network_params;
 	nano::stat stats;
+	nano::structured_logger slogger;
 	nano::thread_pool workers;
 	std::shared_ptr<nano::websocket::listener> websocket_server;
 	nano::node_flags flags;
