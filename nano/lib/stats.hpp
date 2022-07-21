@@ -295,6 +295,7 @@ public:
 		initiate_legacy_age,
 		initiate_lazy,
 		initiate_wallet_lazy,
+		initiate_ascending,
 
 		// bootstrap specific
 		bulk_pull,
