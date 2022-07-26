@@ -16,6 +16,7 @@ class confirmation_solicitor;
 class inactive_cache_information;
 class node;
 class vote_generator_session;
+
 class vote_info final
 {
 public:
@@ -23,6 +24,7 @@ public:
 	uint64_t timestamp;
 	nano::block_hash hash;
 };
+
 class vote_with_weight_info final
 {
 public:
@@ -32,6 +34,7 @@ public:
 	nano::block_hash hash;
 	nano::uint128_t weight;
 };
+
 class election_vote_result final
 {
 public:
@@ -40,17 +43,23 @@ public:
 	bool replay{ false };
 	bool processed{ false };
 };
+
 enum class election_behavior
 {
 	normal,
 	hinted
 };
+
+// map of vote weight per block, ordered greater first
+using tally_t = std::map<nano::uint128_t, std::shared_ptr<nano::block>, std::greater<nano::uint128_t>>;
+
 struct election_extended_status final
 {
 	nano::election_status status;
 	std::unordered_map<nano::account, nano::vote_info> votes;
 	nano::tally_t tally;
 };
+
 class election final : public std::enable_shared_from_this<nano::election>
 {
 public:
