@@ -54,6 +54,7 @@ public:
 
 private:
 	void process_loop ();
+	bool should_process_locked (nano::account representative) const;
 
 private: // Dependencies
 	nano::signature_checker & checker;
