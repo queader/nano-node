@@ -126,8 +126,6 @@ public: // Interface
 	 */
 	nano::election_vote_result vote (nano::account const & representative, uint64_t timestamp, nano::block_hash const & block_hash, vote_source = vote_source::live);
 	bool publish (std::shared_ptr<nano::block> const & block_a);
-	// Confirm this block if quorum is met
-	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
 
 public: // Information
 	uint64_t const height;
@@ -137,6 +135,8 @@ public: // Information
 
 private:
 	nano::tally_t tally_impl () const;
+	// Confirm this block if quorum is met
+	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
 	// lock_a does not own the mutex on return
 	void confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano::election_status_type = nano::election_status_type::active_confirmed_quorum);
 	void broadcast_block (nano::confirmation_solicitor &);
