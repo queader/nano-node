@@ -84,9 +84,11 @@ private: // State management
 		expired_confirmed,
 		expired_unconfirmed
 	};
+
 	static unsigned constexpr passive_duration_factor = 5;
 	static unsigned constexpr active_request_count_min = 2;
 	static unsigned constexpr confirmed_duration_factor = 5;
+
 	std::atomic<nano::election::state_t> state_m = { state_t::passive };
 
 	static_assert (std::is_trivial<std::chrono::steady_clock::duration> ());
@@ -144,6 +146,9 @@ private:
 	void remove_votes (nano::block_hash const &);
 	void remove_block (nano::block_hash const &);
 	bool replace_by_weight (nano::unique_lock<nano::mutex> & lock_a, nano::block_hash const &);
+	/*
+	 * Calculates time duration after which election will expire
+	 */
 	std::chrono::milliseconds time_to_live () const;
 	/*
 	 * Calculates minimum time delay between subsequent votes when processing non-final votes
