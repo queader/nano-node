@@ -75,7 +75,13 @@ void nano::vote_processor::process_loop ()
 				log_this_iteration = true;
 				elapsed.restart ();
 			}
-			verify_votes (votes_l);
+
+			auto verified = verify_votes (votes_l);
+			for (auto const & entry : verified)
+			{
+				vote_blocking (entry.vote, entry.channel, true);
+			}
+
 			total_processed += votes_l.size ();
 
 			if (log_this_iteration && elapsed.stop () > std::chrono::milliseconds (100))
@@ -127,7 +133,7 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 	if (!stopped)
 	{
 		process = should_process_locked (vote_a->account);
-		
+
 		if (process)
 		{
 			votes.push_back ({ vote_a, channel_a });
@@ -143,7 +149,7 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 	return !process;
 }
 
-void nano::vote_processor::verify_votes (std::deque<entry> const & entries)
+std::vector<nano::vote_processor::entry> nano::vote_processor::verify_votes (std::deque<entry> const & entries) const
 {
 	auto size = entries.size ();
 	std::vector<unsigned char const *> messages;
@@ -169,16 +175,22 @@ void nano::vote_processor::verify_votes (std::deque<entry> const & entries)
 	nano::signature_check_set check = { size, messages.data (), lengths.data (), pub_keys.data (), signatures.data (), verifications.data () };
 	checker.verify (check);
 
+	std::vector<entry> result;
+	result.reserve (size);
+
 	auto i = 0;
 	for (auto const & entry : entries)
 	{
 		debug_assert (verifications[i] == 1 || verifications[i] == 0);
 		if (verifications[i] == 1)
 		{
-			vote_blocking (entry.vote, entry.channel, true);
+			// Vote is verified
+			result.push_back (entry);
 		}
 		++i;
 	}
+
+	return result;
 }
 
 nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, bool validated)

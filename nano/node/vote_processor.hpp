@@ -59,7 +59,7 @@ public:
 private:
 	void process_loop ();
 
-	void verify_votes (std::deque<entry> const &);
+	std::vector<entry> verify_votes (std::deque<entry> const &) const;
 	bool should_process_locked (nano::account representative) const;
 
 private:
