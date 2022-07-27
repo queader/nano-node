@@ -91,33 +91,40 @@ void nano::vote_processor::process_loop ()
 	}
 }
 
+bool nano::vote_processor::should_process_locked (nano::account representative) const
+{
+	const auto size = votes.size ();
+	// Level 0 (< 0.1%)
+	if (size < 6.0 / 9.0 * max_votes)
+	{
+		return true;
+	}
+	// Level 1 (0.1-1%)
+	if (size < 7.0 / 9.0 * max_votes)
+	{
+		return (representatives_1.find (representative) != representatives_1.end ());
+	}
+	// Level 2 (1-5%)
+	if (size < 8.0 / 9.0 * max_votes)
+	{
+		return (representatives_2.find (representative) != representatives_2.end ());
+	}
+	// Level 3 (> 5%)
+	if (size < max_votes)
+	{
+		return (representatives_3.find (representative) != representatives_3.end ());
+	}
+	return false;
+}
+
 bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a)
 {
 	debug_assert (channel_a != nullptr);
-	bool process (false);
+	bool process = false;
 	nano::unique_lock<nano::mutex> lock (mutex);
 	if (!stopped)
 	{
-		// Level 0 (< 0.1%)
-		if (votes.size () < 6.0 / 9.0 * max_votes)
-		{
-			process = true;
-		}
-		// Level 1 (0.1-1%)
-		else if (votes.size () < 7.0 / 9.0 * max_votes)
-		{
-			process = (representatives_1.find (vote_a->account) != representatives_1.end ());
-		}
-		// Level 2 (1-5%)
-		else if (votes.size () < 8.0 / 9.0 * max_votes)
-		{
-			process = (representatives_2.find (vote_a->account) != representatives_2.end ());
-		}
-		// Level 3 (> 5%)
-		else if (votes.size () < max_votes)
-		{
-			process = (representatives_3.find (vote_a->account) != representatives_3.end ());
-		}
+		process = should_process_locked (vote_a->account);
 		if (process)
 		{
 			votes.emplace_back (vote_a, channel_a);

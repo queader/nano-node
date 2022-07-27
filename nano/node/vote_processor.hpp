@@ -54,6 +54,8 @@ public:
 private:
 	void process_loop ();
 
+	bool should_process_locked (nano::account representative) const;
+
 private:
 	std::size_t const max_votes;
 
