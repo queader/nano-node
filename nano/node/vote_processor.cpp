@@ -133,7 +133,7 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 	return !process;
 }
 
-void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
+void nano::vote_processor::verify_votes (std::deque<entry_t> const & votes_a)
 {
 	auto size (votes_a.size ());
 	std::vector<unsigned char const *> messages;
