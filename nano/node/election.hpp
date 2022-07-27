@@ -105,9 +105,6 @@ public: // Status
 	nano::tally_t tally () const;
 	bool have_quorum (nano::tally_t const &) const;
 
-	// Guarded by mutex
-	nano::election_status status;
-
 public: // Interface
 	election (nano::node &, std::shared_ptr<nano::block> const & block, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action, std::function<void (nano::account const &)> const & vote_action, nano::election_behavior behavior);
 
@@ -145,6 +142,7 @@ private:
 	std::chrono::seconds cooldown_time (nano::uint128_t weight) const;
 
 private:
+	nano::election_status status;
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> last_blocks;
 	std::unordered_map<nano::account, nano::vote_info> last_votes;
 	std::atomic<bool> is_quorum{ false };
@@ -154,13 +152,15 @@ private:
 	nano::election_behavior const behavior{ nano::election_behavior::normal };
 	std::chrono::steady_clock::time_point const election_start = { std::chrono::steady_clock::now () };
 
-	nano::node & node;
 	mutable nano::mutex mutex;
 
 	static std::size_t constexpr max_blocks{ 10 };
 
 	friend class active_transactions;
 	friend class confirmation_solicitor;
+
+private: // Dependencies
+	nano::node & node;
 
 public: // Only used in tests
 	void force_confirm (nano::election_status_type = nano::election_status_type::active_confirmed_quorum);
