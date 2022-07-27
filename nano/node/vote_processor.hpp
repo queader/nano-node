@@ -60,6 +60,7 @@ private:
 	void process_loop ();
 
 	void verify_votes (std::deque<entry> const &);
+	bool should_process_locked (nano::account representative) const;
 
 private:
 	std::size_t const max_votes;
