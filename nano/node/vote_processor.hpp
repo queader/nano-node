@@ -42,7 +42,7 @@ public:
 	nano::vote_code vote_blocking (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &, bool = false);
 	void verify_votes (std::deque<std::pair<std::shared_ptr<nano::vote>, std::shared_ptr<nano::transport::channel>>> const &);
 	/** Function blocks until either the current queue size (a established flush boundary as it'll continue to increase)
-	  * is processed or the queue is empty (end condition or cutoff's guard, as it is positioned ahead) */
+	 * is processed or the queue is empty (end condition or cutoff's guard, as it is positioned ahead) */
 	void flush ();
 	std::size_t size ();
 	bool empty ();
@@ -54,16 +54,7 @@ public:
 private:
 	void process_loop ();
 
-	nano::signature_checker & checker;
-	nano::active_transactions & active;
-	nano::node_observers & observers;
-	nano::stat & stats;
-	nano::node_config & config;
-	nano::logger_mt & logger;
-	nano::online_reps & online_reps;
-	nano::rep_crawler & rep_crawler;
-	nano::ledger & ledger;
-	nano::network_params & network_params;
+private:
 	std::size_t const max_votes;
 	std::deque<std::pair<std::shared_ptr<nano::vote>, std::shared_ptr<nano::transport::channel>>> votes;
 	/** Representatives levels for random early detection */
@@ -75,6 +66,18 @@ private:
 	bool started;
 	bool stopped;
 	std::thread thread;
+
+private: // Dependencies
+	nano::signature_checker & checker;
+	nano::active_transactions & active;
+	nano::node_observers & observers;
+	nano::stat & stats;
+	nano::node_config & config;
+	nano::logger_mt & logger;
+	nano::online_reps & online_reps;
+	nano::rep_crawler & rep_crawler;
+	nano::ledger & ledger;
+	nano::network_params & network_params;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (vote_processor & vote_processor, std::string const & name);
 	friend class vote_processor_weights_Test;
