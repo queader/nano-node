@@ -120,7 +120,7 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 		}
 		if (process)
 		{
-			votes.emplace_back (vote_a, channel_a);
+			votes.push_back ({ vote_a, channel_a });
 			lock.unlock ();
 			condition.notify_all ();
 			// Lock no longer required
@@ -133,9 +133,9 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 	return !process;
 }
 
-void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
+void nano::vote_processor::verify_votes (std::deque<entry> const & entries)
 {
-	auto size (votes_a.size ());
+	auto size = entries.size ();
 	std::vector<unsigned char const *> messages;
 	messages.reserve (size);
 	std::vector<nano::block_hash> hashes;
@@ -147,22 +147,25 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 	signatures.reserve (size);
 	std::vector<int> verifications;
 	verifications.resize (size);
-	for (auto const & vote : votes_a)
+
+	for (auto const & entry : entries)
 	{
-		hashes.push_back (vote.first->hash ());
+		hashes.push_back (entry.vote->hash ());
 		messages.push_back (hashes.back ().bytes.data ());
-		pub_keys.push_back (vote.first->account.bytes.data ());
-		signatures.push_back (vote.first->signature.bytes.data ());
+		pub_keys.push_back (entry.vote->account.bytes.data ());
+		signatures.push_back (entry.vote->signature.bytes.data ());
 	}
+
 	nano::signature_check_set check = { size, messages.data (), lengths.data (), pub_keys.data (), signatures.data (), verifications.data () };
 	checker.verify (check);
-	auto i (0);
-	for (auto const & vote : votes_a)
+
+	auto i = 0;
+	for (auto const & entry : entries)
 	{
 		debug_assert (verifications[i] == 1 || verifications[i] == 0);
 		if (verifications[i] == 1)
 		{
-			vote_blocking (vote.first, vote.second, true);
+			vote_blocking (entry.vote, entry.channel, true);
 		}
 		++i;
 	}
