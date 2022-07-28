@@ -88,7 +88,7 @@ void nano::vote_processor::process_loop ()
 		}
 
 		// This verifies and processes votes
-		verify_votes (batch);
+		process_batch (batch);
 
 		total_processed += batch.size ();
 
@@ -161,7 +161,7 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 	return !process;
 }
 
-void nano::vote_processor::verify_votes (std::deque<entry_t> const & votes_a)
+void nano::vote_processor::process_batch (std::deque<entry_t> const & votes_a)
 {
 	auto size (votes_a.size ());
 	std::vector<unsigned char const *> messages;

@@ -42,7 +42,6 @@ public:
 	/** Returns false if the vote was processed */
 	bool vote (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &);
 	nano::vote_code vote_blocking (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &, bool verified = false);
-	void verify_votes (std::deque<entry_t> const &);
 	/** Function blocks until either the current queue size (a established flush boundary as it'll continue to increase)
 	 * is processed or the queue is empty (end condition or cutoff's guard, as it is positioned ahead) */
 	void flush ();
@@ -57,6 +56,10 @@ private:
 	void start_threads ();
 	void process_loop ();
 	std::deque<entry_t> get_batch ();
+	/*
+	 * Verifies and processes a batch of votes
+	 */
+	void process_batch (std::deque<entry_t> const &);
 
 	bool should_process_locked (nano::account representative) const;
 
@@ -88,6 +91,8 @@ private: // Dependencies
 	nano::network_params & network_params;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (vote_processor & vote_processor, std::string const & name);
+
+private: // Tests
 	friend class vote_processor_weights_Test;
 };
 
