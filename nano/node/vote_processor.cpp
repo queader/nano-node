@@ -30,65 +30,86 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 	ledger (ledger_a),
 	network_params (network_params_a),
 	max_votes (flags_a.vote_processor_capacity),
-	started (false),
-	stopped (false),
-	thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::vote_processing);
-		process_loop ();
-		nano::unique_lock<nano::mutex> lock (mutex);
-		votes.clear ();
-		condition.notify_all ();
-	})
+	stopped (false)
 {
-	nano::unique_lock<nano::mutex> lock (mutex);
-	condition.wait (lock, [&started = started] { return started; });
+	start_threads ();
+}
+
+nano::vote_processor::~vote_processor ()
+{
+	stop ();
+}
+
+void nano::vote_processor::start_threads ()
+{
+	// TODO: Add config option for vote processor threads
+	for (std::size_t i = 0; i < config.io_threads; ++i)
+	{
+		processing_threads.emplace_back ([this] () {
+			nano::thread_role::set (nano::thread_role::name::vote_processing);
+			process_loop ();
+		});
+	}
+}
+
+void nano::vote_processor::stop ()
+{
+	if (!stopped.exchange (true))
+	{
+		condition.notify_all ();
+		for (auto & thread : processing_threads)
+		{
+			thread.join ();
+		}
+		{
+			nano::unique_lock<nano::mutex> lock{ mutex };
+			votes.clear ();
+		}
+	}
 }
 
 void nano::vote_processor::process_loop ()
 {
 	nano::timer<std::chrono::milliseconds> elapsed;
-	bool log_this_iteration;
-
-	nano::unique_lock<nano::mutex> lock (mutex);
-	started = true;
-
-	lock.unlock ();
-	condition.notify_all ();
-	lock.lock ();
 
 	while (!stopped)
 	{
-		if (!votes.empty ())
+		auto batch = get_batch ();
+
+		bool log_this_iteration = false;
+		if (config.logging.network_logging () && batch.size () > 50)
 		{
-			decltype (votes) votes_l;
-			votes_l.swap (votes);
-			lock.unlock ();
-			condition.notify_all ();
-
-			log_this_iteration = false;
-			if (config.logging.network_logging () && votes_l.size () > 50)
-			{
-				/*
-				 * Only log the timing information for this iteration if
-				 * there are a sufficient number of items for it to be relevant
-				 */
-				log_this_iteration = true;
-				elapsed.restart ();
-			}
-			verify_votes (votes_l);
-			total_processed += votes_l.size ();
-
-			if (log_this_iteration && elapsed.stop () > std::chrono::milliseconds (100))
-			{
-				logger.try_log (boost::str (boost::format ("Processed %1% votes in %2% milliseconds (rate of %3% votes per second)") % votes_l.size () % elapsed.value ().count () % ((votes_l.size () * 1000ULL) / elapsed.value ().count ())));
-			}
-			lock.lock ();
+			/*
+			 * Only log the timing information for this iteration if
+			 * there are a sufficient number of items for it to be relevant
+			 */
+			log_this_iteration = true;
+			elapsed.restart ();
 		}
-		else
+
+		// This verifies and processes votes
+		verify_votes (batch);
+
+		total_processed += batch.size ();
+
+		if (log_this_iteration && elapsed.stop () > std::chrono::milliseconds (100))
 		{
-			condition.wait (lock);
+			const auto rate = (batch.size () * 1000ULL) / elapsed.value ().count ();
+			logger.try_log (boost::str (boost::format ("Processed %1% votes in %2% milliseconds (rate of %3% votes per second)") % batch.size () % elapsed.value ().count () % rate));
 		}
 	}
+}
+
+std::deque<nano::vote_processor::entry_t> nano::vote_processor::get_batch ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	condition.wait (lock, [this] () {
+		return !votes.empty () || stopped;
+	});
+	decltype (votes) votes_l;
+	votes_l.swap (votes);
+	lock.unlock ();
+	return votes_l;
 }
 
 bool nano::vote_processor::should_process_locked (nano::account representative) const
@@ -208,19 +229,6 @@ nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote>
 		logger.try_log (boost::str (boost::format ("Vote from: %1% timestamp: %2% duration %3%ms block(s): %4% status: %5%") % vote_a->account.to_account () % std::to_string (vote_a->timestamp ()) % std::to_string (vote_a->duration ().count ()) % vote_a->hashes_string () % status));
 	}
 	return result;
-}
-
-void nano::vote_processor::stop ()
-{
-	{
-		nano::lock_guard<nano::mutex> lock (mutex);
-		stopped = true;
-	}
-	condition.notify_all ();
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
 }
 
 void nano::vote_processor::flush ()
