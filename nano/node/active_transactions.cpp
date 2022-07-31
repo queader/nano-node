@@ -47,12 +47,10 @@ nano::active_transactions::~active_transactions ()
 
 void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::block> const & block_a)
 {
-	auto transaction = node.store.tx_begin_read ();
-
 	boost::optional<nano::election_status_type> election_status_type;
 	if (!confirmation_height_processor.is_processing_added_block (block_a->hash ()))
 	{
-		election_status_type = confirm_block (transaction, block_a);
+		election_status_type = confirm_by_confirmation_height (block_a);
 	}
 	else
 	{
@@ -60,8 +58,12 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 		election_status_type = nano::election_status_type::active_confirmed_quorum;
 	}
 
+	// TODO: What does the case when `election_status_type` is not initialized mean?
+
 	if (election_status_type.is_initialized ())
 	{
+		auto transaction = node.store.tx_begin_read ();
+
 		if (election_status_type == nano::election_status_type::inactive_confirmation_height)
 		{
 			nano::account account{};
@@ -82,9 +84,7 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 
 				if (election->confirmed () && election->winner ()->hash () == hash)
 				{
-					nano::unique_lock<nano::mutex> election_lk (election->mutex);
-					auto status_l = election->status;
-					election_lk.unlock ();
+					auto status_l = election->status ();
 					add_recently_cemented (status_l);
 					auto destination (block_a->link ().is_zero () ? block_a->destination () : block_a->link ().as_account ());
 					node.receive_confirmed (transaction, hash, destination);
@@ -94,11 +94,6 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 					bool is_state_epoch (false);
 					nano::account pending_account{};
 					node.process_confirmed_data (transaction, block_a, hash, account, amount, is_state_send, is_state_epoch, pending_account);
-					election_lk.lock ();
-					election->status.type = *election_status_type;
-					election->status.confirmation_request_count = election->confirmation_request_count;
-					status_l = election->status;
-					election_lk.unlock ();
 					auto votes (election->votes_with_weight ());
 					node.observers.blocks.notify (status_l, votes, account, amount, is_state_send, is_state_epoch);
 					if (amount > 0)
@@ -624,7 +619,7 @@ bool nano::active_transactions::publish (std::shared_ptr<nano::block> const & bl
 }
 
 // Returns the type of election status requiring callbacks calling later
-boost::optional<nano::election_status_type> nano::active_transactions::confirm_block (nano::transaction const & transaction_a, std::shared_ptr<nano::block> const & block_a)
+boost::optional<nano::election_status_type> nano::active_transactions::confirm_by_confirmation_height (std::shared_ptr<nano::block> const & block_a)
 {
 	auto hash (block_a->hash ());
 	nano::unique_lock<nano::mutex> lock (mutex);
@@ -633,14 +628,13 @@ boost::optional<nano::election_status_type> nano::active_transactions::confirm_b
 	if (existing != blocks.end ())
 	{
 		lock.unlock ();
-		nano::unique_lock<nano::mutex> election_lock (existing->second->mutex);
-		if (existing->second->status.winner && existing->second->status.winner->hash () == hash)
+
+		const auto status = existing->second->status ();
+		if (status.winner && status.winner->hash () == hash)
 		{
-			election_lock.unlock();
 			if (!existing->second->confirmed ())
 			{
-				election_lock.lock();
-				existing->second->confirm_once (election_lock, nano::election_status_type::active_confirmation_height);
+				existing->second->confirm_by_confirmation_height (block_a);
 				status_type = nano::election_status_type::active_confirmation_height;
 			}
 			else

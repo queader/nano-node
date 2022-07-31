@@ -109,7 +109,6 @@ public:
 	std::size_t size ();
 	void stop ();
 	bool publish (std::shared_ptr<nano::block> const &);
-	boost::optional<nano::election_status_type> confirm_block (nano::transaction const &, std::shared_ptr<nano::block> const &);
 
 	int64_t vacancy () const;
 	std::function<void ()> vacancy_update{ [] () {} };
@@ -162,6 +161,8 @@ private:
 
 	void block_cemented_callback (std::shared_ptr<nano::block> const &);
 	void block_already_cemented_callback (nano::block_hash const &);
+
+	boost::optional<nano::election_status_type> confirm_by_confirmation_height (std::shared_ptr<nano::block> const &);
 
 private: // Internal containers
 	// clang-format off
@@ -226,7 +227,6 @@ private:
 
 	boost::thread thread;
 
-	friend class election;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
 	friend bool purge_singleton_inactive_votes_cache_pool_memory ();
 

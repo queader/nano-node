@@ -726,7 +726,7 @@ TEST (active_transactions, republish_winner)
 	node1.vote_processor.flush ();
 	node1.block_processor.flush ();
 	ASSERT_TIMELY (3s, election->confirmed ());
-	ASSERT_EQ (fork->hash (), election->status.winner->hash ());
+	ASSERT_EQ (fork->hash (), election->status ().winner->hash ());
 	ASSERT_TIMELY (3s, node2.block_confirmed (fork->hash ()));
 }
 
@@ -1195,8 +1195,8 @@ TEST (active_transactions, activate_inactive)
 	election->force_confirm ();
 
 	ASSERT_TIMELY (3s, !node.confirmation_height_processor.is_processing_added_block (send2->hash ()));
-	ASSERT_TRUE (node.block_confirmed (send2->hash ()));
-	ASSERT_TRUE (node.block_confirmed (send->hash ()));
+	ASSERT_TIMELY (3s, node.block_confirmed (send2->hash ()));
+	ASSERT_TIMELY (3s, node.block_confirmed (send->hash ()));
 
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::confirmation_observer, nano::stat::detail::inactive_conf_height, nano::stat::dir::out));
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::confirmation_observer, nano::stat::detail::active_quorum, nano::stat::dir::out));

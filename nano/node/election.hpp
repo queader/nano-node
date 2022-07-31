@@ -116,8 +116,7 @@ public: // Status
 	void log_votes (nano::tally_t const &, std::string const & = "") const;
 	nano::tally_t tally () const;
 
-	// Guarded by mutex
-	nano::election_status status;
+	nano::election_status status () const;
 
 public: // Interface
 	election (nano::node &, std::shared_ptr<nano::block> const & block, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action, std::function<void (nano::account const &)> const & vote_action, nano::election_behavior behavior);
@@ -133,6 +132,10 @@ public: // Interface
 	 * Requests vote generation from vote generator for current election winner hash
 	 */
 	void generate_votes () const;
+	/*
+	 * Confirms this election without reaching quorum when confirmation height processor already cemented our block
+	 */
+	void confirm_by_confirmation_height (std::shared_ptr<nano::block> const & block);
 
 public: // Information
 	uint64_t const height;
@@ -172,14 +175,14 @@ private:
 
 	std::chrono::steady_clock::time_point const election_start = { std::chrono::steady_clock::now () };
 
+	nano::election_status status_m;
+
 	mutable nano::mutex mutex;
 
 	static std::size_t constexpr max_blocks{ 10 };
 
 private: // Dependencies
 	nano::node & node;
-
-	friend class active_transactions;
 
 public: // Tests
 	void force_confirm (nano::election_status_type = nano::election_status_type::active_confirmed_quorum);
