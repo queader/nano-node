@@ -39,12 +39,12 @@ nano::election::election (nano::node & node_a, std::shared_ptr<nano::block> cons
 void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano::election_status_type type_a)
 {
 	debug_assert (lock_a.owns_lock ());
-	// This must be kept above the setting of election state, as dependent confirmed elections require up to date changes to election_winner_details
-	nano::unique_lock<nano::mutex> election_winners_lk (node.active.election_winner_details_mutex);
-	if (state_m.exchange (nano::election::state_t::confirmed) != nano::election::state_t::confirmed && (node.active.election_winner_details.count (status.winner->hash ()) == 0))
+
+	// TODO: Do not allow dependent elections to proceed before having parent confirmed
+	if (state_m.exchange (nano::election::state_t::confirmed) != nano::election::state_t::confirmed)
 	{
-		node.active.election_winner_details.emplace (status.winner->hash (), shared_from_this ());
-		election_winners_lk.unlock ();
+		node.active.winners.put (status.winner->hash (), shared_from_this());
+
 		status.election_end = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ());
 		status.election_duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
 		status.confirmation_request_count = confirmation_request_count;

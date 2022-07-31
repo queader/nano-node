@@ -74,14 +74,12 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 		}
 		else
 		{
-			auto hash (block_a->hash ());
-			nano::unique_lock<nano::mutex> election_winners_lk (election_winner_details_mutex);
-			auto existing (election_winner_details.find (hash));
-			if (existing != election_winner_details.end ())
+			auto hash = block_a->hash ();
+			if (auto maybe_existing = winners.erase (hash); maybe_existing)
 			{
-				auto election = existing->second;
-				election_winner_details.erase (hash);
-				election_winners_lk.unlock ();
+				auto election = *maybe_existing;
+				debug_assert (election != nullptr);
+				
 				if (election->confirmed () && election->winner ()->hash () == hash)
 				{
 					nano::unique_lock<nano::mutex> election_lk (election->mutex);
@@ -143,25 +141,13 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 	}
 }
 
-void nano::active_transactions::add_election_winner_details (nano::block_hash const & hash_a, std::shared_ptr<nano::election> const & election_a)
-{
-	nano::lock_guard<nano::mutex> guard (election_winner_details_mutex);
-	election_winner_details.emplace (hash_a, election_a);
-}
-
-void nano::active_transactions::remove_election_winner_details (nano::block_hash const & hash_a)
-{
-	nano::lock_guard<nano::mutex> guard (election_winner_details_mutex);
-	election_winner_details.erase (hash_a);
-}
-
 void nano::active_transactions::block_already_cemented_callback (nano::block_hash const & hash_a)
 {
 	// Depending on timing there is a situation where the election_winner_details is not reset.
 	// This can happen when a block wins an election, and the block is confirmed + observer
 	// called before the block hash gets added to election_winner_details. If the block is confirmed
 	// callbacks have already been done, so we can safely just remove it.
-	remove_election_winner_details (hash_a);
+	winners.erase (hash_a);
 }
 
 int64_t nano::active_transactions::vacancy () const
@@ -652,8 +638,7 @@ boost::optional<nano::election_status_type> nano::active_transactions::confirm_b
 			else
 			{
 #ifndef NDEBUG
-				nano::unique_lock<nano::mutex> election_winners_lk (election_winner_details_mutex);
-				debug_assert (election_winner_details.find (hash) != election_winner_details.cend ());
+				debug_assert (winners.exists (hash));
 #endif
 				status_type = nano::election_status_type::active_confirmed_quorum;
 			}
@@ -863,12 +848,6 @@ bool nano::purge_singleton_inactive_votes_cache_pool_memory ()
 	return boost::singleton_pool<boost::fast_pool_allocator_tag, sizeof (nano::active_transactions::ordered_cache::node_type)>::purge_memory ();
 }
 
-std::size_t nano::active_transactions::election_winner_details_size ()
-{
-	nano::lock_guard<nano::mutex> guard (election_winner_details_mutex);
-	return election_winner_details.size ();
-}
-
 std::unique_ptr<nano::container_info_component> nano::collect_container_info (active_transactions & active_transactions, std::string const & name)
 {
 	std::size_t roots_count;
@@ -887,10 +866,46 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "roots", roots_count, sizeof (decltype (active_transactions.roots)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks", blocks_count, sizeof (decltype (active_transactions.blocks)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", active_transactions.election_winner_details_size (), sizeof (decltype (active_transactions.election_winner_details)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", active_transactions.winners.size (), 0 }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "recently_confirmed", recently_confirmed_count, sizeof (decltype (active_transactions.recently_confirmed)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "recently_cemented", recently_cemented_count, sizeof (decltype (active_transactions.recently_cemented)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "inactive_votes_cache", active_transactions.inactive_votes_cache_size (), sizeof (nano::gap_information) }));
 	composite->add_component (collect_container_info (active_transactions.generator, "generator"));
 	return composite;
+}
+
+bool nano::election_winners::put (const nano::block_hash & hash, std::shared_ptr<nano::election> election)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	if (winners.count (hash) == 0)
+	{
+		winners.emplace (hash, election);
+		return true;
+	}
+	return false;
+}
+
+std::optional<std::shared_ptr<nano::election>> nano::election_winners::erase (const nano::block_hash & hash)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	auto existing = winners.find (hash);
+	if (existing != winners.end ())
+	{
+		auto election = existing->second;
+		winners.erase (existing);
+		return election;
+	}
+	return {};
+}
+
+bool nano::election_winners::exists (const nano::block_hash & hash) const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return winners.count (hash) > 0;
+}
+
+std::size_t nano::election_winners::size () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return winners.size ();
 }

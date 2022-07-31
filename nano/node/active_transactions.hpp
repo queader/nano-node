@@ -38,6 +38,32 @@ class transaction;
 class confirmation_height_processor;
 class stat;
 
+/*
+ * Container to match block hashes that won elections with their associated elections
+ */
+class election_winners final
+{
+public:
+	/*
+	 * Atomically checks if winner for hash already exists and if not adds one
+	 * @return true if winner added, false otherwise
+	 */
+	bool put (nano::block_hash const & hash, std::shared_ptr<nano::election> election);
+	/*
+	 * Atomically checks if winner for hash exists and erases it
+	 * @return if winner was present, returns an associated election
+	 */
+	std::optional<std::shared_ptr<nano::election>> erase (nano::block_hash const & hash);
+
+	bool exists (nano::block_hash const & hash) const;
+	std::size_t size () const;
+
+private:
+	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> winners;
+
+	mutable nano::mutex mutex{ mutex_identifier (mutexes::election_winner_details) };
+};
+
 class election_insertion_result final
 {
 public:
@@ -95,12 +121,11 @@ public:
 	nano::inactive_cache_information find_inactive_votes_cache (nano::block_hash const &);
 	void erase_inactive_votes_cache (nano::block_hash const &);
 	std::size_t inactive_votes_cache_size ();
-	std::size_t election_winner_details_size ();
-	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
-	void remove_election_winner_details (nano::block_hash const &);
 
 	nano::vote_generator generator;
 	nano::vote_generator final_generator;
+
+	election_winners winners;
 
 #ifdef MEMORY_POOL_DISABLED
 	using allocator = std::allocator<nano::inactive_cache_information>;
@@ -157,7 +182,6 @@ private: // Internal containers
 	ordered_roots roots;
 
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> blocks;
-	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> election_winner_details;
 	std::deque<nano::election_status> recently_cemented;
 
 	// clang-format off
@@ -196,7 +220,6 @@ private:
 	std::atomic<bool> stopped{ false };
 
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
-	mutable nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };
 
 	boost::thread thread;
 
