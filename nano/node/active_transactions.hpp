@@ -87,18 +87,16 @@ public:
 	void stop ();
 	bool publish (std::shared_ptr<nano::block> const &);
 	boost::optional<nano::election_status_type> confirm_block (nano::transaction const &, std::shared_ptr<nano::block> const &);
-	void block_cemented_callback (std::shared_ptr<nano::block> const &);
-	void block_already_cemented_callback (nano::block_hash const &);
 
 	int64_t vacancy () const;
 	std::function<void ()> vacancy_update{ [] () {} };
 
 	std::deque<nano::election_status> list_recently_cemented ();
-	std::deque<nano::election_status> recently_cemented;
-
 	void add_recently_cemented (nano::election_status const &);
+
 	void add_recently_confirmed (nano::qualified_root const &, nano::block_hash const &);
 	void erase_recently_confirmed (nano::block_hash const &);
+
 	void add_inactive_votes_cache (nano::unique_lock<nano::mutex> &, nano::block_hash const &, nano::account const &, uint64_t const);
 	// Inserts an election if conditions are met
 	void trigger_inactive_votes_cache_election (std::shared_ptr<nano::block> const &);
@@ -124,6 +122,28 @@ private: // Dependencies
 	nano::confirmation_height_processor & confirmation_height_processor;
 
 private:
+	// Call action with confirmed block, may be different than what we started with
+	// clang-format off
+	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const&, nano::election_behavior = nano::election_behavior::normal, std::function<void(std::shared_ptr<nano::block>const&)> const & = nullptr);
+	// clang-format on
+	nano::election_insertion_result insert_hinted (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a);
+	void request_loop ();
+	void request_confirm (nano::unique_lock<nano::mutex> &);
+	void erase (nano::qualified_root const &);
+	// Erase all blocks from active and, if not confirmed, clear digests from network filters
+	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
+	// Returns a list of elections sorted by difficulty, mutex must be locked
+	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
+
+	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, std::vector<std::pair<nano::account, uint64_t>> const &, nano::block_hash const &, nano::inactive_cache_status const &);
+	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, nano::account const &, nano::block_hash const &, nano::inactive_cache_status const &);
+	nano::inactive_cache_status inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::mutex> &, nano::uint128_t const &, std::size_t, nano::block_hash const &, nano::inactive_cache_status const &);
+	nano::inactive_cache_information find_inactive_votes_cache_impl (nano::block_hash const &);
+
+	void block_cemented_callback (std::shared_ptr<nano::block> const &);
+	void block_already_cemented_callback (nano::block_hash const &);
+
+private: // Internal containers
 	// clang-format off
 	class tag_account {};
 	class tag_random_access {};
@@ -146,41 +166,19 @@ private:
 
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> blocks;
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> election_winner_details;
+	std::deque<nano::election_status> recently_cemented;
 
-	// Call action with confirmed block, may be different than what we started with
 	// clang-format off
-	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const&, nano::election_behavior = nano::election_behavior::normal, std::function<void(std::shared_ptr<nano::block>const&)> const & = nullptr);
-	// clang-format on
-	nano::election_insertion_result insert_hinted (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a);
-	void request_loop ();
-	void request_confirm (nano::unique_lock<nano::mutex> &);
-	void erase (nano::qualified_root const &);
-	// Erase all blocks from active and, if not confirmed, clear digests from network filters
-	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
-	// Returns a list of elections sorted by difficulty, mutex must be locked
-	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
-
-	nano::condition_variable condition;
-	bool started{ false };
-	std::atomic<bool> stopped{ false };
-
-	// Maximum time an election can be kept active if it is extending the container
-	std::chrono::seconds const election_time_to_live;
-
-	static std::size_t constexpr recently_confirmed_size{ 65536 };
 	using recent_confirmation = std::pair<nano::qualified_root, nano::block_hash>;
-	// clang-format off
-	boost::multi_index_container<recent_confirmation,
+	using ordered_recent_confirmations = boost::multi_index_container<recent_confirmation,
 	mi::indexed_by<
 		mi::sequenced<mi::tag<tag_sequence>>,
 		mi::hashed_unique<mi::tag<tag_root>,
 			mi::member<recent_confirmation, nano::qualified_root, &recent_confirmation::first>>,
 		mi::hashed_unique<mi::tag<tag_hash>,
-			mi::member<recent_confirmation, nano::block_hash, &recent_confirmation::second>>>>
-	recently_confirmed;
+			mi::member<recent_confirmation, nano::block_hash, &recent_confirmation::second>>>>;
 	// clang-format on
-
-	int active_hinted_elections_count{ 0 };
+	ordered_recent_confirmations recently_confirmed;
 
 	// clang-format off
 	using ordered_cache = boost::multi_index_container<nano::inactive_cache_information,
@@ -192,10 +190,18 @@ private:
 	// clang-format on
 	ordered_cache inactive_votes_cache;
 
-	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, std::vector<std::pair<nano::account, uint64_t>> const &, nano::block_hash const &, nano::inactive_cache_status const &);
-	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, nano::account const &, nano::block_hash const &, nano::inactive_cache_status const &);
-	nano::inactive_cache_status inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::mutex> &, nano::uint128_t const &, std::size_t, nano::block_hash const &, nano::inactive_cache_status const &);
-	nano::inactive_cache_information find_inactive_votes_cache_impl (nano::block_hash const &);
+private:
+	// Maximum time an election can be kept active if it is extending the container
+	std::chrono::seconds const election_time_to_live;
+
+	static std::size_t constexpr recently_confirmed_size{ 65536 };
+
+	// Number of currently active elections with election behavior `hinted`
+	int active_hinted_elections_count{ 0 };
+
+	nano::condition_variable condition;
+	bool started{ false };
+	std::atomic<bool> stopped{ false };
 
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
 	mutable nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };
