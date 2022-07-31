@@ -79,7 +79,7 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 			{
 				auto election = *maybe_existing;
 				debug_assert (election != nullptr);
-				
+
 				if (election->confirmed () && election->winner ()->hash () == hash)
 				{
 					nano::unique_lock<nano::mutex> election_lk (election->mutex);
@@ -345,6 +345,12 @@ void nano::active_transactions::stop ()
 	final_generator.stop ();
 	lock.lock ();
 	roots.clear ();
+}
+
+nano::election_insertion_result nano::active_transactions::insert (const std::shared_ptr<nano::block> & block, nano::election_behavior behavior, const std::function<void (const std::shared_ptr<nano::block> &)> & confirmation_callback)
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	return insert_impl (lock, block, behavior, confirmation_callback);
 }
 
 nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)

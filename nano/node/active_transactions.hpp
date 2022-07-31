@@ -85,6 +85,11 @@ class active_transactions final
 public:
 	explicit active_transactions (nano::node &, nano::confirmation_height_processor &);
 	~active_transactions ();
+
+	/*
+	 * Inserts election, right now a simple wrapper for `insert_impl`
+	 */
+	nano::election_insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_callback = nullptr);
 	/*
 	 * Validate a vote and apply it to the current election if one exists
 	 * Distinguishes replay votes, cannot be determined if the block is not in any election
@@ -140,9 +145,7 @@ private: // Dependencies
 
 private:
 	// Call action with confirmed block, may be different than what we started with
-	// clang-format off
-	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const&, nano::election_behavior = nano::election_behavior::normal, std::function<void(std::shared_ptr<nano::block>const&)> const & = nullptr);
-	// clang-format on
+	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
 	nano::election_insertion_result insert_hinted (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a);
 	void request_loop ();
 	void request_confirm (nano::unique_lock<nano::mutex> &);
@@ -224,7 +227,6 @@ private:
 	boost::thread thread;
 
 	friend class election;
-	friend class election_scheduler;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
 	friend bool purge_singleton_inactive_votes_cache_pool_memory ();
 
