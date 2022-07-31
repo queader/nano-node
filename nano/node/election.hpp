@@ -144,6 +144,7 @@ public: // Information
 	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
 
 private:
+	bool confirmed_locked () const;
 	// Confirm this block if quorum is met
 	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
 	nano::tally_t tally_impl () const;

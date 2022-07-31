@@ -40,7 +40,6 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano
 {
 	debug_assert (lock_a.owns_lock ());
 
-	// TODO: Mutex state_m
 	if (state_m.exchange (nano::election::state_t::confirmed) != nano::election::state_t::confirmed)
 	{
 		node.active.winners.put (status.winner->hash (), shared_from_this ());
@@ -145,6 +144,13 @@ void nano::election::transition_active ()
 
 bool nano::election::confirmed () const
 {
+	// Lock to ensure we do not announce this election as completed before `confirm_once` function completes
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return confirmed_locked ();
+}
+
+bool nano::election::confirmed_locked () const
+{
 	return state_m == nano::election::state_t::confirmed || state_m == nano::election::state_t::expired_confirmed;
 }
 
@@ -192,21 +198,24 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 	}
 
-	if (!confirmed () && time_to_live () < std::chrono::steady_clock::now () - election_start)
+	if (time_to_live () < std::chrono::steady_clock::now () - election_start)
 	{
+		// Expired
 		nano::lock_guard<nano::mutex> guard (mutex);
-		// It is possible the election confirmed while acquiring the mutex
-		// state_change returning true would indicate it
-		if (!state_change (state_m.load (), nano::election::state_t::expired_unconfirmed))
+		if (!confirmed_locked ())
 		{
-			result = true;
-			if (node.config.logging.election_expiration_tally_logging ())
+			if (!state_change (state_m.load (), nano::election::state_t::expired_unconfirmed))
 			{
-				log_votes (tally_impl (), "Election expired: ");
+				result = true;
+				if (node.config.logging.election_expiration_tally_logging ())
+				{
+					log_votes (tally_impl (), "Election expired: ");
+				}
+				status.type = nano::election_status_type::stopped;
 			}
-			status.type = nano::election_status_type::stopped;
 		}
 	}
+
 	return result;
 }
 
@@ -328,6 +337,7 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 				log_votes (tally_l);
 			}
 			confirm_once (lock_a, nano::election_status_type::active_confirmed_quorum);
+			// lock is released
 		}
 	}
 }
@@ -408,9 +418,10 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 
 			node.stats.inc (nano::stat::type::election, vote_source_a == vote_source::live ? nano::stat::detail::vote_new : nano::stat::detail::vote_cached);
 
-			if (!confirmed ())
+			if (!confirmed_locked ())
 			{
 				confirm_if_quorum (lock);
+				// lock is released
 			}
 		}
 	}
@@ -422,7 +433,7 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 	nano::unique_lock<nano::mutex> lock (mutex);
 
 	// Do not insert new blocks if already confirmed
-	auto result (confirmed ());
+	auto result = confirmed_locked ();
 	if (!result && last_blocks.size () >= max_blocks && last_blocks.find (block_a->hash ()) == last_blocks.end ())
 	{
 		if (!replace_by_weight (lock, block_a->hash ()))
@@ -480,7 +491,7 @@ void nano::election::generate_votes () const
 	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 	{
 		nano::unique_lock<nano::mutex> lock (mutex);
-		if (confirmed () || tally_reaches_quorum (tally_impl ()))
+		if (confirmed_locked () || tally_reaches_quorum (tally_impl ()))
 		{
 			auto hash = status.winner->hash ();
 			lock.unlock ();

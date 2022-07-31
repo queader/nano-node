@@ -636,8 +636,10 @@ boost::optional<nano::election_status_type> nano::active_transactions::confirm_b
 		nano::unique_lock<nano::mutex> election_lock (existing->second->mutex);
 		if (existing->second->status.winner && existing->second->status.winner->hash () == hash)
 		{
+			election_lock.unlock();
 			if (!existing->second->confirmed ())
 			{
+				election_lock.lock();
 				existing->second->confirm_once (election_lock, nano::election_status_type::active_confirmation_height);
 				status_type = nano::election_status_type::active_confirmation_height;
 			}
