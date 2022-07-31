@@ -16,6 +16,7 @@ class confirmation_solicitor;
 class inactive_cache_information;
 class node;
 class vote_generator_session;
+
 class vote_info final
 {
 public:
@@ -23,6 +24,7 @@ public:
 	uint64_t timestamp;
 	nano::block_hash hash;
 };
+
 class vote_with_weight_info final
 {
 public:
@@ -32,6 +34,7 @@ public:
 	nano::block_hash hash;
 	nano::uint128_t weight;
 };
+
 class election_vote_result final
 {
 public:
@@ -40,17 +43,20 @@ public:
 	bool replay{ false };
 	bool processed{ false };
 };
+
 enum class election_behavior
 {
 	normal,
 	hinted
 };
+
 struct election_extended_status final
 {
 	nano::election_status status;
 	std::unordered_map<nano::account, nano::vote_info> votes;
 	nano::tally_t tally;
 };
+
 class election final : public std::enable_shared_from_this<nano::election>
 {
 public:
@@ -118,23 +124,26 @@ public: // Interface
 	 */
 	nano::election_vote_result vote (nano::account const & representative, uint64_t timestamp, nano::block_hash const & block_hash, vote_source = vote_source::live);
 	bool publish (std::shared_ptr<nano::block> const & block_a);
-	// Confirm this block if quorum is met
-	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
+	/*
+	 * Requests vote generation from vote generator for current election winner hash
+	 */
+	void generate_votes () const;
 
 public: // Information
 	uint64_t const height;
 	nano::root const root;
 	nano::qualified_root const qualified_root;
+	nano::election_behavior const behavior{ nano::election_behavior::normal };
 	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
 
 private:
+	// Confirm this block if quorum is met
+	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
 	nano::tally_t tally_impl () const;
 	// lock_a does not own the mutex on return
 	void confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano::election_status_type = nano::election_status_type::active_confirmed_quorum);
 	void broadcast_block (nano::confirmation_solicitor &);
 	void send_confirm_req (nano::confirmation_solicitor &);
-	// Calculate votes for local representatives
-	void generate_votes () const;
 	void remove_votes (nano::block_hash const &);
 	void remove_block (nano::block_hash const &);
 	bool replace_by_weight (nano::unique_lock<nano::mutex> & lock_a, nano::block_hash const &);
@@ -151,18 +160,19 @@ private:
 	mutable nano::uint128_t final_weight{ 0 };
 	mutable std::unordered_map<nano::block_hash, nano::uint128_t> last_tally;
 
-	nano::election_behavior const behavior{ nano::election_behavior::normal };
 	std::chrono::steady_clock::time_point const election_start = { std::chrono::steady_clock::now () };
 
-	nano::node & node;
 	mutable nano::mutex mutex;
 
 	static std::size_t constexpr max_blocks{ 10 };
 
+private: // Dependencies
+	nano::node & node;
+
 	friend class active_transactions;
 	friend class confirmation_solicitor;
 
-public: // Only used in tests
+public: // Tests
 	void force_confirm (nano::election_status_type = nano::election_status_type::active_confirmed_quorum);
 	std::unordered_map<nano::account, nano::vote_info> votes () const;
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks () const;
