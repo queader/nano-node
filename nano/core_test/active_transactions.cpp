@@ -601,6 +601,8 @@ TEST (active_transactions, vote_replays)
 }
 }
 
+namespace nano
+{
 // Tests that blocks are correctly cleared from the duplicate filter for unconfirmed elections
 TEST (active_transactions, dropped_cleanup)
 {
@@ -658,6 +660,7 @@ TEST (active_transactions, dropped_cleanup)
 
 	// Block cleared from active
 	ASSERT_EQ (0, node.active.blocks.count (nano::dev::genesis->hash ()));
+}
 }
 
 TEST (active_transactions, republish_winner)

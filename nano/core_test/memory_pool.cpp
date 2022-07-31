@@ -56,6 +56,8 @@ size_t get_allocated_size ()
 }
 }
 
+namespace nano
+{
 TEST (memory_pool, validate_cleanup)
 {
 	// This might be turned off, e.g on Mac for instance, so don't do this test
@@ -97,4 +99,5 @@ TEST (memory_pool, validate_cleanup)
 	}
 
 	ASSERT_TRUE (nano::purge_singleton_inactive_votes_cache_pool_memory ());
+}
 }

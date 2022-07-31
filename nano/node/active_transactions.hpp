@@ -64,30 +64,7 @@ class active_transactions final
 		std::shared_ptr<nano::election> election;
 	};
 
-	friend class nano::election;
-
-	// clang-format off
-	class tag_account {};
-	class tag_random_access {};
-	class tag_root {};
-	class tag_sequence {};
-	class tag_uncemented {};
-	class tag_arrival {};
-	class tag_hash {};
-	// clang-format on
-
 public:
-	// clang-format off
-	using ordered_roots = boost::multi_index_container<conflict_info,
-	mi::indexed_by<
-		mi::random_access<mi::tag<tag_random_access>>,
-		mi::hashed_unique<mi::tag<tag_root>,
-			mi::member<conflict_info, nano::qualified_root, &conflict_info::root>>
-	>>;
-	// clang-format on
-	ordered_roots roots;
-	using roots_iterator = active_transactions::ordered_roots::index_iterator<tag_root>::type;
-
 	explicit active_transactions (nano::node &, nano::confirmation_height_processor &);
 	~active_transactions ();
 	/*
@@ -116,7 +93,6 @@ public:
 	int64_t vacancy () const;
 	std::function<void ()> vacancy_update{ [] () {} };
 
-	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> blocks;
 	std::deque<nano::election_status> list_recently_cemented ();
 	std::deque<nano::election_status> recently_cemented;
 
@@ -142,21 +118,33 @@ public:
 	using allocator = boost::fast_pool_allocator<nano::inactive_cache_information>;
 #endif
 
-	// clang-format off
-	using ordered_cache = boost::multi_index_container<nano::inactive_cache_information,
-	mi::indexed_by<
-		mi::ordered_non_unique<mi::tag<tag_arrival>,
-			mi::member<nano::inactive_cache_information, std::chrono::steady_clock::time_point, &nano::inactive_cache_information::arrival>>,
-		mi::hashed_unique<mi::tag<tag_hash>,
-			mi::member<nano::inactive_cache_information, nano::block_hash, &nano::inactive_cache_information::hash>>>, allocator>;
-	// clang-format on
-
 private: // Dependencies
 	nano::node & node;
 	nano::election_scheduler & scheduler;
 	nano::confirmation_height_processor & confirmation_height_processor;
 
 private:
+	// clang-format off
+	class tag_account {};
+	class tag_random_access {};
+	class tag_root {};
+	class tag_sequence {};
+	class tag_uncemented {};
+	class tag_arrival {};
+	class tag_hash {};
+	// clang-format on
+
+	// clang-format off
+	using ordered_roots = boost::multi_index_container<conflict_info,
+	mi::indexed_by<
+		mi::random_access<mi::tag<tag_random_access>>,
+		mi::hashed_unique<mi::tag<tag_root>,
+			mi::member<conflict_info, nano::qualified_root, &conflict_info::root>>
+	>>;
+	// clang-format on
+	ordered_roots roots;
+
+	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> blocks;
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> election_winner_details;
 
 	// Call action with confirmed block, may be different than what we started with
@@ -194,7 +182,16 @@ private:
 
 	int active_hinted_elections_count{ 0 };
 
+	// clang-format off
+	using ordered_cache = boost::multi_index_container<nano::inactive_cache_information,
+	mi::indexed_by<
+		mi::ordered_non_unique<mi::tag<tag_arrival>,
+			mi::member<nano::inactive_cache_information, std::chrono::steady_clock::time_point, &nano::inactive_cache_information::arrival>>,
+		mi::hashed_unique<mi::tag<tag_hash>,
+			mi::member<nano::inactive_cache_information, nano::block_hash, &nano::inactive_cache_information::hash>>>, allocator>;
+	// clang-format on
 	ordered_cache inactive_votes_cache;
+
 	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, std::vector<std::pair<nano::account, uint64_t>> const &, nano::block_hash const &, nano::inactive_cache_status const &);
 	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, nano::account const &, nano::block_hash const &, nano::inactive_cache_status const &);
 	nano::inactive_cache_status inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::mutex> &, nano::uint128_t const &, std::size_t, nano::block_hash const &, nano::inactive_cache_status const &);
@@ -208,8 +205,10 @@ private:
 	friend class election;
 	friend class election_scheduler;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
+	friend bool purge_singleton_inactive_votes_cache_pool_memory ();
 
 private: // Tests
+	// TODO: Instead of making so many tests friends, expose get methods for data those tests need to access
 	friend class active_transactions_vote_replays_Test;
 	friend class frontiers_confirmation_prioritize_frontiers_Test;
 	friend class frontiers_confirmation_prioritize_frontiers_max_optimistic_elections_Test;
@@ -225,6 +224,8 @@ private: // Tests
 	friend class node_search_receivable_confirmed_Test;
 	friend class node_epoch_conflict_confirm_Test;
 	friend class node_dependency_graph_Test;
+	friend class active_transactions_dropped_cleanup_Test;
+	friend class memory_pool_validate_cleanup_Test;
 };
 
 bool purge_singleton_inactive_votes_cache_pool_memory ();
