@@ -1505,6 +1505,8 @@ TEST (confirmation_height, pending_observer_callbacks)
 }
 }
 
+namespace nano
+{
 // The callback and confirmation history should only be updated after confirmation height is set (and not just after voting)
 TEST (confirmation_height, callback_confirmed_history)
 {
@@ -1598,6 +1600,7 @@ TEST (confirmation_height, callback_confirmed_history)
 
 	test_mode (nano::confirmation_height_mode::bounded);
 	test_mode (nano::confirmation_height_mode::unbounded);
+}
 }
 
 namespace nano

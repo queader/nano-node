@@ -293,6 +293,8 @@ TEST (active_transactions, inactive_votes_cache_fork)
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::election, nano::stat::detail::vote_cached));
 }
 
+namespace nano
+{
 TEST (active_transactions, inactive_votes_cache_existing_vote)
 {
 	nano::system system;
@@ -348,6 +350,7 @@ TEST (active_transactions, inactive_votes_cache_existing_vote)
 	ASSERT_EQ (last_vote1.timestamp, last_vote2.timestamp);
 	ASSERT_EQ (last_vote1.time, last_vote2.time);
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::election, nano::stat::detail::vote_cached));
+}
 }
 
 // Test disabled because it's failing intermittently.

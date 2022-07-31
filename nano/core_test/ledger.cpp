@@ -926,6 +926,8 @@ TEST (votes, check_signature)
 	ASSERT_EQ (nano::vote_code::replay, node1.vote_processor.vote_blocking (vote1, std::make_shared<nano::transport::inproc::channel> (node1, node1)));
 }
 
+namespace nano
+{
 TEST (votes, add_one)
 {
 	nano::system system (1);
@@ -960,6 +962,7 @@ TEST (votes, add_one)
 	auto winner (*election1->tally ().begin ());
 	ASSERT_EQ (*send1, *winner.second);
 	ASSERT_EQ (nano::dev::constants.genesis_amount - 100, winner.first);
+}
 }
 
 namespace nano

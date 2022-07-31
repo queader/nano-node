@@ -425,6 +425,8 @@ TEST (node, search_receivable_multiple)
 	ASSERT_TIMELY (10s, node->balance (key2.pub) == 2 * node->config.receive_minimum.number ());
 }
 
+namespace nano
+{
 TEST (node, search_receivable_confirmed)
 {
 	nano::system system;
@@ -460,6 +462,7 @@ TEST (node, search_receivable_confirmed)
 		ASSERT_EQ (node->active.blocks.end (), existing2);
 	}
 	ASSERT_TIMELY (10s, node->balance (key2.pub) == 2 * node->config.receive_minimum.number ());
+}
 }
 
 TEST (node, search_receivable_pruned)
@@ -2724,6 +2727,8 @@ TEST (node, DISABLED_vote_by_hash_epoch_block_republish)
 	ASSERT_FALSE (node2.block (send1->hash ()));
 }
 
+namespace nano
+{
 TEST (node, epoch_conflict_confirm)
 {
 	nano::system system;
@@ -2814,6 +2819,7 @@ TEST (node, epoch_conflict_confirm)
 		ASSERT_TRUE (node0->ledger.store.block.exists (transaction, change->hash ()));
 		ASSERT_TRUE (node0->ledger.store.block.exists (transaction, epoch_open->hash ()));
 	}
+}
 }
 
 // Test disabled because it's failing intermittently.
@@ -3769,6 +3775,8 @@ TEST (node, rollback_gap_source)
 	ASSERT_EQ (nullptr, node.block (fork->hash ()));
 }
 
+namespace nano
+{
 // Confirm a complex dependency graph starting from the first block
 TEST (node, dependency_graph)
 {
@@ -3965,6 +3973,7 @@ TEST (node, dependency_graph)
 	}));
 	ASSERT_EQ (node.ledger.cache.cemented_count, node.ledger.cache.block_count);
 	ASSERT_TIMELY (5s, node.active.empty ());
+}
 }
 
 // Confirm a complex dependency graph. Uses frontiers confirmation which will fail to

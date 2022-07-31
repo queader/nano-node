@@ -90,7 +90,10 @@ public:
 
 	explicit active_transactions (nano::node &, nano::confirmation_height_processor &);
 	~active_transactions ();
-	// Distinguishes replay votes, cannot be determined if the block is not in any election
+	/*
+	 * Validate a vote and apply it to the current election if one exists
+	 * Distinguishes replay votes, cannot be determined if the block is not in any election
+	 */
 	nano::vote_code vote (std::shared_ptr<nano::vote> const &);
 	// Is the root of this block in the roots container
 	bool active (nano::block const &);
@@ -125,10 +128,6 @@ public:
 	void trigger_inactive_votes_cache_election (std::shared_ptr<nano::block> const &);
 	nano::inactive_cache_information find_inactive_votes_cache (nano::block_hash const &);
 	void erase_inactive_votes_cache (nano::block_hash const &);
-	nano::election_scheduler & scheduler;
-	nano::confirmation_height_processor & confirmation_height_processor;
-	nano::node & node;
-	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
 	std::size_t inactive_votes_cache_size ();
 	std::size_t election_winner_details_size ();
 	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
@@ -152,9 +151,12 @@ public:
 			mi::member<nano::inactive_cache_information, nano::block_hash, &nano::inactive_cache_information::hash>>>, allocator>;
 	// clang-format on
 
-private:
-	nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };
+private: // Dependencies
+	nano::node & node;
+	nano::election_scheduler & scheduler;
+	nano::confirmation_height_processor & confirmation_height_processor;
 
+private:
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> election_winner_details;
 
 	// Call action with confirmed block, may be different than what we started with
@@ -198,12 +200,16 @@ private:
 	nano::inactive_cache_status inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::mutex> &, nano::uint128_t const &, std::size_t, nano::block_hash const &, nano::inactive_cache_status const &);
 	nano::inactive_cache_information find_inactive_votes_cache_impl (nano::block_hash const &);
 
+	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
+	mutable nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };
+
 	boost::thread thread;
 
 	friend class election;
 	friend class election_scheduler;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
 
+private: // Tests
 	friend class active_transactions_vote_replays_Test;
 	friend class frontiers_confirmation_prioritize_frontiers_Test;
 	friend class frontiers_confirmation_prioritize_frontiers_max_optimistic_elections_Test;
@@ -212,6 +218,13 @@ private:
 	friend class node_deferred_dependent_elections_Test;
 	friend class active_transactions_pessimistic_elections_Test;
 	friend class frontiers_confirmation_expired_optimistic_elections_removal_Test;
+	friend class active_transactions_inactive_votes_cache_existing_vote_Test;
+	friend class confirmation_solicitor_batches_Test;
+	friend class confirmation_height_callback_confirmed_history_Test;
+	friend class votes_add_one_Test;
+	friend class node_search_receivable_confirmed_Test;
+	friend class node_epoch_conflict_confirm_Test;
+	friend class node_dependency_graph_Test;
 };
 
 bool purge_singleton_inactive_votes_cache_pool_memory ();

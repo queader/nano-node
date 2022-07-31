@@ -7,6 +7,8 @@
 
 using namespace std::chrono_literals;
 
+namespace nano
+{
 TEST (confirmation_solicitor, batches)
 {
 	nano::system system;
@@ -55,6 +57,7 @@ TEST (confirmation_solicitor, batches)
 	ASSERT_EQ (2, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::out));
 	solicitor.flush ();
 	ASSERT_EQ (1, node2.stats.count (nano::stat::type::message, nano::stat::detail::confirm_req, nano::stat::dir::out));
+}
 }
 
 namespace nano

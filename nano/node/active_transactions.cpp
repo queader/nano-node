@@ -436,7 +436,7 @@ nano::election_insertion_result nano::active_transactions::insert_hinted (nano::
 	return result;
 }
 
-// Validate a vote and apply it to the current election if one exists
+//
 nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> const & vote_a)
 {
 	nano::vote_code result{ nano::vote_code::indeterminate };
