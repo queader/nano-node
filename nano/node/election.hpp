@@ -109,6 +109,8 @@ public: // Status
 	bool failed () const;
 	nano::election_extended_status current_status () const;
 	std::shared_ptr<nano::block> winner () const;
+	bool quorum () const;
+
 	std::atomic<unsigned> confirmation_request_count{ 0 };
 
 	void log_votes (nano::tally_t const &, std::string const & = "") const;
@@ -137,6 +139,8 @@ public: // Information
 	nano::root const root;
 	nano::qualified_root const qualified_root;
 	nano::election_behavior const behavior{ nano::election_behavior::normal };
+
+	std::unordered_map<nano::account, nano::vote_info> votes () const;
 	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
 
 private:
@@ -160,7 +164,8 @@ private:
 private:
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> last_blocks;
 	std::unordered_map<nano::account, nano::vote_info> last_votes;
-	std::atomic<bool> is_quorum{ false };
+	std::atomic<bool> is_quorum_m{ false }; // Set when quorum is met (might not be final weight quorum though)
+
 	mutable nano::uint128_t final_weight{ 0 };
 	mutable std::unordered_map<nano::block_hash, nano::uint128_t> last_tally;
 
@@ -174,11 +179,9 @@ private: // Dependencies
 	nano::node & node;
 
 	friend class active_transactions;
-	friend class confirmation_solicitor;
 
 public: // Tests
 	void force_confirm (nano::election_status_type = nano::election_status_type::active_confirmed_quorum);
-	std::unordered_map<nano::account, nano::vote_info> votes () const;
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks () const;
 
 	friend class confirmation_solicitor_different_hash_Test;

@@ -40,10 +40,10 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano
 {
 	debug_assert (lock_a.owns_lock ());
 
-	// TODO: Do not allow dependent elections to proceed before having parent confirmed
+	// TODO: Mutex state_m
 	if (state_m.exchange (nano::election::state_t::confirmed) != nano::election::state_t::confirmed)
 	{
-		node.active.winners.put (status.winner->hash (), shared_from_this());
+		node.active.winners.put (status.winner->hash (), shared_from_this ());
 
 		status.election_end = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ());
 		status.election_duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
@@ -130,7 +130,6 @@ void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_
 {
 	if ((base_latency () * 5) < (std::chrono::steady_clock::now () - last_req))
 	{
-		nano::lock_guard<nano::mutex> guard (mutex);
 		if (!solicitor_a.add (*this))
 		{
 			last_req = std::chrono::steady_clock::now ();
@@ -158,7 +157,6 @@ void nano::election::broadcast_block (nano::confirmation_solicitor & solicitor_a
 {
 	if (base_latency () * 15 < std::chrono::steady_clock::now () - last_block)
 	{
-		nano::lock_guard<nano::mutex> guard (mutex);
 		if (!solicitor_a.broadcast (*this))
 		{
 			last_block = std::chrono::steady_clock::now ();
@@ -627,4 +625,9 @@ std::vector<nano::vote_with_weight_info> nano::election::votes_with_weight () co
 	result.reserve (sorted_votes.size ());
 	std::transform (sorted_votes.begin (), sorted_votes.end (), std::back_inserter (result), [] (auto const & entry) { return entry.second; });
 	return result;
+}
+
+bool nano::election::quorum () const
+{
+	return is_quorum_m;
 }
