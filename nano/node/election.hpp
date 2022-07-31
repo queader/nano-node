@@ -17,6 +17,9 @@ class inactive_cache_information;
 class node;
 class vote_generator_session;
 
+// map of vote weight per block, ordered greater first
+using tally_t = std::map<nano::uint128_t, std::shared_ptr<nano::block>, std::greater<nano::uint128_t>>;
+
 class vote_info final
 {
 public:
@@ -84,6 +87,7 @@ private: // State management
 	static unsigned constexpr passive_duration_factor = 5;
 	static unsigned constexpr active_request_count_min = 2;
 	static unsigned constexpr confirmed_duration_factor = 5;
+
 	std::atomic<nano::election::state_t> state_m = { state_t::passive };
 
 	static_assert (std::is_trivial<std::chrono::steady_clock::duration> ());
@@ -109,7 +113,6 @@ public: // Status
 
 	void log_votes (nano::tally_t const &, std::string const & = "") const;
 	nano::tally_t tally () const;
-	bool have_quorum (nano::tally_t const &) const;
 
 	// Guarded by mutex
 	nano::election_status status;
@@ -152,6 +155,7 @@ private:
 	 * Calculates minimum time delay between subsequent votes when processing non-final votes
 	 */
 	std::chrono::seconds cooldown_time (nano::uint128_t weight) const;
+	bool tally_reaches_quorum (nano::tally_t const &) const;
 
 private:
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> last_blocks;

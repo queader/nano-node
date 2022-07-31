@@ -239,7 +239,7 @@ std::chrono::seconds nano::election::cooldown_time (nano::uint128_t weight) cons
 	return std::chrono::seconds{ 15 };
 }
 
-bool nano::election::have_quorum (nano::tally_t const & tally_a) const
+bool nano::election::tally_reaches_quorum (nano::tally_t const & tally_a) const
 {
 	auto i (tally_a.begin ());
 	++i;
@@ -314,9 +314,9 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 		remove_votes (status_winner_hash_l);
 		node.block_processor.force (block_l);
 	}
-	if (have_quorum (tally_l))
+	if (tally_reaches_quorum (tally_l))
 	{
-		if (node.ledger.cache.final_votes_confirmation_canary.load () && !is_quorum.exchange (true) && node.config.enable_voting && node.wallets.reps ().voting > 0)
+		if (node.ledger.cache.final_votes_confirmation_canary.load () && !is_quorum_m.exchange (true) && node.config.enable_voting && node.wallets.reps ().voting > 0)
 		{
 			auto hash = status.winner->hash ();
 			lock_a.unlock ();
@@ -482,7 +482,7 @@ void nano::election::generate_votes () const
 	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 	{
 		nano::unique_lock<nano::mutex> lock (mutex);
-		if (confirmed () || have_quorum (tally_impl ()))
+		if (confirmed () || tally_reaches_quorum (tally_impl ()))
 		{
 			auto hash = status.winner->hash ();
 			lock.unlock ();
