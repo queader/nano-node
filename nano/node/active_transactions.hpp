@@ -96,8 +96,8 @@ public:
 	 */
 	nano::vote_code vote (std::shared_ptr<nano::vote> const &);
 	// Is the root of this block in the roots container
-	bool active (nano::block const &);
-	bool active (nano::qualified_root const &);
+	bool active (nano::block const &) const;
+	bool active (nano::qualified_root const &) const;
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
 	std::shared_ptr<nano::block> winner (nano::block_hash const &) const;
 	// Returns a list of elections sorted by difficulty
@@ -105,8 +105,8 @@ public:
 	void erase (nano::block const &);
 	void erase_hash (nano::block_hash const &);
 	void erase_oldest ();
-	bool empty ();
-	std::size_t size ();
+	bool empty () const;
+	std::size_t size () const;
 	void stop ();
 	bool publish (std::shared_ptr<nano::block> const &);
 

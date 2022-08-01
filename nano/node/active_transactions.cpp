@@ -480,13 +480,13 @@ nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> con
 	return result;
 }
 
-bool nano::active_transactions::active (nano::qualified_root const & root_a)
+bool nano::active_transactions::active (nano::qualified_root const & root_a) const
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
 	return roots.get<tag_root> ().find (root_a) != roots.get<tag_root> ().end ();
 }
 
-bool nano::active_transactions::active (nano::block const & block_a)
+bool nano::active_transactions::active (nano::block const & block_a) const
 {
 	nano::lock_guard<nano::mutex> guard (mutex);
 	return roots.get<tag_root> ().find (block_a.qualified_root ()) != roots.get<tag_root> ().end () && blocks.find (block_a.hash ()) != blocks.end ();
@@ -583,13 +583,13 @@ void nano::active_transactions::erase_oldest ()
 	}
 }
 
-bool nano::active_transactions::empty ()
+bool nano::active_transactions::empty () const
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
 	return roots.empty ();
 }
 
-std::size_t nano::active_transactions::size ()
+std::size_t nano::active_transactions::size () const
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
 	return roots.size ();
