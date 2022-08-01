@@ -1488,6 +1488,7 @@ TEST (node, rep_self_vote)
 	auto election = node0->active.election (open_big.qualified_root ());
 	ASSERT_NE (nullptr, election);
 	election->force_confirm ();
+	ASSERT_TIMELY (3s, node0->block_confirmed (open_big.hash ()));
 
 	system.wallet (0)->insert_adhoc (rep_big.prv);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -2627,11 +2628,14 @@ TEST (node, vote_by_hash_bundle)
 	auto election = node.active.election (blocks.back ()->qualified_root ());
 	ASSERT_NE (nullptr, election);
 	election->force_confirm ();
+	ASSERT_TIMELY (3s, node.block_confirmed (blocks.back ()->hash ()));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair key1;
 	system.wallet (0)->insert_adhoc (key1.prv);
 
 	system.nodes[0]->observers.vote.add ([&max_hashes] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const &, nano::vote_code) {
+		std::cout << vote_a->hashes.size () << std::endl;
+
 		if (vote_a->hashes.size () > max_hashes)
 		{
 			max_hashes = vote_a->hashes.size ();

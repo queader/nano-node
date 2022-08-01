@@ -52,8 +52,11 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano
 		status_m.type = type_a;
 		auto const status_l = status_m;
 		lock_a.unlock ();
-		node.process_confirmed (status_l);
+
+		// This is running off vote processor thread, switch to node worker threadpool for ledger lookup operations
 		node.background ([node_l = node.shared (), status_l, confirmation_action_l = confirmation_action] () {
+			node_l->process_confirmed (status_l);
+
 			if (confirmation_action_l)
 			{
 				confirmation_action_l (status_l.winner);
