@@ -8,6 +8,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <shared_mutex>
 
 namespace nano
 {
@@ -103,6 +104,8 @@ private:
 	std::mutex mutex_m;
 };
 
+using shared_mutex = std::shared_mutex;
+
 #if USING_NANO_TIMED_LOCKS
 template <typename Mutex>
 void output (char const * str, std::chrono::milliseconds time, Mutex & mutex);
@@ -179,7 +182,7 @@ private:
 };
 
 /** Assumes std implementations of std::condition_variable never actually call nano::unique_lock::lock/unlock,
-    but instead use OS intrinsics with the mutex handle directly. Due to this we also do not account for any
+	but instead use OS intrinsics with the mutex handle directly. Due to this we also do not account for any
 	time the condition variable is blocked on another holder of the mutex. */
 class condition_variable final
 {
@@ -253,6 +256,9 @@ using lock_guard = std::lock_guard<Mutex>;
 template <typename Mutex>
 using unique_lock = std::unique_lock<Mutex>;
 
+template <typename Mutex>
+using shared_lock = std::shared_lock<Mutex>;
+
 // For consistency wrapping the less well known _any variant which can be used with any lockable type
 using condition_variable = std::condition_variable_any;
 #endif
@@ -283,7 +289,7 @@ public:
 			owner->mutex.unlock ();
 		}
 
-		T * operator-> ()
+		T * operator->()
 		{
 			return &owner->obj;
 		}
@@ -301,7 +307,7 @@ public:
 		locked * owner{ nullptr };
 	};
 
-	scoped_lock operator-> ()
+	scoped_lock operator->()
 	{
 		return scoped_lock (this);
 	}

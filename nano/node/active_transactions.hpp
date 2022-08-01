@@ -144,13 +144,13 @@ private: // Dependencies
 
 private:
 	// Call action with confirmed block, may be different than what we started with
-	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
-	nano::election_insertion_result insert_hinted (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a);
+	nano::election_insertion_result insert_impl (nano::unique_lock<nano::shared_mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
+	nano::election_insertion_result insert_hinted (nano::unique_lock<nano::shared_mutex> & lock_a, std::shared_ptr<nano::block> const & block_a);
 	void request_loop ();
-	void request_confirm (nano::unique_lock<nano::mutex> &);
+	void request_confirm (nano::unique_lock<nano::shared_mutex> &);
 	void erase (nano::qualified_root const &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
-	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
+	void cleanup_election (nano::unique_lock<nano::shared_mutex> & lock_a, std::shared_ptr<nano::election>);
 	// Returns a list of elections sorted by difficulty, mutex must be locked
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 
@@ -223,7 +223,8 @@ private:
 	bool started{ false };
 	std::atomic<bool> stopped{ false };
 
-	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
+	// TODO: { mutex_identifier (mutexes::active) }
+	mutable nano::shared_mutex mutex;
 
 	std::thread thread;
 
