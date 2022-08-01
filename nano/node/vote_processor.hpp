@@ -45,9 +45,9 @@ public:
 	/** Function blocks until either the current queue size (a established flush boundary as it'll continue to increase)
 	 * is processed or the queue is empty (end condition or cutoff's guard, as it is positioned ahead) */
 	void flush ();
-	std::size_t size ();
-	bool empty ();
-	bool half_full ();
+	std::size_t size () const;
+	bool empty () const;
+	bool half_full () const;
 	void calculate_weights ();
 	void stop ();
 	std::atomic<uint64_t> total_processed{ 0 };
@@ -55,7 +55,7 @@ public:
 private:
 	void start_threads ();
 	void process_loop ();
-	std::deque<entry_t> get_batch ();
+	std::deque<entry_t> get_batch (nano::unique_lock<nano::mutex> &);
 	/*
 	 * Verifies and processes a batch of votes
 	 */
@@ -74,8 +74,8 @@ private:
 	std::unordered_set<nano::account> representatives_3;
 
 	nano::condition_variable condition;
-	nano::mutex mutex{ mutex_identifier (mutexes::vote_processor) };
-	std::atomic<bool> stopped;
+	mutable nano::mutex mutex{ mutex_identifier (mutexes::vote_processor) };
+	bool stopped;
 	std::vector<std::thread> processing_threads;
 
 private: // Dependencies

@@ -38,6 +38,11 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 nano::vote_processor::~vote_processor ()
 {
 	stop ();
+
+	for (auto & thread : processing_threads)
+	{
+		thread.join ();
+	}
 }
 
 void nano::vote_processor::start_threads ()
@@ -54,27 +59,21 @@ void nano::vote_processor::start_threads ()
 
 void nano::vote_processor::stop ()
 {
-	if (!stopped.exchange (true))
-	{
-		condition.notify_all ();
-		for (auto & thread : processing_threads)
-		{
-			thread.join ();
-		}
-		{
-			nano::unique_lock<nano::mutex> lock{ mutex };
-			votes.clear ();
-		}
-	}
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	stopped = true;
+	votes.clear ();
+	condition.notify_all ();
 }
 
 void nano::vote_processor::process_loop ()
 {
 	nano::timer<std::chrono::milliseconds> elapsed;
 
+	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
-		auto batch = get_batch ();
+		auto batch = get_batch (lock);
+		lock.unlock ();
 
 		bool log_this_iteration = false;
 		if (config.logging.network_logging () && batch.size () > 50)
@@ -91,24 +90,27 @@ void nano::vote_processor::process_loop ()
 		process_batch (batch);
 
 		total_processed += batch.size ();
+		condition.notify_all (); // Notify for flush condition
 
 		if (log_this_iteration && elapsed.stop () > std::chrono::milliseconds (100))
 		{
 			const auto rate = (batch.size () * 1000ULL) / elapsed.value ().count ();
 			logger.try_log (boost::str (boost::format ("Processed %1% votes in %2% milliseconds (rate of %3% votes per second)") % batch.size () % elapsed.value ().count () % rate));
 		}
+
+		lock.lock ();
 	}
 }
 
-std::deque<nano::vote_processor::entry_t> nano::vote_processor::get_batch ()
+std::deque<nano::vote_processor::entry_t> nano::vote_processor::get_batch (nano::unique_lock<nano::mutex> & lock)
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
+	debug_assert (lock.owns_lock ());
+
 	condition.wait (lock, [this] () {
 		return !votes.empty () || stopped;
 	});
 	decltype (votes) votes_l;
 	votes_l.swap (votes);
-	lock.unlock ();
 	return votes_l;
 }
 
@@ -150,6 +152,7 @@ bool nano::vote_processor::vote (std::shared_ptr<nano::vote> const & vote_a, std
 		{
 			votes.emplace_back (vote_a, channel_a);
 			lock.unlock ();
+			// TODO: Distinguish producer & consumer conditions and use notify_one
 			condition.notify_all ();
 			// Lock no longer required
 		}
@@ -245,19 +248,19 @@ void nano::vote_processor::flush ()
 	}
 }
 
-std::size_t nano::vote_processor::size ()
+std::size_t nano::vote_processor::size () const
 {
 	nano::lock_guard<nano::mutex> guard (mutex);
 	return votes.size ();
 }
 
-bool nano::vote_processor::empty ()
+bool nano::vote_processor::empty () const
 {
 	nano::lock_guard<nano::mutex> guard (mutex);
 	return votes.empty ();
 }
 
-bool nano::vote_processor::half_full ()
+bool nano::vote_processor::half_full () const
 {
 	return size () >= max_votes / 2;
 }
