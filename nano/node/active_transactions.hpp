@@ -15,12 +15,12 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/optional.hpp>
-#include <boost/thread/thread.hpp>
 
 #include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <memory>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -225,7 +225,7 @@ private:
 
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
 
-	boost::thread thread;
+	std::thread thread;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
 	friend bool purge_singleton_inactive_votes_cache_pool_memory ();
