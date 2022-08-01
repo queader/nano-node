@@ -455,7 +455,7 @@ TEST (node, search_receivable_confirmed)
 	system.wallet (0)->insert_adhoc (key2.prv);
 	ASSERT_FALSE (system.wallet (0)->search_receivable (system.wallet (0)->wallets.tx_begin_read ()));
 	{
-		nano::lock_guard<nano::mutex> guard (node->active.mutex);
+		nano::lock_guard<nano::shared_mutex> guard (node->active.mutex);
 		auto existing1 (node->active.blocks.find (send1->hash ()));
 		ASSERT_EQ (node->active.blocks.end (), existing1);
 		auto existing2 (node->active.blocks.find (send2->hash ()));
@@ -2812,7 +2812,7 @@ TEST (node, epoch_conflict_confirm)
 	nano::blocks_confirm (*node0, { change, epoch_open });
 	ASSERT_EQ (2, node0->active.size ());
 	{
-		nano::lock_guard<nano::mutex> lock (node0->active.mutex);
+		nano::lock_guard<nano::shared_mutex> lock (node0->active.mutex);
 		ASSERT_TRUE (node0->active.blocks.find (change->hash ()) != node0->active.blocks.end ());
 		ASSERT_TRUE (node0->active.blocks.find (epoch_open->hash ()) != node0->active.blocks.end ());
 	}
@@ -3956,7 +3956,7 @@ TEST (node, dependency_graph)
 	ASSERT_NO_ERROR (system.poll_until_true (15s, [&] {
 		// Not many blocks should be active simultaneously
 		EXPECT_LT (node.active.size (), 6);
-		nano::lock_guard<nano::mutex> guard (node.active.mutex);
+		nano::lock_guard<nano::shared_mutex> guard (node.active.mutex);
 
 		// Ensure that active blocks have their ancestors confirmed
 		auto error = std::any_of (dependency_graph.cbegin (), dependency_graph.cend (), [&] (auto entry) {

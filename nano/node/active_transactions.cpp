@@ -376,7 +376,7 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 				{
 					active_hinted_elections_count++;
 				}
-				auto const cache = find_inactive_votes_cache_impl (hash);
+				auto const cache = find_inactive_votes_cache (hash);
 				lock_a.unlock ();
 				cache.fill (result.election);
 				node.observers.active_started.notify (hash);
@@ -441,7 +441,9 @@ nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> con
 			}
 			else if (recently_confirmed_by_hash.count (hash) == 0)
 			{
+				lock.unlock ();
 				add_inactive_votes_cache (hash, vote_a->account, vote_a->timestamp ());
+				lock.lock ();
 			}
 			else
 			{
@@ -517,13 +519,13 @@ std::shared_ptr<nano::block> nano::active_transactions::winner (nano::block_hash
 
 std::deque<nano::election_status> nano::active_transactions::list_recently_cemented ()
 {
-	nano::lock_guard<nano::mutex> lock (mutex);
+	nano::shared_lock<nano::shared_mutex> lock{ mutex_recently_cemented };
 	return recently_cemented;
 }
 
 void nano::active_transactions::add_recently_cemented (nano::election_status const & status_a)
 {
-	nano::lock_guard<nano::mutex> guard (mutex);
+	nano::lock_guard<nano::shared_mutex> guard{ mutex_recently_cemented };
 	recently_cemented.push_back (status_a);
 	if (recently_cemented.size () > node.config.confirmation_history_size)
 	{
@@ -533,7 +535,7 @@ void nano::active_transactions::add_recently_cemented (nano::election_status con
 
 void nano::active_transactions::add_recently_confirmed (nano::qualified_root const & root_a, nano::block_hash const & hash_a)
 {
-	nano::lock_guard<nano::mutex> guard (mutex);
+	nano::lock_guard<nano::shared_mutex> guard{ mutex_recently_confirmed };
 	recently_confirmed.get<tag_sequence> ().emplace_back (root_a, hash_a);
 	if (recently_confirmed.size () > recently_confirmed_size)
 	{
@@ -543,7 +545,7 @@ void nano::active_transactions::add_recently_confirmed (nano::qualified_root con
 
 void nano::active_transactions::erase_recently_confirmed (nano::block_hash const & hash_a)
 {
-	nano::lock_guard<nano::mutex> guard (mutex);
+	nano::lock_guard<nano::shared_mutex> guard{ mutex_recently_confirmed };
 	recently_confirmed.get<tag_hash> ().erase (hash_a);
 }
 
@@ -606,7 +608,7 @@ bool nano::active_transactions::publish (std::shared_ptr<nano::block> const & bl
 		{
 			lock.lock ();
 			blocks.emplace (block_a->hash (), election);
-			auto const cache = find_inactive_votes_cache_impl (block_a->hash ());
+			auto const cache = find_inactive_votes_cache (block_a->hash ());
 			lock.unlock ();
 			cache.fill (election);
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::election_block_conflict);
@@ -657,11 +659,11 @@ boost::optional<nano::election_status_type> nano::active_transactions::confirm_b
 
 std::size_t nano::active_transactions::inactive_votes_cache_size ()
 {
-	nano::lock_guard<nano::mutex> guard (mutex);
+	nano::shared_lock<nano::shared_mutex> guard{ mutex_inactive_votes };
 	return inactive_votes_cache.size ();
 }
 
-void nano::active_transactions::add_inactive_votes_cache (nano::unique_lock<nano::mutex> & lock_a, nano::block_hash const & hash_a, nano::account const & representative_a, uint64_t const timestamp_a)
+void nano::active_transactions::add_inactive_votes_cache (nano::block_hash const & hash_a, nano::account const & representative_a, uint64_t const timestamp_a)
 {
 	if (node.flags.inactive_votes_cache_size == 0)
 	{
@@ -671,6 +673,8 @@ void nano::active_transactions::add_inactive_votes_cache (nano::unique_lock<nano
 	// Check principal representative status
 	if (node.ledger.weight (representative_a) > node.minimum_principal_weight ())
 	{
+		nano::unique_lock<nano::shared_mutex> lock{ mutex_inactive_votes };
+
 		/** It is important that the new vote is added to the cache before calling inactive_votes_bootstrap_check
 		 * This guarantees consistency when a vote is received while also receiving the corresponding block
 		 */
@@ -694,7 +698,7 @@ void nano::active_transactions::add_inactive_votes_cache (nano::unique_lock<nano
 				if (is_new)
 				{
 					auto const old_status = existing->status;
-					auto const status = inactive_votes_bootstrap_check (lock_a, existing->voters, hash_a, existing->status);
+					auto const status = inactive_votes_bootstrap_check (lock, existing->voters, hash_a, existing->status);
 					if (status != old_status)
 					{
 						// The lock has since been released
@@ -714,7 +718,7 @@ void nano::active_transactions::add_inactive_votes_cache (nano::unique_lock<nano
 			auto & inactive_by_arrival (inactive_votes_cache.get<tag_arrival> ());
 			nano::inactive_cache_status default_status{};
 			inactive_by_arrival.emplace (nano::inactive_cache_information{ std::chrono::steady_clock::now (), hash_a, representative_a, timestamp_a, default_status });
-			auto const status (inactive_votes_bootstrap_check (lock_a, representative_a, hash_a, default_status));
+			auto const status (inactive_votes_bootstrap_check (lock, representative_a, hash_a, default_status));
 			if (status != default_status)
 			{
 				// The lock has since been released
@@ -736,7 +740,7 @@ void nano::active_transactions::add_inactive_votes_cache (nano::unique_lock<nano
 
 void nano::active_transactions::trigger_inactive_votes_cache_election (std::shared_ptr<nano::block> const & block_a)
 {
-	auto const status = find_inactive_votes_cache_impl (block_a->hash ()).status;
+	auto const status = find_inactive_votes_cache (block_a->hash ()).status;
 	if (status.election_started)
 	{
 		nano::unique_lock<nano::shared_mutex> lock{ mutex };
@@ -746,12 +750,7 @@ void nano::active_transactions::trigger_inactive_votes_cache_election (std::shar
 
 nano::inactive_cache_information nano::active_transactions::find_inactive_votes_cache (nano::block_hash const & hash_a)
 {
-	nano::lock_guard<nano::mutex> guard (mutex);
-	return find_inactive_votes_cache_impl (hash_a);
-}
-
-nano::inactive_cache_information nano::active_transactions::find_inactive_votes_cache_impl (nano::block_hash const & hash_a)
-{
+	nano::shared_lock<nano::shared_mutex> guard{ mutex_inactive_votes };
 	auto & inactive_by_hash (inactive_votes_cache.get<tag_hash> ());
 	auto existing (inactive_by_hash.find (hash_a));
 	if (existing != inactive_by_hash.end ())
@@ -769,14 +768,14 @@ void nano::active_transactions::erase_inactive_votes_cache (nano::block_hash con
 	inactive_votes_cache.get<tag_hash> ().erase (hash_a);
 }
 
-nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> & lock_a, nano::account const & voter_a, nano::block_hash const & hash_a, nano::inactive_cache_status const & previously_a)
+nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_check (nano::unique_lock<nano::shared_mutex> & lock_a, nano::account const & voter_a, nano::block_hash const & hash_a, nano::inactive_cache_status const & previously_a)
 {
 	debug_assert (lock_a.owns_lock ());
 	lock_a.unlock ();
 	return inactive_votes_bootstrap_check_impl (lock_a, node.ledger.weight (voter_a), 1, hash_a, previously_a);
 }
 
-nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> & lock_a, std::vector<std::pair<nano::account, uint64_t>> const & voters_a, nano::block_hash const & hash_a, nano::inactive_cache_status const & previously_a)
+nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_check (nano::unique_lock<nano::shared_mutex> & lock_a, std::vector<std::pair<nano::account, uint64_t>> const & voters_a, nano::block_hash const & hash_a, nano::inactive_cache_status const & previously_a)
 {
 	/** Perform checks on accumulated tally from inactive votes
 	 * These votes are generally either for unconfirmed blocks or old confirmed blocks
@@ -794,7 +793,7 @@ nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_
 	return inactive_votes_bootstrap_check_impl (lock_a, tally, voters_a.size (), hash_a, previously_a);
 }
 
-nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::mutex> & lock_a, nano::uint128_t const & tally_a, std::size_t voters_size_a, nano::block_hash const & hash_a, nano::inactive_cache_status const & previously_a)
+nano::inactive_cache_status nano::active_transactions::inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::shared_mutex> & lock_a, nano::uint128_t const & tally_a, std::size_t voters_size_a, nano::block_hash const & hash_a, nano::inactive_cache_status const & previously_a)
 {
 	debug_assert (!lock_a.owns_lock ());
 	nano::inactive_cache_status status (previously_a);

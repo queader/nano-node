@@ -336,8 +336,8 @@ TEST (active_transactions, inactive_votes_cache_existing_vote)
 	ASSERT_EQ (send->hash (), last_vote1.hash);
 	ASSERT_EQ (nano::vote::timestamp_min * 1, last_vote1.timestamp);
 	// Attempt to change vote with inactive_votes_cache
-	nano::unique_lock<nano::mutex> active_lock (node.active.mutex);
-	node.active.add_inactive_votes_cache (active_lock, send->hash (), key.pub, 0);
+	nano::unique_lock<nano::shared_mutex> active_lock (node.active.mutex);
+	node.active.add_inactive_votes_cache (send->hash (), key.pub, 0);
 	active_lock.unlock ();
 	const auto cache (node.active.find_inactive_votes_cache (send->hash ()));
 	active_lock.lock ();
@@ -591,7 +591,7 @@ TEST (active_transactions, vote_replays)
 
 	// Removing blocks as recently confirmed makes every vote indeterminate
 	{
-		nano::lock_guard<nano::mutex> guard (node.active.mutex);
+		nano::lock_guard<nano::shared_mutex> guard (node.active.mutex_recently_confirmed);
 		node.active.recently_confirmed.clear ();
 	}
 	ASSERT_EQ (nano::vote_code::indeterminate, node.active.vote (vote_send1));
@@ -966,7 +966,7 @@ TEST (active_transactions, confirmation_consistency)
 			ASSERT_NO_ERROR (system.poll (5ms));
 		}
 		ASSERT_NO_ERROR (system.poll_until_true (1s, [&node, &block, i] {
-			nano::lock_guard<nano::mutex> guard (node.active.mutex);
+			nano::lock_guard<nano::shared_mutex> guard (node.active.mutex_recently_confirmed);
 			EXPECT_EQ (i + 1, node.active.recently_confirmed.size ());
 			EXPECT_EQ (block->qualified_root (), node.active.recently_confirmed.back ().first);
 			return i + 1 == node.active.recently_cemented.size (); // done after a callback

@@ -119,7 +119,7 @@ public:
 	void add_recently_confirmed (nano::qualified_root const &, nano::block_hash const &);
 	void erase_recently_confirmed (nano::block_hash const &);
 
-	void add_inactive_votes_cache (nano::unique_lock<nano::mutex> &, nano::block_hash const &, nano::account const &, uint64_t const);
+	void add_inactive_votes_cache (nano::block_hash const &, nano::account const &, uint64_t const);
 	// Inserts an election if conditions are met
 	void trigger_inactive_votes_cache_election (std::shared_ptr<nano::block> const &);
 	nano::inactive_cache_information find_inactive_votes_cache (nano::block_hash const &);
@@ -154,10 +154,9 @@ private:
 	// Returns a list of elections sorted by difficulty, mutex must be locked
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 
-	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, std::vector<std::pair<nano::account, uint64_t>> const &, nano::block_hash const &, nano::inactive_cache_status const &);
-	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::mutex> &, nano::account const &, nano::block_hash const &, nano::inactive_cache_status const &);
-	nano::inactive_cache_status inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::mutex> &, nano::uint128_t const &, std::size_t, nano::block_hash const &, nano::inactive_cache_status const &);
-	nano::inactive_cache_information find_inactive_votes_cache_impl (nano::block_hash const &);
+	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::shared_mutex> &, std::vector<std::pair<nano::account, uint64_t>> const &, nano::block_hash const &, nano::inactive_cache_status const &);
+	nano::inactive_cache_status inactive_votes_bootstrap_check (nano::unique_lock<nano::shared_mutex> &, nano::account const &, nano::block_hash const &, nano::inactive_cache_status const &);
+	nano::inactive_cache_status inactive_votes_bootstrap_check_impl (nano::unique_lock<nano::shared_mutex> &, nano::uint128_t const &, std::size_t, nano::block_hash const &, nano::inactive_cache_status const &);
 
 	void block_cemented_callback (std::shared_ptr<nano::block> const &);
 	void block_already_cemented_callback (nano::block_hash const &);
@@ -225,6 +224,11 @@ private:
 
 	// TODO: { mutex_identifier (mutexes::active) }
 	mutable nano::shared_mutex mutex;
+
+	// Temp mutexes
+	mutable nano::shared_mutex mutex_recently_cemented;
+	mutable nano::shared_mutex mutex_recently_confirmed;
+	mutable nano::shared_mutex mutex_inactive_votes;
 
 	std::thread thread;
 

@@ -1564,7 +1564,7 @@ TEST (confirmation_height, callback_confirmed_history)
 			ASSERT_TIMELY (10s, node->active.size () == 0);
 			ASSERT_EQ (0, node->active.list_recently_cemented ().size ());
 			{
-				nano::lock_guard<nano::mutex> guard (node->active.mutex);
+				nano::lock_guard<nano::shared_mutex> guard (node->active.mutex);
 				ASSERT_EQ (0, node->active.blocks.size ());
 			}
 
