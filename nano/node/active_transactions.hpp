@@ -254,6 +254,8 @@ private: // Tests
 	friend class node_dependency_graph_Test;
 	friend class active_transactions_dropped_cleanup_Test;
 	friend class memory_pool_validate_cleanup_Test;
+	friend class node_fork_storm_Test;
+	friend class node_mass_block_new_Test;
 };
 
 bool purge_singleton_inactive_votes_cache_pool_memory ();

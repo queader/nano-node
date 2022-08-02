@@ -239,6 +239,8 @@ TEST (store, load)
 	}
 }
 
+namespace nano
+{
 TEST (node, fork_storm)
 {
 	// WIP against issue #3709
@@ -310,7 +312,7 @@ TEST (node, fork_storm)
 			}
 			else
 			{
-				nano::unique_lock<nano::mutex> lock (node_a->active.mutex);
+				nano::unique_lock<nano::shared_mutex> lock (node_a->active.mutex);
 				auto election = node_a->active.roots.begin ()->election;
 				lock.unlock ();
 				if (election->votes ().size () == 1)
@@ -342,6 +344,7 @@ TEST (node, fork_storm)
 		++iteration;
 	}
 	ASSERT_TRUE (true);
+}
 }
 
 namespace
@@ -706,7 +709,7 @@ TEST (confirmation_height, many_accounts_single_confirmation)
 	ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed_unbounded, nano::stat::dir::in), 0);
 
 	ASSERT_TIMELY (40s, (node->ledger.cache.cemented_count - 1) == node->stats.count (nano::stat::type::confirmation_observer, nano::stat::detail::all, nano::stat::dir::out));
-	ASSERT_TIMELY (10s, node->active.election_winner_details_size () == 0);
+	ASSERT_TIMELY (10s, node->active.winners.size () == 0);
 }
 
 TEST (confirmation_height, many_accounts_many_confirmations)
@@ -783,7 +786,7 @@ TEST (confirmation_height, many_accounts_many_confirmations)
 
 	ASSERT_TIMELY (20s, (node->ledger.cache.cemented_count - 1) == node->stats.count (nano::stat::type::confirmation_observer, nano::stat::detail::all, nano::stat::dir::out));
 
-	ASSERT_TIMELY (10s, node->active.election_winner_details_size () == 0);
+	ASSERT_TIMELY (10s, node->active.winners.size () == 0);
 }
 
 TEST (confirmation_height, long_chains)
@@ -929,7 +932,7 @@ TEST (confirmation_height, long_chains)
 	ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed_unbounded, nano::stat::dir::in), 0);
 
 	ASSERT_TIMELY (40s, (node->ledger.cache.cemented_count - 1) == node->stats.count (nano::stat::type::confirmation_observer, nano::stat::detail::all, nano::stat::dir::out));
-	ASSERT_TIMELY (10s, node->active.election_winner_details_size () == 0);
+	ASSERT_TIMELY (10s, node->active.winners.size () == 0);
 }
 
 TEST (confirmation_height, dynamic_algorithm)
@@ -977,7 +980,7 @@ TEST (confirmation_height, dynamic_algorithm)
 	ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed, nano::stat::dir::in), num_blocks);
 	ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed_bounded, nano::stat::dir::in), 1);
 	ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed_unbounded, nano::stat::dir::in), num_blocks - 1);
-	ASSERT_TIMELY (10s, node->active.election_winner_details_size () == 0);
+	ASSERT_TIMELY (10s, node->active.winners.size () == 0);
 }
 
 /*
@@ -990,7 +993,7 @@ TEST (confirmation_height, dynamic_algorithm)
  *    of blocks uncemented is > unbounded_cutoff so that it hits the bounded processor), the main `run` loop on the conf height processor is iterated.
  *
  * This cause unbounded pending entries not to be written, and then the bounded processor would write them, causing some inconsistencies.
-*/
+ */
 TEST (confirmation_height, dynamic_algorithm_no_transition_while_pending)
 {
 	// Repeat in case of intermittent issues not replicating the issue talked about above.
@@ -1068,7 +1071,7 @@ TEST (confirmation_height, dynamic_algorithm_no_transition_while_pending)
 		ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed, nano::stat::dir::in), num_blocks);
 		ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed_bounded, nano::stat::dir::in), 0);
 		ASSERT_EQ (node->ledger.stats.count (nano::stat::type::confirmation_height, nano::stat::detail::blocks_confirmed_unbounded, nano::stat::dir::in), num_blocks);
-		ASSERT_TIMELY (10s, node->active.election_winner_details_size () == 0);
+		ASSERT_TIMELY (10s, node->active.winners.size () == 0);
 	}
 }
 
@@ -1201,7 +1204,7 @@ TEST (confirmation_height, many_accounts_send_receive_self)
 	}
 
 	system.deadline_set (60s);
-	while (node->active.election_winner_details_size () > 0)
+	while (node->active.winners.size () > 0)
 	{
 		ASSERT_NO_ERROR (system.poll ());
 	}
@@ -1846,7 +1849,7 @@ TEST (node, mass_epoch_upgrader)
 		nano::system system;
 		nano::node_config node_config (nano::get_available_port (), system.logging);
 		node_config.work_threads = 4;
-		//node_config.work_peers = { { "192.168.1.101", 7000 } };
+		// node_config.work_peers = { { "192.168.1.101", 7000 } };
 		auto & node = *system.add_node (node_config);
 
 		auto balance = node.balance (nano::dev::genesis_key.pub);
@@ -1943,6 +1946,8 @@ TEST (node, mass_epoch_upgrader)
 	perform_test (std::numeric_limits<size_t>::max ());
 }
 
+namespace nano
+{
 TEST (node, mass_block_new)
 {
 	nano::system system;
@@ -1973,7 +1978,7 @@ TEST (node, mass_block_new)
 		node.block_processor.flush ();
 		// Clear all active
 		{
-			nano::lock_guard<nano::mutex> guard (node.active.mutex);
+			nano::lock_guard<nano::shared_mutex> guard (node.active.mutex);
 			node.active.roots.clear ();
 			node.active.blocks.clear ();
 		}
@@ -2069,6 +2074,7 @@ TEST (node, mass_block_new)
 	timer.restart ();
 	process_all (receive_blocks);
 	std::cout << "Receive blocks time: " << timer.stop ().count () << " " << timer.unit () << "\n\n";
+}
 }
 
 TEST (node, wallet_create_block_confirm_conflicts)
