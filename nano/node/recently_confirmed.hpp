@@ -32,6 +32,8 @@ public:
 	bool exists (nano::qualified_root const &) const;
 	bool exists (nano::block_hash const &) const;
 
+	std::unique_ptr<container_info_component> collect_container_info (std::string const &) const;
+
 public: // Tests
 	entry_t back () const;
 
@@ -54,7 +56,5 @@ private:
 	std::size_t const max_size;
 
 	mutable nano::mutex mutex;
-
-	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, std::string const &);
 };
 }
