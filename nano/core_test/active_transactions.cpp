@@ -587,10 +587,8 @@ TEST (active_transactions, vote_replays)
 	ASSERT_EQ (nano::vote_code::replay, node.active.vote (vote2_send2));
 
 	// Removing blocks as recently confirmed makes every vote indeterminate
-	{
-		nano::lock_guard<nano::mutex> guard (node.active.mutex);
-		node.active.recently_confirmed.clear ();
-	}
+	node.recently_confirmed.clear ();
+
 	ASSERT_EQ (nano::vote_code::indeterminate, node.active.vote (vote_send1));
 	ASSERT_EQ (nano::vote_code::indeterminate, node.active.vote (vote_open1));
 	ASSERT_EQ (nano::vote_code::indeterminate, node.active.vote (vote1_send2));
@@ -961,8 +959,8 @@ TEST (active_transactions, confirmation_consistency)
 		}
 		ASSERT_NO_ERROR (system.poll_until_true (1s, [&node, &block, i] {
 			nano::lock_guard<nano::mutex> guard (node.active.mutex);
-			EXPECT_EQ (i + 1, node.active.recently_confirmed.size ());
-			EXPECT_EQ (block->qualified_root (), node.active.recently_confirmed.back ().first);
+			EXPECT_EQ (i + 1, node.recently_confirmed.size ());
+			EXPECT_EQ (block->qualified_root (), node.recently_confirmed.back ().first);
 			return i + 1 == node.active.recently_cemented.size (); // done after a callback
 		}));
 	}

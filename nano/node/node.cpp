@@ -159,6 +159,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	vote_uniquer (block_uniquer),
 	confirmation_height_processor (ledger, write_database_queue, config.conf_height_processor_batch_min_time, config.logging, logger, node_initialized_latch, flags.confirmation_height_processor_mode),
 	active (*this, confirmation_height_processor),
+	recently_confirmed{ 65536 },
 	scheduler{ *this },
 	aggregator (config, stats, active.generator, active.final_generator, history, ledger, wallets, active),
 	wallets (wallets_store.init_error (), *this),
@@ -1401,7 +1402,7 @@ void nano::node::process_confirmed (nano::election_status const & status_a, uint
 	auto const num_iters = (config.block_processor_batch_max_time / network_params.node.process_confirmed_interval) * 4;
 	if (auto block_l = ledger.store.block.get (ledger.store.tx_begin_read (), hash))
 	{
-		active.recently_confirmed.put (block_l->qualified_root (), hash);
+		recently_confirmed.put (block_l->qualified_root (), hash);
 		confirmation_height_processor.add (block_l);
 	}
 	else if (iteration_a < num_iters)

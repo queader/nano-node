@@ -20,6 +20,7 @@
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/online_reps.hpp>
 #include <nano/node/portmapping.hpp>
+#include <nano/node/recently_confirmed.hpp>
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/signatures.hpp>
@@ -160,6 +161,7 @@ public:
 	nano::vote_uniquer vote_uniquer;
 	nano::confirmation_height_processor confirmation_height_processor;
 	nano::active_transactions active;
+	nano::recently_confirmed recently_confirmed;
 	nano::election_scheduler scheduler;
 	nano::request_aggregator aggregator;
 	nano::wallets wallets;

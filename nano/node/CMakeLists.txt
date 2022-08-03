@@ -145,6 +145,8 @@ add_library(
   prioritization.hpp
   node_pow_server_config.hpp
   node_pow_server_config.cpp
+  recently_confirmed.hpp
+  recently_confirmed.cpp
   repcrawler.hpp
   repcrawler.cpp
   request_aggregator.hpp
