@@ -152,6 +152,12 @@ nano::system::~system ()
 #endif
 }
 
+nano::node & nano::system::node (std::size_t index) const
+{
+	debug_assert (index < nodes.size ());
+	return *nodes[index];
+}
+
 void nano::system::ledger_initialization_set (std::vector<nano::keypair> const & reps, nano::amount const & reserve)
 {
 	nano::block_hash previous = nano::dev::genesis->hash ();
@@ -569,6 +575,12 @@ void nano::system::stop ()
 		i->stop ();
 	}
 	work.stop ();
+}
+
+nano::node_config nano::system::default_config ()
+{
+	nano::node_config config{ nano::get_available_port (), logging };
+	return config;
 }
 
 uint16_t nano::get_available_port ()

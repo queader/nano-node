@@ -46,8 +46,13 @@ public:
 	void delay_ms (std::chrono::milliseconds const & delay);
 	void stop ();
 	void deadline_set (std::chrono::duration<double, std::nano> const & delta);
+	/*
+	 * Convenience function to get a reference to a node at given index. Does bound checking.
+	 */
+	nano::node & node (std::size_t index) const;
 	std::shared_ptr<nano::node> add_node (nano::node_flags = nano::node_flags (), nano::transport::transport_type = nano::transport::transport_type::tcp);
 	std::shared_ptr<nano::node> add_node (nano::node_config const &, nano::node_flags = nano::node_flags (), nano::transport::transport_type = nano::transport::transport_type::tcp);
+	nano::node_config default_config ();
 	boost::asio::io_context io_ctx;
 	std::vector<std::shared_ptr<nano::node>> nodes;
 	nano::logging logging;
