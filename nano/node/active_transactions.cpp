@@ -871,6 +871,13 @@ std::size_t nano::active_transactions::election_winner_details_size ()
 	return election_winner_details.size ();
 }
 
+void nano::active_transactions::clear ()
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	blocks.clear ();
+	roots.clear ();
+}
+
 nano::cementable_account::cementable_account (nano::account const & account_a, std::size_t blocks_uncemented_a) :
 	account (account_a), blocks_uncemented (blocks_uncemented_a)
 {

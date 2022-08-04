@@ -1,4 +1,8 @@
-add_executable(slow_test entry.cpp node.cpp)
+add_executable(
+  slow_test
+  entry.cpp
+  node.cpp
+  vote_cache.cpp)
 
 target_link_libraries(
   slow_test
