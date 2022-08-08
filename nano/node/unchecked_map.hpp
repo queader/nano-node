@@ -36,14 +36,14 @@ public:
 	~unchecked_map ();
 	void put (nano::hash_or_account const & dependency, nano::unchecked_info const & info);
 	void for_each (
-	nano::transaction const & transaction, std::function<void (nano::unchecked_key const &, nano::unchecked_info const &)> action, std::function<bool ()> predicate = [] () { return true; });
+	std::function<void (nano::unchecked_key const &, nano::unchecked_info const &)> action, std::function<bool ()> predicate = [] () { return true; });
 	void for_each (
-	nano::transaction const & transaction, nano::hash_or_account const & dependency, std::function<void (nano::unchecked_key const &, nano::unchecked_info const &)> action, std::function<bool ()> predicate = [] () { return true; });
-	std::vector<nano::unchecked_info> get (nano::transaction const &, nano::block_hash const &);
-	bool exists (nano::transaction const & transaction, nano::unchecked_key const & key) const;
-	void del (nano::write_transaction const & transaction, nano::unchecked_key const & key);
-	void clear (nano::write_transaction const & transaction);
-	size_t count (nano::transaction const & transaction) const;
+	nano::hash_or_account const & dependency, std::function<void (nano::unchecked_key const &, nano::unchecked_info const &)> action, std::function<bool ()> predicate = [] () { return true; });
+	std::vector<nano::unchecked_info> get (nano::block_hash const &);
+	bool exists (nano::unchecked_key const & key) const;
+	void del (nano::unchecked_key const & key);
+	void clear ();
+	size_t count () const;
 	void stop ();
 	void flush ();
 
@@ -59,15 +59,14 @@ private:
 	class item_visitor : boost::static_visitor<>
 	{
 	public:
-		item_visitor (unchecked_map & unchecked, nano::write_transaction const & transaction);
+		item_visitor (unchecked_map & unchecked);
 		void operator() (insert const & item);
 		void operator() (query const & item);
 		unchecked_map & unchecked;
-		nano::write_transaction const & transaction;
 	};
 	void run ();
-	void insert_impl (nano::write_transaction const & transaction, nano::hash_or_account const & dependency, nano::unchecked_info const & info);
-	void query_impl (nano::write_transaction const & transaction, nano::block_hash const & hash);
+	void insert_impl (nano::hash_or_account const & dependency, nano::unchecked_info const & info);
+	void query_impl (nano::block_hash const & hash);
 	/*
 	 * Checks if in memory store should be used and migrates entries if necessary
 	 */

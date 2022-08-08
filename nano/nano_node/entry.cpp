@@ -58,7 +58,7 @@ public:
 	std::string library;
 
 	address_library_pair (uint64_t address, std::string library);
-	bool operator< (const address_library_pair & other) const;
+	bool operator<(const address_library_pair & other) const;
 	bool operator== (const address_library_pair & other) const;
 };
 }
@@ -439,7 +439,7 @@ int main (int argc, char * const * argv)
 			}
 
 			// Check all unchecked keys for matching frontier hashes. Indicates an issue with process_batch algorithm
-			node->unchecked.for_each (transaction, [&frontier_hashes] (nano::unchecked_key const & key, nano::unchecked_info const & info) {
+			node->unchecked.for_each ([&frontier_hashes] (nano::unchecked_key const & key, nano::unchecked_info const & info) {
 				auto it = frontier_hashes.find (key.key ());
 				if (it != frontier_hashes.cend ())
 				{
@@ -1012,7 +1012,7 @@ int main (int argc, char * const * argv)
 				if (timer_l.after_deadline (std::chrono::seconds (15)))
 				{
 					timer_l.restart ();
-					std::cout << boost::str (boost::format ("%1% (%2%) blocks processed (unchecked), %3% remaining") % node->ledger.cache.block_count % node->unchecked.count (node->store.tx_begin_read ()) % node->block_processor.size ()) << std::endl;
+					std::cout << boost::str (boost::format ("%1% (%2%) blocks processed (unchecked), %3% remaining") % node->ledger.cache.block_count % node->unchecked.count () % node->block_processor.size ()) << std::endl;
 				}
 			}
 
@@ -1861,7 +1861,7 @@ int main (int argc, char * const * argv)
 				if (timer_l.after_deadline (std::chrono::seconds (60)))
 				{
 					timer_l.restart ();
-					std::cout << boost::str (boost::format ("%1% (%2%) blocks processed (unchecked)") % node.node->ledger.cache.block_count % node.node->unchecked.count (node.node->store.tx_begin_read ())) << std::endl;
+					std::cout << boost::str (boost::format ("%1% (%2%) blocks processed (unchecked)") % node.node->ledger.cache.block_count % node.node->unchecked.count ()) << std::endl;
 				}
 			}
 
@@ -2065,7 +2065,7 @@ address_library_pair::address_library_pair (uint64_t address, std::string librar
 {
 }
 
-bool address_library_pair::operator< (const address_library_pair & other) const
+bool address_library_pair::operator<(const address_library_pair & other) const
 {
 	return address < other.address;
 }
