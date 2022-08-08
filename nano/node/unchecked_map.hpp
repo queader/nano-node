@@ -68,6 +68,10 @@ private:
 	void run ();
 	void insert_impl (nano::write_transaction const & transaction, nano::hash_or_account const & dependency, nano::unchecked_info const & info);
 	void query_impl (nano::write_transaction const & transaction, nano::block_hash const & hash);
+	/*
+	 * Checks if in memory store should be used and migrates entries if necessary
+	 */
+	void check_in_memory ();
 	nano::store & store;
 	bool const & disable_delete;
 	std::deque<boost::variant<insert, query>> buffer;

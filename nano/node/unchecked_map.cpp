@@ -194,7 +194,10 @@ void nano::unchecked_map::run ()
 			back_buffer.swap (buffer);
 			writing_back_buffer = true;
 			lock.unlock ();
+
+			check_in_memory ();
 			write_buffer (back_buffer);
+
 			lock.lock ();
 			writing_back_buffer = false;
 			back_buffer.clear ();
@@ -209,18 +212,24 @@ void nano::unchecked_map::run ()
 	}
 }
 
-void nano::unchecked_map::insert_impl (nano::write_transaction const & transaction, nano::hash_or_account const & dependency, nano::unchecked_info const & info)
+void nano::unchecked_map::check_in_memory ()
 {
 	nano::lock_guard<std::recursive_mutex> lock{ entries_mutex };
 	// Check if we should be using memory but the memory container hasn't been constructed i.e. we're transitioning from disk to memory.
 	if (entries == nullptr && use_memory ())
 	{
+		auto transaction = store.tx_begin_write ();
 		auto entries_new = std::make_unique<typename decltype (entries)::element_type> ();
 		for_each (
 		transaction, [&entries_new] (nano::unchecked_key const & key, nano::unchecked_info const & info) { entries_new->template get<tag_root> ().insert ({ key, info }); }, [&] () { return entries_new->size () < mem_block_count_max; });
 		clear (transaction);
 		entries = std::move (entries_new);
 	}
+}
+
+void nano::unchecked_map::insert_impl (nano::write_transaction const & transaction, nano::hash_or_account const & dependency, nano::unchecked_info const & info)
+{
+	nano::lock_guard<std::recursive_mutex> lock{ entries_mutex };
 	if (entries == nullptr)
 	{
 		store.unchecked.put (transaction, dependency, { info.block, info.account, info.verified });
