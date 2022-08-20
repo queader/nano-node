@@ -3952,7 +3952,7 @@ TEST (node, dependency_graph)
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	node.block_confirm (gen_send1);
 
-	ASSERT_NO_ERROR (system.poll_until_true (15s, [&] {
+	ASSERT_NO_THROW (system.poll_until_true (15s, [&] {
 		// Not many blocks should be active simultaneously
 		EXPECT_LT (node.active.size (), 6);
 		nano::lock_guard<nano::mutex> guard (node.active.mutex);

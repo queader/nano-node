@@ -95,11 +95,7 @@ TEST (conflicts, add_two)
 		};
 
 		node->process_confirmed (nano::election_status{ send });
-		auto const is_send_not_confirmed = system.poll_until_true (5s, std::bind (is_confirmed, send->hash ()));
-		if (is_send_not_confirmed)
-		{
-			return std::make_pair (std::nullopt, std::nullopt);
-		}
+		system.poll_until_true (5s, std::bind (is_confirmed, send->hash ()));
 
 		auto const receive = nano::open_block_builder{}.make_block ().account (to.pub).source (send->hash ()).representative (to.pub).sign (to.prv, to.pub).work (*system.work.generate (to.pub)).build_shared ();
 
@@ -109,11 +105,7 @@ TEST (conflicts, add_two)
 		}
 
 		node->process_confirmed (nano::election_status{ receive });
-		auto const is_receive_not_confirmed = system.poll_until_true (5s, std::bind (is_confirmed, receive->hash ()));
-		if (is_receive_not_confirmed)
-		{
-			return std::make_pair (std::move (send), std::nullopt);
-		}
+		system.poll_until_true (5s, std::bind (is_confirmed, receive->hash ()));
 
 		return std::make_pair (std::move (send), std::move (receive));
 	};

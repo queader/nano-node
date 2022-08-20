@@ -17,7 +17,7 @@ std::shared_ptr<nano::transport::channel_tcp> nano::test::establish_tcp (nano::t
 	std::shared_ptr<nano::transport::channel_tcp> result;
 	debug_assert (!node.flags.disable_tcp_realtime);
 	node.network.tcp_channels.start_tcp (endpoint);
-	auto error = system.poll_until_true (2s, [&result, &node, &endpoint] {
+	system.poll_until_true (2s, [&result, &node, &endpoint] {
 		result = node.network.tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (endpoint));
 		return result != nullptr;
 	});

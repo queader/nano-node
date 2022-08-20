@@ -7,6 +7,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <cstdlib>
+#include <system_error>
 
 using namespace std::chrono_literals;
 
@@ -302,7 +303,7 @@ std::error_code nano::test::system::poll (std::chrono::nanoseconds const & wait_
 	return ec;
 }
 
-std::error_code nano::test::system::poll_until_true (std::chrono::nanoseconds deadline_a, std::function<bool ()> predicate_a)
+void nano::test::system::poll_until_true (std::chrono::nanoseconds deadline_a, std::function<bool ()> predicate_a)
 {
 	std::error_code ec;
 	deadline_set (deadline_a);
@@ -310,7 +311,10 @@ std::error_code nano::test::system::poll_until_true (std::chrono::nanoseconds de
 	{
 		ec = poll ();
 	}
-	return ec;
+	if (ec)
+	{
+		throw std::system_error (ec);
+	}
 }
 
 /**
