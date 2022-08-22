@@ -323,6 +323,9 @@ if(WIN32)
   set(PLATFORM_LINK_FLAGS "")
   add_definitions(/bigobj)
 else()
+  # Hide internal symbols to avoid `weak symbol cannot be overridden at runtime` warnings
+  add_compile_options(-fvisibility-inlines-hidden -fvisibility=hidden)
+
   if(APPLE)
     set(PLATFORM_LINK_FLAGS "-framework Foundation -framework OpenCL")
   else()
