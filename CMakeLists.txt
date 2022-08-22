@@ -14,9 +14,9 @@ if(CMAKE_VERSION VERSION_LESS 3.13)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/legacyModules")
 endif()
 
-# compatibility for osx sierra and on needs to be set before project
+# compatibility for osx needs to be set before project
 set(CMAKE_OSX_DEPLOYMENT_TARGET
-    10.14
+    12.0
     CACHE STRING "")
 
 project(nano-node)
