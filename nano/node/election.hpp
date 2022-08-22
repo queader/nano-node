@@ -16,6 +16,7 @@ class confirmation_solicitor;
 class inactive_cache_information;
 class node;
 class vote_generator_session;
+
 class vote_info final
 {
 public:
@@ -23,6 +24,7 @@ public:
 	uint64_t timestamp;
 	nano::block_hash hash;
 };
+
 class vote_with_weight_info final
 {
 public:
@@ -32,6 +34,7 @@ public:
 	nano::block_hash hash;
 	nano::uint128_t weight;
 };
+
 class election_vote_result final
 {
 public:
@@ -40,17 +43,20 @@ public:
 	bool replay{ false };
 	bool processed{ false };
 };
+
 enum class election_behavior
 {
 	normal,
 	hinted
 };
+
 struct election_extended_status final
 {
 	nano::election_status status;
 	std::unordered_map<nano::account, nano::vote_info> votes;
 	nano::tally_t tally;
 };
+
 class election final : public std::enable_shared_from_this<nano::election>
 {
 public:
@@ -75,9 +81,11 @@ private: // State management
 		expired_confirmed,
 		expired_unconfirmed
 	};
+
 	static unsigned constexpr passive_duration_factor = 5;
 	static unsigned constexpr active_request_count_min = 2;
 	static unsigned constexpr confirmed_duration_factor = 5;
+
 	std::atomic<nano::election::state_t> state_m = { state_t::passive };
 
 	static_assert (std::is_trivial<std::chrono::steady_clock::duration> ());
