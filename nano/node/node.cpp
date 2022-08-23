@@ -133,6 +133,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	wallets_store (*wallets_store_impl),
 	gap_cache (*this),
 	ledger (store, stats, network_params.ledger, flags_a.generate_cache),
+	canary{ network_params, ledger },
 	checker (config.signature_checker_threads),
 	// empty `config.peering_port` means the user made no port choice at all;
 	// otherwise, any value is considered, with `0` having the special meaning of 'let the OS pick a port instead'
@@ -175,6 +176,11 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 		telemetry->start ();
 
 		active.vacancy_update = [this] () { scheduler.notify (); };
+
+		// Canary cache needs to observe every cemented block
+		confirmation_height_processor.add_cemented_observer ([this] (std::shared_ptr<nano::block> const & block) {
+			canary.block_cemented (block);
+		});
 
 		if (config.websocket_config.enabled)
 		{

@@ -10,6 +10,7 @@
 #include <nano/node/bootstrap/bootstrap.hpp>
 #include <nano/node/bootstrap/bootstrap_attempt.hpp>
 #include <nano/node/bootstrap/bootstrap_server.hpp>
+#include <nano/node/canary_cache.hpp>
 #include <nano/node/confirmation_height_processor.hpp>
 #include <nano/node/distributed_work_factory.hpp>
 #include <nano/node/election.hpp>
@@ -144,6 +145,7 @@ public:
 	nano::wallets_store & wallets_store;
 	nano::gap_cache gap_cache;
 	nano::ledger ledger;
+	nano::canary_cache canary;
 	nano::signature_checker checker;
 	nano::network network;
 	std::shared_ptr<nano::telemetry> telemetry;

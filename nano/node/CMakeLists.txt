@@ -44,6 +44,8 @@ add_library(
   bootstrap/bootstrap.cpp
   bootstrap/message_deserializer.hpp
   bootstrap/message_deserializer.cpp
+  canary_cache.hpp
+  canary_cache.cpp
   cli.hpp
   cli.cpp
   common.hpp

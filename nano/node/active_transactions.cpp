@@ -117,13 +117,6 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 			}
 		}
 
-		auto const & account (!block_a->account ().is_zero () ? block_a->account () : block_a->sideband ().account);
-		debug_assert (!account.is_zero ());
-		if (!node.ledger.cache.final_votes_confirmation_canary.load () && account == node.network_params.ledger.final_votes_canary_account && block_a->sideband ().height >= node.network_params.ledger.final_votes_canary_height)
-		{
-			node.ledger.cache.final_votes_confirmation_canary.store (true);
-		}
-
 		// Next-block activations are done after cementing hardcoded bootstrap count to allow confirming very large chains without interference
 		bool const cemented_bootstrap_count_reached{ node.ledger.cache.cemented_count >= node.ledger.bootstrap_weight_max_blocks };
 
