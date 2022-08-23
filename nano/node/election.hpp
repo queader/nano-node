@@ -105,8 +105,7 @@ public: // Status
 	nano::tally_t tally () const;
 	bool have_quorum (nano::tally_t const &) const;
 
-	// Guarded by mutex
-	nano::election_status status;
+	nano::election_status status () const;
 
 public: // Interface
 	election (nano::node &, std::shared_ptr<nano::block> const & block, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action, std::function<void (nano::account const &)> const & vote_action, nano::election_behavior behavior);
@@ -166,6 +165,8 @@ private:
 
 	nano::election_behavior const behavior{ nano::election_behavior::normal };
 	std::chrono::steady_clock::time_point const election_start = { std::chrono::steady_clock::now () };
+
+	nano::election_status status_m;
 
 	nano::node & node;
 	mutable nano::mutex mutex;

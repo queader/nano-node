@@ -86,9 +86,7 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 				election_winners_lk.unlock ();
 				if (election->confirmed () && election->winner ()->hash () == hash)
 				{
-					nano::unique_lock<nano::mutex> election_lk (election->mutex);
-					auto status_l = election->status;
-					election_lk.unlock ();
+					auto status_l = election->status ();
 					recently_cemented.put (status_l);
 					auto destination (block_a->link ().is_zero () ? block_a->destination () : block_a->link ().as_account ());
 					node.receive_confirmed (transaction, hash, destination);
@@ -98,11 +96,6 @@ void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::b
 					bool is_state_epoch (false);
 					nano::account pending_account{};
 					node.process_confirmed_data (transaction, block_a, hash, account, amount, is_state_send, is_state_epoch, pending_account);
-					election_lk.lock ();
-					election->status.type = *election_status_type;
-					election->status.confirmation_request_count = election->confirmation_request_count;
-					status_l = election->status;
-					election_lk.unlock ();
 					auto votes (election->votes_with_weight ());
 					node.observers.blocks.notify (status_l, votes, account, amount, is_state_send, is_state_epoch);
 					if (amount > 0)
