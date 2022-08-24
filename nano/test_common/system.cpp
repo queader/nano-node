@@ -150,10 +150,7 @@ nano::test::system::system (uint16_t count_a, nano::transport::transport_type ty
 
 nano::test::system::~system ()
 {
-	for (auto & i : nodes)
-	{
-		i->stop ();
-	}
+	stop ();
 
 #ifndef _WIN32
 	// Windows cannot remove the log and data files while they are still owned by this process.
@@ -314,7 +311,6 @@ std::error_code nano::test::system::poll (std::chrono::nanoseconds const & wait_
 	if (std::chrono::steady_clock::now () > deadline)
 	{
 		ec = nano::error_system::deadline_expired;
-		stop ();
 	}
 	return ec;
 }
