@@ -247,6 +247,16 @@ namespace test
 	 */
 	bool confirmed (nano::node & node, std::vector<nano::block_hash> hashes);
 	/*
+	 * Convenience function to check whether a list of hashes exists in node ledger.
+	 * @return true if all blocks are fully processed and inserted in the ledger, false otherwise
+	 */
+	bool exist (nano::node & node, std::vector<nano::block_hash> hashes);
+	/*
+	 * Convenience function to check whether a list of blocks exists in node ledger.
+	 * @return true if all blocks are fully processed and inserted in the ledger, false otherwise
+	 */
+	bool exist (nano::node & node, std::vector<std::shared_ptr<nano::block>> blocks);
+	/*
 	 * Convenience function to create a new vote from list of blocks
 	 */
 	std::shared_ptr<nano::vote> make_vote (nano::keypair key, std::vector<std::shared_ptr<nano::block>> blocks, uint64_t timestamp = 0, uint8_t duration = 0);

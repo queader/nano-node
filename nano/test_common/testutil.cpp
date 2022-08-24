@@ -103,6 +103,25 @@ bool nano::test::confirmed (nano::node & node, std::vector<std::shared_ptr<nano:
 	return confirmed (node, hashes);
 }
 
+bool nano::test::exist (nano::node & node, std::vector<nano::block_hash> hashes)
+{
+	for (auto & hash : hashes)
+	{
+		if (!node.block (hash))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool nano::test::exist (nano::node & node, std::vector<std::shared_ptr<nano::block>> blocks)
+{
+	std::vector<nano::block_hash> hashes;
+	std::transform (blocks.begin (), blocks.end (), std::back_inserter (hashes), [] (auto & block) { return block->hash (); });
+	return exist (node, hashes);
+}
+
 std::shared_ptr<nano::vote> nano::test::make_vote (nano::keypair key, std::vector<nano::block_hash> hashes, uint64_t timestamp, uint8_t duration)
 {
 	return std::make_shared<nano::vote> (key.pub, key.prv, timestamp, duration, hashes);
