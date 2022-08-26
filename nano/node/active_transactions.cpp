@@ -654,7 +654,7 @@ void nano::active_transactions::add_inactive_votes_cache (nano::unique_lock<nano
 	}
 
 	// Check principal representative status
-	if (node.ledger.weight (representative_a) > node.minimum_principal_weight ())
+	if (node.minimum_principal_weight (representative_a))
 	{
 		/** It is important that the new vote is added to the cache before calling inactive_votes_bootstrap_check
 		 * This guarantees consistency when a vote is received while also receiving the corresponding block

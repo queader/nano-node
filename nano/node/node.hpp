@@ -85,6 +85,10 @@ public:
 	nano::uint128_t weight (nano::account const &);
 	nano::block_hash rep_block (nano::account const &);
 	nano::uint128_t minimum_principal_weight ();
+	/*
+	 * Check whether representative reached minimum weight required to become principal representative
+	 */
+	bool minimum_principal_weight (nano::account const &);
 	void ongoing_rep_calculation ();
 	void ongoing_bootstrap ();
 	void ongoing_peer_store ();

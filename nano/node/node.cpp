@@ -810,6 +810,11 @@ nano::uint128_t nano::node::minimum_principal_weight ()
 	return online_reps.trended () / network_params.network.principal_weight_factor;
 }
 
+bool nano::node::minimum_principal_weight (nano::account const & account)
+{
+	return ledger.weight (account) >= minimum_principal_weight ();
+}
+
 void nano::node::long_inactivity_cleanup ()
 {
 	bool perform_cleanup = false;
