@@ -822,7 +822,7 @@ TEST (active_transactions, fork_replacement_tally)
 	nano::state_block_builder builder;
 
 	// Create 20 representatives & confirm blocks
-	for (auto i (0); i < reps_count; i++)
+	for (auto i = 0; i < reps_count; i++)
 	{
 		balance -= amount + i;
 		auto send = builder.make_block ()
@@ -834,7 +834,6 @@ TEST (active_transactions, fork_replacement_tally)
 					.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 					.work (*system.work.generate (latest))
 					.build_shared ();
-		node1.process_active (send);
 		latest = send->hash ();
 		auto open = builder.make_block ()
 					.account (keys[i].pub)
@@ -845,12 +844,12 @@ TEST (active_transactions, fork_replacement_tally)
 					.sign (keys[i].prv, keys[i].pub)
 					.work (*system.work.generate (keys[i].pub))
 					.build_shared ();
-		node1.process_active (open);
-		// Confirmation
-		auto vote (std::make_shared<nano::vote> (nano::dev::genesis_key.pub, nano::dev::genesis_key.prv, nano::vote::timestamp_max, nano::vote::duration_max, std::vector<nano::block_hash>{ send->hash (), open->hash () }));
-		node1.vote_processor.vote (vote, std::make_shared<nano::transport::inproc::channel> (node1, node1));
+
+		// Process and confirm
+		ASSERT_TRUE (nano::test::process (node1, { send, open }));
+		ASSERT_TRUE (nano::test::confirm (node1, { send, open }));
+		ASSERT_TIMELY (5s, nano::test::confirmed (node1, { send, open }));
 	}
-	ASSERT_TIMELY (5s, node1.ledger.cache.cemented_count == 1 + 2 * reps_count);
 
 	nano::keypair key;
 	auto send_last = builder.make_block ()
@@ -877,7 +876,7 @@ TEST (active_transactions, fork_replacement_tally)
 					.build_shared ();
 		node1.process_active (fork);
 	}
-	ASSERT_TIMELY (5s, !node1.active.empty ());
+	ASSERT_TIMELY (5s, node1.active.size () == 1);
 
 	// Check overflow of blocks
 	auto election = node1.active.election (send_last->qualified_root ());
@@ -885,7 +884,7 @@ TEST (active_transactions, fork_replacement_tally)
 	ASSERT_TIMELY (5s, max_blocks == election->blocks ().size ());
 
 	// Generate forks with votes to prevent new block insertion to election
-	for (auto i (0); i < reps_count; i++)
+	for (auto i = 0; i < reps_count; i++)
 	{
 		auto fork = builder.make_block ()
 					.account (nano::dev::genesis_key.pub)
@@ -896,10 +895,20 @@ TEST (active_transactions, fork_replacement_tally)
 					.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 					.work (*system.work.generate (latest))
 					.build_shared ();
-		auto vote (std::make_shared<nano::vote> (keys[i].pub, keys[i].prv, 0, 0, std::vector<nano::block_hash>{ fork->hash () }));
+
+		ASSERT_TIMELY (5s, node1.minimum_principal_weight (keys[i].pub));
+
+		auto vote = nano::test::make_vote (keys[i], { fork });
 		node1.vote_processor.vote (vote, std::make_shared<nano::transport::inproc::channel> (node1, node1));
 		node1.vote_processor.flush ();
+
+		//		std::this_thread::sleep_for (1s);
+		//		std::cout << node1.active.inactive_votes_cache_size () << std::endl;
+		ASSERT_TIMELY (5s, node1.active.inactive_votes_cache_size () == (i + 1));
+
 		node1.process_active (fork);
+
+		std::cout << keys[i].pub.to_string () << " : " << node1.weight (keys[i].pub) << std::endl;
 	}
 
 	// function to count the number of rep votes (non genesis) found in election
@@ -923,7 +932,19 @@ TEST (active_transactions, fork_replacement_tally)
 	};
 
 	// Check overflow of blocks
-	ASSERT_TIMELY (10s, count_rep_votes_in_election () == 9);
+	//	ASSERT_TIMELY (5s, election->votes().size() == 9);
+	ASSERT_TIMELY (5s, count_rep_votes_in_election () == 9);
+
+	std::cout << std::endl;
+	std::cout << "null: " << nano::account::null ().to_string () << std::endl;
+
+	std::cout << "ELECTION SIZE" << std::endl;
+	std::cout << election->votes ().size () << std::endl;
+	for (auto & vote : election->votes ())
+	{
+		std::cout << vote.first.to_string () << " : " << node1.weight (vote.first) << std::endl;
+	}
+
 	ASSERT_EQ (max_blocks, election->blocks ().size ());
 
 	// Process correct block
