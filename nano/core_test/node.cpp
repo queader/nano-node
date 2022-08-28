@@ -380,10 +380,9 @@ TEST (node, receive_gap)
 TEST (node, merge_peers)
 {
 	nano::test::system system (1);
-	std::array<nano::endpoint, 8> endpoints;
-	endpoints.fill (nano::endpoint (boost::asio::ip::address_v6::loopback (), nano::test::get_available_port ()));
+	std::vector<nano::endpoint> endpoints (8, nano::endpoint (boost::asio::ip::address_v6::loopback (), nano::test::get_available_port ()));
 	endpoints[0] = nano::endpoint (boost::asio::ip::address_v6::loopback (), nano::test::get_available_port ());
-	system.nodes[0]->network.merge_peers (endpoints);
+	ASSERT_EQ (2, system.nodes[0]->network.merge_peers (endpoints)); // 2 unique addresses in `endpoints`
 	ASSERT_EQ (0, system.nodes[0]->network.size ());
 }
 

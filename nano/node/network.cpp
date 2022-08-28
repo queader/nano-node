@@ -10,6 +10,7 @@
 #include <boost/variant/get.hpp>
 
 #include <numeric>
+#include <vector>
 
 nano::network::network (nano::node & node_a, uint16_t port_a) :
 	id (nano::network_constants::active_network),
@@ -417,7 +418,11 @@ public:
 			node.logger.try_log (boost::str (boost::format ("Received keepalive message from %1%") % channel->to_string ()));
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in);
-		node.network.merge_peers (message_a.peers);
+
+		// We receive a random selection of peers inside a keepalive message
+		// Try to connect to the ones not already connected
+		std::vector<nano::endpoint> peers (message_a.peers.begin (), message_a.peers.end ());
+		node.network.merge_peers (peers);
 
 		// Check for special node port data
 		auto peer0 (message_a.peers[0]);
@@ -547,22 +552,28 @@ void nano::network::process_message (nano::message const & message_a, std::share
 	message_a.visit (visitor);
 }
 
-// Send keepalives to all the peers we've been notified of
-void nano::network::merge_peers (std::array<nano::endpoint, 8> const & peers_a)
+std::size_t nano::network::merge_peers (std::vector<nano::endpoint> const & peers)
 {
-	for (auto i (peers_a.begin ()), j (peers_a.end ()); i != j; ++i)
+	std::size_t connected = 0;
+	for (auto const & peer : peers)
 	{
-		merge_peer (*i);
+		bool result = merge_peer (peer);
+		if (result)
+		{
+			++connected;
+		}
 	}
+	return connected;
 }
 
-void nano::network::merge_peer (nano::endpoint const & peer_a)
+bool nano::network::merge_peer (nano::endpoint const & peer_a)
 {
 	if (!reachout (peer_a, node.config.allow_local_peers))
 	{
-		std::weak_ptr<nano::node> node_w (node.shared ());
 		node.network.tcp_channels.start_tcp (peer_a);
+		return true;
 	}
+	return false;
 }
 
 bool nano::network::not_a_peer (nano::endpoint const & endpoint_a, bool allow_local_peers)

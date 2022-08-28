@@ -11,12 +11,14 @@
 #include <memory>
 #include <queue>
 #include <unordered_set>
+
 namespace nano
 {
 class channel;
 class node;
 class stats;
 class transaction;
+
 class message_buffer final
 {
 public:
@@ -24,14 +26,15 @@ public:
 	std::size_t size{ 0 };
 	nano::endpoint endpoint;
 };
+
 /**
-  * A circular buffer for servicing nano realtime messages.
-  * This container follows a producer/consumer model where the operating system is producing data in to
-  * buffers which are serviced by internal threads.
-  * If buffers are not serviced fast enough they're internally dropped.
-  * This container has a maximum space to hold N buffers of M size and will allocate them in round-robin order.
-  * All public methods are thread-safe
-*/
+ * A circular buffer for servicing nano realtime messages.
+ * This container follows a producer/consumer model where the operating system is producing data in to
+ * buffers which are serviced by internal threads.
+ * If buffers are not serviced fast enough they're internally dropped.
+ * This container has a maximum space to hold N buffers of M size and will allocate them in round-robin order.
+ * All public methods are thread-safe
+ */
 class message_buffer_manager final
 {
 public:
@@ -66,6 +69,7 @@ private:
 	std::vector<nano::message_buffer> entries;
 	bool stopped;
 };
+
 class tcp_message_manager final
 {
 public:
@@ -86,9 +90,10 @@ private:
 
 	friend class network_tcp_message_manager_Test;
 };
+
 /**
-  * Node ID cookies for node ID handshakes
-*/
+ * Node ID cookies for node ID handshakes
+ */
 class syn_cookies final
 {
 public:
@@ -115,6 +120,7 @@ private:
 	std::unordered_map<boost::asio::ip::address, unsigned> cookies_per_ip;
 	std::size_t max_cookies_per_ip;
 };
+
 class network final
 {
 public:
@@ -133,8 +139,16 @@ public:
 	// Flood block to a random selection of peers
 	void flood_block (std::shared_ptr<nano::block> const &, nano::buffer_drop_policy const = nano::buffer_drop_policy::limiter);
 	void flood_block_many (std::deque<std::shared_ptr<nano::block>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
-	void merge_peers (std::array<nano::endpoint, 8> const &);
-	void merge_peer (nano::endpoint const &);
+	/*
+	 * Filters invalid and prohibited peers and tries to establish new connections to the not already connected peers
+	 * @return number of new connection attempts made
+	 */
+	std::size_t merge_peers (std::vector<nano::endpoint> const & peers);
+	/*
+	 * Checks whether connection to that peer is allowed and tries to establish a new connection
+	 * @return true if new connection was attempted, false otherwise
+	 */
+	bool merge_peer (nano::endpoint const &);
 	void send_keepalive (std::shared_ptr<nano::transport::channel> const &);
 	void send_keepalive_self (std::shared_ptr<nano::transport::channel> const &);
 	void send_node_id_handshake (std::shared_ptr<nano::transport::channel> const &, boost::optional<nano::uint256_union> const & query, boost::optional<nano::uint256_union> const & respond_to);
@@ -197,5 +211,6 @@ public:
 	static std::size_t const confirm_req_hashes_max = 7;
 	static std::size_t const confirm_ack_hashes_max = 12;
 };
+
 std::unique_ptr<container_info_component> collect_container_info (network & network, std::string const & name);
 }
