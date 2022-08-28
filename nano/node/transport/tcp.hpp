@@ -17,6 +17,7 @@ namespace mi = boost::multi_index;
 namespace nano
 {
 class bootstrap_server;
+
 class tcp_message_item final
 {
 public:
@@ -25,9 +26,11 @@ public:
 	nano::account node_id;
 	std::shared_ptr<nano::socket> socket;
 };
+
 namespace transport
 {
 	class tcp_channels;
+
 	class channel_tcp : public nano::transport::channel
 	{
 		friend class nano::transport::tcp_channels;
@@ -80,6 +83,7 @@ namespace transport
 	private:
 		nano::tcp_endpoint endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	};
+
 	class tcp_channels final
 	{
 		friend class nano::transport::channel_tcp;
@@ -120,33 +124,18 @@ namespace transport
 
 	private:
 		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
-		class endpoint_tag
-		{
-		};
-		class ip_address_tag
-		{
-		};
-		class subnetwork_tag
-		{
-		};
-		class random_access_tag
-		{
-		};
-		class last_packet_sent_tag
-		{
-		};
-		class last_bootstrap_attempt_tag
-		{
-		};
-		class last_attempt_tag
-		{
-		};
-		class node_id_tag
-		{
-		};
-		class version_tag
-		{
-		};
+
+		// clang-format off
+		class endpoint_tag {};
+		class ip_address_tag {};
+		class subnetwork_tag {};
+		class random_access_tag {};
+		class last_packet_sent_tag {};
+		class last_bootstrap_attempt_tag {};
+		class last_attempt_tag {};
+		class node_id_tag {};
+		class version_tag {};
+		// clang-format on
 
 		class channel_tcp_wrapper final
 		{
@@ -188,6 +177,7 @@ namespace transport
 				return channel->get_network_version ();
 			}
 		};
+
 		class tcp_endpoint_attempt final
 		{
 		public:
@@ -203,7 +193,9 @@ namespace transport
 			{
 			}
 		};
+
 		mutable nano::mutex mutex;
+
 		// clang-format off
 		boost::multi_index_container<channel_tcp_wrapper,
 		mi::indexed_by<
@@ -223,6 +215,7 @@ namespace transport
 			mi::hashed_non_unique<mi::tag<subnetwork_tag>,
 				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::subnetwork>>>>
 		channels;
+
 		boost::multi_index_container<tcp_endpoint_attempt,
 		mi::indexed_by<
 			mi::hashed_unique<mi::tag<endpoint_tag>,
@@ -235,6 +228,7 @@ namespace transport
 				mi::member<tcp_endpoint_attempt, std::chrono::steady_clock::time_point, &tcp_endpoint_attempt::last_attempt>>>>
 		attempts;
 		// clang-format on
+
 		std::atomic<bool> stopped{ false };
 
 		friend class network_peer_max_tcp_attempts_subnetwork_Test;
