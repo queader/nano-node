@@ -421,44 +421,39 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 
 bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 {
-	nano::unique_lock<nano::mutex> lock (mutex);
+	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	// Do not insert new blocks if already confirmed
-	auto result (confirmed ());
-	if (!result && last_blocks.size () >= max_blocks && last_blocks.find (block_a->hash ()) == last_blocks.end ())
+	if (confirmed ())
 	{
-		if (!replace_by_weight (lock, block_a->hash ()))
-		{
-			result = true;
-			node.network.publish_filter.clear (block_a);
-		}
-		debug_assert (lock.owns_lock ());
+		return false;
 	}
-	if (!result)
+
+	bool processed = false;
+
+	// Check if block hash is not already in this election
+	if (last_blocks.find (block_a->hash ()) == last_blocks.end ())
 	{
-		auto existing = last_blocks.find (block_a->hash ());
-		if (existing == last_blocks.end ())
+		// Check if reached limit of blocks inside this election
+		if (last_blocks.size () >= max_blocks)
 		{
-			last_blocks.emplace (std::make_pair (block_a->hash (), block_a));
+			// Try to replace existing block with the lowest tally with the new block
+			if (!replace_by_weight (lock, block_a->hash ()))
+			{
+				// New block replaced one of the existing ones, mark as processed
+				processed = true;
+			}
+			debug_assert (lock.owns_lock ());
 		}
 		else
 		{
-			result = true;
-			existing->second = block_a;
-			if (status.winner->hash () == block_a->hash ())
-			{
-				status.winner = block_a;
-				node.network.flood_block (block_a, nano::buffer_drop_policy::no_limiter_drop);
-			}
+			// We are not at capacity, so just add a new block
+			last_blocks.emplace (std::make_pair (block_a->hash (), block_a));
+			processed = true;
 		}
 	}
-	/*
-	Result is true if:
-	1) election is confirmed or expired
-	2) given election contains 10 blocks & new block didn't receive enough votes to replace existing blocks
-	3) given block in already in election & election contains less than 10 blocks (replacing block content with new)
-	*/
-	return result;
+
+	return processed;
 }
 
 nano::election_extended_status nano::election::current_status () const

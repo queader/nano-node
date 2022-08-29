@@ -586,14 +586,17 @@ bool nano::active_transactions::publish (std::shared_ptr<nano::block> const & bl
 {
 	nano::unique_lock<nano::mutex> lock (mutex);
 	auto existing (roots.get<tag_root> ().find (block_a->qualified_root ()));
-	auto result (true);
 	if (existing != roots.get<tag_root> ().end ())
 	{
 		auto election (existing->election);
 		lock.unlock ();
-		result = election->publish (block_a);
-		if (!result)
+
+		bool processed = election->publish (block_a);
+		if (processed)
 		{
+			// Only republish blocks that were actually processed by the election
+			node.network.flood_block (block_a, nano::buffer_drop_policy::no_limiter_drop);
+
 			lock.lock ();
 			blocks.emplace (block_a->hash (), election);
 			lock.unlock ();
@@ -602,9 +605,11 @@ bool nano::active_transactions::publish (std::shared_ptr<nano::block> const & bl
 				cache->fill (election);
 			}
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::election_block_conflict);
+
+			return false; // success
 		}
 	}
-	return result;
+	return true; // error
 }
 
 // Returns the type of election status requiring callbacks calling later
