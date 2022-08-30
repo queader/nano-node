@@ -42,6 +42,13 @@
 		ASSERT_NO_ERROR (system.poll ()); \
 	}
 
+#define ASSERT_TIMELY_EQ(time, val1, val2)        \
+	system.deadline_set (time);                   \
+	while (!((val1) == (val2)) && system.poll ()) \
+	{                                             \
+	}                                             \
+	ASSERT_EQ (val1, val2);
+
 /*
  * Waits specified number of time while keeping system running.
  * Useful for asserting conditions that should still hold after some delay of time
