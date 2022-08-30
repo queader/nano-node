@@ -1850,7 +1850,7 @@ TEST (node, rep_remove)
 	}
 
 	// Create inactive TCP channel for Rep1
-	std::shared_ptr<nano::transport::channel> channel_rep1 (std::make_shared<nano::transport::channel_tcp> (searching_node, std::weak_ptr<nano::socket> ()));
+	auto channel_rep1 = std::make_shared<nano::transport::inproc::channel> (searching_node, searching_node);
 
 	// Ensure Rep1 is found by the rep_crawler after receiving a vote from it
 	auto vote_rep1 = std::make_shared<nano::vote> (keys_rep1.pub, keys_rep1.prv, 0, 0, std::vector<nano::block_hash>{ nano::dev::genesis->hash () });
