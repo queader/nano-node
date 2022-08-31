@@ -97,11 +97,15 @@ void nano::rep_crawler::validate ()
 		if (inserted)
 		{
 			node.logger.try_log (boost::str (boost::format ("Found representative %1% at %2%") % vote->account.to_account () % channel->to_string ()));
+
+			std::cout << "found at: " << channel->to_string () << std::endl;
 		}
 
 		if (updated)
 		{
 			node.logger.try_log (boost::str (boost::format ("Updated representative %1% at %2% (was at: %3%)") % vote->account.to_account () % channel->to_string () % prev_channel->to_string ()));
+
+			std::cout << "updated at: " << channel->to_string () << std::endl;
 		}
 	}
 }
@@ -177,6 +181,8 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 	}
 	for (auto i (channels_a.begin ()), n (channels_a.end ()); i != n; ++i)
 	{
+		std::cout << "query: " << (*i)->to_string () << std::endl;
+
 		debug_assert (*i != nullptr);
 		on_rep_request (*i);
 		node.network.send_confirm_req (*i, hash_root);
@@ -232,6 +238,8 @@ bool nano::rep_crawler::is_pr (nano::transport::channel const & channel_a) const
 
 bool nano::rep_crawler::response (std::shared_ptr<nano::transport::channel> const & channel_a, std::shared_ptr<nano::vote> const & vote_a)
 {
+	std::cout << "response from: " << channel_a->to_string () << std::endl;
+
 	bool error = true;
 	nano::lock_guard<nano::mutex> lock (active_mutex);
 	for (auto i = vote_a->hashes.begin (), n = vote_a->hashes.end (); i != n; ++i)

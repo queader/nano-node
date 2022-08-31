@@ -212,7 +212,15 @@ TEST (election, quorum_minimum_update_weight_before_quorum_checks)
 					   .build_shared ();
 	node1.process_active (send1);
 
-	auto const open1 = nano::open_block_builder{}.make_block ().account (key1.pub).source (send1->hash ()).representative (key1.pub).sign (key1.prv, key1.pub).work (*system.work.generate (key1.pub)).build_shared ();
+	nano::open_block_builder open_builder{};
+	auto const open1 = open_builder
+					   .make_block ()
+					   .account (key1.pub)
+					   .source (send1->hash ())
+					   .representative (key1.pub)
+					   .sign (key1.prv, key1.pub)
+					   .work (*system.work.generate (key1.pub))
+					   .build_shared ();
 	ASSERT_EQ (nano::process_result::progress, node1.process (*open1).code);
 
 	nano::keypair key2{};
@@ -230,6 +238,8 @@ TEST (election, quorum_minimum_update_weight_before_quorum_checks)
 	auto & node2 = *system.add_node (node_config);
 
 	system.wallet (1)->insert_adhoc (key1.prv);
+
+	// Ensure all blocks are in node2
 	ASSERT_TIMELY (10s, node2.ledger.cache.block_count == 4);
 
 	std::shared_ptr<nano::election> election{};
@@ -243,7 +253,8 @@ TEST (election, quorum_minimum_update_weight_before_quorum_checks)
 	ASSERT_NE (channel, nullptr);
 
 	auto const vote2 = std::make_shared<nano::vote> (key1.pub, key1.prv, nano::vote::timestamp_max, nano::vote::duration_max, std::vector<nano::block_hash>{ send1->hash () });
-	ASSERT_TIMELY (10s, !node1.rep_crawler.response (channel, vote2));
+	//	ASSERT_TIMELY (10s, !node1.rep_crawler.response (channel, vote2));
+	ASSERT_TIMELY (10s, node1.rep_crawler.is_pr (*channel));
 
 	ASSERT_FALSE (election->confirmed ());
 	{
