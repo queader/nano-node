@@ -75,13 +75,11 @@ bool nano::test::confirm (nano::node & node, std::vector<nano::block_hash> hashe
 		release_assert (disk_block != nullptr);
 		release_assert (disk_block->has_sideband ());
 		// This only starts election
-		auto election = node.block_confirm (disk_block);
-		if (election == nullptr)
+		bool confirmed = node.confirm (hash);
+		if (!confirmed)
 		{
 			return false;
 		}
-		// Here we actually confirm the block
-		election->force_confirm ();
 	}
 	return true;
 }
