@@ -42,11 +42,17 @@ namespace bootstrap
 	class message_deserializer;
 };
 
+namespace transport
+{
+	class channel;
+}
+
 class bootstrap_server final : public std::enable_shared_from_this<nano::bootstrap_server>
 {
 public:
 	bootstrap_server (std::shared_ptr<nano::socket>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
 	~bootstrap_server ();
+
 	void start ();
 	void stop ();
 
@@ -82,15 +88,21 @@ private:
 	bool is_bootstrap_connection () const;
 	bool is_realtime_connection () const;
 
+private:
 	std::shared_ptr<nano::bootstrap::message_deserializer> message_deserializer;
 
-	bool allow_bootstrap;
+	const bool allow_bootstrap;
 
-private:
+	/*
+	 * Channel associated with this connection.
+	 */
+	std::shared_ptr<nano::transport::channel> channel;
+
+private: // Message visitors
 	class handshake_message_visitor : public nano::message_visitor
 	{
 	public:
-		bool process{ false };
+		bool realtime{ false };
 		bool bootstrap{ false };
 
 		explicit handshake_message_visitor (std::shared_ptr<bootstrap_server>);
@@ -140,6 +152,7 @@ private:
 		std::shared_ptr<bootstrap_server> server;
 	};
 
+private: // Tests
 	friend class handshake_message_visitor;
 	friend class realtime_message_visitor;
 	friend class bootstrap_message_visitor;

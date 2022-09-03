@@ -134,6 +134,10 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (bo
 	return composite;
 }
 
+/*
+ * bootstrap_server
+ */
+
 nano::bootstrap_server::bootstrap_server (std::shared_ptr<nano::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ std::move (socket_a) },
 	node{ std::move (node_a) },
@@ -163,6 +167,7 @@ nano::bootstrap_server::~bootstrap_server ()
 			node->network.tcp_channels.erase (remote_endpoint);
 		}
 	}
+
 	stop ();
 
 	nano::lock_guard<nano::mutex> lock (node->bootstrap.mutex);
@@ -177,6 +182,7 @@ void nano::bootstrap_server::start ()
 		remote_endpoint = socket->remote_endpoint ();
 		debug_assert (remote_endpoint.port () != 0);
 	}
+
 	receive_message ();
 }
 
@@ -252,10 +258,25 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 	{
 		handshake_message_visitor handshake_visitor{ shared_from_this () };
 		message->visit (handshake_visitor);
-		if (handshake_visitor.process)
+		if (handshake_visitor.realtime)
 		{
-			queue_realtime (std::move (message));
-			return true;
+			debug_assert (!remote_node_id.is_zero ());
+
+			// We got a realtime handshake, create a new realtime channel
+			auto created_channel = node->network.tcp_channels.create (socket, shared_from_this (), remote_node_id);
+			if (created_channel == nullptr)
+			{
+				// Channel could not be created, abort
+				// TODO: stat & log
+				stop ();
+				return false;
+			}
+			else
+			{
+				channel = created_channel;
+				queue_realtime (std::move (message));
+				return true;
+			}
 		}
 		else if (handshake_visitor.bootstrap)
 		{
@@ -300,7 +321,10 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 
 void nano::bootstrap_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
-	node->network.queue.put (message, channel);
+	// Channel should be created right after handshake
+	debug_assert (channel != nullptr);
+
+	node->network.queue.put (std::move (message), channel);
 }
 
 /*
@@ -352,9 +376,7 @@ void nano::bootstrap_server::handshake_message_visitor::node_id_handshake (nano:
 		{
 			nano::account const & node_id = message.response->first;
 			server->to_realtime_connection (node_id);
-			// Let the node process this message
-			// When first message from an unknown channel is received, that channel is inserted as temporary channel
-			process = true;
+			realtime = true;
 		}
 		else
 		{
