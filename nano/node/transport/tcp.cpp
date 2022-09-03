@@ -102,9 +102,8 @@ void nano::transport::channel_tcp::set_endpoint ()
 	}
 }
 
-nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
-	node{ node },
-	sink{ std::move (sink) }
+nano::transport::tcp_channels::tcp_channels (nano::node & node) :
+	node{ node }
 {
 }
 

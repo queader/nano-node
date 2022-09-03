@@ -30,13 +30,15 @@ bool nano::transport::inproc::channel::operator== (nano::transport::channel cons
 class message_visitor_inbound : public nano::message_visitor
 {
 public:
-	message_visitor_inbound (decltype (nano::network::inbound) & inbound, std::shared_ptr<nano::transport::inproc::channel> channel) :
-		inbound{ inbound },
-		channel{ channel }
+	using inbound_t = std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)>;
+
+	message_visitor_inbound (inbound_t inbound, std::shared_ptr<nano::transport::inproc::channel> channel) :
+		inbound{ std::move (inbound) },
+		channel{ std::move (channel) }
 	{
 	}
 
-	decltype (nano::network::inbound) & inbound;
+	inbound_t inbound;
 
 	// the channel to reply to, if a reply is generated
 	std::shared_ptr<nano::transport::inproc::channel> channel;
@@ -57,7 +59,7 @@ void nano::transport::inproc::channel::send_buffer (nano::shared_const_buffer co
 	auto remote_channel = std::make_shared<nano::transport::inproc::channel> (destination, node);
 
 	// create an inbound message visitor class to handle incoming messages because that's what the message parser expects
-	message_visitor_inbound visitor{ destination.network.inbound, remote_channel };
+	message_visitor_inbound visitor{ [&network_l = destination.network] (auto const & message, auto const & channel) { network_l.inbound (message, channel); }, remote_channel };
 
 	nano::message_parser parser{ destination.network.publish_filter, destination.block_uniquer, destination.vote_uniquer, visitor, destination.work, destination.network_params.network };
 

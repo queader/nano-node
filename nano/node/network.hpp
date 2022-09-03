@@ -230,15 +230,16 @@ public:
 	void erase (nano::transport::channel const &);
 	void set_bandwidth_params (double, std::size_t);
 	static std::string to_string (nano::networks);
-
-private:
-	void process_message (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
+	/*
+	 * Processes a message. This is the place where every network message is ultimately processed.
+	 */
+	void inbound (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
 
 public: // Dependencies
 	nano::node & node;
 
 public:
-	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> inbound;
+	std::atomic<uint16_t> port{ 0 };
 	nano::message_buffer_manager buffer_container;
 	boost::asio::ip::udp::resolver resolver;
 	nano::bandwidth_limiter limiter;
@@ -247,7 +248,6 @@ public:
 	nano::network_filter publish_filter;
 	nano::transport::udp_channels udp_channels;
 	nano::transport::tcp_channels tcp_channels;
-	std::atomic<uint16_t> port{ 0 };
 	std::function<void ()> disconnect_observer;
 	// Called when a new channel is observed
 	std::function<void (std::shared_ptr<nano::transport::channel>)> channel_observer;

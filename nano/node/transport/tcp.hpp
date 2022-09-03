@@ -83,7 +83,7 @@ namespace transport
 		friend class telemetry_simultaneous_requests_Test;
 
 	public:
-		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
+		explicit tcp_channels (nano::node &);
 
 		/*
 		 * Checks if channel to peer does not already exist, creates a new one and inserts into this container
@@ -120,8 +120,6 @@ namespace transport
 		nano::node & node;
 
 	private:
-		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
-
 		// clang-format off
 		class endpoint_tag {};
 		class ip_address_tag {};

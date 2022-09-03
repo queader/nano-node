@@ -1252,6 +1252,7 @@ TEST (network, tcp_no_connect_excluded_peers)
 	ASSERT_TIMELY (5s, node0->network.size () == 1);
 }
 
+/*
 namespace nano
 {
 TEST (network, tcp_message_manager)
@@ -1312,6 +1313,7 @@ TEST (network, tcp_message_manager)
 	}
 }
 }
+*/
 
 TEST (network, cleanup_purge)
 {

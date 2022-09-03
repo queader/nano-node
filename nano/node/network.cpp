@@ -14,30 +14,28 @@
 
 nano::network::network (nano::node & node_a, uint16_t port_a) :
 	node (node_a),
+	port (port_a),
 	id (nano::network_constants::active_network),
 	syn_cookies (node_a.network_params.network.max_peers_per_ip),
-	inbound{ [this] (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel) {
-		debug_assert (message.header.network == node.network_params.network.current_network);
-		debug_assert (message.header.version_using >= node.network_params.network.protocol_version_min);
-		process_message (message, channel);
-	} },
 	buffer_container (node_a.stats, nano::network::buffer_size, 4096), // 2Mb receive buffer
 	resolver (node_a.io_ctx),
 	limiter (node_a.config.bandwidth_limit_burst_ratio, node_a.config.bandwidth_limit),
 	queue{ node_a.config.tcp_incoming_connections_max, node.logger, node.config.logging },
 	publish_filter (256 * 1024),
-	udp_channels (node_a, port_a, inbound),
-	tcp_channels (node_a, inbound),
-	port (port_a),
-	disconnect_observer ([] () {})
+	udp_channels (node_a, port_a, [this] (auto const & message, auto const & channel) {
+		inbound (message, channel);
+	}),
+	tcp_channels{ node_a }, disconnect_observer ([] () {})
 {
 	if (!node.flags.disable_udp)
 	{
 		port = udp_channels.get_local_endpoint ().port ();
 	}
 
-	boost::thread::attributes attrs;
-	nano::thread_attributes::set (attrs);
+	// Setup the sink where messages will be ultimately processed
+	queue.sink = [this] (auto const & message, auto const & channel) {
+		inbound (message, channel);
+	};
 }
 
 nano::network::~network ()
@@ -344,6 +342,7 @@ public:
 		channel (channel_a)
 	{
 	}
+
 	void keepalive (nano::keepalive const & message_a) override
 	{
 		if (node.config.logging.network_keepalive_logging ())
@@ -368,6 +367,7 @@ public:
 			channel->set_peering_endpoint (new_endpoint);
 		}
 	}
+
 	void publish (nano::publish const & message_a) override
 	{
 		if (node.config.logging.network_message_logging ())
@@ -385,6 +385,7 @@ public:
 			node.stats.inc (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::in);
 		}
 	}
+
 	void confirm_req (nano::confirm_req const & message_a) override
 	{
 		if (node.config.logging.network_message_logging ())
@@ -412,6 +413,7 @@ public:
 			}
 		}
 	}
+
 	void confirm_ack (nano::confirm_ack const & message_a) override
 	{
 		if (node.config.logging.network_message_logging ())
@@ -424,26 +426,32 @@ public:
 			node.vote_processor.vote (message_a.vote, channel);
 		}
 	}
+
 	void bulk_pull (nano::bulk_pull const &) override
 	{
 		debug_assert (false);
 	}
+
 	void bulk_pull_account (nano::bulk_pull_account const &) override
 	{
 		debug_assert (false);
 	}
+
 	void bulk_push (nano::bulk_push const &) override
 	{
 		debug_assert (false);
 	}
+
 	void frontier_req (nano::frontier_req const &) override
 	{
 		debug_assert (false);
 	}
+
 	void node_id_handshake (nano::node_id_handshake const & message_a) override
 	{
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
 	}
+
 	void telemetry_req (nano::telemetry_req const & message_a) override
 	{
 		if (node.config.logging.network_telemetry_logging ())
@@ -462,6 +470,7 @@ public:
 		}
 		channel->send (telemetry_ack, nullptr, nano::buffer_drop_policy::no_socket_drop);
 	}
+
 	void telemetry_ack (nano::telemetry_ack const & message_a) override
 	{
 		if (node.config.logging.network_telemetry_logging ())
@@ -474,15 +483,20 @@ public:
 			node.telemetry->set (message_a, *channel);
 		}
 	}
+
 	nano::node & node;
 	std::shared_ptr<nano::transport::channel> channel;
 };
 }
 
-void nano::network::process_message (nano::message const & message_a, std::shared_ptr<nano::transport::channel> const & channel_a)
+void nano::network::inbound (const nano::message & message, const std::shared_ptr<nano::transport::channel> & channel)
 {
-	network_message_visitor visitor (node, channel_a);
-	message_a.visit (visitor);
+	debug_assert (channel != nullptr);
+	debug_assert (message.header.network == node.network_params.network.current_network);
+	debug_assert (message.header.version_using >= node.network_params.network.protocol_version_min);
+
+	network_message_visitor visitor (node, channel);
+	message.visit (visitor);
 }
 
 std::size_t nano::network::merge_peers (std::vector<nano::endpoint> const & peers)
