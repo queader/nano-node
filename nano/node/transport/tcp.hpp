@@ -10,6 +10,7 @@
 #include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index_container.hpp>
 
+#include <optional>
 #include <unordered_set>
 
 namespace mi = boost::multi_index;
@@ -38,6 +39,7 @@ namespace transport
 	public:
 		channel_tcp (nano::node &, std::weak_ptr<nano::socket>);
 		~channel_tcp () override;
+
 		std::size_t hash_code () const override;
 		bool operator== (nano::transport::channel const &) const override;
 		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
@@ -91,7 +93,13 @@ namespace transport
 
 	public:
 		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
-		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::socket> const &, std::shared_ptr<nano::bootstrap_server> const &);
+
+		/*
+		 * Checks if channel to peer does not already exist, creates a new one and inserts into this container
+		 * @return newly created channel if successful, nullptr otherwise
+		 */
+		std::shared_ptr<nano::transport::channel_tcp> create (std::shared_ptr<nano::socket> const &, std::shared_ptr<nano::bootstrap_server> const &, nano::account const & node_id);
+		//		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::socket> const &, std::shared_ptr<nano::bootstrap_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
 		std::shared_ptr<nano::transport::channel_tcp> find_channel (nano::tcp_endpoint const &) const;
@@ -143,39 +151,16 @@ namespace transport
 			std::shared_ptr<nano::transport::channel_tcp> channel;
 			std::shared_ptr<nano::socket> socket;
 			std::shared_ptr<nano::bootstrap_server> response_server;
-			channel_tcp_wrapper (std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::socket> socket_a, std::shared_ptr<nano::bootstrap_server> server_a) :
-				channel (std::move (channel_a)), socket (std::move (socket_a)), response_server (std::move (server_a))
-			{
-			}
-			nano::tcp_endpoint endpoint () const
-			{
-				return channel->get_tcp_endpoint ();
-			}
-			std::chrono::steady_clock::time_point last_packet_sent () const
-			{
-				return channel->get_last_packet_sent ();
-			}
-			std::chrono::steady_clock::time_point last_bootstrap_attempt () const
-			{
-				return channel->get_last_bootstrap_attempt ();
-			}
-			boost::asio::ip::address ip_address () const
-			{
-				return nano::transport::ipv4_address_or_ipv6_subnet (endpoint ().address ());
-			}
-			boost::asio::ip::address subnetwork () const
-			{
-				return nano::transport::map_address_to_subnetwork (endpoint ().address ());
-			}
-			nano::account node_id () const
-			{
-				auto node_id (channel->get_node_id ());
-				return node_id;
-			}
-			uint8_t network_version () const
-			{
-				return channel->get_network_version ();
-			}
+
+		public:
+			nano::tcp_endpoint endpoint () const;
+			nano::endpoint peering_endpoint () const;
+			std::chrono::steady_clock::time_point last_packet_sent () const;
+			std::chrono::steady_clock::time_point last_bootstrap_attempt () const;
+			boost::asio::ip::address ip_address () const;
+			boost::asio::ip::address subnetwork () const;
+			nano::account node_id () const;
+			uint8_t network_version () const;
 		};
 
 		class tcp_endpoint_attempt final
@@ -196,8 +181,11 @@ namespace transport
 
 		mutable nano::mutex mutex;
 
+		/*
+		 * Channels are unique by endpoint
+		 */
 		// clang-format off
-		boost::multi_index_container<channel_tcp_wrapper,
+		using ordered_channels = boost::multi_index_container<channel_tcp_wrapper,
 		mi::indexed_by<
 			mi::random_access<mi::tag<random_access_tag>>,
 			mi::ordered_non_unique<mi::tag<last_bootstrap_attempt_tag>,
@@ -213,10 +201,15 @@ namespace transport
 			mi::hashed_non_unique<mi::tag<ip_address_tag>,
 				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::ip_address>>,
 			mi::hashed_non_unique<mi::tag<subnetwork_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::subnetwork>>>>
-		channels;
+				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::subnetwork>>>>;
+		// clang-format on
+		ordered_channels channels;
 
-		boost::multi_index_container<tcp_endpoint_attempt,
+		/*
+		 * Attempts are unique by endpoin
+		 */
+		// clang-format off
+		using ordered_attempts = boost::multi_index_container<tcp_endpoint_attempt,
 		mi::indexed_by<
 			mi::hashed_unique<mi::tag<endpoint_tag>,
 				mi::member<tcp_endpoint_attempt, nano::tcp_endpoint, &tcp_endpoint_attempt::endpoint>>,
@@ -225,9 +218,9 @@ namespace transport
 			mi::hashed_non_unique<mi::tag<subnetwork_tag>,
 				mi::member<tcp_endpoint_attempt, boost::asio::ip::address, &tcp_endpoint_attempt::subnetwork>>,
 			mi::ordered_non_unique<mi::tag<last_attempt_tag>,
-				mi::member<tcp_endpoint_attempt, std::chrono::steady_clock::time_point, &tcp_endpoint_attempt::last_attempt>>>>
-		attempts;
+				mi::member<tcp_endpoint_attempt, std::chrono::steady_clock::time_point, &tcp_endpoint_attempt::last_attempt>>>>;
 		// clang-format on
+		ordered_attempts attempts;
 
 		std::atomic<bool> stopped{ false };
 

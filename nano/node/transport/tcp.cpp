@@ -108,33 +108,66 @@ nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<vo
 {
 }
 
-bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::socket> const & socket_a, std::shared_ptr<nano::bootstrap_server> const & bootstrap_server_a)
+std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::create (std::shared_ptr<nano::socket> const & socket, std::shared_ptr<nano::bootstrap_server> const & server, nano::account const & node_id)
 {
-	auto endpoint (channel_a->get_tcp_endpoint ());
-	debug_assert (endpoint.address ().is_v6 ());
-	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
-	bool error (true);
-	if (!node.network.not_a_peer (udp_endpoint, node.config.allow_local_peers) && !stopped)
+	auto tcp_endpoint = socket->remote_endpoint ();
+	debug_assert (tcp_endpoint.address ().is_v6 ());
+
+	if (stopped)
 	{
-		nano::unique_lock<nano::mutex> lock (mutex);
-		auto existing (channels.get<endpoint_tag> ().find (endpoint));
+		return {};
+	}
+
+	auto endpoint = nano::transport::map_tcp_to_endpoint (tcp_endpoint);
+	if (!node.network.not_a_peer (endpoint, node.config.allow_local_peers))
+	{
+		nano::unique_lock<nano::mutex> lock{ mutex };
+
+		auto existing = channels.get<endpoint_tag> ().find (tcp_endpoint);
 		if (existing == channels.get<endpoint_tag> ().end ())
 		{
-			auto node_id (channel_a->get_node_id ());
-			channels.get<node_id_tag> ().erase (node_id);
-			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, bootstrap_server_a);
-			attempts.get<endpoint_tag> ().erase (endpoint);
-			error = false;
+			// Channel to that endpoint does not exist yet, create it
+			auto channel = std::make_shared<nano::transport::channel_tcp> (node, socket);
+			channels.get<endpoint_tag> ().insert ({ channel, socket, server });
+
 			lock.unlock ();
-			node.network.channel_observer (channel_a);
-			// Remove UDP channel to same IP:port if exists
-			node.network.udp_channels.erase (udp_endpoint);
-			// Remove UDP channels with same node ID
-			node.network.udp_channels.clean_node_id (node_id);
+
+			node.network.channel_observer (channel);
+
+			return channel;
 		}
 	}
-	return error;
+
+	return {};
 }
+
+// bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::socket> const & socket_a, std::shared_ptr<nano::bootstrap_server> const & bootstrap_server_a)
+//{
+//	auto endpoint (channel_a->get_tcp_endpoint ());
+//	debug_assert (endpoint.address ().is_v6 ());
+//	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
+//	bool error (true);
+//	if (!node.network.not_a_peer (udp_endpoint, node.config.allow_local_peers) && !stopped)
+//	{
+//		nano::unique_lock<nano::mutex> lock (mutex);
+//		auto existing (channels.get<endpoint_tag> ().find (endpoint));
+//		if (existing == channels.get<endpoint_tag> ().end ())
+//		{
+//			auto node_id (channel_a->get_node_id ());
+//			channels.get<node_id_tag> ().erase (node_id);
+//			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, bootstrap_server_a);
+//			attempts.get<endpoint_tag> ().erase (endpoint);
+//			error = false;
+//			lock.unlock ();
+//			node.network.channel_observer (channel_a);
+//			// Remove UDP channel to same IP:port if exists
+//			node.network.udp_channels.erase (udp_endpoint);
+//			// Remove UDP channels with same node ID
+//			node.network.udp_channels.clean_node_id (node_id);
+//		}
+//	}
+//	return error;
+// }
 
 void nano::transport::tcp_channels::erase (nano::tcp_endpoint const & endpoint_a)
 {
@@ -557,4 +590,48 @@ void nano::transport::tcp_channels::udp_fallback (nano::endpoint const & endpoin
 		auto channel_udp = node.network.udp_channels.create (endpoint_a);
 		node.network.send_keepalive (channel_udp);
 	}
+}
+
+/*
+ * channel_tcp_wrapper
+ */
+
+nano::tcp_endpoint nano::transport::tcp_channels::channel_tcp_wrapper::endpoint () const
+{
+	return channel->get_tcp_endpoint ();
+}
+
+nano::endpoint nano::transport::tcp_channels::channel_tcp_wrapper::peering_endpoint () const
+{
+	return channel->get_peering_endpoint ();
+}
+
+std::chrono::steady_clock::time_point nano::transport::tcp_channels::channel_tcp_wrapper::last_packet_sent () const
+{
+	return channel->get_last_packet_sent ();
+}
+
+std::chrono::steady_clock::time_point nano::transport::tcp_channels::channel_tcp_wrapper::last_bootstrap_attempt () const
+{
+	return channel->get_last_bootstrap_attempt ();
+}
+
+boost::asio::ip::address nano::transport::tcp_channels::channel_tcp_wrapper::ip_address () const
+{
+	return nano::transport::ipv4_address_or_ipv6_subnet (endpoint ().address ());
+}
+
+boost::asio::ip::address nano::transport::tcp_channels::channel_tcp_wrapper::subnetwork () const
+{
+	return nano::transport::map_address_to_subnetwork (endpoint ().address ());
+}
+
+nano::account nano::transport::tcp_channels::channel_tcp_wrapper::node_id () const
+{
+	return channel->get_node_id ();
+}
+
+uint8_t nano::transport::tcp_channels::channel_tcp_wrapper::network_version () const
+{
+	return channel->get_network_version ();
 }
