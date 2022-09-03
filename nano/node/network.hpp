@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/node/common.hpp>
+#include <nano/node/logging.hpp>
 #include <nano/node/peer_exclusion.hpp>
 #include <nano/node/transport/tcp.hpp>
 #include <nano/node/transport/udp.hpp>
@@ -10,6 +11,7 @@
 
 #include <memory>
 #include <queue>
+#include <thread>
 #include <unordered_set>
 
 namespace nano
@@ -18,6 +20,7 @@ class channel;
 class node;
 class stats;
 class transaction;
+class logging;
 
 class message_buffer final
 {
@@ -70,23 +73,64 @@ private:
 	bool stopped;
 };
 
-class tcp_message_manager final
+/*
+ * Container that queues and processes realtime network messages
+ */
+class message_queue final
 {
 public:
-	tcp_message_manager (unsigned incoming_connections_max_a);
-	void put_message (nano::tcp_message_item const & item_a);
-	nano::tcp_message_item get_message ();
-	// Stop container and notify waiting threads
+	static unsigned const max_entries_per_connection = 64;
+
+public:
+	explicit message_queue (unsigned incoming_connections_max_a, nano::logger &, nano::logging &);
+
+	/*
+	 * Add a new <message, reply channel> pair to queue. If full blocks until there is room for more messages.
+	 */
+	void put (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
+	/*
+	 * Start `num_of_threads` message processing threads
+	 */
+	void start (std::size_t num_of_threads);
+	/*
+	 * Stop container and notify threads
+	 */
 	void stop ();
 
+public:
+	/*
+	 * Should do the actual message processing, called from multiple threads
+	 */
+	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
+
 private:
-	nano::mutex mutex;
+	using entry_t = std::pair<std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel>>;
+
+	/*
+	 * Gets next message from queue. If empty blocks until there is message to return or processing is stopped.
+	 */
+	entry_t get ();
+	/*
+	 * Process messages until stopped
+	 */
+	void process_messages ();
+	void process_one (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
+	void run ();
+
+private: // Dependencies
+	nano::logger & logger;
+	nano::logging & logging;
+
+private:
+	mutable nano::mutex mutex;
+
 	nano::condition_variable producer_condition;
 	nano::condition_variable consumer_condition;
-	std::deque<nano::tcp_message_item> entries;
+	std::deque<entry_t> entries;
 	unsigned max_entries;
-	static unsigned const max_entries_per_connection = 16;
-	bool stopped{ false };
+	std::atomic<bool> stopped{ false };
+
+	std::vector<std::thread> threads;
 
 	friend class network_tcp_message_manager_Test;
 };
@@ -124,8 +168,9 @@ private:
 class network final
 {
 public:
-	network (nano::node &, uint16_t);
+	network (nano::node &, uint16_t port);
 	~network ();
+
 	nano::networks id;
 	void start ();
 	void stop ();
@@ -189,15 +234,16 @@ public:
 private:
 	void process_message (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
 
+public: // Dependencies
+	nano::node & node;
+
 public:
 	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> inbound;
 	nano::message_buffer_manager buffer_container;
 	boost::asio::ip::udp::resolver resolver;
-	std::vector<boost::thread> packet_processing_threads;
 	nano::bandwidth_limiter limiter;
 	nano::peer_exclusion excluded_peers;
-	nano::tcp_message_manager tcp_message_manager;
-	nano::node & node;
+	nano::message_queue queue;
 	nano::network_filter publish_filter;
 	nano::transport::udp_channels udp_channels;
 	nano::transport::tcp_channels tcp_channels;

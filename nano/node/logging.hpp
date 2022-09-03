@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/lib/errors.hpp>
+#include <nano/lib/logger_mt.hpp>
 
 #include <boost/log/detail/config.hpp>
 #include <boost/shared_ptr.hpp>
@@ -33,6 +34,9 @@ namespace filesystem
 namespace nano
 {
 class tomlconfig;
+
+using logger = nano::logger_mt;
+
 class logging final
 {
 public:

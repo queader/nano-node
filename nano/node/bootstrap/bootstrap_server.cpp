@@ -300,7 +300,7 @@ bool nano::bootstrap_server::process_message (std::unique_ptr<nano::message> mes
 
 void nano::bootstrap_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
-	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
+	node->network.queue.put (message, channel);
 }
 
 /*

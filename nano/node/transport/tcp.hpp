@@ -19,15 +19,6 @@ namespace nano
 {
 class bootstrap_server;
 
-class tcp_message_item final
-{
-public:
-	std::shared_ptr<nano::message> message;
-	nano::tcp_endpoint endpoint;
-	nano::account node_id;
-	std::shared_ptr<nano::socket> socket;
-};
-
 namespace transport
 {
 	class tcp_channels;
@@ -112,8 +103,6 @@ namespace transport
 		void receive ();
 		void start ();
 		void stop ();
-		void process_messages ();
-		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
