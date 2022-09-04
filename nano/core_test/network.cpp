@@ -1,4 +1,5 @@
 #include <nano/node/nodeconfig.hpp>
+#include <nano/node/transport/fake.hpp>
 #include <nano/node/transport/inproc.hpp>
 #include <nano/node/transport/udp.hpp>
 #include <nano/test_common/network.hpp>
@@ -1252,68 +1253,113 @@ TEST (network, tcp_no_connect_excluded_peers)
 	ASSERT_TIMELY (5s, node0->network.size () == 1);
 }
 
-/*
-namespace nano
+TEST (message_queue, insert)
 {
-TEST (network, tcp_message_manager)
+	nano::test::system system (1);
+	auto & node = *system.nodes[0];
+
+	auto dummy_message = std::make_unique<nano::publish> (nano::dev::network_params.network, nano::dev::genesis);
+	auto dummy_channel = std::make_shared<nano::transport::fake::channel> (node);
+
+	nano::message_queue queue (1, node.logger, node.config.logging);
+	ASSERT_EQ (0, queue.size ());
+	queue.put (std::move (dummy_message), dummy_channel);
+	ASSERT_EQ (1, queue.size ());
+
+	// Ensure we retrieve original message
+	std::atomic<nano::block_hash> hash;
+	queue.sink = [&] (auto & message, auto & channel) {
+		auto & publish = dynamic_cast<nano::publish const &> (message);
+		hash = publish.block->hash ();
+	};
+	queue.start (1);
+
+	ASSERT_TIMELY (5s, hash.load () == nano::dev::genesis->hash ());
+	ASSERT_EQ (0, queue.size ());
+}
+
+TEST (message_queue, max_size)
 {
-	nano::tcp_message_manager manager (1);
-	nano::tcp_message_item item;
-	item.node_id = nano::account (100);
-	ASSERT_EQ (0, manager.entries.size ());
-	manager.put_message (item);
-	ASSERT_EQ (1, manager.entries.size ());
-	ASSERT_EQ (manager.get_message ().node_id, item.node_id);
-	ASSERT_EQ (0, manager.entries.size ());
+	nano::test::system system (1);
+	auto & node = *system.nodes[0];
 
-	// Fill the queue
-	manager.entries = decltype (manager.entries) (manager.max_entries, item);
-	ASSERT_EQ (manager.entries.size (), manager.max_entries);
+	auto dummy_message = [] () { return std::make_unique<nano::publish> (nano::dev::network_params.network, nano::dev::genesis); };
+	auto dummy_channel = std::make_shared<nano::transport::fake::channel> (node);
 
-	// This task will wait until a message is consumed
+	nano::message_queue queue (10, node.logger, node.config.logging);
+
+	// Fill queue up to the limit
+	for (int n = 0; n < queue.max_entries; ++n)
+	{
+		queue.put (dummy_message (), dummy_channel);
+	}
+	ASSERT_EQ (queue.size (), queue.max_entries);
+
+	// Try to put one more item
 	auto future = std::async (std::launch::async, [&] {
-		manager.put_message (item);
+		queue.put (dummy_message (), dummy_channel);
 	});
 
-	// This should give sufficient time to execute put_message
+	// This should give sufficient time to execute `put`
 	// and prove that it waits on condition variable
-	std::this_thread::sleep_for (CI ? 200ms : 100ms);
+	WAIT (1s);
+	ASSERT_EQ (queue.size (), queue.max_entries);
 
-	ASSERT_EQ (manager.entries.size (), manager.max_entries);
-	ASSERT_EQ (manager.get_message ().node_id, item.node_id);
+	// Count number of processed messages
+	std::atomic<int> counter{ 0 };
+	queue.sink = [&] (auto & message, auto & channel) {
+		++counter;
+	};
+	queue.start (4);
+
+	// Ensure every message got processed
+	ASSERT_TIMELY (5s, counter == queue.max_entries + 1);
 	ASSERT_NE (std::future_status::timeout, future.wait_for (1s));
-	ASSERT_EQ (manager.entries.size (), manager.max_entries);
+	ASSERT_EQ (queue.size (), 0);
+}
 
-	nano::tcp_message_manager manager2 (2);
-	size_t message_count = 10'000;
-	std::vector<std::thread> consumers;
-	for (auto i = 0; i < 4; ++i)
-	{
-		consumers.emplace_back ([&] {
-			for (auto i = 0; i < message_count; ++i)
-			{
-				ASSERT_EQ (manager.get_message ().node_id, item.node_id);
-			}
-		});
-	}
+TEST (message_queue, multi_producers_consumers)
+{
+	nano::test::system system (1);
+	auto & node = *system.nodes[0];
+
+	auto dummy_message = [] () { return std::make_unique<nano::publish> (nano::dev::network_params.network, nano::dev::genesis); };
+	auto dummy_channel = std::make_shared<nano::transport::fake::channel> (node);
+
+	nano::message_queue queue (64, node.logger, node.config.logging);
+
+	const int message_count = 10'000;
+	const int num_threads = 4;
+
+	// Run producers that queue new messages
 	std::vector<std::thread> producers;
-	for (auto i = 0; i < 4; ++i)
+	for (auto i = 0; i < num_threads; ++i)
 	{
 		producers.emplace_back ([&] {
 			for (auto i = 0; i < message_count; ++i)
 			{
-				manager.put_message (item);
+				queue.put (dummy_message (), dummy_channel);
 			}
 		});
 	}
 
-	for (auto & t : boost::range::join (producers, consumers))
+	// Count number of processed messages
+	std::atomic<int> counter{ 0 };
+	queue.sink = [&] (auto & message, auto & channel) {
+		++counter;
+	};
+	queue.start (num_threads);
+
+	// Wait for producers to finish
+	for (auto & t : producers)
 	{
 		t.join ();
 	}
+
+	// Ensure every message got processed
+	ASSERT_TIMELY (5s, counter == message_count * num_threads);
+	ASSERT_EQ (queue.size (), 0);
 }
-}
-*/
 
 TEST (network, cleanup_purge)
 {

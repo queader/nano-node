@@ -74,7 +74,7 @@ private:
 };
 
 /*
- * Container that queues and processes realtime network messages
+ * Container that queues realtime network messages and schedules them for processing
  */
 class message_queue final
 {
@@ -83,6 +83,7 @@ public:
 
 public:
 	explicit message_queue (unsigned incoming_connections_max_a, nano::logger &, nano::logging &);
+	~message_queue();
 
 	/*
 	 * Add a new <message, reply channel> pair to queue. If full blocks until there is room for more messages.
@@ -96,12 +97,20 @@ public:
 	 * Stop container and notify threads
 	 */
 	void stop ();
+	/*
+	 * Number of queued entries
+	 */
+	std::size_t size () const;
 
 public:
 	/*
 	 * Should do the actual message processing, called from multiple threads
 	 */
 	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
+	/*
+	 * Maximum number of queued entries
+	 */
+	const std::size_t max_entries;
 
 private:
 	using entry_t = std::pair<std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel>>;
@@ -127,12 +136,9 @@ private:
 	nano::condition_variable producer_condition;
 	nano::condition_variable consumer_condition;
 	std::deque<entry_t> entries;
-	unsigned max_entries;
 	std::atomic<bool> stopped{ false };
 
 	std::vector<std::thread> threads;
-
-	friend class network_tcp_message_manager_Test;
 };
 
 /**

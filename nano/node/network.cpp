@@ -871,6 +871,11 @@ nano::message_queue::message_queue (unsigned incoming_connections_max_a, nano::l
 	debug_assert (max_entries > 0);
 }
 
+nano::message_queue::~message_queue ()
+{
+	stop ();
+}
+
 void nano::message_queue::put (std::unique_ptr<nano::message> message, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	debug_assert (message != nullptr);
@@ -978,10 +983,20 @@ void nano::message_queue::stop ()
 
 	for (auto & thread : threads)
 	{
-		debug_assert (thread.joinable ());
 		thread.join ();
 	}
+	threads.clear();
 }
+
+std::size_t nano::message_queue::size () const
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	return entries.size ();
+}
+
+/*
+ * syn_cookies
+ */
 
 nano::syn_cookies::syn_cookies (std::size_t max_cookies_per_ip_a) :
 	max_cookies_per_ip (max_cookies_per_ip_a)
