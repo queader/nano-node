@@ -59,6 +59,7 @@ public:
 	void bootstrap_any ();
 	void bootstrap_lazy ();
 	void bootstrap_status ();
+	void broadcast ();
 	void chain (bool = false);
 	void confirmation_active ();
 	void confirmation_history ();

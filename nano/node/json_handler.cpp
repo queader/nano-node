@@ -3159,6 +3159,18 @@ void nano::json_handler::receivable_exists ()
 	response_errors ();
 }
 
+void nano::json_handler::broadcast ()
+{
+	node.workers.push_task (create_worker_task ([] (std::shared_ptr<nano::json_handler> const & rpc_l) {
+		auto block (rpc_l->block_impl (true));
+
+		rpc_l->node.network.flood_block_initial (block);
+
+		rpc_l->response_l.put ("started", "1");
+		rpc_l->response_errors ();
+	}));
+}
+
 void nano::json_handler::process ()
 {
 	node.workers.push_task (create_worker_task ([] (std::shared_ptr<nano::json_handler> const & rpc_l) {
@@ -5314,6 +5326,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("bootstrap_any", &nano::json_handler::bootstrap_any);
 	no_arg_funcs.emplace ("bootstrap_lazy", &nano::json_handler::bootstrap_lazy);
 	no_arg_funcs.emplace ("bootstrap_status", &nano::json_handler::bootstrap_status);
+	no_arg_funcs.emplace ("broadcast", &nano::json_handler::broadcast);
 	no_arg_funcs.emplace ("confirmation_active", &nano::json_handler::confirmation_active);
 	no_arg_funcs.emplace ("confirmation_height_currently_processing", &nano::json_handler::confirmation_height_currently_processing);
 	no_arg_funcs.emplace ("confirmation_history", &nano::json_handler::confirmation_history);
