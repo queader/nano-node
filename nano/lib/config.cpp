@@ -13,6 +13,11 @@ template <typename ElemT>
 struct HexTo
 {
 	ElemT value;
+
+	HexTo (ElemT v) :
+		value{ v }
+	{
+	}
 	operator ElemT () const
 	{
 		return value;
@@ -229,41 +234,6 @@ uint8_t get_pre_release_node_version ()
 	return boost::numeric_cast<uint8_t> (boost::lexical_cast<int> (NANO_PRE_RELEASE_VERSION_STRING));
 }
 
-uint64_t get_env_threshold_or_default (char const * variable_name, uint64_t const default_value)
-{
-	auto * value = getenv (variable_name);
-	return value ? boost::lexical_cast<HexTo<uint64_t>> (value) : default_value;
-}
-
-uint16_t test_node_port ()
-{
-	auto test_env = nano::get_env_or_default ("NANO_TEST_NODE_PORT", "17075");
-	return boost::lexical_cast<uint16_t> (test_env);
-}
-uint16_t test_rpc_port ()
-{
-	auto test_env = nano::get_env_or_default ("NANO_TEST_RPC_PORT", "17076");
-	return boost::lexical_cast<uint16_t> (test_env);
-}
-uint16_t test_ipc_port ()
-{
-	auto test_env = nano::get_env_or_default ("NANO_TEST_IPC_PORT", "17077");
-	return boost::lexical_cast<uint16_t> (test_env);
-}
-uint16_t test_websocket_port ()
-{
-	auto test_env = nano::get_env_or_default ("NANO_TEST_WEBSOCKET_PORT", "17078");
-	return boost::lexical_cast<uint16_t> (test_env);
-}
-
-std::array<uint8_t, 2> test_magic_number ()
-{
-	auto test_env = get_env_or_default ("NANO_TEST_MAGIC_NUMBER", "RX");
-	std::array<uint8_t, 2> ret;
-	std::copy (test_env.begin (), test_env.end (), ret.data ());
-	return ret;
-}
-
 void force_nano_dev_network ()
 {
 	nano::network_constants::set_active_network (nano::networks::nano_dev_network);
@@ -310,24 +280,41 @@ std::optional<std::string> nano::get_env (const char * variable_name)
 	return {};
 }
 
-std::string nano::get_env_or_default (char const * variable_name, std::string default_value)
-{
-	auto value = nano::get_env (variable_name);
-	return value ? *value : default_value;
-}
-
-int nano::get_env_int_or_default (const char * variable_name, const int default_value)
-{
-	auto value = nano::get_env (variable_name); // 15 minutes by default
-	if (value)
-	{
-		return boost::lexical_cast<int> (*value);
-	}
-	return default_value;
-}
-
 uint32_t nano::test_scan_wallet_reps_delay ()
 {
-	auto test_env = nano::get_env_or_default ("NANO_TEST_WALLET_SCAN_REPS_DELAY", "900000"); // 15 minutes by default
-	return boost::lexical_cast<uint32_t> (test_env);
+	auto test_env = nano::get_env_or_default<uint32_t> ("NANO_TEST_WALLET_SCAN_REPS_DELAY", 15 * 60 * 1000); // 15 minutes by default
+	return test_env;
+}
+
+uint64_t nano::get_env_threshold_or_default (char const * variable_name, uint64_t const default_value)
+{
+	return nano::get_env_or_default<HexTo<uint64_t>> (variable_name, default_value);
+
+	//	auto * value = getenv (variable_name);
+	//	return value ? boost::lexical_cast<HexTo<uint64_t>> (value) : default_value;
+}
+
+uint16_t nano::test_node_port ()
+{
+	return nano::get_env_or_default<uint16_t> ("NANO_TEST_NODE_PORT", 17075);
+}
+uint16_t nano::test_rpc_port ()
+{
+	return nano::get_env_or_default<uint16_t> ("NANO_TEST_RPC_PORT", 17076);
+}
+uint16_t nano::test_ipc_port ()
+{
+	return nano::get_env_or_default<uint16_t> ("NANO_TEST_IPC_PORT", 17077);
+}
+uint16_t nano::test_websocket_port ()
+{
+	return nano::get_env_or_default<uint16_t> ("NANO_TEST_WEBSOCKET_PORT", 17078);
+}
+
+std::array<uint8_t, 2> nano::test_magic_number ()
+{
+	auto test_env = nano::get_env_or_default<std::string> ("NANO_TEST_MAGIC_NUMBER", "RX");
+	std::array<uint8_t, 2> ret;
+	std::copy (test_env.begin (), test_env.end (), ret.data ());
+	return ret;
 }

@@ -1,11 +1,13 @@
 #pragma once
 
 #include <boost/config.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/version.hpp>
 
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <iostream>
 #include <optional>
 #include <string>
 
@@ -61,13 +63,26 @@ uint8_t get_pre_release_node_version ();
  */
 std::optional<std::string> get_env (char const * variable_name);
 /*
- * Get environment variable as string or `default_value` if variable is not present
+ * Get environment variable parsed as type T or `default_value` if variable is not present or could not be parsed
  */
-std::string get_env_or_default (char const * variable_name, std::string const default_value);
-/*
- * Get environment variable as int or `default_value` if variable is not present
- */
-int get_env_int_or_default (char const * variable_name, int const default_value);
+template <typename T>
+T get_env_or_default (char const * variable_name, T const default_value)
+{
+	auto value = nano::get_env (variable_name);
+	if (value)
+	{
+		try
+		{
+			return boost::lexical_cast<T> (*value);
+		}
+		catch (boost::bad_lexical_cast &)
+		{
+			std::cerr << "Failed to parse `" << variable_name << "` environment variable" << std::endl;
+		}
+	}
+	return default_value;
+}
+
 uint64_t get_env_threshold_or_default (char const * variable_name, uint64_t const default_value);
 
 uint16_t test_node_port ();

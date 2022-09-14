@@ -309,7 +309,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (th
 unsigned int nano::hardware_concurrency ()
 {
 	// Try to read overridden value from environment variable
-	static int value = nano::get_env_int_or_default ("NANO_HARDWARE_CONCURRENCY", 0);
+	static int value = nano::get_env_or_default ("NANO_HARDWARE_CONCURRENCY", 0);
 	if (value <= 0)
 	{
 		// Not present or invalid, use default
