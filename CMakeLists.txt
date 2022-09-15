@@ -16,7 +16,7 @@ endif()
 
 # compatibility for osx sierra and on needs to be set before project
 set(CMAKE_OSX_DEPLOYMENT_TARGET
-    10.14
+    10.15
     CACHE STRING "")
 
 project(nano-node)
@@ -728,8 +728,7 @@ if(NANO_GUI OR RAIBLOCKS_GUI)
       test_common
       gtest
       gtest_main
-      qt
-      Qt::Test)
+      qt)
 
     set_target_properties(
       qt_test PROPERTIES COMPILE_FLAGS
