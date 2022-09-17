@@ -17,7 +17,7 @@ void nano::bootstrap::bootstrap_ascending::connection_pool::add (socket_channel 
 	connections.push_back (connection);
 }
 
-bool nano::bootstrap::bootstrap_ascending::connection_pool::operator() (std::shared_ptr<async_tag> tag, std::function<void ()> op)
+bool nano::bootstrap::bootstrap_ascending::connection_pool::request (std::shared_ptr<async_tag> tag, std::function<void ()> op)
 {
 	if (!connections.empty ())
 	{
@@ -352,7 +352,7 @@ bool nano::bootstrap::bootstrap_ascending::thread::request_one ()
 		start = info.head;
 	}
 	nano::unique_lock<nano::mutex> lock{ bootstrap.mutex };
-	auto error = bootstrap.pool (tag, [this_l = shared (), start, tag] () {
+	auto error = bootstrap.pool.request (tag, [this_l = shared (), start, tag] () {
 		this_l->send (tag, start);
 	});
 	lock.unlock ();

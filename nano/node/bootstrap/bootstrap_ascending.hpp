@@ -46,7 +46,7 @@ namespace bootstrap
 
 	private:
 		std::shared_ptr<nano::bootstrap::bootstrap_ascending> shared ();
-		//void dump_miss_histogram ();
+		// void dump_miss_histogram ();
 
 	public:
 		class async_tag;
@@ -56,8 +56,8 @@ namespace bootstrap
 			using socket_channel = std::pair<std::shared_ptr<nano::socket>, std::shared_ptr<nano::transport::channel>>;
 
 		public:
-			connection_pool (nano::node & node);
-			bool operator() (std::shared_ptr<async_tag> tag, std::function<void ()> op);
+			explicit connection_pool (nano::node & node);
+			bool request (std::shared_ptr<async_tag> tag, std::function<void ()> op);
 			void add (socket_channel const & connection);
 
 		private:
@@ -69,7 +69,7 @@ namespace bootstrap
 		class account_sets
 		{
 		public:
-			account_sets ();
+			explicit account_sets ();
 			void prioritize (nano::account const & account, float priority);
 			void block (nano::account const & account);
 			void unblock (nano::account const & account);
@@ -104,7 +104,7 @@ namespace bootstrap
 		class thread : public std::enable_shared_from_this<thread>
 		{
 		public:
-			thread (std::shared_ptr<bootstrap_ascending> bootstrap);
+			explicit thread (std::shared_ptr<bootstrap_ascending> bootstrap);
 			/// Wait for there to be space for an additional request
 			bool wait_available_request ();
 			bool request_one ();
@@ -119,7 +119,7 @@ namespace bootstrap
 			std::atomic<int> requests{ 0 };
 			static constexpr int requests_max = 1;
 
-		public: //private: // Convinience reference rather than internally using a pointer
+		public: // private: // Convinience reference rather than internally using a pointer
 			std::shared_ptr<bootstrap_ascending> bootstrap_ptr;
 			bootstrap_ascending & bootstrap{ *bootstrap_ptr };
 		};
@@ -131,7 +131,7 @@ namespace bootstrap
 		class async_tag : public std::enable_shared_from_this<async_tag>
 		{
 		public:
-			async_tag (std::shared_ptr<nano::bootstrap::bootstrap_ascending::thread> bootstrap);
+			explicit async_tag (std::shared_ptr<nano::bootstrap::bootstrap_ascending::thread> bootstrap);
 			// bootstrap_ascending::thread::requests will be decemented when destroyed.
 			// If success () has been called, the socket will be reused, otherwise it will be abandoned therefore destroyed.
 			~async_tag ();
@@ -148,6 +148,7 @@ namespace bootstrap
 			std::optional<socket_channel> connection_m;
 			std::shared_ptr<bootstrap_ascending::thread> bootstrap;
 		};
+
 		void request_one ();
 		bool blocked (nano::account const & account);
 		void inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
@@ -155,8 +156,8 @@ namespace bootstrap
 
 		account_sets accounts;
 		connection_pool pool;
-		static std::size_t constexpr parallelism = 1;
-		static std::size_t constexpr request_message_count = 16;
+		static std::size_t constexpr parallelism = 16;
+		static std::size_t constexpr request_message_count = 1024;
 		std::atomic<int> responses{ 0 };
 		std::atomic<int> requests_total{ 0 };
 		std::atomic<float> weights{ 0 };
