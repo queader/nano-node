@@ -404,7 +404,7 @@ void nano::bootstrap::bootstrap_ascending::run ()
 
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
-		condition.wait_for (lock, std::chrono::seconds{ 10 }, [this] () { return stopped.load (); });
+		condition.wait (lock, [this] () { return stopped.load (); });
 	}
 
 	dump_stats ();
