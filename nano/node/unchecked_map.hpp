@@ -24,13 +24,6 @@ class unchecked_key;
 class write_transaction;
 class unchecked_map
 {
-	class tag_random_access
-	{
-	};
-	class tag_root
-	{
-	};
-
 public:
 	unchecked_map (nano::store & store, bool const & do_delete);
 	~unchecked_map ();
@@ -57,15 +50,18 @@ private:
 	class item_visitor : boost::static_visitor<>
 	{
 	public:
-		item_visitor (unchecked_map & unchecked);
+		explicit item_visitor (unchecked_map & unchecked);
 		void operator() (insert const & item);
 		void operator() (query const & item);
 		unchecked_map & unchecked;
 	};
 	void run ();
-	void insert_impl (nano::hash_or_account const & dependency, nano::unchecked_info const & info);
 	void query_impl (nano::block_hash const & hash);
+
+private: // Dependencies
 	nano::store & store;
+
+private:
 	bool const & disable_delete;
 	std::deque<boost::variant<insert, query>> buffer;
 	std::deque<boost::variant<insert, query>> back_buffer;
@@ -89,6 +85,9 @@ private: // In memory store
 	};
 
 	// clang-format off
+	class tag_random_access {};
+	class tag_root {};
+
 	using ordered_unchecked = boost::multi_index_container<entry,
 		mi::indexed_by<
 			mi::random_access<mi::tag<tag_random_access>>,
