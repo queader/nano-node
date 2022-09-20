@@ -505,6 +505,15 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 			break;
 		}
 	}
+
+	node.stats.inc (nano::stat::type::blockprocessor, nano::to_stat_detail (result.code));
+
+	// Callback used to track stats of blocks coming out of unchecked_map
+	if (info_a.processed_callback)
+	{
+		info_a.processed_callback (result.code);
+	}
+
 	return result;
 }
 

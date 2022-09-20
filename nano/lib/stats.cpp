@@ -479,6 +479,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::bootstrap:
 			res = "bootstrap";
 			break;
+		case nano::stat::type::bootstrap_ascending:
+			res = "bootstrap_ascending";
+			break;
 		case nano::stat::type::bootstrap_server:
 			res = "bootstrap_server";
 			break;
@@ -548,6 +551,15 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::hinting:
 			res = "hinting";
 			break;
+		case nano::stat::type::unchecked:
+			res = "unchecked";
+			break;
+		case nano::stat::type::unchecked_result:
+			res = "unchecked_result";
+			break;
+		case nano::stat::type::blockprocessor:
+			res = "blockprocessor";
+			break;
 	}
 	return res;
 }
@@ -559,6 +571,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 	{
 		case nano::stat::detail::all:
 			res = "all";
+			break;
+		case nano::stat::detail::unknown:
+			res = "unknown";
 			break;
 		case nano::stat::detail::bad_sender:
 			res = "bad_sender";
@@ -628,6 +643,33 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::rollback_failed:
 			res = "rollback_failed";
+			break;
+		case nano::stat::detail::progress:
+			res = "progress";
+			break;
+		case nano::stat::detail::bad_signature:
+			res = "bad_signature";
+			break;
+		case nano::stat::detail::negative_spend:
+			res = "negative_spend";
+			break;
+		case nano::stat::detail::unreceivable:
+			res = "unreceivable";
+			break;
+		case nano::stat::detail::gap_epoch_open_pending:
+			res = "gap_epoch_open_pending";
+			break;
+		case nano::stat::detail::opened_burn_account:
+			res = "opened_burn_account";
+			break;
+		case nano::stat::detail::balance_mismatch:
+			res = "balance_mismatch";
+			break;
+		case nano::stat::detail::representative_mismatch:
+			res = "representative_mismatch";
+			break;
+		case nano::stat::detail::block_position:
+			res = "block_position";
 			break;
 		case nano::stat::detail::frontier_confirmation_failed:
 			res = "frontier_confirmation_failed";
@@ -951,6 +993,30 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::missing_block:
 			res = "missing_block";
+			break;
+		case nano::stat::detail::put:
+			res = "put";
+			break;
+		case nano::stat::detail::satisfied:
+			res = "satisfied";
+			break;
+		case nano::stat::detail::trigger:
+			res = "trigger";
+			break;
+		case nano::stat::detail::request:
+			res = "request";
+			break;
+		case nano::stat::detail::read_block:
+			res = "read_block";
+			break;
+		case nano::stat::detail::read_block_done:
+			res = "read_block_done";
+			break;
+		case nano::stat::detail::read_block_end:
+			res = "read_block_end";
+			break;
+		case nano::stat::detail::read_block_error:
+			res = "read_block_error";
 			break;
 	}
 	return res;
