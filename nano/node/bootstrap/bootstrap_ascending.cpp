@@ -224,7 +224,10 @@ void nano::bootstrap::bootstrap_ascending::thread::send (std::shared_ptr<async_t
 	message.count = request_message_count;
 	// std::cerr << boost::str (boost::format ("Request sent for: %1% to: %2%\n") % message.start.to_string () % tag->connection ().first->remote_endpoint ());
 	auto channel = tag->connection ().second;
+
 	++bootstrap.requests_total;
+	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request);
+
 	channel->send (message, [this_l = shared (), tag] (boost::system::error_code const & ec, std::size_t size) {
 		this_l->read_block (tag);
 	});
@@ -232,11 +235,22 @@ void nano::bootstrap::bootstrap_ascending::thread::send (std::shared_ptr<async_t
 
 void nano::bootstrap::bootstrap_ascending::thread::read_block (std::shared_ptr<async_tag> tag)
 {
+	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block);
+
 	auto deserializer = std::make_shared<nano::bootstrap::block_deserializer> ();
 	auto socket = tag->connection ().first;
 	deserializer->read (*socket, [this_l = shared (), tag] (boost::system::error_code ec, std::shared_ptr<nano::block> block) {
+		this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block_done);
+
+		if (ec)
+		{
+			this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block_error);
+			// error?
+			return;
+		}
 		if (block == nullptr)
 		{
+			this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block_end);
 			// std::cerr << "stream end\n";
 			tag->success ();
 			return;
@@ -244,7 +258,8 @@ void nano::bootstrap::bootstrap_ascending::thread::read_block (std::shared_ptr<a
 		if (this_l->bootstrap.node->network_params.work.validate_entry (*block))
 		{
 			// TODO: should we close the socket at this point?
-			this_l->bootstrap.node->stats.inc_detail_only (nano::stat::type::error, nano::stat::detail::insufficient_work);
+			this_l->bootstrap.node->stats.inc (nano::stat::type::error, nano::stat::detail::insufficient_work);
+			this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::insufficient_work);
 		}
 		else
 		{

@@ -6,8 +6,9 @@
 
 #include <boost/range/join.hpp>
 
-nano::unchecked_map::unchecked_map (nano::store & store, bool const & disable_delete) :
+nano::unchecked_map::unchecked_map (nano::store & store, nano::stat & stats, bool const & disable_delete) :
 	store{ store },
+	stats{ stats },
 	disable_delete{ disable_delete },
 	thread{ [this] () { run (); } }
 {
@@ -28,6 +29,7 @@ void nano::unchecked_map::put (nano::hash_or_account const & dependency, nano::u
 	{
 		entries.get<tag_sequenced> ().pop_front ();
 	}
+	stats.inc (nano::stat::type::unchecked, nano::stat::detail::put);
 }
 
 void nano::unchecked_map::for_each (std::function<void (nano::unchecked_key const &, nano::unchecked_info const &)> action, std::function<bool ()> predicate)
@@ -107,6 +109,7 @@ void nano::unchecked_map::trigger (nano::hash_or_account const & dependency)
 	debug_assert (buffer.back ().which () == 1); // which stands for "query".
 	lock.unlock ();
 	condition.notify_all (); // Notify run ()
+	stats.inc (nano::stat::type::unchecked, nano::stat::detail::trigger);
 }
 
 nano::unchecked_map::item_visitor::item_visitor (unchecked_map & unchecked) :
@@ -165,6 +168,7 @@ void nano::unchecked_map::query_impl (nano::block_hash const & hash)
 	std::deque<nano::unchecked_key> delete_queue;
 	for_each (hash, [this, &delete_queue] (nano::unchecked_key const & key, nano::unchecked_info const & info) {
 		delete_queue.push_back (key);
+		stats.inc (nano::stat::type::unchecked, nano::stat::detail::satisfied);
 		satisfied (info);
 	});
 	if (!disable_delete)

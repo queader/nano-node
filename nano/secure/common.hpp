@@ -7,6 +7,7 @@
 #include <nano/lib/epoch.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/rep_weights.hpp>
+#include <nano/lib/stats.hpp>
 #include <nano/lib/utility.hpp>
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -150,19 +151,19 @@ public:
 	endpoint_key () = default;
 
 	/*
-     * @param address_a This should be in network byte order
-     * @param port_a This should be in host byte order
-     */
+	 * @param address_a This should be in network byte order
+	 * @param port_a This should be in host byte order
+	 */
 	endpoint_key (std::array<uint8_t, 16> const & address_a, uint16_t port_a);
 
 	/*
-     * @return The ipv6 address in network byte order
-     */
+	 * @return The ipv6 address in network byte order
+	 */
 	std::array<uint8_t, 16> const & address_bytes () const;
 
 	/*
-     * @return The port in host byte order
-     */
+	 * @return The port in host byte order
+	 */
 	uint16_t port () const;
 
 private:
@@ -185,7 +186,7 @@ public:
 	unchecked_key (nano::uint512_union const &);
 	bool deserialize (nano::stream &);
 	bool operator== (nano::unchecked_key const &) const;
-	bool operator< (nano::unchecked_key const &) const;
+	bool operator<(nano::unchecked_key const &) const;
 	nano::block_hash const & key () const;
 	nano::block_hash previous{ 0 };
 	nano::block_hash hash{ 0 };
@@ -200,29 +201,6 @@ enum class signature_verification : uint8_t
 	invalid = 1,
 	valid = 2,
 	valid_epoch = 3 // Valid for epoch blocks
-};
-
-/**
- * Information on an unchecked block
- */
-class unchecked_info final
-{
-public:
-	unchecked_info () = default;
-	unchecked_info (std::shared_ptr<nano::block> const &, nano::account const &, nano::signature_verification = nano::signature_verification::unknown);
-	unchecked_info (std::shared_ptr<nano::block> const &);
-	void serialize (nano::stream &) const;
-	bool deserialize (nano::stream &);
-	uint64_t modified () const;
-	std::shared_ptr<nano::block> block;
-	nano::account account{};
-
-private:
-	/** Seconds since posix epoch */
-	uint64_t modified_m{ 0 };
-
-public:
-	nano::signature_verification verified{ nano::signature_verification::unknown };
 };
 
 class block_info final
@@ -370,6 +348,32 @@ enum class tally_result
 	confirm
 };
 
+nano::stat::detail to_stat_detail (process_result);
+
+/**
+ * Information on an unchecked block
+ */
+class unchecked_info final
+{
+public:
+	unchecked_info () = default;
+	unchecked_info (std::shared_ptr<nano::block> const &, nano::account const &, nano::signature_verification = nano::signature_verification::unknown);
+	unchecked_info (std::shared_ptr<nano::block> const &);
+	void serialize (nano::stream &) const;
+	bool deserialize (nano::stream &);
+	uint64_t modified () const;
+	std::shared_ptr<nano::block> block;
+	nano::account account{};
+	std::function<void (nano::process_result)> processed_callback;
+
+private:
+	/** Seconds since posix epoch */
+	uint64_t modified_m{ 0 };
+
+public:
+	nano::signature_verification verified{ nano::signature_verification::unknown };
+};
+
 class network_params;
 
 /** Genesis keys and ledger constants for network variants */
@@ -496,7 +500,7 @@ enum class confirmation_height_mode
 };
 
 /* Holds flags for various cacheable data. For most CLI operations caching is unnecessary
-     * (e.g getting the cemented block count) so it can be disabled for performance reasons. */
+ * (e.g getting the cemented block count) so it can be disabled for performance reasons. */
 class generate_cache
 {
 public:

@@ -228,6 +228,7 @@ public:
 		ledger,
 		rollback,
 		bootstrap,
+		bootstrap_ascending,
 		bootstrap_server,
 		vote,
 		election,
@@ -245,13 +246,17 @@ public:
 		telemetry,
 		vote_generator,
 		vote_cache,
-		hinting
+		hinting,
+		unchecked,
+		unchecked_result,
+		blockprocessor,
 	};
 
 	/** Optional detail type */
 	enum class detail : uint8_t
 	{
 		all = 0,
+		unknown,
 
 		// error specific
 		bad_sender,
@@ -277,6 +282,15 @@ public:
 		gap_previous,
 		gap_source,
 		rollback_failed,
+		progress,
+		bad_signature,
+		negative_spend,
+		unreceivable,
+		gap_epoch_open_pending,
+		opened_burn_account,
+		balance_mismatch,
+		representative_mismatch,
+		block_position,
 
 		// message specific
 		not_a_type,
@@ -421,6 +435,18 @@ public:
 		hinted,
 		insert_failed,
 		missing_block,
+
+		// unchecked
+		put,
+		satisfied,
+		trigger,
+
+		// ascending bootstrap
+		request,
+		read_block,
+		read_block_done,
+		read_block_end,
+		read_block_error,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
@@ -472,7 +498,7 @@ public:
 	/** Increments the given counter */
 	void inc (stat::type type, stat::detail detail, stat::dir dir = stat::dir::in)
 	{
-		add (type, detail, dir, 1);
+		add (type, detail, dir, 1, true);
 	}
 
 	/** Adds \p value to the given counter */
