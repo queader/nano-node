@@ -14,16 +14,31 @@ nano::state_block_signature_verification::state_block_signature_verification (na
 	epochs (epochs),
 	node_config (node_config),
 	logger (logger),
-	thread ([this, state_block_signature_verification_size] () {
-		nano::thread_role::set (nano::thread_role::name::state_block_signature_verification);
-		this->run (state_block_signature_verification_size);
-	})
+	signature_verification_size{ state_block_signature_verification_size }
 {
 }
 
 nano::state_block_signature_verification::~state_block_signature_verification ()
 {
 	stop ();
+
+	for (auto & thread : threads)
+	{
+		thread.join ();
+	}
+}
+
+void nano::state_block_signature_verification::start ()
+{
+	const int num_threads = 4;
+
+	for (int n = 0; n < num_threads; ++n)
+	{
+		threads.emplace_back ([this] () {
+			nano::thread_role::set (nano::thread_role::name::state_block_signature_verification);
+			run (signature_verification_size);
+		});
+	}
 }
 
 void nano::state_block_signature_verification::stop ()
@@ -32,38 +47,32 @@ void nano::state_block_signature_verification::stop ()
 		nano::lock_guard<nano::mutex> guard (mutex);
 		stopped = true;
 	}
-
-	if (thread.joinable ())
-	{
-		condition.notify_one ();
-		thread.join ();
-	}
+	condition.notify_all ();
 }
 
 void nano::state_block_signature_verification::run (uint64_t state_block_signature_verification_size)
 {
-	nano::unique_lock<nano::mutex> lk (mutex);
+	nano::unique_lock<nano::mutex> lock (mutex);
 	while (!stopped)
 	{
 		if (!state_blocks.empty ())
 		{
 			std::size_t const max_verification_batch (state_block_signature_verification_size != 0 ? state_block_signature_verification_size : nano::signature_checker::batch_size * (node_config.signature_checker_threads + 1));
 			active = true;
-			while (!state_blocks.empty () && !stopped)
-			{
-				auto items = setup_items (max_verification_batch);
-				lk.unlock ();
-				verify_state_blocks (items);
-				lk.lock ();
-			}
+
+			auto items = setup_items (max_verification_batch);
+			lock.unlock ();
+			verify_state_blocks (items);
+			lock.lock ();
+
 			active = false;
-			lk.unlock ();
+			lock.unlock ();
 			transition_inactive_callback ();
-			lk.lock ();
+			lock.lock ();
 		}
 		else
 		{
-			condition.wait (lk);
+			condition.wait (lock);
 		}
 	}
 }
@@ -89,7 +98,7 @@ std::size_t nano::state_block_signature_verification::size ()
 	return state_blocks.size ();
 }
 
-auto nano::state_block_signature_verification::setup_items (std::size_t max_count) -> std::deque<value_type>
+std::deque<nano::state_block_signature_verification::value_type> nano::state_block_signature_verification::setup_items (std::size_t max_count)
 {
 	std::deque<value_type> items;
 	if (state_blocks.size () <= max_count)

@@ -6,6 +6,7 @@
 #include <deque>
 #include <functional>
 #include <thread>
+#include <vector>
 
 namespace nano
 {
@@ -19,28 +20,32 @@ class state_block_signature_verification
 public:
 	using value_type = std::tuple<std::shared_ptr<nano::block>, nano::account, nano::signature_verification>;
 
-	state_block_signature_verification (nano::signature_checker &, nano::epochs &, nano::node_config &, nano::logger_mt &, uint64_t);
+	state_block_signature_verification (nano::signature_checker &, nano::epochs &, nano::node_config &, nano::logger_mt &, uint64_t state_block_signature_verification_size);
 	~state_block_signature_verification ();
+
 	void add (value_type const & item);
 	std::size_t size ();
+	void start ();
 	void stop ();
 	bool is_active ();
 
 	std::function<void (std::deque<value_type> &, std::vector<int> const &, std::vector<nano::block_hash> const &, std::vector<nano::signature> const &)> blocks_verified_callback;
 	std::function<void ()> transition_inactive_callback;
 
-private:
+private: // Dependencies
 	nano::signature_checker & signature_checker;
 	nano::epochs & epochs;
 	nano::node_config & node_config;
 	nano::logger_mt & logger;
 
+private:
+	const uint64_t signature_verification_size;
 	nano::mutex mutex{ mutex_identifier (mutexes::state_block_signature_verification) };
 	bool stopped{ false };
 	bool active{ false };
 	std::deque<value_type> state_blocks;
 	nano::condition_variable condition;
-	std::thread thread;
+	std::vector<std::thread> threads;
 
 	void run (uint64_t block_processor_verification_size);
 	std::deque<value_type> setup_items (std::size_t);
