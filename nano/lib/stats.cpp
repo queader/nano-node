@@ -548,6 +548,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::hinting:
 			res = "hinting";
 			break;
+		case nano::stat::type::election_scheduler:
+			res = "election_scheduler";
+			break;
 	}
 	return res;
 }
@@ -559,6 +562,12 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 	{
 		case nano::stat::detail::all:
 			res = "all";
+			break;
+		case nano::stat::detail::loop:
+			res = "loop";
+			break;
+		case nano::stat::detail::notify:
+			res = "notify";
 			break;
 		case nano::stat::detail::bad_sender:
 			res = "bad_sender";
@@ -948,6 +957,15 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::missing_block:
 			res = "missing_block";
+			break;
+		case nano::stat::detail::overfill:
+			res = "overfill";
+			break;
+		case nano::stat::detail::manual_queue:
+			res = "manual_queue";
+			break;
+		case nano::stat::detail::priority_queue:
+			res = "priority_queue";
 			break;
 	}
 	return res;

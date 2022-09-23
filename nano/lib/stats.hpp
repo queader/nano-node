@@ -245,13 +245,18 @@ public:
 		telemetry,
 		vote_generator,
 		vote_cache,
-		hinting
+		hinting,
+		election_scheduler,
 	};
 
 	/** Optional detail type */
 	enum class detail : uint8_t
 	{
 		all = 0,
+
+		// common
+		loop,
+		notify,
 
 		// error specific
 		bad_sender,
@@ -420,6 +425,11 @@ public:
 		hinted,
 		insert_failed,
 		missing_block,
+
+		// election scheduler
+		overfill,
+		manual_queue,
+		priority_queue,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
@@ -471,7 +481,7 @@ public:
 	/** Increments the given counter */
 	void inc (stat::type type, stat::detail detail, stat::dir dir = stat::dir::in)
 	{
-		add (type, detail, dir, 1);
+		add (type, detail, dir, 1, true);
 	}
 
 	/** Adds \p value to the given counter */

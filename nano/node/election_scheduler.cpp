@@ -119,13 +119,19 @@ void nano::election_scheduler::run ()
 		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
 		if (!stopped)
 		{
+			node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
+
 			if (overfill_predicate ())
 			{
+				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::overfill);
+
 				lock.unlock ();
 				node.active.erase_oldest ();
 			}
 			else if (manual_queue_predicate ())
 			{
+				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::manual_queue);
+
 				auto const [block, previous_balance, election_behavior, confirmation_action] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
@@ -134,6 +140,8 @@ void nano::election_scheduler::run ()
 			}
 			else if (priority_queue_predicate ())
 			{
+				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::priority_queue);
+
 				auto block = priority.top ();
 				priority.pop ();
 				lock.unlock ();
