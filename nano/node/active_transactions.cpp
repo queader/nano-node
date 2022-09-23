@@ -47,6 +47,12 @@ nano::active_transactions::~active_transactions ()
 	stop ();
 }
 
+void nano::active_transactions::start ()
+{
+	generator.start ();
+	final_generator.start ();
+}
+
 void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::block> const & block_a)
 {
 	auto transaction = node.store.tx_begin_read ();

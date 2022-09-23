@@ -172,6 +172,7 @@ public:
 	void erase_oldest ();
 	bool empty ();
 	std::size_t size ();
+	void start ();
 	void stop ();
 	bool publish (std::shared_ptr<nano::block> const &);
 	boost::optional<nano::election_status_type> confirm_block (nano::transaction const &, std::shared_ptr<nano::block> const &);

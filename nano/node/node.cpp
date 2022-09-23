@@ -740,6 +740,7 @@ void nano::node::start ()
 		port_mapping.start ();
 	}
 	wallets.start ();
+	active.start ();
 	backlog.start ();
 	hinting.start ();
 }
