@@ -22,11 +22,7 @@ nano::active_transactions::active_transactions (nano::node & node_a, nano::confi
 	final_generator{ node_a.config, node_a.ledger, node_a.wallets, node_a.vote_processor, node_a.history, node_a.network, node_a.stats, true },
 	recently_confirmed{ 65536 },
 	recently_cemented{ node.config.confirmation_history_size },
-	election_time_to_live{ node_a.network_params.network.is_dev_network () ? 0s : 2s },
-	thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::request_loop);
-		request_loop ();
-	})
+	election_time_to_live{ node_a.network_params.network.is_dev_network () ? 0s : 2s }
 {
 	// Register a callback which will get called after a block is cemented
 	confirmation_height_processor.add_cemented_observer ([this] (std::shared_ptr<nano::block> const & callback_block_a) {
@@ -37,9 +33,6 @@ nano::active_transactions::active_transactions (nano::node & node_a, nano::confi
 	confirmation_height_processor.add_block_already_cemented_observer ([this] (nano::block_hash const & hash_a) {
 		this->block_already_cemented_callback (hash_a);
 	});
-
-	nano::unique_lock<nano::mutex> lock (mutex);
-	condition.wait (lock, [&started = started] { return started; });
 }
 
 nano::active_transactions::~active_transactions ()
@@ -51,6 +44,33 @@ void nano::active_transactions::start ()
 {
 	generator.start ();
 	final_generator.start ();
+
+	if (!node.flags.disable_request_loop)
+	{
+		thread = std::thread ([this] () {
+			nano::thread_role::set (nano::thread_role::name::request_loop);
+			request_loop ();
+		});
+	}
+}
+
+void nano::active_transactions::stop ()
+{
+	nano::unique_lock<nano::mutex> lock (mutex);
+	stopped = true;
+	lock.unlock ();
+
+	condition.notify_all ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
+	generator.stop ();
+	final_generator.stop ();
+
+	lock.lock ();
+	roots.clear ();
+	blocks.clear ();
 }
 
 void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::block> const & block_a)
@@ -331,18 +351,13 @@ std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_act
 
 void nano::active_transactions::request_loop ()
 {
-	nano::unique_lock<nano::mutex> lock (mutex);
-	started = true;
-	lock.unlock ();
-	condition.notify_all ();
-
 	// The wallets and active_transactions objects are mutually dependent, so we need a fully
 	// constructed node before proceeding.
 	this->node.node_initialized_latch.wait ();
 
-	lock.lock ();
+	nano::unique_lock<nano::mutex> lock (mutex);
 
-	while (!stopped && !node.flags.disable_request_loop)
+	while (!stopped)
 	{
 		// If many votes are queued, ensure at least the currently active ones finish processing
 		lock.unlock ();
@@ -365,26 +380,6 @@ void nano::active_transactions::request_loop ()
 			condition.wait_until (lock, wakeup_l, [&wakeup_l, &stopped = stopped] { return stopped || std::chrono::steady_clock::now () >= wakeup_l; });
 		}
 	}
-}
-
-void nano::active_transactions::stop ()
-{
-	nano::unique_lock<nano::mutex> lock (mutex);
-	if (!started)
-	{
-		condition.wait (lock, [&started = started] { return started; });
-	}
-	stopped = true;
-	lock.unlock ();
-	condition.notify_all ();
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
-	generator.stop ();
-	final_generator.stop ();
-	lock.lock ();
-	roots.clear ();
 }
 
 nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)

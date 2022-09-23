@@ -15,12 +15,12 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/optional.hpp>
-#include <boost/thread/thread.hpp>
 
 #include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <memory>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -234,7 +234,6 @@ private:
 	void add_inactive_vote_cache (nano::block_hash const & hash, std::shared_ptr<nano::vote> const vote);
 
 	nano::condition_variable condition;
-	bool started{ false };
 	std::atomic<bool> stopped{ false };
 
 	// Maximum time an election can be kept active if it is extending the container
@@ -242,7 +241,7 @@ private:
 
 	int active_hinted_elections_count{ 0 };
 
-	boost::thread thread;
+	std::thread thread;
 
 	friend class election;
 	friend class election_scheduler;
