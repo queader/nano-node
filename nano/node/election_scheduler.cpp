@@ -3,15 +3,13 @@
 
 nano::election_scheduler::election_scheduler (nano::node & node) :
 	node{ node },
-	stopped{ false },
-	thread{ [this] () { run (); } }
+	stopped{ false }
 {
 }
 
 nano::election_scheduler::~election_scheduler ()
 {
 	stop ();
-	thread.join ();
 }
 
 void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & block_a, boost::optional<nano::uint128_t> const & previous_balance_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
@@ -45,11 +43,21 @@ void nano::election_scheduler::activate (nano::account const & account_a, nano::
 	}
 }
 
+void nano::election_scheduler::start ()
+{
+	thread = std::thread{ [this] () { run (); } };
+}
+
 void nano::election_scheduler::stop ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	stopped = true;
+	lock.unlock ();
 	notify ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
 }
 
 void nano::election_scheduler::flush ()

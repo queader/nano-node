@@ -741,6 +741,7 @@ void nano::node::start ()
 	}
 	wallets.start ();
 	active.start ();
+	scheduler.start ();
 	backlog.start ();
 	hinting.start ();
 }
