@@ -555,6 +555,6 @@ std::unique_ptr<nano::container_info_component> nano::vote_generator::process_qu
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "size", queue.size (), sizeof (decltype (queue)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queue", queue.size (), sizeof (decltype (queue)::value_type) }));
 	return composite;
 }
