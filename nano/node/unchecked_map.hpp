@@ -52,15 +52,18 @@ private:
 	class item_visitor : boost::static_visitor<>
 	{
 	public:
-		item_visitor (unchecked_map & unchecked);
+		explicit item_visitor (unchecked_map & unchecked);
 		void operator() (insert const & item);
 		void operator() (query const & item);
 		unchecked_map & unchecked;
 	};
 	void run ();
-	void insert_impl (nano::hash_or_account const & dependency, nano::unchecked_info const & info);
 	void query_impl (nano::block_hash const & hash);
+
+private: // Dependencies
 	nano::store & store;
+
+private:
 	bool const & disable_delete;
 	std::deque<boost::variant<insert, query>> buffer;
 	std::deque<boost::variant<insert, query>> back_buffer;
@@ -89,7 +92,7 @@ private: // In memory store
 
 	using ordered_unchecked = boost::multi_index_container<entry,
 		mi::indexed_by<
-			mi::random_access<mi::tag<tag_sequenced>>,
+			mi::sequenced<mi::tag<tag_sequenced>>,
 			mi::ordered_unique<mi::tag<tag_root>,
 				mi::member<entry, nano::unchecked_key, &entry::key>>>>;
 	// clang-format on

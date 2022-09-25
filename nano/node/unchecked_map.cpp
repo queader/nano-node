@@ -21,10 +21,13 @@ nano::unchecked_map::~unchecked_map ()
 
 void nano::unchecked_map::put (nano::hash_or_account const & dependency, nano::unchecked_info const & info)
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	buffer.push_back (std::make_pair (dependency, info));
-	lock.unlock ();
-	condition.notify_all (); // Notify run ()
+	nano::lock_guard<std::recursive_mutex> lock{ entries_mutex };
+	nano::unchecked_key key{ dependency, info.block->hash () };
+	entries.get<tag_root> ().insert ({ key, info });
+	if (entries.size () > mem_block_count_max)
+	{
+		entries.get<tag_sequenced> ().pop_front ();
+	}
 }
 
 void nano::unchecked_map::for_each (std::function<void (nano::unchecked_key const &, nano::unchecked_info const &)> action, std::function<bool ()> predicate)
@@ -100,7 +103,7 @@ void nano::unchecked_map::flush ()
 void nano::unchecked_map::trigger (nano::hash_or_account const & dependency)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	buffer.push_back (dependency);
+	buffer.emplace_back (dependency);
 	debug_assert (buffer.back ().which () == 1); // which stands for "query".
 	lock.unlock ();
 	condition.notify_all (); // Notify run ()
@@ -113,8 +116,7 @@ nano::unchecked_map::item_visitor::item_visitor (unchecked_map & unchecked) :
 
 void nano::unchecked_map::item_visitor::operator() (insert const & item)
 {
-	auto const & [dependency, info] = item;
-	unchecked.insert_impl (dependency, info);
+	release_assert (false);
 }
 
 void nano::unchecked_map::item_visitor::operator() (query const & item)
@@ -158,22 +160,8 @@ void nano::unchecked_map::run ()
 	}
 }
 
-void nano::unchecked_map::insert_impl (nano::hash_or_account const & dependency, nano::unchecked_info const & info)
-{
-	nano::lock_guard<std::recursive_mutex> lock{ entries_mutex };
-	// Check if we should be using memory but the memory container hasn't been constructed i.e. we're transitioning from disk to memory.
-	nano::unchecked_key key{ dependency, info.block->hash () };
-	entries.get<tag_root> ().insert ({ key, info });
-	while (entries.size () > mem_block_count_max)
-	{
-		entries.get<tag_sequenced> ().pop_front ();
-	}
-}
-
 void nano::unchecked_map::query_impl (nano::block_hash const & hash)
 {
-	nano::lock_guard<std::recursive_mutex> lock{ entries_mutex };
-
 	std::deque<nano::unchecked_key> delete_queue;
 	for_each (hash, [this, &delete_queue] (nano::unchecked_key const & key, nano::unchecked_info const & info) {
 		delete_queue.push_back (key);
