@@ -15,12 +15,12 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/optional.hpp>
-#include <boost/thread/thread.hpp>
 
 #include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <memory>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -170,6 +170,7 @@ public:
 	void erase_oldest ();
 	bool empty ();
 	std::size_t size ();
+	void start ();
 	void stop ();
 	bool publish (std::shared_ptr<nano::block> const &);
 	boost::optional<nano::election_status_type> confirm_block (nano::transaction const &, std::shared_ptr<nano::block> const &);
@@ -203,9 +204,6 @@ public:
 	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
 	void remove_election_winner_details (nano::block_hash const &);
 
-	nano::vote_generator generator;
-	nano::vote_generator final_generator;
-
 	recently_confirmed_cache recently_confirmed;
 	recently_cemented_cache recently_cemented;
 
@@ -231,7 +229,6 @@ private:
 	void add_inactive_vote_cache (nano::block_hash const & hash, std::shared_ptr<nano::vote> const vote);
 
 	nano::condition_variable condition;
-	bool started{ false };
 	std::atomic<bool> stopped{ false };
 
 	// Maximum time an election can be kept active if it is extending the container
@@ -239,7 +236,7 @@ private:
 
 	int active_hinted_elections_count{ 0 };
 
-	boost::thread thread;
+	std::thread thread;
 
 	friend class election;
 	friend class election_scheduler;

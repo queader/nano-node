@@ -3,15 +3,13 @@
 
 nano::election_scheduler::election_scheduler (nano::node & node) :
 	node{ node },
-	stopped{ false },
-	thread{ [this] () { run (); } }
+	stopped{ false }
 {
 }
 
 nano::election_scheduler::~election_scheduler ()
 {
 	stop ();
-	thread.join ();
 }
 
 void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & block_a, boost::optional<nano::uint128_t> const & previous_balance_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
@@ -45,11 +43,21 @@ void nano::election_scheduler::activate (nano::account const & account_a, nano::
 	}
 }
 
+void nano::election_scheduler::start ()
+{
+	thread = std::thread{ [this] () { run (); } };
+}
+
 void nano::election_scheduler::stop ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	stopped = true;
+	lock.unlock ();
 	notify ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
 }
 
 void nano::election_scheduler::flush ()
@@ -119,13 +127,19 @@ void nano::election_scheduler::run ()
 		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
 		if (!stopped)
 		{
+			node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
+
 			if (overfill_predicate ())
 			{
+				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::overfill);
+
 				lock.unlock ();
 				node.active.erase_oldest ();
 			}
 			else if (manual_queue_predicate ())
 			{
+				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::manual_queue);
+
 				auto const [block, previous_balance, election_behavior, confirmation_action] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
@@ -134,6 +148,8 @@ void nano::election_scheduler::run ()
 			}
 			else if (priority_queue_predicate ())
 			{
+				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::priority_queue);
+
 				auto block = priority.top ();
 				priority.pop ();
 				lock.unlock ();

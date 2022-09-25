@@ -121,20 +121,74 @@ private:
 
 public:
 	vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a, bool is_final_a);
-	/** Queue items for vote generation, or broadcast votes already in cache */
+	~vote_generator ();
+
+	/**
+	 * Queue items for vote generation, or broadcast votes already in cache
+	 */
 	void add (nano::root const &, nano::block_hash const &);
-	/** Queue blocks for vote generation, returning the number of successful candidates.*/
+	/**
+	 * Queue blocks for vote generation, returning the number of successful candidates.
+	 * */
 	std::size_t generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::transport::channel> const & channel_a);
+
 	void set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)>);
+	void start ();
 	void stop ();
 
 private:
+	class process_queue final
+	{
+	public:
+		explicit process_queue (vote_generator &);
+		~process_queue ();
+
+		void start ();
+		void stop ();
+		void notify ();
+
+		/*
+		 * Queues item for batch processing
+		 */
+		void add (nano::root const &, nano::block_hash const &);
+
+	public: // Container info
+		std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+
+	private:
+		void run ();
+		void do_batch (std::deque<std::pair<nano::root, nano::block_hash>> queue);
+
+	private:
+		vote_generator & generator;
+		std::deque<std::pair<nano::root, nano::block_hash>> queue;
+		std::atomic<bool> stopped{ false };
+		mutable nano::mutex mutex;
+		nano::condition_variable condition;
+		std::thread thread;
+
+		/* Should give us plenty of margin, if queue gets larger than that something is probably wrong */
+		constexpr static std::size_t max_size = 1024 * 32;
+	};
+
+	friend class process_queue;
+
+private:
+	/**
+	 * Queue items for vote generation, or broadcast votes already in cache
+	 * @param transaction : needs `tables::final_votes` lock
+	 */
+	void process (nano::write_transaction const &, nano::root const &, nano::block_hash const &);
+
 	void run ();
+
 	void broadcast (nano::unique_lock<nano::mutex> &);
 	void reply (nano::unique_lock<nano::mutex> &, request_t &&);
 	void vote (std::vector<nano::block_hash> const &, std::vector<nano::root> const &, std::function<void (std::shared_ptr<nano::vote> const &)> const &);
 	void broadcast_action (std::shared_ptr<nano::vote> const &) const;
 	std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> &)> reply_action; // must be set only during initialization by using set_reply_action
+
+private: // Dependencies
 	nano::node_config const & config;
 	nano::ledger & ledger;
 	nano::wallets & wallets;
@@ -143,15 +197,19 @@ private:
 	nano::vote_spacing spacing;
 	nano::network & network;
 	nano::stat & stats;
+
+private:
+	process_queue queue;
+
+	const bool is_final;
 	mutable nano::mutex mutex;
 	nano::condition_variable condition;
 	static std::size_t constexpr max_requests{ 2048 };
 	std::deque<request_t> requests;
 	std::deque<candidate_t> candidates;
 	std::atomic<bool> stopped{ false };
-	bool started{ false };
+
 	std::thread thread;
-	bool is_final;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (vote_generator & vote_generator, std::string const & name);
 };
@@ -161,7 +219,7 @@ std::unique_ptr<container_info_component> collect_container_info (vote_generator
 class vote_generator_session final
 {
 public:
-	vote_generator_session (vote_generator & vote_generator_a);
+	explicit vote_generator_session (vote_generator & vote_generator_a);
 	void add (nano::root const &, nano::block_hash const &);
 	void flush ();
 

@@ -18,15 +18,9 @@ nano::active_transactions::active_transactions (nano::node & node_a, nano::confi
 	scheduler{ node_a.scheduler }, // Move dependencies requiring this circular reference
 	confirmation_height_processor{ confirmation_height_processor_a },
 	node{ node_a },
-	generator{ node_a.config, node_a.ledger, node_a.wallets, node_a.vote_processor, node_a.history, node_a.network, node_a.stats, false },
-	final_generator{ node_a.config, node_a.ledger, node_a.wallets, node_a.vote_processor, node_a.history, node_a.network, node_a.stats, true },
 	recently_confirmed{ 65536 },
 	recently_cemented{ node.config.confirmation_history_size },
-	election_time_to_live{ node_a.network_params.network.is_dev_network () ? 0s : 2s },
-	thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::request_loop);
-		request_loop ();
-	})
+	election_time_to_live{ node_a.network_params.network.is_dev_network () ? 0s : 2s }
 {
 	// Register a callback which will get called after a block is cemented
 	confirmation_height_processor.add_cemented_observer ([this] (std::shared_ptr<nano::block> const & callback_block_a) {
@@ -37,14 +31,39 @@ nano::active_transactions::active_transactions (nano::node & node_a, nano::confi
 	confirmation_height_processor.add_block_already_cemented_observer ([this] (nano::block_hash const & hash_a) {
 		this->block_already_cemented_callback (hash_a);
 	});
-
-	nano::unique_lock<nano::mutex> lock (mutex);
-	condition.wait (lock, [&started = started] { return started; });
 }
 
 nano::active_transactions::~active_transactions ()
 {
 	stop ();
+}
+
+void nano::active_transactions::start ()
+{
+	if (!node.flags.disable_request_loop)
+	{
+		thread = std::thread ([this] () {
+			nano::thread_role::set (nano::thread_role::name::request_loop);
+			request_loop ();
+		});
+	}
+}
+
+void nano::active_transactions::stop ()
+{
+	nano::unique_lock<nano::mutex> lock (mutex);
+	stopped = true;
+	lock.unlock ();
+
+	condition.notify_all ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
+
+	lock.lock ();
+	roots.clear ();
+	blocks.clear ();
 }
 
 void nano::active_transactions::block_cemented_callback (std::shared_ptr<nano::block> const & block_a)
@@ -202,8 +221,8 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 
 	nano::confirmation_solicitor solicitor (node.network, node.config);
 	solicitor.prepare (node.rep_crawler.principal_representatives (std::numeric_limits<std::size_t>::max ()));
-	nano::vote_generator_session generator_session (generator);
-	nano::vote_generator_session final_generator_session (generator);
+	nano::vote_generator_session generator_session (node.generator);
+	nano::vote_generator_session final_generator_session (node.final_generator);
 
 	std::size_t unconfirmed_count_l (0);
 	nano::timer<std::chrono::milliseconds> elapsed (nano::timer_state::started);
@@ -325,18 +344,13 @@ std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_act
 
 void nano::active_transactions::request_loop ()
 {
-	nano::unique_lock<nano::mutex> lock (mutex);
-	started = true;
-	lock.unlock ();
-	condition.notify_all ();
-
 	// The wallets and active_transactions objects are mutually dependent, so we need a fully
 	// constructed node before proceeding.
 	this->node.node_initialized_latch.wait ();
 
-	lock.lock ();
+	nano::unique_lock<nano::mutex> lock (mutex);
 
-	while (!stopped && !node.flags.disable_request_loop)
+	while (!stopped)
 	{
 		auto const stamp_l = std::chrono::steady_clock::now ();
 
@@ -350,26 +364,6 @@ void nano::active_transactions::request_loop ()
 			condition.wait_until (lock, wakeup_l, [&wakeup_l, &stopped = stopped] { return stopped || std::chrono::steady_clock::now () >= wakeup_l; });
 		}
 	}
-}
-
-void nano::active_transactions::stop ()
-{
-	nano::unique_lock<nano::mutex> lock (mutex);
-	if (!started)
-	{
-		condition.wait (lock, [&started = started] { return started; });
-	}
-	stopped = true;
-	lock.unlock ();
-	condition.notify_all ();
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
-	generator.stop ();
-	final_generator.stop ();
-	lock.lock ();
-	roots.clear ();
 }
 
 nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
@@ -690,25 +684,20 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 {
 	std::size_t roots_count;
 	std::size_t blocks_count;
-	std::size_t recently_confirmed_count;
-	std::size_t recently_cemented_count;
 	std::size_t hinted_count;
 
 	{
 		nano::lock_guard<nano::mutex> guard (active_transactions.mutex);
 		roots_count = active_transactions.roots.size ();
 		blocks_count = active_transactions.blocks.size ();
-		recently_confirmed_count = active_transactions.recently_confirmed.size ();
-		recently_cemented_count = active_transactions.recently_cemented.size ();
 		hinted_count = active_transactions.active_hinted_elections_count;
 	}
 
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "roots", roots_count, sizeof (decltype (active_transactions.roots)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks", blocks_count, sizeof (decltype (active_transactions.blocks)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", active_transactions.election_winner_details_size (), sizeof (decltype (active_transactions.election_winner_details)::value_type) }));
+//	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", active_transactions.election_winner_details_size (), sizeof (decltype (active_transactions.election_winner_details)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "hinted", hinted_count, 0 }));
-	composite->add_component (collect_container_info (active_transactions.generator, "generator"));
 
 	composite->add_component (active_transactions.recently_confirmed.collect_container_info ("recently_confirmed"));
 	composite->add_component (active_transactions.recently_cemented.collect_container_info ("recently_cemented"));
