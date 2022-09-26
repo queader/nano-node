@@ -313,7 +313,7 @@ std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_act
 	std::vector<std::shared_ptr<nano::election>> result_l;
 	result_l.reserve (std::min (max_a, roots.size ()));
 	{
-		auto & sorted_roots_l (roots.get<tag_random_access> ());
+		auto & sorted_roots_l (roots.get<tag_sequenced> ());
 		std::size_t count_l{ 0 };
 		for (auto i = sorted_roots_l.begin (), n = sorted_roots_l.end (); i != n && count_l < max_a; ++i, ++count_l)
 		{
@@ -338,15 +338,6 @@ void nano::active_transactions::request_loop ()
 
 	while (!stopped && !node.flags.disable_request_loop)
 	{
-		// If many votes are queued, ensure at least the currently active ones finish processing
-		lock.unlock ();
-		condition.notify_all ();
-		if (node.vote_processor.half_full ())
-		{
-			node.vote_processor.flush ();
-		}
-		lock.lock ();
-
 		auto const stamp_l = std::chrono::steady_clock::now ();
 
 		request_confirm (lock);
@@ -590,7 +581,7 @@ void nano::active_transactions::erase_oldest ()
 	if (!roots.empty ())
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_drop_overflow);
-		auto item = roots.get<tag_random_access> ().front ();
+		auto item = roots.get<tag_sequenced> ().front ();
 		cleanup_election (lock, item.election);
 	}
 }
