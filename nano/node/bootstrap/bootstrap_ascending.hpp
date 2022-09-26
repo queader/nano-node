@@ -69,7 +69,7 @@ namespace bootstrap
 		class account_sets
 		{
 		public:
-			explicit account_sets ();
+			explicit account_sets (bootstrap_ascending &);
 			void prioritize (nano::account const & account, float priority);
 			void block (nano::account const & account);
 			void unblock (nano::account const & account);
@@ -97,6 +97,8 @@ namespace bootstrap
 				This implementation applies 1/2^i for each element, effectivly an exponential backoff
 			*/
 			std::vector<double> probability_transform (std::vector<decltype (backoff)::mapped_type> const & attempts) const;
+
+			bootstrap_ascending & bootstrap;
 		};
 		/** A single thread performing the ascending bootstrap algorithm
 			Each thread tracks the number of outstanding requests over the network that have not yet completed.
@@ -149,11 +151,13 @@ namespace bootstrap
 			std::shared_ptr<bootstrap_ascending::thread> bootstrap;
 		};
 
+	public:
 		void request_one ();
 		bool blocked (nano::account const & account);
 		void inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
 		void dump_stats ();
 
+	private:
 		account_sets accounts;
 		connection_pool pool;
 		static std::size_t constexpr parallelism = 16;

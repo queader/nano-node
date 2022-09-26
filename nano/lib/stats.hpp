@@ -229,6 +229,7 @@ public:
 		rollback,
 		bootstrap,
 		bootstrap_ascending,
+		bootstrap_ascending_accounts,
 		bootstrap_server,
 		vote,
 		election,
@@ -447,6 +448,12 @@ public:
 		read_block_done,
 		read_block_end,
 		read_block_error,
+		prioritize,
+		prioritize_failed,
+		block,
+		unblock,
+		next_forwarding,
+		next_random,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

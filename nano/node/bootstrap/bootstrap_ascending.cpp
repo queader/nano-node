@@ -51,7 +51,8 @@ bool nano::bootstrap::bootstrap_ascending::connection_pool::request (std::shared
 	}
 }
 
-nano::bootstrap::bootstrap_ascending::account_sets::account_sets ()
+nano::bootstrap::bootstrap_ascending::account_sets::account_sets (bootstrap_ascending & bootstrap_a) :
+	bootstrap{ bootstrap_a }
 {
 }
 
@@ -84,6 +85,8 @@ void nano::bootstrap::bootstrap_ascending::account_sets::prioritize (nano::accou
 {
 	if (blocking.count (account) == 0)
 	{
+		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
+
 		forwarding.insert (account);
 		auto iter = backoff.find (account);
 		if (iter == backoff.end ())
@@ -91,10 +94,16 @@ void nano::bootstrap::bootstrap_ascending::account_sets::prioritize (nano::accou
 			backoff.emplace (account, priority);
 		}
 	}
+	else
+	{
+		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize_failed);
+	}
 }
 
 void nano::bootstrap::bootstrap_ascending::account_sets::block (nano::account const & account)
 {
+	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
+
 	backoff.erase (account);
 	forwarding.erase (account);
 	blocking.insert (account);
@@ -102,6 +111,8 @@ void nano::bootstrap::bootstrap_ascending::account_sets::block (nano::account co
 
 void nano::bootstrap::bootstrap_ascending::account_sets::unblock (nano::account const & account)
 {
+	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::unblock);
+
 	blocking.erase (account);
 	backoff[account] = 0.0f;
 }
@@ -149,12 +160,16 @@ nano::account nano::bootstrap::bootstrap_ascending::account_sets::next ()
 	nano::account result;
 	if (!forwarding.empty ())
 	{
+		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_forwarding);
+
 		auto iter = forwarding.begin ();
 		result = *iter;
 		forwarding.erase (iter);
 	}
 	else
 	{
+		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_random);
+
 		result = random ();
 	}
 	backoff[result] += 1.0f;
@@ -226,6 +241,7 @@ void nano::bootstrap::bootstrap_ascending::thread::send (std::shared_ptr<async_t
 	auto channel = tag->connection ().second;
 
 	++bootstrap.requests_total;
+
 	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request);
 
 	channel->send (message, [this_l = shared (), tag] (boost::system::error_code const & ec, std::size_t size) {
@@ -240,8 +256,6 @@ void nano::bootstrap::bootstrap_ascending::thread::read_block (std::shared_ptr<a
 	auto deserializer = std::make_shared<nano::bootstrap::block_deserializer> ();
 	auto socket = tag->connection ().first;
 	deserializer->read (*socket, [this_l = shared (), tag] (boost::system::error_code ec, std::shared_ptr<nano::block> block) {
-		this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block_done);
-
 		if (ec)
 		{
 			this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block_error);
@@ -263,6 +277,8 @@ void nano::bootstrap::bootstrap_ascending::thread::read_block (std::shared_ptr<a
 		}
 		else
 		{
+			this_l->bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::read_block_done);
+
 			this_l->bootstrap.node->block_processor.add (block);
 			++tag->blocks;
 		}
@@ -336,7 +352,8 @@ bool nano::bootstrap::bootstrap_ascending::thread::wait_available_request ()
 
 nano::bootstrap::bootstrap_ascending::bootstrap_ascending (std::shared_ptr<nano::node> const & node_a, uint64_t incremental_id_a, std::string id_a) :
 	bootstrap_attempt{ node_a, nano::bootstrap_mode::ascending, incremental_id_a, id_a },
-	pool{ *node }
+	pool{ *node },
+	accounts{ *this }
 {
 	auto tx = node_a->store.tx_begin_read ();
 	for (auto i = node_a->store.account.begin (tx), n = node_a->store.account.end (); i != n; ++i)

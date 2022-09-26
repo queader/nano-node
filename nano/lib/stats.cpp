@@ -482,6 +482,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::bootstrap_ascending:
 			res = "bootstrap_ascending";
 			break;
+		case nano::stat::type::bootstrap_ascending_accounts:
+			res = "bootstrap_ascending_accounts";
+			break;
 		case nano::stat::type::bootstrap_server:
 			res = "bootstrap_server";
 			break;
@@ -1017,6 +1020,24 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::read_block_error:
 			res = "read_block_error";
+			break;
+		case nano::stat::detail::prioritize:
+			res = "prioritize";
+			break;
+		case nano::stat::detail::prioritize_failed:
+			res = "prioritize_failed";
+			break;
+		case nano::stat::detail::block:
+			res = "block";
+			break;
+		case nano::stat::detail::unblock:
+			res = "unblock";
+			break;
+		case nano::stat::detail::next_forwarding:
+			res = "next_forwarding";
+			break;
+		case nano::stat::detail::next_random:
+			res = "next_random";
 			break;
 	}
 	return res;
