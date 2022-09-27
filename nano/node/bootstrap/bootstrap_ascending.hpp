@@ -162,7 +162,7 @@ namespace bootstrap
 		void inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
 		void dump_stats ();
 
-		using backoffs_t = std::tuple<std::unordered_set<nano::account>, std::unordered_set<nano::account>, std::map<nano::account, float>>; // <forwarding, blocking, backoffs>
+		using backoffs_t = std::tuple<std::unordered_set<nano::account>, std::map<nano::account, nano::block_hash>, std::map<nano::account, float>>; // <forwarding, blocking, backoffs>
 
 		backoffs_t backoff_info () const;
 
