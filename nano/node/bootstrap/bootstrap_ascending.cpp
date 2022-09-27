@@ -83,31 +83,40 @@ void nano::bootstrap::bootstrap_ascending::account_sets::dump () const
 
 void nano::bootstrap::bootstrap_ascending::account_sets::prioritize (nano::account const & account, float priority)
 {
-	if (blocking.count (account) > 0)
+	if (blocking.count (account) == 0)
 	{
-		unblock (account);
-	}
+		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
 
-	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
-
-	forwarding.insert (account);
-	auto iter = backoff.find (account);
-	if (iter == backoff.end ())
-	{
-		backoff.emplace (account, priority);
+		forwarding.insert (account);
+		auto iter = backoff.find (account);
+		if (iter == backoff.end ())
+		{
+			backoff.emplace (account, priority);
+		}
 	}
 }
 
-void nano::bootstrap::bootstrap_ascending::account_sets::block (nano::account const & account)
+void nano::bootstrap::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
 	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
 
 	backoff.erase (account);
 	forwarding.erase (account);
-	blocking.insert (account);
+	blocking[account] = dependency;
 }
 
-void nano::bootstrap::bootstrap_ascending::account_sets::unblock (nano::account const & account)
+void nano::bootstrap::bootstrap_ascending::account_sets::unblock (nano::account const & account, nano::block_hash const & hash)
+{
+	if (blocking.count (account) > 0 && blocking[account] == hash)
+	{
+		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::unblock);
+
+		blocking.erase (account);
+		backoff[account] = 0.0f;
+	}
+}
+
+void nano::bootstrap::bootstrap_ascending::account_sets::force_unblock (const nano::account & account)
 {
 	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::unblock);
 
@@ -292,14 +301,19 @@ nano::account nano::bootstrap::bootstrap_ascending::thread::pick_account ()
 
 void nano::bootstrap::bootstrap_ascending::inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block)
 {
+	auto const hash = block.hash ();
+
 	switch (result.code)
 	{
 		case nano::process_result::progress:
 		{
-			auto account = node->ledger.account (tx, block.hash ());
-			auto is_send = node->ledger.is_send (tx, block);
+			const auto account = node->ledger.account (tx, block.hash ());
+			const auto is_send = node->ledger.is_send (tx, block);
+
 			nano::lock_guard<nano::mutex> lock{ mutex };
+			accounts.force_unblock (account);
 			accounts.prioritize (account, 0.0f);
+
 			if (is_send)
 			{
 				auto const send_factor = 1.0f;
@@ -307,9 +321,11 @@ void nano::bootstrap::bootstrap_ascending::inspect (nano::transaction const & tx
 				switch (block.type ())
 				{
 					case nano::block_type::send:
+						accounts.unblock (block.destination (), hash);
 						accounts.prioritize (block.destination (), send_factor);
 						break;
 					case nano::block_type::state:
+						accounts.unblock (block.link ().as_account (), hash);
 						accounts.prioritize (block.link ().as_account (), send_factor);
 						break;
 					default:
@@ -321,9 +337,12 @@ void nano::bootstrap::bootstrap_ascending::inspect (nano::transaction const & tx
 		}
 		case nano::process_result::gap_source:
 		{
-			auto account = block.previous ().is_zero () ? block.account () : node->ledger.account (tx, block.previous ());
+			const auto account = block.previous ().is_zero () ? block.account () : node->ledger.account (tx, block.previous ());
+			const auto source = block.source ().is_zero () ? block.link ().as_block_hash () : block.source ();
+
 			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.block (account);
+			accounts.block (account, source);
+
 			break;
 		}
 		case nano::process_result::gap_previous:
