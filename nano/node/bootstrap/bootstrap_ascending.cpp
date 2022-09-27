@@ -455,3 +455,9 @@ std::shared_ptr<nano::bootstrap::bootstrap_ascending> nano::bootstrap::bootstrap
 {
 	return std::static_pointer_cast<nano::bootstrap::bootstrap_ascending> (shared_from_this ());
 }
+
+nano::bootstrap::bootstrap_ascending::backoffs_t nano::bootstrap::bootstrap_ascending::backoff_info () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return { accounts.forwarding, accounts.blocking, accounts.backoff };
+}

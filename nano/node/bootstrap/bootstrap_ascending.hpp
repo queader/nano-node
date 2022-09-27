@@ -99,6 +99,8 @@ namespace bootstrap
 			std::vector<double> probability_transform (std::vector<decltype (backoff)::mapped_type> const & attempts) const;
 
 			bootstrap_ascending & bootstrap;
+
+			friend class bootstrap_ascending;
 		};
 		/** A single thread performing the ascending bootstrap algorithm
 			Each thread tracks the number of outstanding requests over the network that have not yet completed.
@@ -156,6 +158,10 @@ namespace bootstrap
 		bool blocked (nano::account const & account);
 		void inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
 		void dump_stats ();
+
+		using backoffs_t = std::tuple<std::unordered_set<nano::account>, std::unordered_set<nano::account>, std::map<nano::account, float>>; // <forwarding, blocking, backoffs>
+
+		backoffs_t backoff_info () const;
 
 	private:
 		account_sets accounts;
