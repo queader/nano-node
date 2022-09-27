@@ -83,20 +83,18 @@ void nano::bootstrap::bootstrap_ascending::account_sets::dump () const
 
 void nano::bootstrap::bootstrap_ascending::account_sets::prioritize (nano::account const & account, float priority)
 {
-	if (blocking.count (account) == 0)
+	if (blocking.count (account) > 0)
 	{
-		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
-
-		forwarding.insert (account);
-		auto iter = backoff.find (account);
-		if (iter == backoff.end ())
-		{
-			backoff.emplace (account, priority);
-		}
+		unblock (account);
 	}
-	else
+
+	bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
+
+	forwarding.insert (account);
+	auto iter = backoff.find (account);
+	if (iter == backoff.end ())
 	{
-		bootstrap.node->stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize_failed);
+		backoff.emplace (account, priority);
 	}
 }
 
@@ -301,11 +299,11 @@ void nano::bootstrap::bootstrap_ascending::inspect (nano::transaction const & tx
 			auto account = node->ledger.account (tx, block.hash ());
 			auto is_send = node->ledger.is_send (tx, block);
 			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.unblock (account);
 			accounts.prioritize (account, 0.0f);
 			if (is_send)
 			{
 				auto const send_factor = 1.0f;
+
 				switch (block.type ())
 				{
 					case nano::block_type::send:
