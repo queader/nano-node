@@ -87,12 +87,12 @@ void nano::bootstrap_attempt::pull_finished ()
 
 void nano::bootstrap_attempt::stop ()
 {
-	{
-		nano::lock_guard<nano::mutex> lock (mutex);
-		stopped = true;
-	}
-	condition.notify_all ();
-	node->bootstrap_initiator.connections->clear_pulls (incremental_id);
+//	{
+//		nano::lock_guard<nano::mutex> lock (mutex);
+//		stopped = true;
+//	}
+//	condition.notify_all ();
+//	node->bootstrap_initiator.connections->clear_pulls (incremental_id);
 }
 
 char const * nano::bootstrap_attempt::mode_text ()

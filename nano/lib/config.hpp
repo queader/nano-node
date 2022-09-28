@@ -190,7 +190,7 @@ public:
 class network_constants
 {
 	static constexpr std::chrono::seconds default_cleanup_period = std::chrono::seconds (60);
-	static constexpr size_t default_max_peers_per_ip = 10;
+	static constexpr size_t default_max_peers_per_ip = 50;
 
 public:
 	network_constants (nano::work_thresholds & work_, nano::networks network_a) :
