@@ -249,12 +249,16 @@ public:
 		blockprocessor,
 		bootstrap_server,
 		active,
+		bootstrap_server_requests,
+		bootstrap_server_responses,
+		unchecked,
 	};
 
 	/** Optional detail type */
 	enum class detail : uint8_t
 	{
 		all = 0,
+		unknown,
 
 		// common
 		loop,
@@ -459,6 +463,11 @@ public:
 		response_blocks,
 		response_account_info,
 		channel_full,
+
+		// unchecked
+		put,
+		satisfied,
+		trigger,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

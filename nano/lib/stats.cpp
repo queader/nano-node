@@ -556,6 +556,13 @@ std::string nano::stat::type_to_string (stat::type type)
 			break;
 		case nano::stat::type::active:
 			res = "active";
+		case nano::stat::type::bootstrap_server_requests:
+			res = "bootstrap_server_requests";
+			break;
+		case nano::stat::type::bootstrap_server_responses:
+			res = "bootstrap_server_responses";
+		case nano::stat::type::unchecked:
+			res = "unchecked";
 			break;
 	}
 	return res;
@@ -572,6 +579,8 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::loop:
 			res = "loop";
 			break;
+		case nano::stat::detail::unknown:
+			res = "unknown";
 		case nano::stat::detail::queue:
 			res = "queue";
 			break;
@@ -1047,6 +1056,14 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::channel_full:
 			res = "channel_full";
+		case nano::stat::detail::put:
+			res = "put";
+			break;
+		case nano::stat::detail::satisfied:
+			res = "satisfied";
+			break;
+		case nano::stat::detail::trigger:
+			res = "trigger";
 			break;
 	}
 	return res;
