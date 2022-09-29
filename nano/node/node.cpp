@@ -746,6 +746,10 @@ void nano::node::start ()
 	wallets.start ();
 	backlog.start ();
 	hinting.start ();
+
+	workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (10), [this] () {
+		bootstrap_initiator.bootstrap_ascending ();
+	});
 }
 
 void nano::node::stop ()

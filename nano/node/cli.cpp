@@ -125,10 +125,10 @@ std::error_code nano::update_flags (nano::node_flags & flags_a, boost::program_o
 	std::error_code ec;
 	flags_a.disable_add_initial_peers = (vm.count ("disable_add_initial_peers") > 0);
 	flags_a.disable_backup = (vm.count ("disable_backup") > 0);
-	flags_a.disable_lazy_bootstrap = (vm.count ("disable_lazy_bootstrap") > 0);
-	flags_a.disable_legacy_bootstrap = (vm.count ("disable_legacy_bootstrap") > 0);
-	flags_a.disable_wallet_bootstrap = (vm.count ("disable_wallet_bootstrap") > 0);
-	flags_a.disable_ongoing_bootstrap = (vm.count ("disable_ongoing_bootstrap") > 0);
+	flags_a.disable_lazy_bootstrap = true;
+	flags_a.disable_legacy_bootstrap = true;
+	flags_a.disable_wallet_bootstrap = true;
+	flags_a.disable_ongoing_bootstrap = true;
 	flags_a.disable_rep_crawler = (vm.count ("disable_rep_crawler") > 0);
 	flags_a.disable_request_loop = (vm.count ("disable_request_loop") > 0);
 	if (!flags_a.inactive_node)
@@ -146,7 +146,7 @@ std::error_code nano::update_flags (nano::node_flags & flags_a, boost::program_o
 	{
 		ec = nano::error_cli::disable_all_network;
 	}
-	flags_a.disable_unchecked_cleanup = (vm.count ("disable_unchecked_cleanup") > 0);
+	flags_a.disable_unchecked_cleanup = true;
 	flags_a.disable_unchecked_drop = (vm.count ("disable_unchecked_drop") > 0);
 	flags_a.disable_block_processor_unchecked_deletion = (vm.count ("disable_block_processor_unchecked_deletion") > 0);
 	flags_a.enable_pruning = (vm.count ("enable_pruning") > 0);
