@@ -47,33 +47,25 @@ public: // Trigger requested dependencies
 	std::function<void (nano::unchecked_info const &)> satisfied{ [] (nano::unchecked_info const &) {} };
 
 private:
-	using insert = std::pair<nano::hash_or_account, nano::unchecked_info>;
-	using query = nano::hash_or_account;
-	class item_visitor : boost::static_visitor<>
-	{
-	public:
-		item_visitor (unchecked_map & unchecked);
-		void operator() (insert const & item);
-		void operator() (query const & item);
-		unchecked_map & unchecked;
-	};
 	void run ();
-	void insert_impl (nano::hash_or_account const & dependency, nano::unchecked_info const & info);
 	void query_impl (nano::block_hash const & hash);
+
+private: // Dependencies
 	nano::store & store;
+
+private:
 	bool const & disable_delete;
-	std::deque<boost::variant<insert, query>> buffer;
-	std::deque<boost::variant<insert, query>> back_buffer;
+	std::deque<nano::hash_or_account> buffer;
+	std::deque<nano::hash_or_account> back_buffer;
 	bool writing_back_buffer{ false };
 	bool stopped{ false };
 	nano::condition_variable condition;
 	nano::mutex mutex;
 	std::thread thread;
-	void write_buffer (decltype (buffer) const & back_buffer);
+
+	void process_queries (decltype (buffer) const & back_buffer);
 
 	static size_t constexpr mem_block_count_max = 1024 * 1024;
-
-	friend class item_visitor;
 
 private: // In memory store
 	class entry
