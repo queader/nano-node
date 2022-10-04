@@ -44,8 +44,6 @@ add_library(
   bootstrap/bootstrap_server.cpp
   bootstrap/bootstrap.hpp
   bootstrap/bootstrap.cpp
-  bootstrap/message_deserializer.hpp
-  bootstrap/message_deserializer.cpp
   cli.hpp
   cli.cpp
   common.hpp
@@ -194,6 +192,8 @@ add_library(
   transport/fake.cpp
   transport/inproc.hpp
   transport/inproc.cpp
+  transport/message_deserializer.hpp
+  transport/message_deserializer.cpp
   transport/tcp.hpp
   transport/tcp.cpp
   transport/transport.hpp
