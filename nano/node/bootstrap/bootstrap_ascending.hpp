@@ -124,7 +124,7 @@ namespace bootstrap
 			void read_block (std::shared_ptr<async_tag> tag);
 
 			std::atomic<int> requests{ 0 };
-			static constexpr int requests_max = 1;
+			static constexpr int requests_max = 32;
 
 		public: // private: // Convinience reference rather than internally using a pointer
 			std::shared_ptr<bootstrap_ascending> bootstrap_ptr;
