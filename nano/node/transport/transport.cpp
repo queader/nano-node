@@ -51,7 +51,7 @@ nano::transport::channel::channel (nano::node & node_a) :
 	set_network_version (node_a.network_params.network.protocol_version);
 }
 
-void nano::transport::channel::send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a)
+bool nano::transport::channel::send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a)
 {
 	auto buffer (message_a.to_shared_const_buffer ());
 	auto detail = nano::to_stat_detail (message_a.header.type);
@@ -59,8 +59,8 @@ void nano::transport::channel::send (nano::message & message_a, std::function<vo
 	auto should_drop (node.network.limiter.should_drop (buffer.size ()));
 	if (!is_droppable_by_limiter || !should_drop)
 	{
-		send_buffer (buffer, callback_a, drop_policy_a);
 		node.stats.inc (nano::stat::type::message, detail, nano::stat::dir::out);
+		return send_buffer (buffer, callback_a, drop_policy_a);
 	}
 	else
 	{
@@ -77,6 +77,7 @@ void nano::transport::channel::send (nano::message & message_a, std::function<vo
 			node.logger.always_log (boost::str (boost::format ("%1% of size %2% dropped") % node.stats.detail_to_string (detail) % buffer.size ()));
 		}
 	}
+	return false; // Not sent
 }
 
 void nano::transport::channel::set_peering_endpoint (nano::endpoint endpoint)

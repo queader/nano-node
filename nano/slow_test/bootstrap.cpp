@@ -39,6 +39,7 @@ TEST (bootstrap_ascending, profile)
 	// Set up client and server nodes
 	nano::node_config config_server{ network_params };
 	config_server.preconfigured_peers.clear ();
+	config_server.bandwidth_limit = 0; // Unlimited server bandwidth
 	nano::node_flags flags_server;
 	flags_server.disable_legacy_bootstrap = true;
 	flags_server.disable_wallet_bootstrap = true;
@@ -50,6 +51,7 @@ TEST (bootstrap_ascending, profile)
 
 	nano::node_config config_client{ network_params };
 	config_client.preconfigured_peers.clear ();
+	config_client.bandwidth_limit = 0; // Unlimited server bandwidth
 	nano::node_flags flags_client;
 	flags_client.disable_legacy_bootstrap = true;
 	flags_client.disable_wallet_bootstrap = true;
@@ -69,9 +71,10 @@ TEST (bootstrap_ascending, profile)
 	client->bootstrap_initiator.bootstrap_ascending ();
 	//	client->bootstrap_initiator.bootstrap ();
 
-	std::cerr << boost::str (boost::format ("Server: %1%, client: %2%\n") % server->network.port.load () % client->network.port.load ());
+	std::cout << "server: " << server->to_string () << std::endl;
+	std::cout << "client: " << client->to_string () << std::endl;
 
-	std::cout << "Server: count: " << server->ledger.cache.block_count << std::endl;
+	std::cout << "server count: " << server->ledger.cache.block_count << std::endl;
 
 	nano::test::rate_observer rate;
 	rate.observe ("count", [&] () { return client->ledger.cache.block_count.load (); });

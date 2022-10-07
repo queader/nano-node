@@ -65,10 +65,12 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 		if (ec)
 		{
 			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in);
+			this_l->errors++;
 		}
 		else
 		{
 			this_l->set_last_completion ();
+			this_l->connected = true;
 		}
 		this_l->remote = endpoint_a;
 		callback (ec);
@@ -90,6 +92,7 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 					if (ec)
 					{
 						this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in);
+						this_l->errors++;
 					}
 					else
 					{
@@ -147,6 +150,7 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 			if (ec)
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in);
+				this_l->errors++;
 			}
 			else
 			{
@@ -294,6 +298,23 @@ nano::tcp_endpoint nano::socket::remote_endpoint () const
 nano::tcp_endpoint nano::socket::local_endpoint () const
 {
 	return tcp_socket.local_endpoint ();
+}
+
+std::string nano::socket::to_string () const
+{
+	std::stringstream stream;
+	stream << "{ ";
+
+	stream << "local: " << local_endpoint ();
+	stream << " | ";
+	stream << "remote: " << remote_endpoint ();
+	stream << " | ";
+	stream << "alive: " << alive ();
+	stream << " | ";
+	stream << "err: " << errors;
+
+	stream << " }";
+	return stream.str ();
 }
 
 nano::server_socket::server_socket (nano::node & node_a, boost::asio::ip::tcp::endpoint local_a, std::size_t max_connections_a) :

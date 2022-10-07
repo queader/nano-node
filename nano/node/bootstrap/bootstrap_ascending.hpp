@@ -1,9 +1,19 @@
 #pragma once
 
+#include <nano/lib/timer.hpp>
 #include <nano/node/bootstrap/bootstrap_attempt.hpp>
+
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/random_access_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <boost/multi_index_container.hpp>
 
 #include <random>
 #include <thread>
+
+namespace mi = boost::multi_index;
 
 namespace nano
 {
@@ -44,6 +54,8 @@ namespace bootstrap
 			return true;
 		}
 
+		void process (nano::asc_pull_ack const & message);
+
 	private: // Dependencies
 		nano::stat & stats;
 
@@ -55,25 +67,7 @@ namespace bootstrap
 	public:
 		class async_tag;
 
-		class connection_pool
-		{
-		public:
-			using socket_channel = std::pair<std::shared_ptr<nano::socket>, std::shared_ptr<nano::transport::channel>>;
-
-		public:
-			connection_pool (nano::node & node, nano::bootstrap::bootstrap_ascending & bootstrap);
-			/** Given a tag context, find or create a connection to a peer and then call the op callback */
-			bool operator() (std::shared_ptr<async_tag> tag, std::function<void ()> op);
-			void add (socket_channel const & connection);
-
-		private:
-			nano::node & node;
-			bootstrap_ascending & bootstrap;
-
-			std::deque<socket_channel> connections;
-		};
-
-		using socket_channel = connection_pool::socket_channel;
+		using socket_channel = std::pair<std::shared_ptr<nano::socket>, std::shared_ptr<nano::transport::channel>>;
 
 		/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 		class account_sets
@@ -136,57 +130,59 @@ namespace bootstrap
 			std::shared_ptr<thread> shared ();
 			nano::account pick_account ();
 			// Send a request for a specific account or hash `start' to `tag' which contains a bootstrap socket.
-			void send (std::shared_ptr<async_tag> tag, nano::hash_or_account const & start);
-			// Reads a block from a specific `tag' / bootstrap socket.
-			void read_block (std::shared_ptr<async_tag> tag);
-
-			std::atomic<int> requests{ 0 };
-			static constexpr int requests_max = 1;
+			void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
 
 		public: // Convinience reference rather than internally using a pointer
 			std::shared_ptr<bootstrap_ascending> bootstrap_ptr;
 			bootstrap_ascending & bootstrap{ *bootstrap_ptr };
 		};
 
-		/** This class tracks the lifetime of a network request within a bootstrap attempt thread
-			Each async_tag will increment the number of bootstrap requests tracked by a bootstrap_ascending::thread object
-			A shared_ptr is used  for its copy semantics, as is required by callbacks through the boost asio system
-			The tag also tracks success of a specific request. Success is defined by the correct receipt of a stream of blocks, followed by a not_a_block terminator
-		*/
-		class async_tag : public std::enable_shared_from_this<async_tag>
+		using id_t = uint64_t;
+
+		struct async_tag
 		{
-		public:
-			explicit async_tag (std::shared_ptr<nano::bootstrap::bootstrap_ascending::thread> bootstrap);
-
-			// bootstrap_ascending::thread::requests will be decemented when destroyed.
-			// If success () has been called, the socket will be reused, otherwise it will be abandoned therefore destroyed.
-			~async_tag ();
-			void success ();
-			void connection_set (socket_channel const & connection);
-			socket_channel & connection ();
-
-			// Tracks the number of blocks received from this request
-			std::atomic<int> blocks{ 0 };
-
-		private:
-			bool success_m{ false };
-			std::optional<socket_channel> connection_m;
-			std::shared_ptr<bootstrap_ascending::thread> bootstrap;
+			id_t id{ 0 };
+			nano::hash_or_account start{ 0 };
+			nano::millis_t time{ 0 };
 		};
 
+	private:
 		void request_one ();
 		bool blocked (nano::account const & account);
 		void inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
+		id_t generate_id () const;
+		void track (async_tag const & tag);
+		void process (nano::asc_pull_ack const & message, async_tag const & tag);
+		void timeout_tags ();
+
+		std::shared_ptr<nano::transport::channel> wait_available_channel ();
+		std::shared_ptr<nano::transport::channel> available_channel ();
+
 		void dump_stats ();
 
+	public:
 		account_sets::backoff_info_t backoff_info () const;
 
 	private:
 		account_sets accounts;
-		connection_pool pool;
+
+		//		std::map<id_t, async_tag> tags;
+
+		// clang-format off
+		class tag_sequenced {};
+		class tag_id {};
+
+		using ordered_tags = boost::multi_index_container<async_tag,
+		mi::indexed_by<
+			mi::sequenced<mi::tag<tag_sequenced>>,
+			mi::hashed_unique<mi::tag<tag_id>,
+				mi::member<async_tag, id_t, &async_tag::id>>>>;
+		// clang-format on
+		ordered_tags tags;
 
 		static std::size_t constexpr parallelism = 1;
-		static std::size_t constexpr request_message_count = 16;
+		//		static std::size_t constexpr requests_max = 16;
+		static std::size_t constexpr requests_max = 64;
 
 		std::atomic<int> responses{ 0 };
 		std::atomic<int> requests_total{ 0 };

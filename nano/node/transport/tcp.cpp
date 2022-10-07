@@ -4,9 +4,12 @@
 
 #include <boost/format.hpp>
 
+static unsigned next_id = 0;
+
 nano::transport::channel_tcp::channel_tcp (nano::node & node_a, std::weak_ptr<nano::socket> socket_a) :
 	channel (node_a),
-	socket (std::move (socket_a))
+	socket (std::move (socket_a)),
+	id{ ++next_id }
 {
 }
 
@@ -40,7 +43,7 @@ bool nano::transport::channel_tcp::operator== (nano::transport::channel const & 
 	return result;
 }
 
-void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy policy_a)
+bool nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy policy_a)
 {
 	if (auto socket_l = socket.lock ())
 	{
@@ -64,6 +67,7 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 					}
 				}
 			});
+			return true; // Sent
 		}
 		else
 		{
@@ -87,11 +91,33 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 			callback_a (boost::system::errc::make_error_code (boost::system::errc::not_supported), 0);
 		});
 	}
+	return false; // Not sent
 }
 
 std::string nano::transport::channel_tcp::to_string () const
 {
-	return boost::str (boost::format ("%1%") % get_tcp_endpoint ());
+	std::stringstream stream;
+	stream << "{ ";
+
+	stream << "tcp";
+	stream << " | ";
+	stream << "endpoint: " << get_tcp_endpoint ();
+	stream << " | ";
+	stream << "id: " << id;
+
+	if (auto socket_s = socket.lock ())
+	{
+		stream << " | ";
+		stream << "socket: " << socket_s->to_string ();
+	}
+	else
+	{
+		stream << " | ";
+		stream << "socket: dead";
+	}
+
+	stream << " }";
+	return stream.str ();
 }
 
 void nano::transport::channel_tcp::set_endpoint ()

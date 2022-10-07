@@ -34,7 +34,9 @@ enum class message_type : uint8_t
 	node_id_handshake = 0x0a,
 	bulk_pull_account = 0x0b,
 	telemetry_req = 0x0c,
-	telemetry_ack = 0x0d
+	telemetry_ack = 0x0d,
+	asc_pull_req = 0x0e,
+	asc_pull_ack = 0x0f,
 };
 
 std::string to_string (message_type);
@@ -348,6 +350,70 @@ public:
 	static std::size_t size (nano::message_header const &);
 };
 
+/**
+ * Ascending bootstrap pull request
+ */
+class asc_pull_req final : public message
+{
+public:
+	using id_t = uint64_t;
+
+	explicit asc_pull_req (nano::network_constants const &);
+	asc_pull_req (bool & error, nano::stream &, nano::message_header const &);
+
+	void serialize (nano::stream &) const override;
+	bool deserialize (nano::stream &);
+	void visit (nano::message_visitor &) const override;
+
+public: // Payload
+	id_t id{ 0 };
+	nano::hash_or_account start{ 0 };
+
+public:
+	constexpr static std::size_t size = sizeof (id) + sizeof (start);
+};
+
+/**
+ * Ascending bootstrap pull response
+ */
+class asc_pull_ack final : public message
+{
+public:
+	using id_t = asc_pull_req::id_t;
+
+	explicit asc_pull_ack (nano::network_constants const &);
+	asc_pull_ack (bool & error, nano::stream &, nano::message_header const &);
+
+	void serialize (nano::stream &) const override;
+	bool deserialize (nano::stream &);
+	void visit (nano::message_visitor &) const override;
+
+	static std::size_t size (nano::message_header const &);
+
+private:
+	/**
+	 * Serialize blocks payload to byte vector, end with null block
+	 */
+	void serialize_blocks (nano::stream &) const;
+	void deserialize_blocks (nano::stream &);
+
+public: // Payload
+	id_t id{ 0 };
+	/** Get blocks payload */
+	std::vector<std::shared_ptr<nano::block>> blocks () const;
+	/** Sets blocks payload and updates size in header */
+	void blocks (std::vector<std::shared_ptr<nano::block>> &);
+
+private: // Payload
+	std::vector<std::shared_ptr<nano::block>> blocks_m;
+
+public:
+	constexpr static std::size_t partial_size = sizeof (id);
+
+	/* Header allows for 16 bit extensions; 65535 bytes / 500 bytes (block size with some future margin) ~ 131 */
+	constexpr static std::size_t max_blocks = 128;
+};
+
 class message_visitor
 {
 public:
@@ -394,6 +460,14 @@ public:
 		default_handler (message);
 	}
 	virtual void telemetry_ack (nano::telemetry_ack const & message)
+	{
+		default_handler (message);
+	}
+	virtual void asc_pull_req (nano::asc_pull_req const & message)
+	{
+		default_handler (message);
+	}
+	virtual void asc_pull_ack (nano::asc_pull_ack const & message)
 	{
 		default_handler (message);
 	}

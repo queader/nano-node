@@ -33,7 +33,7 @@ bool nano::transport::channel_udp::operator== (nano::transport::channel const & 
 	return result;
 }
 
-void nano::transport::channel_udp::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a)
+bool nano::transport::channel_udp::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a)
 {
 	set_last_packet_sent (std::chrono::steady_clock::now ());
 	channels.send (buffer_a, endpoint, [node = std::weak_ptr<nano::node> (channels.node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
@@ -54,6 +54,7 @@ void nano::transport::channel_udp::send_buffer (nano::shared_const_buffer const 
 			}
 		}
 	});
+	return true; // Assume buffer sent
 }
 
 std::string nano::transport::channel_udp::to_string () const

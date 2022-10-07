@@ -60,6 +60,7 @@ public:
 	 */
 	explicit socket (nano::node & node, endpoint_type_t endpoint_type_a);
 	virtual ~socket ();
+
 	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
 	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {});
@@ -102,10 +103,17 @@ public:
 	{
 		return type () == nano::socket::type_t::bootstrap;
 	}
-	bool is_closed ()
+	bool is_closed () const
 	{
 		return closed;
 	}
+
+	bool alive () const
+	{
+		return connected && !closed && errors == 0;
+	}
+
+	std::string to_string () const;
 
 protected:
 	/** Holds the buffer and callback for queued writes */
@@ -160,6 +168,10 @@ protected:
 	/** Set by close() - completion handlers must check this. This is more reliable than checking
 	 error codes as the OS may have already completed the async operation. */
 	std::atomic<bool> closed{ false };
+
+	std::atomic<bool> connected{ false };
+	std::atomic<unsigned> errors{ 0 };
+
 	void close_internal ();
 	void set_default_timeout ();
 	void set_last_completion ();

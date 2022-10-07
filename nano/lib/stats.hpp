@@ -252,6 +252,8 @@ public:
 		bootstrap_ascending_connections,
 		bootstrap_ascending_thread,
 		bootstrap_ascending_accounts,
+		bootstrap_server_requests,
+		bootstrap_server_responses,
 	};
 
 	/** Optional detail type */
@@ -310,6 +312,8 @@ public:
 		node_id_handshake,
 		telemetry_req,
 		telemetry_ack,
+		asc_pull_req,
+		asc_pull_ack,
 
 		// bootstrap, callback
 		initiate,
@@ -447,6 +451,12 @@ public:
 		put,
 		satisfied,
 		trigger,
+
+		// bootstrap ascending
+		missing_tag,
+		process,
+		track,
+		timeout,
 
 		// bootstrap ascending connections
 		connect,

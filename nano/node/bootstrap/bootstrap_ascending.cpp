@@ -1,71 +1,16 @@
 #include <nano/node/bootstrap/block_deserializer.hpp>
 #include <nano/node/bootstrap/bootstrap_ascending.hpp>
 #include <nano/node/node.hpp>
+#include <nano/node/transport/transport.hpp>
 #include <nano/secure/common.hpp>
 
 #include <boost/format.hpp>
 
 using namespace std::chrono_literals;
 
-nano::bootstrap::bootstrap_ascending::connection_pool::connection_pool (nano::node & node, nano::bootstrap::bootstrap_ascending & bootstrap) :
-	node{ node },
-	bootstrap{ bootstrap }
-{
-}
-
-void nano::bootstrap::bootstrap_ascending::connection_pool::add (socket_channel const & connection)
-{
-	bootstrap.debug_log (boost::str (boost::format ("connection push back %1%\n") % connection.first->remote_endpoint ()));
-	connections.push_back (connection);
-}
-
-bool nano::bootstrap::bootstrap_ascending::connection_pool::operator() (std::shared_ptr<async_tag> tag, std::function<void ()> op)
-{
-	if (!connections.empty ())
-	{
-		bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_connections, nano::stat::detail::reuse);
-
-		// connections is not empty, pop a connection, assign it to the async tag and call the callback
-		tag->connection_set (connections.front ());
-		connections.pop_front ();
-		op ();
-		bootstrap.debug_log (boost::str (boost::format ("popped connection %1%, connections.size=%2%")
-		% tag->connection ().first->remote_endpoint () % connections.size ()));
-		return false;
-	}
-
-	// connections is empty, try to find peers to bootstrap with
-	auto endpoint = node.network.next_bootstrap_peer (node.network_params.network.bootstrap_protocol_version_min);
-	if (endpoint == nano::tcp_endpoint (boost::asio::ip::address_v6::any (), 0))
-	{
-		bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_connections, nano::stat::detail::connect_missing);
-		bootstrap.debug_log ("Could not find a possible peer to connect with.");
-		return true;
-	}
-
-	auto socket = std::make_shared<nano::client_socket> (node);
-	auto channel = std::make_shared<nano::transport::channel_tcp> (node, socket);
-	tag->connection_set (std::make_pair (socket, channel));
-
-	bootstrap.debug_log (boost::str (boost::format ("connecting to possible peer %1% ") % endpoint));
-	bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_connections, nano::stat::detail::connect);
-
-	socket->async_connect (endpoint,
-	[endpoint, socket, op, bootstrap_s = bootstrap.shared ()] (boost::system::error_code const & ec) {
-		if (ec)
-		{
-			bootstrap_s->stats.inc (nano::stat::type::bootstrap_ascending_connections, nano::stat::detail::connect_failed);
-			std::cerr << boost::str (boost::format ("connect failed to: %1%\n") % endpoint);
-			return;
-		}
-
-		std::cerr << boost::str (boost::format ("connected to: %1%\n") % socket->remote_endpoint ());
-		bootstrap_s->stats.inc (nano::stat::type::bootstrap_ascending_connections, nano::stat::detail::connect_success);
-
-		op ();
-	});
-	return false;
-}
+/*
+ * account_sets
+ */
 
 nano::bootstrap::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a) :
 	stats{ stats_a }
@@ -216,137 +161,43 @@ nano::bootstrap::bootstrap_ascending::account_sets::backoff_info_t nano::bootstr
 	return { forwarding, blocking, backoff };
 }
 
-nano::bootstrap::bootstrap_ascending::async_tag::async_tag (std::shared_ptr<nano::bootstrap::bootstrap_ascending::thread> bootstrap) :
-	bootstrap{ bootstrap }
-{
-	// FIXME: the lifetime of a request should not be allowed to be infinite, it should be bounded
-	nano::lock_guard<nano::mutex> lock{ bootstrap->bootstrap.mutex };
-	++bootstrap->requests;
-	bootstrap->bootstrap.debug_log (boost::str (boost::format ("Request started requests=%1%")
-	% bootstrap->requests));
-	bootstrap->bootstrap.condition.notify_all ();
-}
-
-nano::bootstrap::bootstrap_ascending::async_tag::~async_tag ()
-{
-	nano::lock_guard<nano::mutex> lock{ bootstrap->bootstrap.mutex };
-	--bootstrap->requests;
-	if (blocks != 0)
-	{
-		++bootstrap->bootstrap.responses;
-	}
-	if (success_m)
-	{
-		debug_assert (connection_m);
-		bootstrap->bootstrap.pool.add (*connection_m);
-		bootstrap->bootstrap.debug_log (boost::str (boost::format ("Request completed successfully: peer=%1% blocks=%2%")
-		% connection_m->first->remote_endpoint () % blocks));
-	}
-	else
-	{
-		if (connection_m)
-		{
-			bootstrap->bootstrap.debug_log (boost::str (boost::format ("Request completed abnormally: peer=%1% blocks=%2%")
-			% connection_m->first->remote_endpoint () % blocks));
-		}
-		else
-		{
-			bootstrap->bootstrap.debug_log ("Request abandoned without trying connecting to a peer");
-		}
-	}
-	bootstrap->bootstrap.condition.notify_all ();
-}
-
-void nano::bootstrap::bootstrap_ascending::async_tag::success ()
-{
-	debug_assert (connection_m);
-	success_m = true;
-}
-
-void nano::bootstrap::bootstrap_ascending::async_tag::connection_set (socket_channel const & connection)
-{
-	connection_m = connection;
-	bootstrap->bootstrap.debug_log (boost::str (boost::format ("async tag connection_set to %1%") % connection.first->remote_endpoint ()));
-}
-
-auto nano::bootstrap::bootstrap_ascending::async_tag::connection () -> socket_channel &
-{
-	debug_assert (connection_m);
-	return *connection_m;
-}
+/*
+ * bootstrap_ascending
+ */
 
 nano::bootstrap::bootstrap_ascending::thread::thread (std::shared_ptr<bootstrap_ascending> bootstrap) :
 	bootstrap_ptr{ bootstrap }
 {
 }
 
-void nano::bootstrap::bootstrap_ascending::thread::send (std::shared_ptr<async_tag> tag, nano::hash_or_account const & start)
+uint64_t nano::bootstrap::bootstrap_ascending::generate_id () const
 {
-	nano::bulk_pull message{ bootstrap.node->network_params.network };
-	message.header.flag_set (nano::message_header::bulk_pull_ascending_flag);
-	message.header.flag_set (nano::message_header::bulk_pull_count_present_flag);
-	message.start = start;
-	message.end = 0;
-	message.count = request_message_count;
+	id_t id;
+	nano::random_pool::generate_block (reinterpret_cast<uint8_t *> (&id), sizeof (id));
+	return id;
+}
 
-	bootstrap.debug_log (boost::str (boost::format ("Request sent for: %1% to: %2%\n")
-	% message.start.to_string () % tag->connection ().first->remote_endpoint ()));
+void nano::bootstrap::bootstrap_ascending::thread::send (std::shared_ptr<nano::transport::channel> channel, async_tag tag)
+{
+	nano::asc_pull_req message{ bootstrap.node->network_params.network };
+	message.id = tag.id;
+	message.start = tag.start;
 
 	++bootstrap.requests_total;
 	bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_thread, nano::stat::detail::request);
 
-	auto channel = tag->connection ().second;
-	channel->send (message, [this_l = shared (), tag] (boost::system::error_code const & ec, std::size_t size) {
-		this_l->read_block (tag);
-	});
-}
+	std::cout << "requesting: " << std::setw (28) << tag.id
+			  << " | "
+			  << "channel: " << channel->to_string ()
+			  << std::endl;
 
-void nano::bootstrap::bootstrap_ascending::thread::read_block (std::shared_ptr<async_tag> tag)
-{
-	bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_thread, nano::stat::detail::read_block);
-
-	auto deserializer = std::make_shared<nano::bootstrap::block_deserializer> ();
-	auto socket = tag->connection ().first;
-	deserializer->read (*socket, [this_l = shared (), tag] (boost::system::error_code ec, std::shared_ptr<nano::block> block) {
+	bool sent = channel->send (message, [this_l = shared (), tag] (boost::system::error_code const & ec, std::size_t size) {
 		if (ec)
 		{
-			this_l->bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_thread, nano::stat::detail::read_block_error);
-			return;
+			std::cerr << "send error: " << ec << std::endl;
 		}
-		if (block == nullptr)
-		{
-			this_l->bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_thread, nano::stat::detail::read_block_end);
-			this_l->bootstrap.debug_log (boost::str (boost::format ("graceful stream end: %1% blocks=%2%")
-			% tag->connection ().first->remote_endpoint () % tag->blocks));
-
-			tag->success ();
-			return;
-		}
-		// FIXME: temporary measure to get the ascending bootstrapper working on the test network
-		if (this_l->bootstrap.node->network_params.network.is_test_network () && block->hash () == nano::block_hash ("B1D60C0B886B57401EF5A1DAA04340E53726AA6F4D706C085706F31BBD100CEE"))
-		{
-			// skip test net genesis because it has a bad pow
-			this_l->bootstrap.debug_log ("skipping test genesis block");
-		}
-		else if (this_l->bootstrap.node->network_params.work.validate_entry (*block))
-		{
-			// TODO: should we close the socket at this point?
-			this_l->bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_thread, nano::stat::detail::insufficient_work);
-			this_l->bootstrap.debug_log (boost::str (boost::format ("bad block from peer %1%: hash=%2% %3%")
-			% tag->connection ().first->remote_endpoint () % block->hash ().to_string () % block->to_json ()));
-		}
-		else
-		{
-			this_l->bootstrap.stats.inc (nano::stat::type::bootstrap_ascending_thread, nano::stat::detail::read_block_done);
-			this_l->bootstrap.debug_log (boost::str (boost::format ("Read block from peer %1%: hash=%2% %3%")
-			% tag->connection ().first->remote_endpoint () % block->hash ().to_string () % block->to_json ()));
-
-			this_l->bootstrap.node->block_processor.add (block);
-
-			++tag->blocks;
-		}
-		this_l->read_block (tag);
 	});
+	release_assert (sent);
 }
 
 nano::account nano::bootstrap::bootstrap_ascending::thread::pick_account ()
@@ -430,16 +281,17 @@ void nano::bootstrap::bootstrap_ascending::dump_stats ()
 bool nano::bootstrap::bootstrap_ascending::thread::wait_available_request ()
 {
 	nano::unique_lock<nano::mutex> lock{ bootstrap.mutex };
-	bootstrap.condition.wait (lock, [this] () { return bootstrap.stopped || requests < requests_max; });
-	bootstrap.debug_log (boost::str (boost::format ("wait_available_request stopped=%1% request=%2%") % bootstrap.stopped % requests));
+	bootstrap.condition.wait (lock, [this] () { return bootstrap.stopped || bootstrap.tags.size () < requests_max; });
+
+	bootstrap.debug_log (boost::str (boost::format ("wait_available_request stopped=%1% request=%2%") % bootstrap.stopped % bootstrap.tags.size ()));
+
 	return bootstrap.stopped;
 }
 
 nano::bootstrap::bootstrap_ascending::bootstrap_ascending (std::shared_ptr<nano::node> const & node_a, uint64_t incremental_id_a, std::string id_a) :
 	bootstrap_attempt{ node_a, nano::bootstrap_mode::ascending, incremental_id_a, id_a },
 	stats{ node->stats }, // TODO: For convenience, once ascending bootstrap is a separate node component, pass via constructor
-	accounts{ node->stats },
-	pool{ *node, *this }
+	accounts{ node->stats }
 {
 	uint64_t account_count = 0, receivable_count = 0;
 
@@ -459,19 +311,31 @@ nano::bootstrap::bootstrap_ascending::bootstrap_ascending (std::shared_ptr<nano:
 	% incremental_id_a % id_a % account_count % receivable_count));
 }
 
+std::shared_ptr<nano::transport::channel> nano::bootstrap::bootstrap_ascending::available_channel ()
+{
+	auto channels = node->network.random_set (16, node->network_params.network.bootstrap_protocol_version_min, /* include temporary channels */ true);
+	for (auto & channel : channels)
+	{
+		if (!channel->max ())
+		{
+			return channel;
+		}
+	}
+	return nullptr;
+}
+
+std::shared_ptr<nano::transport::channel> nano::bootstrap::bootstrap_ascending::wait_available_channel ()
+{
+	std::shared_ptr<nano::transport::channel> channel;
+	while (!(channel = available_channel ()))
+	{
+		std::this_thread::sleep_for (10ms);
+	}
+	return channel;
+}
+
 bool nano::bootstrap::bootstrap_ascending::thread::request_one ()
 {
-	// do not do too many requests in parallel, impose throttling
-	wait_available_request ();
-
-	if (bootstrap.stopped)
-	{
-		bootstrap.debug_log ("ascending bootstrap thread exiting due to stop flag");
-		return false;
-	}
-
-	auto this_l = shared ();
-	auto tag = std::make_shared<async_tag> (this_l);
 	auto account = pick_account ();
 	nano::account_info info;
 	nano::hash_or_account start = account;
@@ -480,38 +344,44 @@ bool nano::bootstrap::bootstrap_ascending::thread::request_one ()
 	if (!bootstrap.node->store.account.get (bootstrap.node->store.tx_begin_read (), account, info))
 	{
 		start = info.head;
-		bootstrap.debug_log (boost::str (boost::format ("request one: %1% (%2%) from block %3%")
-		% account.to_account () % account.to_string () % start.to_string ()));
+	}
+
+	const async_tag tag{ bootstrap.generate_id (), start, nano::milliseconds_since_epoch () };
+
+	auto channel = bootstrap.wait_available_channel ();
+	if (channel)
+	{
+		bootstrap.track (tag);
+		send (channel, tag);
+		return true;
 	}
 	else
 	{
-		bootstrap.debug_log (boost::str (boost::format ("request one: %1% (%2%)")
-		% account.to_account () % account.to_string ()));
+		std::cout << "fail" << std::endl;
+
+		// No suitable channel
+		return false;
 	}
-
-	// pick a connection and send the pull request and setup response processing callback
-	nano::unique_lock<nano::mutex> lock{ bootstrap.mutex };
-	auto error = bootstrap.pool (tag, [this_l = shared (), start, tag] () {
-		this_l->send (tag, start);
-	});
-	lock.unlock ();
-	return error;
 }
-
-static int pass_number = 0;
 
 void nano::bootstrap::bootstrap_ascending::thread::run ()
 {
-	std::cerr << "!! Starting with:" << std::to_string (pass_number++) << std::endl;
 	while (!bootstrap.stopped)
 	{
-		auto error = request_one ();
-		if (error)
+		// TODO: Make threadsafe
+		// do not do too many requests in parallel, impose throttling
+		wait_available_request ();
+
+		bool success = request_one ();
+		if (!success)
 		{
 			std::this_thread::sleep_for (10s);
 		}
+		//		else
+		//		{
+		//			std::this_thread::sleep_for (100ms);
+		//		}
 	}
-	std::cerr << "!! stopping" << std::endl;
 }
 
 auto nano::bootstrap::bootstrap_ascending::thread::shared () -> std::shared_ptr<thread>
@@ -521,8 +391,6 @@ auto nano::bootstrap::bootstrap_ascending::thread::shared () -> std::shared_ptr<
 
 void nano::bootstrap::bootstrap_ascending::run ()
 {
-	debug_log (boost::str (boost::format ("Starting ascending bootstrap attempt incr_id=%1% id=%2% parallelism=%3%")
-	% incremental_id % id % parallelism));
 	node->block_processor.processed.add ([this_w = std::weak_ptr<nano::bootstrap::bootstrap_ascending>{ shared () }] (nano::transaction const & tx, nano::process_return const & result, nano::block const & block) {
 		auto this_l = this_w.lock ();
 		if (this_l == nullptr)
@@ -543,20 +411,82 @@ void nano::bootstrap::bootstrap_ascending::run ()
 		});
 	}
 
+	while (true)
 	{
-		nano::unique_lock<nano::mutex> lock{ mutex };
-		condition.wait_for (lock, std::chrono::seconds{ 10 }, [this] () { return stopped.load (); });
+		std::this_thread::sleep_for (1s);
+		timeout_tags ();
+		condition.notify_all ();
 	}
+}
 
-	dump_stats ();
+void nano::bootstrap::bootstrap_ascending::timeout_tags ()
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	debug_log (boost::str (boost::format ("Waiting for the ascending bootstrap sub-threads")));
-	for (auto & thread : threads)
+	const nano::millis_t threshold = 5 * 1000;
+
+	auto & tags_by_order = tags.get<tag_sequenced> ();
+	while (!tags_by_order.empty () && nano::time_difference (tags_by_order.front ().time, nano::milliseconds_since_epoch ()) > threshold)
 	{
-		thread.join ();
-	}
+		std::cout << "timeout: " << tags_by_order.front ().id
+				  << " | "
+				  << "count: " << tags.size () << std::endl;
 
-	debug_log (boost::str (boost::format ("Exiting ascending bootstrap attempt incr_id=%1% id=%2%") % incremental_id % id));
+		tags_by_order.pop_front ();
+
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::timeout);
+	}
+}
+
+void nano::bootstrap::bootstrap_ascending::process (const nano::asc_pull_ack & message)
+{
+	//	std::cout << "reply: " << message.id << std::endl;
+
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	auto & tags_by_id = tags.get<tag_id> ();
+	if (tags_by_id.count (message.id) > 0)
+	{
+		auto iterator = tags_by_id.find (message.id);
+		auto tag = *iterator;
+		tags_by_id.erase (iterator);
+
+		lock.unlock ();
+		condition.notify_all ();
+
+		process (message, tag);
+	}
+	else
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::missing_tag);
+	}
+}
+
+void nano::bootstrap::bootstrap_ascending::process (const nano::asc_pull_ack & message, async_tag const & tag)
+{
+	debug_assert (message.id == tag.id);
+
+	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::process);
+
+	// TODO: Do verifications
+
+	for (auto & block : message.blocks ())
+	{
+		node->block_processor.add (block);
+	}
+}
+
+void nano::bootstrap::bootstrap_ascending::track (async_tag const & tag)
+{
+	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::track);
+
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	tags.get<tag_id> ().insert (tag);
+
+	//	std::cout << "tracking: " << tag.id
+	//			  << " | "
+	//			  << "count: " << tags.size ()
+	//			  << std::endl;
 }
 
 void nano::bootstrap::bootstrap_ascending::get_information (boost::property_tree::ptree &)
@@ -570,7 +500,7 @@ std::shared_ptr<nano::bootstrap::bootstrap_ascending> nano::bootstrap::bootstrap
 
 void nano::bootstrap::bootstrap_ascending::debug_log (const std::string & s) const
 {
-	std::cerr << s << std::endl;
+	//	std::cerr << s << std::endl;
 }
 
 nano::bootstrap::bootstrap_ascending::account_sets::backoff_info_t nano::bootstrap::bootstrap_ascending::backoff_info () const

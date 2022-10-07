@@ -203,8 +203,13 @@ void nano::transport::tcp_server::receive_message ()
 	message_deserializer->read (socket, [this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
 		if (ec)
 		{
+			std::cerr << "tcp_server::receive_message: " << ec.message ()
+					  << " | "
+					  << "socket: " << this_l->socket->to_string ()
+					  << std::endl;
+
 			// IO error or critical error when deserializing message
-			this_l->node->stats.inc (nano::stat::type::error, this_l->message_deserializer->parse_status_to_stat_detail ());
+			this_l->node->stats.inc (nano::stat::type::error, nano::transport::message_deserializer::to_stat_detail (this_l->message_deserializer->status));
 			this_l->stop ();
 			return;
 		}
@@ -223,7 +228,7 @@ void nano::transport::tcp_server::received_message (std::unique_ptr<nano::messag
 	{
 		// Error while deserializing message
 		debug_assert (message_deserializer->status != transport::message_deserializer::parse_status::success);
-		node->stats.inc (nano::stat::type::error, message_deserializer->parse_status_to_stat_detail ());
+		node->stats.inc (nano::stat::type::error, nano::transport::message_deserializer::to_stat_detail (message_deserializer->status));
 		if (message_deserializer->status == transport::message_deserializer::parse_status::duplicate_publish_message)
 		{
 			node->stats.inc (nano::stat::type::filter, nano::stat::detail::duplicate_publish);
@@ -467,6 +472,16 @@ void nano::transport::tcp_server::realtime_message_visitor::telemetry_req (const
 }
 
 void nano::transport::tcp_server::realtime_message_visitor::telemetry_ack (const nano::telemetry_ack & message)
+{
+	process = true;
+}
+
+void nano::transport::tcp_server::realtime_message_visitor::asc_pull_req (const nano::asc_pull_req & message)
+{
+	process = true;
+}
+
+void nano::transport::tcp_server::realtime_message_visitor::asc_pull_ack (const nano::asc_pull_ack & message)
 {
 	process = true;
 }

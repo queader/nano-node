@@ -22,6 +22,8 @@ public:
 	nano::observer_set<> disconnect;
 	nano::observer_set<nano::root const &> work_cancel;
 	nano::observer_set<nano::telemetry_data const &, nano::endpoint const &> telemetry;
+	nano::observer_set<nano::message const &, nano::channel const &> message_send;
+	nano::observer_set<nano::message const &, nano::channel const &> message_receive;
 };
 
 std::unique_ptr<container_info_component> collect_container_info (node_observers & node_observers, std::string const & name);

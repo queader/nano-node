@@ -566,6 +566,12 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::bootstrap_ascending_accounts:
 			res = "bootstrap_ascending_accounts";
 			break;
+		case nano::stat::type::bootstrap_server_requests:
+			res = "bootstrap_server_requests";
+			break;
+		case nano::stat::type::bootstrap_server_responses:
+			res = "bootstrap_server_responses";
+			break;
 	}
 	return res;
 }
@@ -750,6 +756,12 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::telemetry_ack:
 			res = "telemetry_ack";
+			break;
+		case nano::stat::detail::asc_pull_req:
+			res = "asc_pull_req";
+			break;
+		case nano::stat::detail::asc_pull_ack:
+			res = "asc_pull_ack";
 			break;
 		case nano::stat::detail::state_block:
 			res = "state_block";
@@ -1016,6 +1028,18 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::trigger:
 			res = "trigger";
+			break;
+		case nano::stat::detail::missing_tag:
+			res = "missing_tag";
+			break;
+		case nano::stat::detail::process:
+			res = "process";
+			break;
+		case nano::stat::detail::track:
+			res = "track";
+			break;
+		case nano::stat::detail::timeout:
+			res = "timeout";
 			break;
 		case nano::stat::detail::connect:
 			res = "connect";
