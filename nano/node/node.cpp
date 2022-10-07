@@ -201,6 +201,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	aggregator (config, stats, generator, final_generator, history, ledger, wallets, active),
 	wallets (wallets_store.init_error (), *this),
 	backlog{ nano::nodeconfig_to_backlog_population_config (config), store, scheduler },
+	ascendboot{ *this, store, block_processor, ledger, network, stats },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
@@ -654,6 +655,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (node.inactive_vote_cache.collect_container_info ("inactive_vote_cache"));
 	composite->add_component (collect_container_info (node.generator, "vote_generator"));
 	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
+	composite->add_component (node.ascendboot.collect_container_info ("bootstrap_ascending"));
 	return composite;
 }
 
@@ -769,6 +771,10 @@ void nano::node::start ()
 	backlog.start ();
 	hinting.start ();
 	bootstrap_server.start ();
+	if (!flags.disable_ascending_bootstrap)
+	{
+		ascendboot.start ();
+	}
 }
 
 void nano::node::stop ()
@@ -795,6 +801,7 @@ void nano::node::stop ()
 		{
 			websocket_server->stop ();
 		}
+		ascendboot.stop ();
 		bootstrap_server.stop ();
 		bootstrap_initiator.stop ();
 		tcp_listener.stop ();

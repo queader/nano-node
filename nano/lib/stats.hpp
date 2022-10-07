@@ -263,6 +263,8 @@ public:
 		all = 0,
 		unknown,
 
+		loop,
+
 		// processing queue
 		queue,
 		overfill,
@@ -465,6 +467,13 @@ public:
 		put,
 		satisfied,
 		trigger,
+
+		// bootstrap ascending
+		missing_tag,
+		reply,
+		process,
+		track,
+		timeout,
 
 		// bootstrap ascending connections
 		connect,

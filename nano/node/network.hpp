@@ -158,13 +158,13 @@ public:
 	void random_fill (std::array<nano::endpoint, 8> &) const;
 	void fill_keepalive_self (std::array<nano::endpoint, 8> &) const;
 	// Note: The minimum protocol version is used after the random selection, so number of peers can be less than expected.
-	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
+	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t count, uint8_t min_version = 0, bool include_temporary_channels = false) const;
 	/**
 	 * Get the next peer for attempting a tcp bootstrap connection
 	 * @param protocol_version_min minimum network version of peer
 	 */
 	nano::tcp_endpoint next_bootstrap_peer (uint8_t protocol_version_min);
-	nano::endpoint endpoint ();
+	nano::endpoint endpoint () const;
 	void cleanup (std::chrono::steady_clock::time_point const &);
 	void ongoing_cleanup ();
 	// Node ID cookies cleanup

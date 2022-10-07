@@ -2,6 +2,7 @@
 #include <nano/node/node.hpp>
 #include <nano/test_common/rate_observer.hpp>
 
+#include <sstream>
 #include <utility>
 
 nano::test::rate_observer::counter::counter (std::string name_a, std::function<value_t ()> count_a) :
@@ -59,6 +60,7 @@ void nano::test::rate_observer::background_print_impl (std::chrono::seconds inte
 
 void nano::test::rate_observer::print_once ()
 {
+	std::stringstream ss;
 	for (auto & counter : counters)
 	{
 		const auto observation = counter->observe ();
@@ -68,13 +70,14 @@ void nano::test::rate_observer::print_once ()
 
 		auto prettier_name = "'" + counter->name + "'";
 
-		std::cout << "counter: " << std::setw (30) << std::left << prettier_name
-				  << " | "
-				  << "total: " << std::setw (14) << observation.total
-				  << " | "
-				  << "rate /s: " << std::setw (12) << std::setprecision (2) << std::fixed << per_sec
-				  << std::endl;
+		ss << "counter: " << std::setw (50) << std::left << prettier_name
+		   << " | "
+		   << "total: " << std::setw (14) << observation.total
+		   << " | "
+		   << "rate /s: " << std::setw (12) << std::setprecision (2) << std::fixed << per_sec
+		   << "\n";
 	}
+	std::cout << ss.str () << std::endl;
 }
 
 void nano::test::rate_observer::observe (std::string name, std::function<int64_t ()> observe)
