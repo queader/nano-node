@@ -47,6 +47,8 @@ namespace thread_role
 		election_hinting,
 		vote_generator_queue,
 		ascending_bootstrap,
+		bootstrap_server_requests,
+		bootstrap_server_responses,
 	};
 
 	/*
@@ -79,14 +81,18 @@ namespace thread_attributes
 class thread_runner final
 {
 public:
-	thread_runner (boost::asio::io_context &, unsigned);
+	thread_runner (boost::asio::io_context &, unsigned num_threads);
 	~thread_runner ();
+
 	/** Tells the IO context to stop processing events.*/
 	void stop_event_processing ();
 	/** Wait for IO threads to complete */
 	void join ();
 	std::vector<boost::thread> threads;
 	boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_guard;
+
+private:
+	void run (boost::asio::io_context &);
 };
 
 /* Default memory order of normal std::atomic operations is std::memory_order_seq_cst which provides
@@ -204,8 +210,13 @@ private:
 
 std::unique_ptr<nano::container_info_component> collect_container_info (thread_pool & thread_pool, std::string const & name);
 
-/*
+/**
  * Number of available logical processor cores. Might be overridden by setting `NANO_HARDWARE_CONCURRENCY` environment variable
  */
 unsigned int hardware_concurrency ();
+
+/**
+ * If thread is joinable joins it, otherwise does nothing
+ */
+bool join_or_pass (std::thread &);
 }

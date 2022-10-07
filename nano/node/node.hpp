@@ -8,7 +8,9 @@
 #include <nano/node/block_arrival.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap/bootstrap.hpp>
+#include <nano/node/bootstrap/bootstrap_ascending.hpp>
 #include <nano/node/bootstrap/bootstrap_attempt.hpp>
+#include <nano/node/bootstrap/bootstrap_server.hpp>
 #include <nano/node/confirmation_height_processor.hpp>
 #include <nano/node/distributed_work_factory.hpp>
 #include <nano/node/election.hpp>
@@ -157,6 +159,7 @@ public:
 	nano::network network;
 	std::shared_ptr<nano::telemetry> telemetry;
 	nano::bootstrap_initiator bootstrap_initiator;
+	nano::bootstrap_server bootstrap_server;
 	nano::transport::tcp_listener tcp_listener;
 	boost::filesystem::path application_path;
 	nano::node_observers observers;
@@ -181,13 +184,18 @@ public:
 	nano::request_aggregator aggregator;
 	nano::wallets wallets;
 	nano::backlog_population backlog;
+	nano::bootstrap_ascending ascendboot;
 
 	std::chrono::steady_clock::time_point const startup_time;
 	std::chrono::seconds unchecked_cutoff = std::chrono::seconds (7 * 24 * 60 * 60); // Week
 	std::atomic<bool> unresponsive_work_peers{ false };
 	std::atomic<bool> stopped{ false };
+
 	static double constexpr price_max = 16.0;
 	static double constexpr free_cutoff = 1024.0;
+
+	std::string to_string () const;
+
 	// For tests only
 	unsigned node_seq;
 	// For tests only

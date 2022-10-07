@@ -8,7 +8,7 @@ namespace transport
 {
 	/**
 	 * Fake channel that connects to nothing and allows its attributes to be manipulated. Mostly useful for unit tests.
-	**/
+	 **/
 	namespace fake
 	{
 		class channel final : public nano::transport::channel
@@ -20,7 +20,7 @@ namespace transport
 			std::size_t hash_code () const override;
 
 			// clang-format off
-			void send_buffer (
+			bool send_buffer (
 				nano::shared_const_buffer const &,
 				std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr,
 				nano::buffer_drop_policy = nano::buffer_drop_policy::limiter

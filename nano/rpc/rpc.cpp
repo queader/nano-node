@@ -68,7 +68,7 @@ void nano::rpc::accept ()
 		}
 		else
 		{
-			logger.always_log (boost::str (boost::format ("Error accepting RPC connections: %1% (%2%)") % ec.message () % ec.value ()));
+			std::cerr << boost::str (boost::format ("Error accepting RPC connections: %1% (%2%)") % ec.message () % ec.value ()) << std::endl;
 		}
 	}));
 }

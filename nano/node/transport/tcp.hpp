@@ -40,13 +40,18 @@ namespace transport
 		bool operator== (nano::transport::channel const &) const override;
 		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
 		//
-		void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter) override;
+		bool send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter) override;
 		std::string to_string () const override;
+
+		boost::property_tree::ptree get_information () override;
+
 		bool operator== (nano::transport::channel_tcp const & other_a) const
 		{
 			return &node == &other_a.node && socket.lock () == other_a.socket.lock ();
 		}
+
 		std::weak_ptr<nano::socket> socket;
+
 		/* Mark for temporary channels. Usually remote ports of these channels are ephemeral and received from incoming connections to server.
 		If remote part has open listening port, temporary channel will be replaced with direct connection to listening port soon. But if other side is behing NAT or firewall this connection can be pemanent. */
 		std::atomic<bool> temporary{ false };
@@ -79,8 +84,19 @@ namespace transport
 			return result;
 		}
 
+		virtual bool alive () const
+		{
+			if (auto socket_s = socket.lock ())
+			{
+				return socket_s->alive ();
+			}
+			return false;
+		}
+
 	private:
 		nano::tcp_endpoint endpoint{ boost::asio::ip::address_v6::any (), 0 };
+
+		const unsigned id{ 0 };
 	};
 
 	class tcp_channels final
@@ -113,12 +129,13 @@ namespace transport
 		std::unique_ptr<container_info_component> collect_container_info (std::string const &);
 		void purge (std::chrono::steady_clock::time_point const &);
 		void ongoing_keepalive ();
-		void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
+		void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t minimum_network_version = 0, bool include_temporary = true);
 		void modify (std::shared_ptr<nano::transport::channel_tcp> const &, std::function<void (std::shared_ptr<nano::transport::channel_tcp> const &)>);
 		void update (nano::tcp_endpoint const &);
 		// Connection start
 		void start_tcp (nano::endpoint const &);
 		void start_tcp_receive_node_id (std::shared_ptr<nano::transport::channel_tcp> const &, nano::endpoint const &, std::shared_ptr<std::vector<uint8_t>> const &);
+
 		nano::node & node;
 
 	private:

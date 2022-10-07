@@ -252,6 +252,9 @@ public:
 		bootstrap_ascending_connections,
 		bootstrap_ascending_thread,
 		bootstrap_ascending_accounts,
+		bootstrap_server,
+		bootstrap_server_requests,
+		bootstrap_server_responses,
 	};
 
 	/** Optional detail type */
@@ -310,6 +313,8 @@ public:
 		node_id_handshake,
 		telemetry_req,
 		telemetry_ack,
+		asc_pull_req,
+		asc_pull_ack,
 
 		// bootstrap, callback
 		initiate,
@@ -376,6 +381,8 @@ public:
 		invalid_bulk_pull_message,
 		invalid_bulk_pull_account_message,
 		invalid_frontier_req_message,
+		invalid_asc_pull_req_message,
+		invalid_asc_pull_ack_message,
 		message_too_big,
 		outdated_version,
 		udp_max_per_ip,
@@ -448,6 +455,14 @@ public:
 		satisfied,
 		trigger,
 
+		// bootstrap ascending
+		missing_tag,
+		reply,
+		process,
+		track,
+		timeout,
+		blocks,
+
 		// bootstrap ascending connections
 		connect,
 		connect_missing,
@@ -470,6 +485,11 @@ public:
 		unblock_failed,
 		next_forwarding,
 		next_random,
+
+		// bootstrap server
+		response,
+		write_drop,
+		write_error,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

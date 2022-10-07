@@ -5,6 +5,7 @@
 #include <nano/lib/asio.hpp>
 
 #include <boost/optional.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include <chrono>
 #include <deque>
@@ -60,11 +61,15 @@ public:
 	 */
 	explicit socket (nano::node & node, endpoint_type_t endpoint_type_a);
 	virtual ~socket ();
+
 	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
 	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {});
 
 	virtual void close ();
+
+	virtual boost::property_tree::ptree get_information ();
+
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;
 	boost::asio::ip::tcp::endpoint local_endpoint () const;
 	/** Returns true if the socket has timed out */
@@ -102,9 +107,21 @@ public:
 	{
 		return type () == nano::socket::type_t::bootstrap;
 	}
-	bool is_closed ()
+	bool is_closed () const
 	{
 		return closed;
+	}
+
+	bool alive () const
+	{
+		return connected && !closed && errors == 0;
+	}
+
+	std::string to_string () const;
+
+	virtual std::string type_str () const
+	{
+		return "base";
 	}
 
 protected:
@@ -119,9 +136,6 @@ protected:
 	boost::asio::strand<boost::asio::io_context::executor_type> strand;
 	boost::asio::ip::tcp::socket tcp_socket;
 	nano::node & node;
-
-	/** The other end of the connection */
-	boost::asio::ip::tcp::endpoint remote;
 
 	/** number of seconds of inactivity that causes a socket timeout
 	 *  activity is any successful connect, send or receive event
@@ -160,6 +174,12 @@ protected:
 	/** Set by close() - completion handlers must check this. This is more reliable than checking
 	 error codes as the OS may have already completed the async operation. */
 	std::atomic<bool> closed{ false };
+
+	std::atomic<bool> connected{ false };
+	std::atomic<unsigned> errors{ 0 };
+
+	const unsigned id{ 0 };
+
 	void close_internal ();
 	void set_default_timeout ();
 	void set_last_completion ();
@@ -208,6 +228,11 @@ public:
 		return acceptor.local_endpoint ().port ();
 	}
 
+	std::string type_str () const override
+	{
+		return "serv";
+	}
+
 private:
 	nano::address_socket_mmap connections_per_address;
 	boost::asio::ip::tcp::acceptor acceptor;
@@ -231,6 +256,11 @@ public:
 	explicit client_socket (nano::node & node_a) :
 		socket{ node_a, endpoint_type_t::client }
 	{
+	}
+
+	std::string type_str () const override
+	{
+		return "clnt";
 	}
 };
 }

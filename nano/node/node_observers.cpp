@@ -12,5 +12,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (na
 	composite->add_component (node_observers.endpoint.collect_container_info ("endpoint"));
 	composite->add_component (node_observers.disconnect.collect_container_info ("disconnect"));
 	composite->add_component (node_observers.work_cancel.collect_container_info ("work_cancel"));
+	composite->add_component (node_observers.message_send.collect_container_info ("message_send"));
+	composite->add_component (node_observers.message_receive.collect_container_info ("message_receive"));
 	return composite;
 }

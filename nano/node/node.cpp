@@ -154,6 +154,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	network (*this, config.peering_port.has_value () ? *config.peering_port : 0),
 	telemetry (std::make_shared<nano::telemetry> (network, workers, observers.telemetry, stats, network_params, flags.disable_ongoing_telemetry_requests)),
 	bootstrap_initiator (*this),
+	bootstrap_server{ store, network_params.network, stats },
 	// BEWARE: `bootstrap` takes `network.port` instead of `config.peering_port` because when the user doesn't specify
 	//         a peering port and wants the OS to pick one, the picking happens when `network` gets initialized
 	//         (if UDP is active, otherwise it happens when `bootstrap` gets initialized), so then for TCP traffic
@@ -181,6 +182,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	aggregator (config, stats, generator, final_generator, history, ledger, wallets, active),
 	wallets (wallets_store.init_error (), *this),
 	backlog{ nano::nodeconfig_to_backlog_population_config (config), store, scheduler },
+	ascendboot{ *this, store, block_processor, ledger, network, stats },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
@@ -634,6 +636,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (node.inactive_vote_cache.collect_container_info ("inactive_vote_cache"));
 	composite->add_component (collect_container_info (node.generator, "vote_generator"));
 	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
+	composite->add_component (node.ascendboot.collect_container_info ("bootstrap_ascending"));
 	return composite;
 }
 
@@ -748,6 +751,11 @@ void nano::node::start ()
 	final_generator.start ();
 	backlog.start ();
 	hinting.start ();
+	bootstrap_server.start ();
+	if (!flags.disable_ascending_bootstrap)
+	{
+		ascendboot.start ();
+	}
 }
 
 void nano::node::stop ()
@@ -774,6 +782,8 @@ void nano::node::stop ()
 		{
 			websocket_server->stop ();
 		}
+		ascendboot.stop ();
+		bootstrap_server.stop ();
 		bootstrap_initiator.stop ();
 		tcp_listener.stop ();
 		port_mapping.stop ();
@@ -1813,6 +1823,17 @@ nano::account nano::node::get_node_id () const
 {
 	return node_id.pub;
 };
+
+std::string nano::node::to_string () const
+{
+	std::stringstream stream;
+	stream << "{ ";
+
+	stream << "port: " << network.endpoint ().port ();
+
+	stream << " }";
+	return stream.str ();
+}
 
 nano::node_wrapper::node_wrapper (boost::filesystem::path const & path_a, boost::filesystem::path const & config_path_a, nano::node_flags const & node_flags_a) :
 	network_params{ nano::network_constants::active_network },
