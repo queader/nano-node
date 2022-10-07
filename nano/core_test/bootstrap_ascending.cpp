@@ -20,14 +20,14 @@ nano::block_hash random_hash ()
 TEST (account_sets, construction)
 {
 	nano::stat stats;
-	nano::bootstrap::bootstrap_ascending::account_sets sets{ stats };
+	nano::bootstrap_ascending::account_sets sets{ stats };
 }
 
 TEST (account_sets, empty_blocked)
 {
 	nano::account account{ 1 };
 	nano::stat stats;
-	nano::bootstrap::bootstrap_ascending::account_sets sets{ stats };
+	nano::bootstrap_ascending::account_sets sets{ stats };
 	ASSERT_FALSE (sets.blocked (account));
 }
 
@@ -35,7 +35,7 @@ TEST (account_sets, block)
 {
 	nano::account account{ 1 };
 	nano::stat stats;
-	nano::bootstrap::bootstrap_ascending::account_sets sets{ stats };
+	nano::bootstrap_ascending::account_sets sets{ stats };
 	sets.block (account, random_hash ());
 	ASSERT_TRUE (sets.blocked (account));
 }
@@ -44,32 +44,11 @@ TEST (account_sets, unblock)
 {
 	nano::account account{ 1 };
 	nano::stat stats;
-	nano::bootstrap::bootstrap_ascending::account_sets sets{ stats };
+	nano::bootstrap_ascending::account_sets sets{ stats };
 	auto hash = random_hash ();
 	sets.block (account, hash);
 	sets.unblock (account, hash);
 	ASSERT_FALSE (sets.blocked (account));
-}
-
-/**
- * Tests basic construction of a bootstrap_ascending attempt
- */
-TEST (bootstrap_ascending, construction)
-{
-	nano::test::system system{ 1 };
-	auto & node = *system.nodes[0];
-	auto attempt = std::make_shared<nano::bootstrap::bootstrap_ascending> (node.shared (), 0, "");
-}
-
-/**
- * Tests that bootstrap_ascending attempt can run and complete
- */
-TEST (bootstrap_ascending, start_stop)
-{
-	nano::test::system system{ 1 };
-	auto & node = *system.nodes[0];
-	auto attempt = node.bootstrap_initiator.bootstrap_ascending ();
-	ASSERT_TIMELY (5s, node.stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate_ascending, nano::stat::dir::out) > 0);
 }
 
 /**

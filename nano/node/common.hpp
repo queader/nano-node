@@ -22,6 +22,8 @@ using tcp_endpoint = boost::asio::ip::tcp::endpoint;
 bool parse_endpoint (std::string const &, nano::endpoint &);
 bool parse_tcp_endpoint (std::string const &, nano::tcp_endpoint &);
 uint64_t ip_address_hash_raw (boost::asio::ip::address const & ip_a, uint16_t port = 0);
+
+const nano::tcp_endpoint null_endpoint = nano::tcp_endpoint{ boost::asio::ip::address_v6::any (), 0 };
 }
 
 namespace

@@ -593,6 +593,7 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::unknown:
 			res = "unknown";
+			break;
 		case nano::stat::detail::queue:
 			res = "queue";
 			break;
@@ -835,6 +836,7 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::election_not_confirmed:
 			res = "election_not_confirmed";
+			break;
 		case nano::stat::detail::election_hinted_overflow:
 			res = "election_hinted_overflow";
 			break;
@@ -1076,6 +1078,21 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::trigger:
 			res = "trigger";
+			break;
+		case nano::stat::detail::missing_tag:
+			res = "missing_tag";
+			break;
+		case nano::stat::detail::process:
+			res = "process";
+			break;
+		case nano::stat::detail::reply:
+			res = "reply";
+			break;
+		case nano::stat::detail::track:
+			res = "track";
+			break;
+		case nano::stat::detail::timeout:
+			res = "timeout";
 			break;
 		case nano::stat::detail::connect:
 			res = "connect";
