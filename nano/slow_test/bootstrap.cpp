@@ -1,7 +1,9 @@
 #include <nano/lib/rpcconfig.hpp>
 #include <nano/node/bootstrap/bootstrap_ascending.hpp>
+#include <nano/node/bootstrap/bootstrap_server.hpp>
 #include <nano/node/ipc/ipc_server.hpp>
 #include <nano/node/json_handler.hpp>
+#include <nano/node/transport/transport.hpp>
 #include <nano/rpc/rpc.hpp>
 #include <nano/rpc/rpc_request_processor.hpp>
 #include <nano/test_common/network.hpp>
@@ -13,6 +15,7 @@
 
 #include <boost/format.hpp>
 
+#include <map>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -23,6 +26,38 @@ void wait_for_key ()
 {
 	int junk;
 	std::cin >> junk;
+}
+
+class rpc_wrapper
+{
+public:
+	rpc_wrapper (nano::test::system & system, nano::node & node, uint16_t port) :
+		node_rpc_config{},
+		rpc_config{ node.network_params.network, port, true },
+		ipc{ node, node_rpc_config },
+		ipc_rpc_processor{ system.io_ctx, rpc_config },
+		rpc{ system.io_ctx, rpc_config, ipc_rpc_processor }
+	{
+	}
+
+	void start ()
+	{
+		rpc.start ();
+	}
+
+public:
+	nano::node_rpc_config node_rpc_config;
+	nano::rpc_config rpc_config;
+	nano::ipc::ipc_server ipc;
+	nano::ipc_rpc_processor ipc_rpc_processor;
+	nano::rpc rpc;
+};
+
+std::unique_ptr<rpc_wrapper> start_rpc (nano::test::system & system, nano::node & node, uint16_t port)
+{
+	auto rpc = std::make_unique<rpc_wrapper> (system, node, port);
+	rpc->start ();
+	return rpc;
 }
 }
 
@@ -39,17 +74,20 @@ TEST (bootstrap_ascending, profile)
 	// Set up client and server nodes
 	nano::node_config config_server{ network_params };
 	config_server.preconfigured_peers.clear ();
+	config_server.bandwidth_limit = 0; // Unlimited server bandwidth
 	nano::node_flags flags_server;
 	flags_server.disable_legacy_bootstrap = true;
 	flags_server.disable_wallet_bootstrap = true;
 	flags_server.disable_add_initial_peers = true;
 	flags_server.disable_ongoing_bootstrap = true;
-	auto server = std::make_shared<nano::node> (system.io_ctx, nano::working_path (network), config_server, system.work);
+	flags_server.disable_ascending_bootstrap = true;
+	auto server = std::make_shared<nano::node> (system.io_ctx, nano::working_path (network), config_server, system.work, flags_server);
 	system.nodes.push_back (server);
 	server->start ();
 
 	nano::node_config config_client{ network_params };
 	config_client.preconfigured_peers.clear ();
+	config_client.bandwidth_limit = 0; // Unlimited server bandwidth
 	nano::node_flags flags_client;
 	flags_client.disable_legacy_bootstrap = true;
 	flags_client.disable_wallet_bootstrap = true;
@@ -58,24 +96,81 @@ TEST (bootstrap_ascending, profile)
 	config_client.ipc_config.transport_tcp.enabled = true;
 	auto client = system.add_node (config_client, flags_client);
 
-	// Set up client RPC
-	nano::node_rpc_config node_rpc_config;
-	nano::rpc_config rpc_config{ network_params.network, rpc_port, true };
-	nano::ipc::ipc_server ipc (*client, node_rpc_config);
-	nano::ipc_rpc_processor ipc_rpc_processor (system.io_ctx, rpc_config);
-	nano::rpc rpc (system.io_ctx, rpc_config, ipc_rpc_processor);
-	rpc.start ();
+	// Set up RPC
+	auto client_rpc = start_rpc (system, *server, 55000);
+	auto server_rpc = start_rpc (system, *client, 55001);
 
-	client->bootstrap_initiator.bootstrap_ascending ();
-	//	client->bootstrap_initiator.bootstrap ();
+	struct entry
+	{
+		nano::bootstrap_ascending::async_tag tag;
+		std::shared_ptr<nano::transport::channel> request_channel;
+		std::shared_ptr<nano::transport::channel> reply_channel;
 
-	std::cerr << boost::str (boost::format ("Server: %1%, client: %2%\n") % server->network.port.load () % client->network.port.load ());
+		bool replied{ false };
+		bool received{ false };
+	};
 
-	std::cout << "Server: count: " << server->ledger.cache.block_count << std::endl;
+	nano::mutex mutex;
+	std::unordered_map<uint64_t, entry> requests;
+
+	server->bootstrap_server.on_response.add ([&] (auto & response, auto & channel) {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+
+		if (requests.count (response.id))
+		{
+			requests[response.id].replied = true;
+			requests[response.id].reply_channel = channel;
+		}
+		else
+		{
+			std::cerr << "unknown response: " << response.id << std::endl;
+		}
+	});
+
+	client->ascendboot.on_request.add ([&] (auto & tag, auto & channel) {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+
+		requests[tag.id] = { tag, channel };
+	});
+
+	client->ascendboot.on_reply.add ([&] (auto & tag) {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+
+		requests[tag.id].received = true;
+	});
+
+	client->ascendboot.on_timeout.add ([&] (auto & tag) {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+
+		if (requests.count (tag.id))
+		{
+			auto entry = requests[tag.id];
+
+			std::cerr << "timeout: "
+					  << "replied: " << entry.replied
+					  << " | "
+					  << "recevied: " << entry.received
+					  << " | "
+					  << "request: " << entry.request_channel->to_string ()
+					  << " ||| "
+					  << "reply: " << (entry.reply_channel ? entry.reply_channel->to_string () : "null")
+					  << std::endl;
+		}
+		else
+		{
+			std::cerr << "unknown timeout: " << tag.id << std::endl;
+		}
+	});
+
+	std::cout << "server count: " << server->ledger.cache.block_count << std::endl;
 
 	nano::test::rate_observer rate;
 	rate.observe ("count", [&] () { return client->ledger.cache.block_count.load (); });
 	rate.observe ("unchecked", [&] () { return client->unchecked.count (); });
+	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
+	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::reply, nano::stat::dir::in);
+	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in);
+	rate.observe (*server, nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out);
 	rate.background_print (3s);
 
 	wait_for_key ();

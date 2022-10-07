@@ -466,6 +466,13 @@ public:
 		satisfied,
 		trigger,
 
+		// bootstrap ascending
+		missing_tag,
+		reply,
+		process,
+		track,
+		timeout,
+
 		// bootstrap ascending connections
 		connect,
 		connect_missing,
