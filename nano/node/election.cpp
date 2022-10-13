@@ -9,7 +9,7 @@ using namespace std::chrono;
 
 std::chrono::milliseconds nano::election::base_latency () const
 {
-	return node.network_params.network.is_dev_network () ? 25ms : 1000ms;
+	return node.network_params.network.is_dev_network () ? 25ms : 2500ms;
 }
 
 nano::election_vote_result::election_vote_result (bool replay_a, bool processed_a)
@@ -130,7 +130,7 @@ bool nano::election::state_change (nano::election::state_t expected_a, nano::ele
 
 void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_a)
 {
-	if ((base_latency () * 5) < (std::chrono::steady_clock::now () - last_req))
+	if ((base_latency ()) < (std::chrono::steady_clock::now () - last_req))
 	{
 		nano::lock_guard<nano::mutex> guard (mutex);
 		if (!solicitor_a.add (*this))
@@ -219,7 +219,7 @@ std::chrono::milliseconds nano::election::time_to_live () const
 	switch (behavior)
 	{
 		case election_behavior::normal:
-			return std::chrono::milliseconds (5 * 60 * 1000);
+			return std::chrono::milliseconds (30 * 1000);
 		case election_behavior::hinted:
 			return std::chrono::milliseconds (30 * 1000);
 	}

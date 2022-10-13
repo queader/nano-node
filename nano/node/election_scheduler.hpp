@@ -10,6 +10,7 @@
 #include <deque>
 #include <memory>
 #include <thread>
+#include <random>
 
 namespace nano
 {
@@ -40,6 +41,8 @@ private:
 	bool priority_queue_predicate () const;
 	bool manual_queue_predicate () const;
 	bool overfill_predicate () const;
+
+	std::default_random_engine rng;
 	nano::prioritization priority;
 	std::deque<std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior, std::function<void (std::shared_ptr<nano::block>)>>> manual_queue;
 	nano::node & node;

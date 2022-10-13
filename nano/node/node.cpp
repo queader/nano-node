@@ -744,12 +744,15 @@ void nano::node::start ()
 	backlog.start ();
 	hinting.start ();
 
-	// TODO: use a flag and command line arg rather than a env variable for disabling ascending bootstrap
-	if (!std::getenv ("NANO_DISABLE_BOOTSTRAP_ASCENDING") && !config.disable_ongoing_bootstrap)
-	{
-		ascendboot.init ();
-		ascendboot.start ();
-	}
+//	// TODO: use a flag and command line arg rather than a env variable for disabling ascending bootstrap
+//	if (!std::getenv ("NANO_DISABLE_BOOTSTRAP_ASCENDING") && !config.disable_ongoing_bootstrap)
+//	{
+//		ascendboot.init ();
+//		ascendboot.start ();
+//	}
+
+	ascendboot.init ();
+	ascendboot.start ();
 }
 
 void nano::node::stop ()

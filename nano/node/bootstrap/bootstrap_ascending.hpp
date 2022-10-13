@@ -35,7 +35,7 @@ namespace bootstrap
 
 	private:
 		nano::node & node;
-		bool stopped;
+		bool stopped{ false };
 		nano::condition_variable condition;
 		mutable nano::mutex mutex;
 		std::thread main_thread;
@@ -143,7 +143,7 @@ namespace bootstrap
 			nano::hash_or_account pick_start (const nano::account & account_a);
 
 			std::atomic<int> requests{ 0 };
-			static constexpr int requests_max = 1;
+			static constexpr int requests_max = 4;
 
 			bootstrap_ascending & bootstrap;
 		};
@@ -185,7 +185,7 @@ namespace bootstrap
 		account_sets::backoff_info_t backoff_info () const;
 
 		// pull optimistically, pull unconfirmed blocks without limit
-		bool optimistic_pulling = false;
+		bool optimistic_pulling{ false };
 
 	private:
 		account_sets accounts;

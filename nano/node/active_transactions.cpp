@@ -168,13 +168,15 @@ void nano::active_transactions::block_already_cemented_callback (nano::block_has
 
 int64_t nano::active_transactions::limit () const
 {
-	return static_cast<int64_t> (node.config.active_elections_size);
+//	return static_cast<int64_t> (node.config.active_elections_size);
+	return 500;
 }
 
 int64_t nano::active_transactions::hinted_limit () const
 {
-	const uint64_t limit = node.config.active_elections_hinted_limit_percentage * node.config.active_elections_size / 100;
-	return static_cast<int64_t> (limit);
+//	const uint64_t limit = node.config.active_elections_hinted_limit_percentage * node.config.active_elections_size / 100;
+//	return static_cast<int64_t> (limit);
+	return 50;
 }
 
 int64_t nano::active_transactions::vacancy () const

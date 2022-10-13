@@ -53,7 +53,7 @@ TEST (bootstrap_ascending, profile)
 
 	nano::node_config config_client{ network_params };
 	config_client.preconfigured_peers.clear ();
-	config_client.disable_legacy_bootstrap = true;
+	config_client.disable_ongoing_bootstrap = true;
 	config_client.disable_wallet_bootstrap = true;
 	config_client.disable_legacy_bootstrap = true;
 	config_client.ipc_config.transport_tcp.enabled = true;

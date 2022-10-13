@@ -558,23 +558,23 @@ nano::hash_or_account nano::bootstrap::bootstrap_ascending::thread::pick_start (
 
 	// check if the account picked has blocks, if it does, start the pull from the highest block
 
-	if (bootstrap.optimistic_pulling)
+	//	if (bootstrap.optimistic_pulling)
+	//	{
+	//		nano::account_info info;
+	//		if (!bootstrap.node.store.account.get (bootstrap.node.store.tx_begin_read (), account_a, info))
+	//		{
+	//			start = info.head;
+	//		}
+	//	}
+	//	else
+	//	{
+	nano::confirmation_height_info conf_info;
+	bootstrap.node.store.confirmation_height.get (bootstrap.node.store.tx_begin_read (), account_a, conf_info);
+	if (conf_info.height > 0)
 	{
-		nano::account_info info;
-		if (!bootstrap.node.store.account.get (bootstrap.node.store.tx_begin_read (), account_a, info))
-		{
-			start = info.head;
-		}
+		start = conf_info.frontier;
 	}
-	else
-	{
-		nano::confirmation_height_info conf_info;
-		bootstrap.node.store.confirmation_height.get (bootstrap.node.store.tx_begin_read (), account_a, conf_info);
-		if (conf_info.height > 0)
-		{
-			start = conf_info.frontier;
-		}
-	}
+	//	}
 
 	if (start != account_a)
 	{

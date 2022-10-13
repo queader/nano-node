@@ -39,7 +39,7 @@ void nano::election_scheduler::activate (nano::account const & account_a, nano::
 				debug_assert (block != nullptr);
 				{
 					nano::lock_guard<nano::mutex> lock{ mutex };
-					priority.push (account_info.modified, block);
+					priority.push (std::rand (), block);
 					notify ();
 				}
 			}
