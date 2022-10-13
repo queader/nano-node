@@ -35,7 +35,7 @@ nano::backlog_population::config nano::nodeconfig_to_backlog_population_config (
 {
 	nano::backlog_population::config cfg;
 	cfg.ongoing_backlog_population_enabled = config.frontiers_confirmation != nano::frontiers_confirmation_mode::disabled;
-	cfg.delay_between_runs_in_seconds = config.network_params.network.is_dev_network () ? 1u : 300u;
+	cfg.delay_between_runs_in_seconds = config.network_params.network.is_dev_network () ? 1u : 30u;
 	return cfg;
 }
 
