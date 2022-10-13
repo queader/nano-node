@@ -23,6 +23,8 @@ void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & bloc
 
 void nano::election_scheduler::activate (nano::account const & account_a, nano::transaction const & transaction)
 {
+	const bool activate_account_head = true;
+
 	debug_assert (!account_a.is_zero ());
 	nano::account_info account_info;
 	if (!node.store.account.get (transaction, account_a, account_info))
@@ -31,15 +33,28 @@ void nano::election_scheduler::activate (nano::account const & account_a, nano::
 		node.store.confirmation_height.get (transaction, account_a, conf_info);
 		if (conf_info.height < account_info.block_count)
 		{
-			debug_assert (conf_info.frontier != account_info.head);
-			auto hash = conf_info.height == 0 ? account_info.open_block : node.store.block.successor (transaction, conf_info.frontier);
-			auto block = node.store.block.get (transaction, hash);
-			debug_assert (block != nullptr);
-			if (node.ledger.dependents_confirmed (transaction, *block))
+			if (activate_account_head)
 			{
-				nano::lock_guard<nano::mutex> lock{ mutex };
-				priority.push (account_info.modified, block);
-				notify ();
+				auto block = node.store.block.get (transaction, account_info.head);
+				debug_assert (block != nullptr);
+				{
+					nano::lock_guard<nano::mutex> lock{ mutex };
+					priority.push (account_info.modified, block);
+					notify ();
+				}
+			}
+			else
+			{
+				debug_assert (conf_info.frontier != account_info.head);
+				auto hash = conf_info.height == 0 ? account_info.open_block : node.store.block.successor (transaction, conf_info.frontier);
+				auto block = node.store.block.get (transaction, hash);
+				debug_assert (block != nullptr);
+				if (node.ledger.dependents_confirmed (transaction, *block))
+				{
+					nano::lock_guard<nano::mutex> lock{ mutex };
+					priority.push (account_info.modified, block);
+					notify ();
+				}
 			}
 		}
 	}
