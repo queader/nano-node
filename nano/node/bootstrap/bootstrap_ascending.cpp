@@ -221,6 +221,14 @@ nano::account nano::bootstrap::bootstrap_ascending::account_sets::random ()
 	return result;
 }
 
+void nano::bootstrap::bootstrap_ascending::account_sets::deprioritize (const nano::account & account)
+{
+	if (backoff.count (account) > 0)
+	{
+		backoff[account] += 1.0f;
+	}
+}
+
 nano::account nano::bootstrap::bootstrap_ascending::account_sets::next ()
 {
 	nano::account result;
@@ -238,7 +246,7 @@ nano::account nano::bootstrap::bootstrap_ascending::account_sets::next ()
 
 		result = random ();
 	}
-	backoff[result] += 1.0f;
+	//	backoff[result] += 1.0f;
 	return result;
 }
 
@@ -293,6 +301,11 @@ nano::bootstrap::bootstrap_ascending::async_tag::~async_tag ()
 	{
 		++thread->bootstrap.responses;
 	}
+	else
+	{
+		thread->bootstrap.accounts.deprioritize (account);
+	}
+
 	if (success_m)
 	{
 		debug_assert (connection_m);
@@ -606,6 +619,7 @@ bool nano::bootstrap::bootstrap_ascending::thread::request_one ()
 	auto this_l = shared ();
 	auto tag = std::make_shared<async_tag> (this_l);
 	auto account = pick_account ();
+	tag->account = account;
 	nano::hash_or_account start = pick_start (account);
 
 	// pick a connection and send the pull request and setup response processing callback

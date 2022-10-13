@@ -26,6 +26,7 @@ namespace bootstrap
 
 		// Make an account known to ascending bootstrap and set its priority
 		void prioritize (nano::account const & account_a, float priority_a);
+		void deprioritize (nano::account const &);
 
 		void get_information (boost::property_tree::ptree &);
 		std::unique_ptr<nano::container_info_component> collect_container_info (const std::string & name);
@@ -70,6 +71,7 @@ namespace bootstrap
 		public:
 			explicit account_sets (nano::stat &);
 
+			void deprioritize (nano::account const &);
 			/**
 			 * If an account is not blocked, then add it to the forwarding set and, additioally, if it does not exist in the backoff set, set the priority.
 			 */
@@ -167,6 +169,8 @@ namespace bootstrap
 
 			// Tracks the number of blocks received from this request
 			std::atomic<int> blocks{ 0 };
+
+			nano::account account{};
 
 		private:
 			bool success_m{ false };
