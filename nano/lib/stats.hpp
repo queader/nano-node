@@ -310,6 +310,8 @@ public:
 		node_id_handshake,
 		telemetry_req,
 		telemetry_ack,
+		asc_pull_req,
+		asc_pull_ack,
 
 		// bootstrap, callback
 		initiate,
@@ -376,6 +378,8 @@ public:
 		invalid_bulk_pull_message,
 		invalid_bulk_pull_account_message,
 		invalid_frontier_req_message,
+		invalid_asc_pull_req_message,
+		invalid_asc_pull_ack_message,
 		message_too_big,
 		outdated_version,
 		udp_max_per_ip,
