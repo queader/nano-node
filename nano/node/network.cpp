@@ -554,7 +554,7 @@ public:
 
 	void asc_pull_ack (nano::asc_pull_ack const & message) override
 	{
-		node.ascendboot.process (message);
+		// TODO: Process in ascending bootstrap client
 	}
 
 private:
