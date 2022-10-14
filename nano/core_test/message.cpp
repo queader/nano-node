@@ -1,11 +1,29 @@
 #include <nano/node/common.hpp>
 #include <nano/node/network.hpp>
 #include <nano/secure/buffer.hpp>
+#include <nano/test_common/testutil.hpp>
 
 #include <gtest/gtest.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/variant/get.hpp>
+
+namespace
+{
+std::shared_ptr<nano::block> random_block ()
+{
+	nano::block_builder builder;
+	auto block = builder
+				 .send ()
+				 .previous (nano::test::random_hash ())
+				 .destination (nano::keypair ().pub)
+				 .balance (2)
+				 .sign (nano::keypair ().prv, 4)
+				 .work (5)
+				 .build_shared ();
+	return block;
+}
+}
 
 TEST (message, keepalive_serialization)
 {
@@ -45,15 +63,7 @@ TEST (message, keepalive_deserialize)
 
 TEST (message, publish_serialization)
 {
-	nano::block_builder builder;
-	auto block = builder
-				 .send ()
-				 .previous (0)
-				 .destination (1)
-				 .balance (2)
-				 .sign (nano::keypair ().prv, 4)
-				 .work (5)
-				 .build_shared ();
+	auto block = random_block ();
 	nano::publish publish{ nano::dev::network_params.network, block };
 	ASSERT_EQ (nano::block_type::send, publish.header.block_type ());
 	std::vector<uint8_t> bytes;
@@ -277,30 +287,73 @@ TEST (message, bulk_pull_serialization)
 	ASSERT_TRUE (header.bulk_pull_ascending ());
 }
 
-TEST (message, keepalive_to_string)
+TEST (message, asc_pull_req_serialization)
 {
-	nano::message_header hdr{ nano::dev::network_params.network, nano::message_type::keepalive };
-	std::string expected = hdr.to_string ();
+	nano::asc_pull_req original{ nano::dev::network_params.network };
+	original.id = 7;
+	original.start = nano::test::random_hash ();
 
-	nano::keepalive keepalive = nano::keepalive (nano::dev::network_params.network);
-	ASSERT_EQ (keepalive.to_string (), expected + "\n:::0\n:::0\n:::0\n:::0\n:::0\n:::0\n:::0\n:::0");
-
-	expected.append ("\n:::0");
-
-	keepalive.peers[1] = nano::endpoint{ boost::asio::ip::make_address_v6 ("::1"), 45 };
-	expected.append ("\n::1:45");
-
-	keepalive.peers[2] = nano::endpoint{ boost::asio::ip::make_address_v6 ("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 0 };
-	expected.append ("\n2001:db8:85a3:8d3:1319:8a2e:370:7348:0");
-
-	keepalive.peers[3] = nano::endpoint{ boost::asio::ip::make_address_v6 ("::"), 65535 };
-	expected.append ("\n:::65535");
-
-	for (int i = 4; i < keepalive.peers.size (); i++)
+	// Serialize
+	std::vector<uint8_t> bytes;
 	{
-		keepalive.peers[i] = nano::endpoint{ boost::asio::ip::make_address_v6 ("::ffff:1.2.3.4"), 1234 };
-		expected.append ("\n::ffff:1.2.3.4:1234");
+		nano::vectorstream stream{ bytes };
+		original.serialize (stream);
 	}
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
 
-	ASSERT_EQ (keepalive.to_string (), expected);
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (nano::message_type::asc_pull_req, header.type);
+
+	// Message
+	nano::asc_pull_req message (error, stream, header);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (original.type, message.type);
+	ASSERT_EQ (original.id, message.id);
+	ASSERT_EQ (original.start, message.start);
+}
+
+TEST (message, asc_pull_ack_serialization)
+{
+	nano::asc_pull_ack original{ nano::dev::network_params.network };
+	original.id = 11;
+
+	const int num_blocks = 128; // Maximum allowed
+
+	// Generate blocks
+	std::vector<std::shared_ptr<nano::block>> blocks;
+	for (int n = 0; n < num_blocks; ++n)
+	{
+		blocks.push_back (random_block ());
+	}
+	original.blocks (blocks);
+
+	// Serialize
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream{ bytes };
+		original.serialize (stream);
+	}
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (nano::message_type::asc_pull_ack, header.type);
+
+	// Message
+	nano::asc_pull_ack message (error, stream, header);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (original.type, message.type);
+	ASSERT_EQ (original.id, message.id);
+	ASSERT_EQ (original.blocks ().size (), message.blocks ().size ());
+
+	// Compare blocks
+	auto message_blocks = message.blocks ();
+	ASSERT_TRUE (std::equal (blocks.begin (), blocks.end (), message_blocks.begin (), message_blocks.end (), [] (auto a, auto b) {
+		return *a == *b;
+	}));
 }
