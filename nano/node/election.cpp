@@ -173,7 +173,7 @@ void nano::election::periodic_broadcast_vote ()
 	if (std::chrono::seconds (vote_generation_interval) < std::chrono::steady_clock::now () - last_vote)
 	{
 		// `last_vote` time is updated inside `generate_votes()`
-		generate_votes ();
+		generate_vote ();
 	}
 }
 
@@ -486,17 +486,14 @@ std::shared_ptr<nano::block> nano::election::winner () const
 	return status.winner;
 }
 
-void nano::election::generate_votes ()
+void nano::election::generate_vote ()
 {
 	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 	{
 		nano::unique_lock<nano::mutex> lock (mutex);
 		if (confirmed () || have_quorum (tally_impl ()))
 		{
-			auto hash = status.winner->hash ();
-			lock.unlock ();
-			node.final_generator.add (root, hash);
-			lock.lock ();
+			node.final_generator.add (root, status.winner->hash ());
 		}
 		else
 		{

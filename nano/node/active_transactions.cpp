@@ -402,7 +402,7 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 		// Votes are generated for inserted or ongoing elections
 		if (result.election)
 		{
-			result.election->generate_votes ();
+			result.election->generate_vote ();
 		}
 	}
 	return result;
