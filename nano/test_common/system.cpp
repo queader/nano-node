@@ -272,7 +272,14 @@ void nano::test::blocks_confirm (nano::node & node_a, std::vector<std::shared_pt
 		node_a.block_confirm (disk_block);
 		if (forced_a)
 		{
-			auto election = node_a.active.election (disk_block->qualified_root ());
+			// FIXME: This is a hack to give scheduler some time to start an election
+			std::shared_ptr<nano::election> election;
+			int ctr = 0;
+			while (ctr++ < 10 && !(election = node_a.active.election (disk_block->qualified_root ())))
+			{
+				std::this_thread::sleep_for (10ms);
+			}
+
 			debug_assert (election != nullptr);
 			election->force_confirm ();
 		}
