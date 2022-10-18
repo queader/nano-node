@@ -12,6 +12,10 @@
 
 #include <chrono>
 
+/*
+ * vote_spacing
+ */
+
 void nano::vote_spacing::trim ()
 {
 	recent.get<tag_time> ().erase (recent.get<tag_time> ().begin (), recent.get<tag_time> ().upper_bound (std::chrono::steady_clock::now () - delay));
@@ -162,6 +166,10 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (na
 	return composite;
 }
 
+/*
+ * vote_generator
+ */
+
 nano::vote_generator::vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a, bool is_final_a) :
 	config (config_a),
 	ledger (ledger_a),
@@ -285,12 +293,6 @@ std::size_t nano::vote_generator::generate (std::vector<std::shared_ptr<nano::bl
 	return result;
 }
 
-void nano::vote_generator::set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)> action_a)
-{
-	release_assert (!reply_action);
-	reply_action = action_a;
-}
-
 void nano::vote_generator::broadcast (nano::unique_lock<nano::mutex> & lock_a)
 {
 	debug_assert (lock_a.owns_lock ());
@@ -357,7 +359,7 @@ void nano::vote_generator::reply (nano::unique_lock<nano::mutex> & lock_a, reque
 				{
 					stats.add (nano::stat::type::requests, nano::stat::detail::requests_cached_late_hashes, stat::dir::in, cached_vote->hashes.size ());
 					stats.inc (nano::stat::type::requests, nano::stat::detail::requests_cached_late_votes, stat::dir::in);
-					reply_action (cached_vote, request_a.second);
+					send (cached_vote, request_a.second);
 				}
 			}
 			if (cached_votes.empty () && std::find (roots.begin (), roots.end (), root) == roots.end ())
@@ -377,13 +379,20 @@ void nano::vote_generator::reply (nano::unique_lock<nano::mutex> & lock_a, reque
 		{
 			stats.add (nano::stat::type::requests, nano::stat::detail::requests_generated_hashes, stat::dir::in, hashes.size ());
 			vote (hashes, roots, [this, &channel = request_a.second] (std::shared_ptr<nano::vote> const & vote_a) {
-				this->reply_action (vote_a, channel);
-				this->stats.inc (nano::stat::type::requests, nano::stat::detail::requests_generated_votes, stat::dir::in);
+				send (vote_a, channel);
+				stats.inc (nano::stat::type::requests, nano::stat::detail::requests_generated_votes, stat::dir::in);
 			});
 		}
 	}
 	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::generator_replies);
 	lock_a.lock ();
+}
+
+void nano::vote_generator::send (const std::shared_ptr<nano::vote> & vote, std::shared_ptr<nano::transport::channel> & channel)
+{
+	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send, nano::stat::dir::out);
+	nano::confirm_ack confirm{ config.network_params.network, vote };
+	channel->send (confirm);
 }
 
 void nano::vote_generator::vote (std::vector<nano::block_hash> const & hashes_a, std::vector<nano::root> const & roots_a, std::function<void (std::shared_ptr<nano::vote> const &)> const & action_a)

@@ -24,6 +24,7 @@ class node_config;
 class stat;
 class vote_generator;
 class wallets;
+
 /**
  * Pools together confirmation requests, separately for each endpoint.
  * Requests are added from network messages, and aggregated to minimize bandwidth and vote generation. Example:
@@ -53,11 +54,6 @@ class request_aggregator final
 		std::chrono::steady_clock::time_point deadline;
 	};
 
-	// clang-format off
-	class tag_endpoint {};
-	class tag_deadline {};
-	// clang-format on
-
 public:
 	request_aggregator (nano::node_config const & config, nano::stat & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
 
@@ -78,9 +74,13 @@ private:
 	/** Remove duplicate requests **/
 	void erase_duplicates (std::vector<std::pair<nano::block_hash, nano::root>> &) const;
 	/** Aggregate \p requests_a and send cached votes to \p channel_a . Return the remaining hashes that need vote generation for each block for regular & final vote generators **/
-	std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> & channel_a) const;
-	void reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const;
+	std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> & channel_a);
+	/**
+	 * Wraps vote into `confirm_ack` message and sends it through the channel
+	 */
+	void send (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> &);
 
+private: // Dependencies
 	nano::stat & stats;
 	nano::local_vote_history & local_votes;
 	nano::ledger & ledger;
@@ -89,7 +89,11 @@ private:
 	nano::vote_generator & generator;
 	nano::vote_generator & final_generator;
 
+private:
 	// clang-format off
+	class tag_endpoint {};
+	class tag_deadline {};
+
 	boost::multi_index_container<channel_pool,
 	mi::indexed_by<
 		mi::hashed_unique<mi::tag<tag_endpoint>,
