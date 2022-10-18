@@ -1645,7 +1645,7 @@ void nano::asc_pull_req::serialize (nano::stream & stream) const
 {
 	header.serialize (stream);
 	nano::write (stream, type);
-	nano::write (stream, id);
+	nano::write (stream, boost::endian::native_to_big (id));
 	nano::write (stream, start);
 }
 
@@ -1657,6 +1657,7 @@ bool nano::asc_pull_req::deserialize (nano::stream & stream)
 	{
 		nano::read (stream, type);
 		nano::read (stream, id);
+		boost::endian::big_to_native_inplace (id);
 		nano::read (stream, start);
 	}
 	catch (std::runtime_error const &)
@@ -1680,10 +1681,6 @@ nano::asc_pull_ack::asc_pull_ack (bool & error, nano::stream & stream, const nan
 	message (header)
 {
 	error = deserialize (stream);
-	if (!error)
-	{
-		update_header ();
-	}
 }
 
 void nano::asc_pull_ack::visit (nano::message_visitor & visitor) const
@@ -1696,7 +1693,7 @@ void nano::asc_pull_ack::serialize (nano::stream & stream) const
 	debug_assert (header.extensions.to_ulong () > 0); // Block payload must have least `not_a_block` terminator
 	header.serialize (stream);
 	nano::write (stream, type);
-	nano::write (stream, id);
+	nano::write (stream, boost::endian::native_to_big (id));
 	serialize_blocks (stream);
 }
 
@@ -1743,6 +1740,7 @@ bool nano::asc_pull_ack::deserialize (nano::stream & stream)
 	{
 		nano::read (stream, type);
 		nano::read (stream, id);
+		boost::endian::big_to_native_inplace (id);
 		deserialize_blocks (stream);
 	}
 	catch (std::runtime_error const &)
