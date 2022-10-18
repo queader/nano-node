@@ -168,6 +168,15 @@ void nano::election::broadcast_block (nano::confirmation_solicitor & solicitor_a
 	}
 }
 
+void nano::election::periodic_broadcast_vote ()
+{
+	if (std::chrono::seconds (vote_generation_interval) < std::chrono::steady_clock::now () - last_vote)
+	{
+		// `last_vote` time is updated inside `generate_votes()`
+		generate_votes ();
+	}
+}
+
 bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a)
 {
 	bool result = false;
@@ -180,6 +189,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			}
 			break;
 		case nano::election::state_t::active:
+			periodic_broadcast_vote ();
 			broadcast_block (solicitor_a);
 			send_confirm_req (solicitor_a);
 			break;
@@ -476,7 +486,7 @@ std::shared_ptr<nano::block> nano::election::winner () const
 	return status.winner;
 }
 
-void nano::election::generate_votes () const
+void nano::election::generate_votes ()
 {
 	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 	{
@@ -492,6 +502,8 @@ void nano::election::generate_votes () const
 		{
 			node.generator.add (root, status.winner->hash ());
 		}
+
+		last_vote = std::chrono::steady_clock::now ();
 	}
 }
 
