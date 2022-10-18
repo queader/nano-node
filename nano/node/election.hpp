@@ -140,8 +140,11 @@ private:
 	 * Checks if sufficient amount of time (`vote_generation_interval`) passed since last vote generation and generates vote for this election
 	 */
 	void periodic_broadcast_vote ();
-	// Calculate votes for local representatives
-	void generate_votes ();
+	/**
+	 * Generates vote for current election winner
+	 * Generates final vote if already confirmed or reached quorum
+	 */
+	void generate_vote ();
 	void remove_votes (nano::block_hash const &);
 	void remove_block (nano::block_hash const &);
 	bool replace_by_weight (nano::unique_lock<nano::mutex> & lock_a, nano::block_hash const &);
