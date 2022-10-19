@@ -30,9 +30,10 @@ nano::election::election (nano::node & node_a, std::shared_ptr<nano::block> cons
 {
 	last_votes.emplace (nano::account::null (), nano::vote_info{ std::chrono::steady_clock::now (), 0, block_a->hash () });
 	last_blocks.emplace (block_a->hash (), block_a);
+
 	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 	{
-		node.generator.add (root, block_a->hash ());
+		node.generator.broadcast (root, block_a->hash ());
 	}
 }
 
@@ -329,7 +330,7 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 		{
 			auto hash = status.winner->hash ();
 			lock_a.unlock ();
-			node.final_generator.add (root, hash);
+			node.final_generator.broadcast (root, hash);
 			lock_a.lock ();
 		}
 		if (!node.ledger.cache.final_votes_confirmation_canary.load () || final_weight >= node.online_reps.delta ())
@@ -493,11 +494,11 @@ void nano::election::generate_vote ()
 		nano::unique_lock<nano::mutex> lock (mutex);
 		if (confirmed () || have_quorum (tally_impl ()))
 		{
-			node.final_generator.add (root, status.winner->hash ());
+			node.final_generator.broadcast (root, status.winner->hash ());
 		}
 		else
 		{
-			node.generator.add (root, status.winner->hash ());
+			node.generator.broadcast (root, status.winner->hash ());
 		}
 
 		last_vote = std::chrono::steady_clock::now ();

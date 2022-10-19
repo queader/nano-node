@@ -43,21 +43,26 @@ class vote_spacing final
 		nano::block_hash hash;
 	};
 
+	// clang-format off
 	boost::multi_index_container<entry,
-	mi::indexed_by<
-	mi::hashed_non_unique<mi::tag<class tag_root>,
-	mi::member<entry, nano::root, &entry::root>>,
-	mi::ordered_non_unique<mi::tag<class tag_time>,
-	mi::member<entry, std::chrono::steady_clock::time_point, &entry::time>>>>
+		mi::indexed_by<
+			mi::hashed_non_unique<mi::tag<class tag_root>,
+				mi::member<entry, nano::root, &entry::root>>,
+			mi::ordered_non_unique<mi::tag<class tag_time>,
+				mi::member<entry, std::chrono::steady_clock::time_point, &entry::time>>
+	>>
 	recent;
+	// clang-format on
+
 	std::chrono::milliseconds const delay;
 	void trim ();
 
 public:
-	vote_spacing (std::chrono::milliseconds const & delay) :
+	explicit vote_spacing (std::chrono::milliseconds const & delay) :
 		delay{ delay }
 	{
 	}
+
 	bool votable (nano::root const & root_a, nano::block_hash const & hash_a) const;
 	void flag (nano::root const & root_a, nano::block_hash const & hash_a);
 	std::size_t size () const;
@@ -80,10 +85,11 @@ class local_vote_history final
 	};
 
 public:
-	local_vote_history (nano::voting_constants const & constants) :
+	explicit local_vote_history (nano::voting_constants const & constants) :
 		constants{ constants }
 	{
 	}
+
 	void add (nano::root const & root_a, nano::block_hash const & hash_a, std::shared_ptr<nano::vote> const & vote_a);
 	void erase (nano::root const & root_a);
 
@@ -114,67 +120,118 @@ private:
 
 std::unique_ptr<container_info_component> collect_container_info (local_vote_history & history, std::string const & name);
 
+/**
+ * There are two types of vote generation requests:
+ * - broadcast requests: requested by active elections; vote contains a single hash - current election winner
+ * - reply requests: requested by 'confirm_req' messages; vote can contain up to `nano::network::confirm_ack_hashes_max` hashes
+ */
 class vote_generator final
 {
 private:
 	using candidate_t = std::pair<nano::root, nano::block_hash>;
-	using request_t = std::pair<std::vector<candidate_t>, std::shared_ptr<nano::transport::channel>>;
-	using queue_entry_t = std::pair<nano::root, nano::block_hash>;
+	using reply_request_t = std::pair<std::vector<candidate_t>, std::shared_ptr<nano::transport::channel>>;
+	using broadcast_request_t = std::pair<nano::root, nano::block_hash>;
 
 public:
-	vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a, bool is_final_a);
+	vote_generator (nano::node_config const &, nano::ledger &, nano::store &, nano::wallets &, nano::vote_processor &, nano::local_vote_history &, nano::network &, nano::stat &, bool is_final);
 	~vote_generator ();
-
-	/** Queue items for vote generation, or broadcast votes already in cache */
-	void add (nano::root const &, nano::block_hash const &);
-	/** Queue blocks for vote generation, returning the number of successful candidates.*/
-	std::size_t generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::transport::channel> const & channel_a);
 
 	void start ();
 	void stop ();
 
+	/**
+	 * Queue items for vote generation and broadcasting, or broadcast votes already in cache
+	 * Used by active elections to generate votes for current election winner
+	 */
+	void broadcast (nano::root const &, nano::block_hash const &);
+
+	/**
+	 * Queue candidates (<block root, block hash> pairs) for vote generation in response to `confirm_req` requests
+	 * Replies with up to `nano::network::confirm_ack_hashes_max` hashes in single vote
+	 * NOTE: It is responsibility of client to batch multiple vote requests in a single `confirm_req` message
+	 * We do not do batching server side to minimize latency and needed preprocessing
+	 */
+	void reply (std::vector<std::pair<nano::root, nano::block_hash>> const & candidates, std::shared_ptr<nano::transport::channel> const &);
+
 private:
 	void run ();
-	void broadcast (nano::unique_lock<nano::mutex> &);
-	void reply (nano::unique_lock<nano::mutex> &, request_t &&);
-	void vote (std::vector<nano::block_hash> const &, std::vector<nano::root> const &, std::function<void (std::shared_ptr<nano::vote> const &)> const &);
-	void broadcast_action (std::shared_ptr<nano::vote> const &) const;
-	void process_batch (std::deque<queue_entry_t> & batch);
+	void run_broadcast (nano::unique_lock<nano::mutex> &);
+
 	/**
-	 * Check if block is eligible for vote generation, then generates a vote or broadcasts votes already in cache
-	 * @param transaction : needs `tables::final_votes` lock
+	 * Checks local vote history for already cached votes and uses those if possible
+	 * Otherwise check if vote spacing allows vote generation (for live elections) and generates a vote for each local representative
 	 */
-	void process (nano::write_transaction const &, nano::root const &, nano::block_hash const &);
+	std::vector<std::shared_ptr<nano::vote>> vote (std::deque<candidate_t> & candidates, bool check_spacing);
+	/**
+	 * Iterates through all local representatives and generates signed votes
+	 * Does not do any verifications
+	 */
+	std::vector<std::shared_ptr<nano::vote>> generate_votes (std::vector<candidate_t> const & candidates);
 	/**
 	 * Wraps vote into `confirm_ack` message and sends it through the channel
 	 */
 	void send (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> &);
+	/**
+	 * Floods network with vote for live election
+	 */
+	void send_broadcast (std::shared_ptr<nano::vote> const &) const;
+
+private: // Broadcast requests
+	/**
+	 * Process batch of broadcast requests
+	 */
+	void process_batch (std::deque<broadcast_request_t> & batch);
+	/**
+	 * Check if block is eligible for vote generation, then generates and broadcasts a new vote or broadcasts votes already in cache
+	 * @param transaction : needs `tables::final_votes` lock
+	 */
+	void process_broadcast_request (nano::write_transaction const &, nano::root const &, nano::block_hash const &);
+	/**
+	 * Checks whether we should generate a vote for a block coming from live election
+	 */
+	bool should_broadcast_vote (nano::write_transaction const &, nano::root const &, nano::block_hash const &);
+
+private: // Reply requests
+	/**
+	 * Process batch of broadcast requests
+	 */
+	void process_batch (std::deque<reply_request_t> & batch);
+	/**
+	 * Checks if candidates are eligible for vote generation and returns list of votes for those candidates
+	 */
+	std::vector<std::shared_ptr<nano::vote>> process_reply_request (nano::transaction const &, std::vector<candidate_t> const & candidates);
+	/**
+	 * Only reply to `confirm_req`s for blocks that are already cemented
+	 */
+	bool should_reply_vote (nano::transaction const &, nano::root const &, nano::block_hash const &) const;
 
 private: // Dependencies
 	nano::node_config const & config;
 	nano::ledger & ledger;
+	nano::store & store;
 	nano::wallets & wallets;
 	nano::vote_processor & vote_processor;
 	nano::local_vote_history & history;
-	nano::vote_spacing spacing;
 	nano::network & network;
 	nano::stat & stats;
 
 private:
-	processing_queue<queue_entry_t> vote_generation_queue;
+	nano::vote_spacing spacing;
+
+	nano::processing_queue<broadcast_request_t> broadcast_requests;
+	nano::processing_queue<reply_request_t> reply_requests;
 
 private:
-	const bool is_final;
 	mutable nano::mutex mutex;
 	nano::condition_variable condition;
-	static std::size_t constexpr max_requests{ 2048 };
-	std::deque<request_t> requests;
-	std::deque<candidate_t> candidates;
 	std::atomic<bool> stopped{ false };
 	std::thread thread;
 
-	friend std::unique_ptr<container_info_component> collect_container_info (vote_generator & vote_generator, std::string const & name);
-};
+	const bool is_final;
+	/* Candidates for live vote broadcasting */
+	std::deque<candidate_t> candidates_m;
 
-std::unique_ptr<container_info_component> collect_container_info (vote_generator & generator, std::string const & name);
+public: // Container info
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+};
 }

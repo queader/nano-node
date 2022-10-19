@@ -997,6 +997,15 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::generator_spacing:
 			res = "generator_spacing";
 			break;
+		case nano::stat::detail::reply:
+			res = "reply";
+			break;
+		case nano::stat::detail::empty_reply:
+			res = "empty_reply";
+			break;
+		case nano::stat::detail::send_broadcast:
+			res = "send_broadcast";
+			break;
 		case nano::stat::detail::invalid_network:
 			res = "invalid_network";
 			break;

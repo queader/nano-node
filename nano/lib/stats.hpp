@@ -437,6 +437,9 @@ public:
 		generator_replies,
 		generator_replies_discarded,
 		generator_spacing,
+		reply,
+		empty_reply,
+		send_broadcast,
 
 		// hinting
 		hinted,
