@@ -280,12 +280,15 @@ void nano::vote_generator::process_broadcast_request (nano::write_transaction co
 	{
 		if (should_broadcast_vote (transaction, root, hash))
 		{
-			nano::unique_lock<nano::mutex> lock (mutex);
-			candidates_m.emplace_back (root, hash);
-			if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
+			nano::unique_lock<nano::mutex> lock{ mutex };
+			if (candidates_m.size () < max_candidates)
 			{
-				lock.unlock ();
-				condition.notify_all ();
+				candidates_m.emplace_back (root, hash);
+				if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
+				{
+					lock.unlock ();
+					condition.notify_all ();
+				}
 			}
 		}
 	}

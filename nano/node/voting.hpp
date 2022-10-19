@@ -231,6 +231,8 @@ private:
 	/* Candidates for live vote broadcasting */
 	std::deque<candidate_t> candidates_m;
 
+	static constexpr std::size_t max_candidates = 1024 * 8;
+
 public: // Container info
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
 };
