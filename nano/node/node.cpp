@@ -173,8 +173,8 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	vote_uniquer (block_uniquer),
 	confirmation_height_processor (ledger, write_database_queue, config.conf_height_processor_batch_min_time, config.logging, logger, node_initialized_latch, flags.confirmation_height_processor_mode),
 	inactive_vote_cache{ nano::nodeconfig_to_vote_cache_config (config, flags) },
-	generator{ config, ledger, wallets, vote_processor, history, network, stats, /* non-final */ false },
-	final_generator{ config, ledger, wallets, vote_processor, history, network, stats, /* final */ true },
+	generator{ config, ledger, store, wallets, vote_processor, history, network, stats, /* non-final */ false },
+	final_generator{ config, ledger, store, wallets, vote_processor, history, network, stats, /* final */ true },
 	active (*this, confirmation_height_processor),
 	scheduler{ *this },
 	hinting{ nano::nodeconfig_to_hinted_scheduler_config (config), *this, inactive_vote_cache, active, online_reps, stats },
@@ -631,8 +631,9 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (collect_container_info (node.distributed_work, "distributed_work"));
 	composite->add_component (node.scheduler.collect_container_info ("election_scheduler"));
 	composite->add_component (node.inactive_vote_cache.collect_container_info ("inactive_vote_cache"));
-	composite->add_component (collect_container_info (node.generator, "vote_generator"));
-	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
+	composite->add_component (node.generator.collect_container_info ("vote_generator"));
+	composite->add_component (node.final_generator.collect_container_info ("vote_generator_final"));
+
 	return composite;
 }
 

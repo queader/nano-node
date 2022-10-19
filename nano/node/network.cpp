@@ -464,15 +464,20 @@ public:
 		// Don't load nodes with disabled voting
 		if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 		{
-			// TODO: Replace with vote_generator
-			//			if (message_a.block != nullptr)
-			//			{
-			//				node.aggregator.add (channel, { { message_a.block->hash (), message_a.block->root () } });
-			//			}
-			//			else if (!message_a.roots_hashes.empty ())
-			//			{
-			//				node.aggregator.add (channel, message_a.roots_hashes);
-			//			}
+			if (message_a.block != nullptr)
+			{
+				node.final_generator.reply ({ { message_a.block->root (), message_a.block->hash () } }, channel);
+			}
+			else if (!message_a.roots_hashes.empty ())
+			{
+				// Contrary to the naming, the `message.roots_hashes` is actually a <hash, root> list, vote generator expects actuall <root, hash> order
+				std::vector<std::pair<nano::root, nano::block_hash>> candidates;
+				std::transform (message_a.roots_hashes.begin (), message_a.roots_hashes.end (), std::back_inserter (candidates), [] (auto & entry) {
+					return std::make_pair (entry.second, entry.first);
+				});
+
+				node.final_generator.reply (candidates, channel);
+			}
 		}
 	}
 	void confirm_ack (nano::confirm_ack const & message_a) override
