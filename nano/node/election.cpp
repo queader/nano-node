@@ -330,7 +330,7 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 		{
 			auto hash = status.winner->hash ();
 			lock_a.unlock ();
-			node.final_generator.add (root, hash);
+			node.final_generator.broadcast (root, hash);
 			lock_a.lock ();
 		}
 		if (!node.ledger.cache.final_votes_confirmation_canary.load () || final_weight >= node.online_reps.delta ())
@@ -498,12 +498,12 @@ void nano::election::broadcast_vote_impl ()
 		if (confirmed () || have_quorum (tally_impl ()))
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_final);
-			node.final_generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
+			node.final_generator.broadcast (root, status.winner->hash ()); // Broadcasts vote to the network
 		}
 		else
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_normal);
-			node.generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
+			node.generator.broadcast (root, status.winner->hash ()); // Broadcasts vote to the network
 		}
 	}
 }
