@@ -464,14 +464,15 @@ public:
 		// Don't load nodes with disabled voting
 		if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 		{
-			if (message_a.block != nullptr)
-			{
-				node.aggregator.add (channel, { { message_a.block->hash (), message_a.block->root () } });
-			}
-			else if (!message_a.roots_hashes.empty ())
-			{
-				node.aggregator.add (channel, message_a.roots_hashes);
-			}
+			// TODO: Replace with vote_generator
+			//			if (message_a.block != nullptr)
+			//			{
+			//				node.aggregator.add (channel, { { message_a.block->hash (), message_a.block->root () } });
+			//			}
+			//			else if (!message_a.roots_hashes.empty ())
+			//			{
+			//				node.aggregator.add (channel, message_a.roots_hashes);
+			//			}
 		}
 	}
 	void confirm_ack (nano::confirm_ack const & message_a) override
