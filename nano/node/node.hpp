@@ -23,7 +23,6 @@
 #include <nano/node/online_reps.hpp>
 #include <nano/node/portmapping.hpp>
 #include <nano/node/repcrawler.hpp>
-#include <nano/node/request_aggregator.hpp>
 #include <nano/node/signatures.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/transport/tcp_server.hpp>
@@ -183,7 +182,6 @@ public:
 	nano::active_transactions active;
 	nano::election_scheduler scheduler;
 	nano::hinted_scheduler hinting;
-	nano::request_aggregator aggregator;
 	nano::wallets wallets;
 	nano::backlog_population backlog;
 
