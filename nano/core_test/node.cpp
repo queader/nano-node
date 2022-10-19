@@ -2284,7 +2284,7 @@ TEST (node, local_votes_cache)
 	}
 	for (int i = 0; i < 4; ++i)
 	{
-		ASSERT_NO_ERROR (system.poll (node.aggregator.max_delay));
+		ASSERT_NO_ERROR (system.poll (1s));
 	}
 	// Make sure a new vote was not generated
 	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 2);
@@ -2300,7 +2300,7 @@ TEST (node, local_votes_cache)
 	}
 	for (int i = 0; i < 4; ++i)
 	{
-		ASSERT_NO_ERROR (system.poll (node.aggregator.max_delay));
+		ASSERT_NO_ERROR (system.poll (1s));
 	}
 	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 3);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
@@ -2586,7 +2586,7 @@ TEST (node, vote_by_hash_bundle)
 
 	for (auto const & block : blocks)
 	{
-		system.nodes[0]->generator.add (block->root (), block->hash ());
+		system.nodes[0]->generator.broadcast (block->root (), block->hash ());
 	}
 
 	// Verify that bundling occurs. While reaching 12 should be common on most hardware in release mode,
@@ -3623,7 +3623,7 @@ TEST (node, rollback_vote_self)
 		ASSERT_TRUE (node.history.votes (fork->root (), fork->hash ()).empty ());
 		auto & node2 = *system.add_node ();
 		auto channel = std::make_shared<nano::transport::fake::channel> (node2);
-		node.aggregator.add (channel, { { send2->hash (), send2->root () } });
+		node.final_generator.reply ({ { send2->root (), send2->hash () } }, channel);
 		ASSERT_TIMELY (5s, !node.history.votes (fork->root (), fork->hash ()).empty ());
 		ASSERT_TRUE (node.history.votes (send2->root (), send2->hash ()).empty ());
 
