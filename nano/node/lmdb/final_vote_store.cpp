@@ -5,7 +5,7 @@
 nano::lmdb::final_vote_store::final_vote_store (nano::lmdb::store & store) :
 	store{ store } {};
 
-bool nano::lmdb::final_vote_store::put (nano::write_transaction const & transaction, nano::qualified_root const & root, nano::block_hash const & hash)
+bool nano::lmdb::final_vote_store::check_and_put (nano::write_transaction const & transaction, nano::qualified_root const & root, nano::block_hash const & hash)
 {
 	nano::mdb_val value;
 	auto status = store.get (transaction, tables::final_votes, root, value);

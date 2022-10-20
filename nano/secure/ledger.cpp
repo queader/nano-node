@@ -1556,7 +1556,7 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (boost::filesystem::path const & data
 			for (; i != n; ++i)
 			{
 				auto rocksdb_transaction (rocksdb_store->tx_begin_write ({}, { nano::tables::final_votes }));
-				rocksdb_store->final_vote.put (rocksdb_transaction, i->first, i->second);
+				rocksdb_store->final_vote.check_and_put (rocksdb_transaction, i->first, i->second);
 			}
 		});
 
