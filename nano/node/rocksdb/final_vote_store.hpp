@@ -14,7 +14,7 @@ namespace rocksdb
 
 	public:
 		explicit final_vote_store (nano::rocksdb::store & store);
-		bool put (nano::write_transaction const & transaction_a, nano::qualified_root const & root_a, nano::block_hash const & hash_a) override;
+		bool check_and_put (nano::write_transaction const & transaction_a, nano::qualified_root const & root_a, nano::block_hash const & hash_a) override;
 		std::vector<nano::block_hash> get (nano::transaction const & transaction_a, nano::root const & root_a) override;
 		void del (nano::write_transaction const & transaction_a, nano::root const & root_a) override;
 		size_t count (nano::transaction const & transaction_a) const override;

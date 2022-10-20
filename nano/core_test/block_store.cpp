@@ -2538,11 +2538,11 @@ TEST (block_store, final_vote)
 	{
 		auto qualified_root = nano::dev::genesis->qualified_root ();
 		auto transaction (store->tx_begin_write ());
-		store->final_vote.put (transaction, qualified_root, nano::block_hash (2));
+		store->final_vote.check_and_put (transaction, qualified_root, nano::block_hash (2));
 		ASSERT_EQ (store->final_vote.count (transaction), 1);
 		store->final_vote.clear (transaction);
 		ASSERT_EQ (store->final_vote.count (transaction), 0);
-		store->final_vote.put (transaction, qualified_root, nano::block_hash (2));
+		store->final_vote.check_and_put (transaction, qualified_root, nano::block_hash (2));
 		ASSERT_EQ (store->final_vote.count (transaction), 1);
 		// Clearing with incorrect root shouldn't remove
 		store->final_vote.clear (transaction, qualified_root.previous ());

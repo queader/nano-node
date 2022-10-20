@@ -5576,7 +5576,7 @@ TEST (ledger, migrate_lmdb_to_rocksdb)
 		store.version.put (transaction, version);
 		send->sideband_set ({});
 		store.block.put (transaction, send->hash (), *send);
-		store.final_vote.put (transaction, send->qualified_root (), nano::block_hash (2));
+		store.final_vote.check_and_put (transaction, send->qualified_root (), nano::block_hash (2));
 	}
 
 	auto error = ledger.migrate_lmdb_to_rocksdb (path);

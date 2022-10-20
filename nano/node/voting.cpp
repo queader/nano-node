@@ -309,18 +309,8 @@ bool nano::vote_generator::should_broadcast_vote (const nano::write_transaction 
 		// Allow generation of final votes for active elections only when dependent blocks are already confirmed and final votes database contains current hash
 		if (ledger.dependents_confirmed (transaction, *block))
 		{
-			// Do not allow vote if hash stored in final vote table does not match
-			auto final_hashes = store.final_vote.get (transaction, root);
-			debug_assert (final_hashes.size () <= 1);
-			for (auto & final_hash : final_hashes)
-			{
-				if (final_hash != hash)
-				{
-					return false;
-				}
-			}
-
-			if (store.final_vote.put (transaction, block->qualified_root (), hash))
+			// `final_vote.check_and_put` will return false if there is an existing hash for block root, and it does not match our `hash`
+			if (store.final_vote.check_and_put (transaction, block->qualified_root (), hash))
 			{
 				return true;
 			}
