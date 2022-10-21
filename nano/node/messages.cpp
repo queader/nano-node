@@ -715,13 +715,12 @@ bool nano::keepalive::operator== (nano::keepalive const & other_a) const
 std::string nano::keepalive::to_string () const
 {
 	std::stringstream stream;
-
 	stream << header.to_string ();
 
-	for (auto peer = peers.begin (); peer != peers.end (); ++peer)
+	for (auto const & peer : peers)
 	{
 		stream << "\n"
-			   << peer->address ().to_string () + ":" + std::to_string (peer->port ());
+			   << peer.address ().to_string () + ":" + std::to_string (peer.port ());
 	}
 
 	return stream.str ();
