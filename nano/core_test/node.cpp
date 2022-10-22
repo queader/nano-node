@@ -2274,38 +2274,33 @@ TEST (node, local_votes_cache)
 	nano::confirm_req message2{ nano::dev::network_params.network, send2 };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (message1, channel);
-	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 1);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 1);
 	node.network.inbound (message2, channel);
-	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
 	for (auto i (0); i < 100; ++i)
 	{
 		node.network.inbound (message1, channel);
 		node.network.inbound (message2, channel);
 	}
-	for (int i = 0; i < 4; ++i)
-	{
-		ASSERT_NO_ERROR (system.poll (1s));
-	}
+	WAIT (1s);
 	// Make sure a new vote was not generated
-	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
 	// Max cache
 	{
 		auto transaction (node.store.tx_begin_write ());
 		ASSERT_EQ (nano::process_result::progress, node.ledger.process (transaction, *send3).code);
 	}
+	// send3 is not confirmed, expect no vote will be generated
 	nano::confirm_req message3{ nano::dev::network_params.network, send3 };
 	for (auto i (0); i < 100; ++i)
 	{
 		node.network.inbound (message3, channel);
 	}
-	for (int i = 0; i < 4; ++i)
-	{
-		ASSERT_NO_ERROR (system.poll (1s));
-	}
-	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 3);
+	WAIT (1s);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
 	ASSERT_TIMELY (3s, !node.history.votes (send2->root (), send2->hash ()).empty ());
-	ASSERT_TIMELY (3s, !node.history.votes (send3->root (), send3->hash ()).empty ());
+	ASSERT_TIMELY (3s, node.history.votes (send3->root (), send3->hash ()).empty ());
 }
 
 // Test disabled because it's failing intermittently.
@@ -2387,9 +2382,12 @@ TEST (node, DISABLED_local_votes_cache_batch)
 TEST (node, local_votes_cache_generate_new_vote)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
-	auto & node (*system.add_node (node_config));
+	nano::node_flags node_flags{};
+	// Genesis key is in the wallet and that will automatically start elections for that chain
+	node_flags.disable_search_pending = true;
+	auto & node (*system.add_node (node_config, node_flags));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
 	// Send a confirm req for genesis block to node
@@ -2403,27 +2401,32 @@ TEST (node, local_votes_cache_generate_new_vote)
 	ASSERT_EQ (1, votes1.size ());
 	ASSERT_EQ (1, votes1[0]->hashes.size ());
 	ASSERT_EQ (nano::dev::genesis->hash (), votes1[0]->hashes[0]);
-	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 1);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 1);
 
 	auto send1 = nano::state_block_builder ()
 				 .account (nano::dev::genesis_key.pub)
 				 .previous (nano::dev::genesis->hash ())
 				 .representative (nano::dev::genesis_key.pub)
 				 .balance (nano::dev::constants.genesis_amount - nano::Gxrb_ratio)
-				 .link (nano::dev::genesis_key.pub)
+				 .link (nano::test::random_hash ())
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*node.work_generate_blocking (nano::dev::genesis->hash ()))
 				 .build_shared ();
-	ASSERT_EQ (nano::process_result::progress, node.process (*send1).code);
+
+	ASSERT_TRUE (nano::test::process (node, { send1 }));
+	ASSERT_TRUE (nano::test::confirm (node, { send1 }));
+	ASSERT_TIMELY (5s, nano::test::confirmed (node, { send1 }));
+
 	// One of the hashes is cached
 	std::vector<std::pair<nano::block_hash, nano::root>> roots_hashes{ std::make_pair (nano::dev::genesis->hash (), nano::dev::genesis->root ()), std::make_pair (send1->hash (), send1->root ()) };
 	nano::confirm_req message2{ nano::dev::network_params.network, roots_hashes };
 	node.network.inbound (message2, channel);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
+
 	auto votes2 (node.history.votes (send1->root (), send1->hash ()));
 	ASSERT_EQ (1, votes2.size ());
 	ASSERT_EQ (1, votes2[0]->hashes.size ());
-	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
 	ASSERT_FALSE (node.history.votes (nano::dev::genesis->root (), nano::dev::genesis->hash ()).empty ());
 	ASSERT_FALSE (node.history.votes (send1->root (), send1->hash ()).empty ());
 	// First generated + again cached + new generated
