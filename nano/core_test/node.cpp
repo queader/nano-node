@@ -3623,7 +3623,7 @@ TEST (node, rollback_vote_self)
 		ASSERT_TRUE (node.history.votes (fork->root (), fork->hash ()).empty ());
 		auto & node2 = *system.add_node ();
 		auto channel = std::make_shared<nano::transport::fake::channel> (node2);
-		node.final_generator.reply ({ { send2->root (), send2->hash () } }, channel);
+		node.reply_generator.request ({ { send2->root (), send2->hash () } }, channel);
 		ASSERT_TIMELY (5s, !node.history.votes (fork->root (), fork->hash ()).empty ());
 		ASSERT_TRUE (node.history.votes (send2->root (), send2->hash ()).empty ());
 

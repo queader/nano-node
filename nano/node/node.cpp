@@ -193,8 +193,9 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	vote_uniquer (block_uniquer),
 	confirmation_height_processor (ledger, write_database_queue, config.conf_height_processor_batch_min_time, config.logging, logger, node_initialized_latch, flags.confirmation_height_processor_mode),
 	inactive_vote_cache{ nano::nodeconfig_to_vote_cache_config (config, flags) },
-	generator{ config, ledger, store, wallets, vote_processor, history, network, stats, /* non-final */ false },
-	final_generator{ config, ledger, store, wallets, vote_processor, history, network, stats, /* final */ true },
+	generator{ config, ledger, store, wallets, vote_processor, history, network, stats },
+	final_generator{ config, ledger, store, wallets, vote_processor, history, network, stats },
+	reply_generator{ config, ledger, store, wallets, vote_processor, history, network, stats },
 	active (*this, confirmation_height_processor),
 	scheduler{ *this },
 	hinting{ nano::nodeconfig_to_hinted_scheduler_config (config), *this, inactive_vote_cache, active, online_reps, stats },
@@ -767,6 +768,7 @@ void nano::node::start ()
 	active.start ();
 	generator.start ();
 	final_generator.start ();
+	reply_generator.start ();
 	backlog.start ();
 	hinting.start ();
 	bootstrap_server.start ();
@@ -788,6 +790,7 @@ void nano::node::stop ()
 		active.stop ();
 		generator.stop ();
 		final_generator.stop ();
+		reply_generator.stop ();
 		confirmation_height_processor.stop ();
 		network.stop ();
 		telemetry->stop ();
