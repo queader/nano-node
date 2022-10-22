@@ -276,6 +276,117 @@ std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::generate_votes (con
 }
 
 /*
+ * broadcast_voter
+ */
+
+nano::broadcast_voter::broadcast_voter (nano::wallet_voter & voter_a, nano::network & network_a, nano::vote_processor & vote_processor_a, nano::stat & stats_a, std::chrono::milliseconds max_delay_a) :
+	voter{ voter_a },
+	network{ network_a },
+	vote_processor{ vote_processor_a },
+	stats{ stats_a },
+	max_delay{ max_delay_a }
+{
+}
+
+nano::broadcast_voter::~broadcast_voter ()
+{
+	// Thread should be stopped before destruction
+	debug_assert (!thread.joinable ());
+}
+
+void nano::broadcast_voter::start ()
+{
+	debug_assert (!thread.joinable ());
+	thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::voting);
+		run ();
+	});
+}
+
+void nano::broadcast_voter::stop ()
+{
+	stopped = true;
+	condition.notify_all ();
+
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
+}
+
+void nano::broadcast_voter::submit (nano::root root, nano::block_hash hash)
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	if (candidates_m.size () < max_candidates)
+	{
+		candidates_m.emplace_back (root, hash);
+
+		// Wake up thread if enough candidates to fully fill one vote
+		if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
+		{
+			lock.unlock ();
+			condition.notify_all ();
+		}
+	}
+}
+
+void nano::broadcast_voter::run ()
+{
+	std::chrono::steady_clock::time_point last_broadcast{};
+
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		// Wait until candidates reaches max number of entries in a single vote or deadline expires
+		if (candidates_m.size () >= nano::network::confirm_ack_hashes_max || (last_broadcast + max_delay < std::chrono::steady_clock::now ()))
+		{
+			run_broadcast (lock);
+			last_broadcast = std::chrono::steady_clock::now ();
+		}
+		else
+		{
+			condition.wait_for (lock, max_delay / 2, [this] () {
+				return candidates_m.size () >= nano::network::confirm_ack_hashes_max;
+			});
+		}
+	}
+}
+
+void nano::broadcast_voter::run_broadcast (nano::unique_lock<nano::mutex> & lock)
+{
+	debug_assert (lock.owns_lock ());
+
+	// Candidates are verified inside `process_broadcast_request`
+	// This pops up to `nano::network::confirm_ack_hashes_max` candidates
+	auto votes = voter.vote (candidates_m);
+
+	lock.unlock ();
+	for (auto & vote : votes)
+	{
+		send_broadcast (vote);
+	}
+	lock.lock ();
+}
+
+void nano::broadcast_voter::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
+{
+	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out);
+
+	network.flood_vote_pr (vote_a);
+	network.flood_vote (vote_a, 2.0f);
+	vote_processor.vote (vote_a, std::make_shared<nano::transport::inproc::channel> (network.node, network.node));
+}
+
+std::unique_ptr<nano::container_info_component> nano::broadcast_voter::collect_container_info (std::string const & name)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "candidates", candidates_m.size (), sizeof (decltype (candidates_m)::value_type) }));
+	return composite;
+}
+
+/*
  * normal_vote_generator
  */
 
@@ -290,6 +401,7 @@ nano::normal_vote_generator::normal_vote_generator (nano::node_config const & co
 	stats{ stats_a },
 	spacing{ config.network_params.voting.delay },
 	voter{ wallets, spacing, history, stats, is_final },
+	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay },
 	broadcast_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	broadcast_requests.process_batch = [this] (auto & batch) {
@@ -304,26 +416,14 @@ nano::normal_vote_generator::~normal_vote_generator ()
 
 void nano::normal_vote_generator::start ()
 {
-	debug_assert (!thread.joinable ());
-	thread = std::thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::voting);
-		run ();
-	});
-
+	broadcaster.start ();
 	broadcast_requests.start ();
 }
 
 void nano::normal_vote_generator::stop ()
 {
 	broadcast_requests.stop ();
-
-	stopped = true;
-	condition.notify_all ();
-
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
+	broadcaster.stop ();
 }
 
 void nano::normal_vote_generator::broadcast (const nano::root & root, const nano::block_hash & hash)
@@ -343,29 +443,9 @@ void nano::normal_vote_generator::process_batch (std::deque<broadcast_request_t>
 
 void nano::normal_vote_generator::process (nano::transaction const & transaction, nano::root const & root, nano::block_hash const & hash)
 {
-	auto cached_votes = history.votes (root, hash, is_final);
-	if (!cached_votes.empty ())
+	if (should_vote (transaction, root, hash))
 	{
-		for (auto const & vote : cached_votes)
-		{
-			send_broadcast (vote);
-		}
-	}
-	else
-	{
-		if (should_vote (transaction, root, hash))
-		{
-			nano::unique_lock<nano::mutex> lock{ mutex };
-			if (candidates_m.size () < max_candidates)
-			{
-				candidates_m.emplace_back (root, hash);
-				if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
-				{
-					lock.unlock ();
-					condition.notify_all ();
-				}
-			}
-		}
+		broadcaster.submit (root, hash);
 	}
 }
 
@@ -387,59 +467,10 @@ bool nano::normal_vote_generator::should_vote (const nano::transaction & transac
 	return false;
 }
 
-void nano::normal_vote_generator::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
-{
-	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out);
-
-	network.flood_vote_pr (vote_a);
-	network.flood_vote (vote_a, 2.0f);
-	vote_processor.vote (vote_a, std::make_shared<nano::transport::inproc::channel> (network.node, network.node));
-}
-
-void nano::normal_vote_generator::run_broadcast (nano::unique_lock<nano::mutex> & lock)
-{
-	debug_assert (lock.owns_lock ());
-
-	// Candidates are verified inside `process_broadcast_request`
-	// This pops up to `nano::network::confirm_ack_hashes_max` candidates
-	auto votes = voter.vote (candidates_m);
-
-	lock.unlock ();
-	for (auto & vote : votes)
-	{
-		send_broadcast (vote);
-	}
-	lock.lock ();
-}
-
-void nano::normal_vote_generator::run ()
-{
-	std::chrono::steady_clock::time_point last_broadcast{};
-
-	nano::unique_lock<nano::mutex> lock (mutex);
-	while (!stopped)
-	{
-		// Wait until candidates reaches max number of entries in a single vote or deadline expires
-		if (candidates_m.size () >= nano::network::confirm_ack_hashes_max || (last_broadcast + config.vote_generator_delay < std::chrono::steady_clock::now ()))
-		{
-			run_broadcast (lock);
-			last_broadcast = std::chrono::steady_clock::now ();
-		}
-		else
-		{
-			condition.wait_for (lock, config.vote_generator_delay / 2, [this] () {
-				return candidates_m.size () >= nano::network::confirm_ack_hashes_max;
-			});
-		}
-	}
-}
-
 std::unique_ptr<nano::container_info_component> nano::normal_vote_generator::collect_container_info (std::string const & name)
 {
-	nano::lock_guard<nano::mutex> guard{ mutex };
-
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "candidates", candidates_m.size (), sizeof (decltype (candidates_m)::value_type) }));
+	composite->add_component (broadcaster.collect_container_info ("broadcaster"));
 	composite->add_component (broadcast_requests.collect_container_info ("broadcast_requests"));
 	return composite;
 }
@@ -459,6 +490,7 @@ nano::final_vote_generator::final_vote_generator (nano::node_config const & conf
 	stats{ stats_a },
 	spacing{ config.network_params.voting.delay },
 	voter{ wallets, spacing, history, stats, is_final },
+	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay },
 	broadcast_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	broadcast_requests.process_batch = [this] (auto & batch) {
@@ -473,26 +505,14 @@ nano::final_vote_generator::~final_vote_generator ()
 
 void nano::final_vote_generator::start ()
 {
-	debug_assert (!thread.joinable ());
-	thread = std::thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::voting);
-		run ();
-	});
-
+	broadcaster.start ();
 	broadcast_requests.start ();
 }
 
 void nano::final_vote_generator::stop ()
 {
 	broadcast_requests.stop ();
-
-	stopped = true;
-	condition.notify_all ();
-
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
+	broadcaster.stop ();
 }
 
 void nano::final_vote_generator::broadcast (const nano::root & root, const nano::block_hash & hash)
@@ -512,29 +532,9 @@ void nano::final_vote_generator::process_batch (std::deque<broadcast_request_t> 
 
 void nano::final_vote_generator::process (nano::write_transaction const & transaction, nano::root const & root, nano::block_hash const & hash)
 {
-	auto cached_votes = history.votes (root, hash, is_final);
-	if (!cached_votes.empty ())
+	if (should_vote (transaction, root, hash))
 	{
-		for (auto const & vote : cached_votes)
-		{
-			send_broadcast (vote);
-		}
-	}
-	else
-	{
-		if (should_vote (transaction, root, hash))
-		{
-			nano::unique_lock<nano::mutex> lock{ mutex };
-			if (candidates_m.size () < max_candidates)
-			{
-				candidates_m.emplace_back (root, hash);
-				if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
-				{
-					lock.unlock ();
-					condition.notify_all ();
-				}
-			}
-		}
+		broadcaster.submit (root, hash);
 	}
 }
 
@@ -560,59 +560,10 @@ bool nano::final_vote_generator::should_vote (const nano::write_transaction & tr
 	return false;
 }
 
-void nano::final_vote_generator::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
-{
-	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out);
-
-	network.flood_vote_pr (vote_a);
-	network.flood_vote (vote_a, 2.0f);
-	vote_processor.vote (vote_a, std::make_shared<nano::transport::inproc::channel> (network.node, network.node));
-}
-
-void nano::final_vote_generator::run_broadcast (nano::unique_lock<nano::mutex> & lock)
-{
-	debug_assert (lock.owns_lock ());
-
-	// Candidates are verified inside `process_broadcast_request`
-	// This pops up to `nano::network::confirm_ack_hashes_max` candidates
-	auto votes = voter.vote (candidates_m);
-
-	lock.unlock ();
-	for (auto & vote : votes)
-	{
-		send_broadcast (vote);
-	}
-	lock.lock ();
-}
-
-void nano::final_vote_generator::run ()
-{
-	std::chrono::steady_clock::time_point last_broadcast{};
-
-	nano::unique_lock<nano::mutex> lock (mutex);
-	while (!stopped)
-	{
-		// Wait until candidates reaches max number of entries in a single vote or deadline expires
-		if (candidates_m.size () >= nano::network::confirm_ack_hashes_max || (last_broadcast + config.vote_generator_delay < std::chrono::steady_clock::now ()))
-		{
-			run_broadcast (lock);
-			last_broadcast = std::chrono::steady_clock::now ();
-		}
-		else
-		{
-			condition.wait_for (lock, config.vote_generator_delay / 2, [this] () {
-				return candidates_m.size () >= nano::network::confirm_ack_hashes_max;
-			});
-		}
-	}
-}
-
 std::unique_ptr<nano::container_info_component> nano::final_vote_generator::collect_container_info (std::string const & name)
 {
-	nano::lock_guard<nano::mutex> guard{ mutex };
-
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "candidates", candidates_m.size (), sizeof (decltype (candidates_m)::value_type) }));
+	composite->add_component (broadcaster.collect_container_info ("broadcaster"));
 	composite->add_component (broadcast_requests.collect_container_info ("broadcast_requests"));
 	return composite;
 }
