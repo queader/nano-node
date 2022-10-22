@@ -539,8 +539,14 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::telemetry:
 			res = "telemetry";
 			break;
-		case nano::stat::type::vote_generator:
-			res = "vote_generator";
+		case nano::stat::type::normal_vote_generator:
+			res = "normal_vote_generator";
+			break;
+		case nano::stat::type::final_vote_generator:
+			res = "final_vote_generator";
+			break;
+		case nano::stat::type::reply_vote_generator:
+			res = "reply_vote_generator";
 			break;
 		case nano::stat::type::vote_cache:
 			res = "vote_cache";
@@ -571,6 +577,11 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::loop:
 			res = "loop";
+		case nano::stat::detail::channel_full:
+			res = "channel_full";
+			break;
+		case nano::stat::detail::drop:
+			res = "drop";
 			break;
 		case nano::stat::detail::queue:
 			res = "queue";
@@ -1018,6 +1029,24 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::invalid_network:
 			res = "invalid_network";
 			break;
+		case nano::stat::detail::non_votable:
+			res = "non_votable";
+			break;
+		case nano::stat::detail::generated_hashes:
+			res = "generated_hashes";
+			break;
+		case nano::stat::detail::cached_hashes:
+			res = "cached_hashes";
+			break;
+		case nano::stat::detail::generated_votes:
+			res = "generated_votes";
+			break;
+		case nano::stat::detail::candidates:
+			res = "candidates";
+			break;
+		case nano::stat::detail::valid_candidates:
+			res = "valid_candidates";
+			break;
 		case nano::stat::detail::hinted:
 			res = "hinted";
 			break;
@@ -1039,9 +1068,6 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::blocks:
 			res = "blocks";
 			break;
-		case nano::stat::detail::drop:
-			res = "drop";
-			break;
 		case nano::stat::detail::bad_count:
 			res = "bad_count";
 			break;
@@ -1050,9 +1076,6 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::response_account_info:
 			res = "response_account_info";
-			break;
-		case nano::stat::detail::channel_full:
-			res = "channel_full";
 			break;
 	}
 	return res;

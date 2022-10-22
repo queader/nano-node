@@ -135,7 +135,7 @@ public:
 	using candidate_t = std::pair<nano::root, nano::block_hash>;
 
 public:
-	wallet_voter (nano::wallets &, nano::vote_spacing &, nano::local_vote_history &, nano::stat &, bool is_final);
+	wallet_voter (nano::wallets &, nano::vote_spacing &, nano::local_vote_history &, nano::stat &, bool is_final, nano::stat::type);
 
 	/**
 	 * Checks local vote history for already cached votes and uses those if possible
@@ -155,7 +155,8 @@ private: // Dependencies
 	nano::stat & stats;
 
 private:
-	const bool is_final = false;
+	const bool is_final;
+	const nano::stat::type stat_type;
 };
 
 /**
@@ -167,7 +168,7 @@ public:
 	using candidate_t = std::pair<nano::root, nano::block_hash>;
 
 public:
-	broadcast_voter (nano::wallet_voter &, nano::network &, nano::vote_processor &, nano::stat &, std::chrono::milliseconds max_delay);
+	broadcast_voter (nano::wallet_voter &, nano::network &, nano::vote_processor &, nano::stat &, std::chrono::milliseconds max_delay, nano::stat::type);
 	~broadcast_voter ();
 
 	void start ();
@@ -194,6 +195,7 @@ private: // Dependencies
 
 private:
 	const std::chrono::milliseconds max_delay;
+	const nano::stat::type stat_type;
 
 	mutable nano::mutex mutex;
 	nano::condition_variable condition;
