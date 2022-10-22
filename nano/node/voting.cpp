@@ -177,227 +177,19 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (na
 }
 
 /*
- * vote_generator
+ * wallet_voter
  */
 
-nano::vote_generator::vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::store & store_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a, bool is_final_a) :
-	config{ config_a },
-	ledger{ ledger_a },
-	store{ store_a },
+nano::wallet_voter::wallet_voter (nano::wallets & wallets_a, nano::vote_spacing & spacing_a, nano::local_vote_history & history_a, nano::stat & stats_a, bool is_final_a) :
 	wallets{ wallets_a },
-	vote_processor{ vote_processor_a },
+	spacing{ spacing_a },
 	history{ history_a },
-	spacing{ config_a.network_params.voting.delay },
-	network{ network_a },
 	stats{ stats_a },
-	is_final{ is_final_a },
-	broadcast_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 },
-	reply_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+	is_final{ is_final_a }
 {
-	broadcast_requests.process_batch = [this] (auto & batch) {
-		process_batch (batch);
-	};
-
-	reply_requests.process_batch = [this] (auto & batch) {
-		process_batch (batch);
-	};
 }
 
-nano::vote_generator::~vote_generator ()
-{
-	stop ();
-}
-
-void nano::vote_generator::start ()
-{
-	debug_assert (!thread.joinable ());
-	thread = std::thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::voting);
-		run ();
-	});
-
-	broadcast_requests.start ();
-	reply_requests.start ();
-}
-
-void nano::vote_generator::stop ()
-{
-	broadcast_requests.stop ();
-	reply_requests.stop ();
-
-	stopped = true;
-	condition.notify_all ();
-
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
-}
-
-void nano::vote_generator::broadcast (const nano::root & root, const nano::block_hash & hash)
-{
-	broadcast_requests.add (std::make_pair (root, hash));
-}
-
-void nano::vote_generator::reply (const std::vector<std::pair<nano::root, nano::block_hash>> & candidates, const std::shared_ptr<nano::transport::channel> & channel)
-{
-	// If channel is full our response will be dropped anyway, so filter that early
-	if (!channel->max ())
-	{
-		reply_requests.add (std::make_pair (candidates, channel));
-	}
-	else
-	{
-		// TODO: Stats
-	}
-}
-
-/*
- * broadcast requests
- */
-
-void nano::vote_generator::process_batch (std::deque<broadcast_request_t> & batch)
-{
-	auto transaction = ledger.store.tx_begin_write ({ tables::final_votes });
-
-	for (auto & [root, hash] : batch)
-	{
-		process_broadcast_request (transaction, root, hash);
-	}
-}
-
-void nano::vote_generator::process_broadcast_request (nano::write_transaction const & transaction, nano::root const & root, nano::block_hash const & hash)
-{
-	auto cached_votes = history.votes (root, hash, is_final);
-	if (!cached_votes.empty ())
-	{
-		for (auto const & vote : cached_votes)
-		{
-			send_broadcast (vote);
-		}
-	}
-	else
-	{
-		if (should_broadcast_vote (transaction, root, hash))
-		{
-			nano::unique_lock<nano::mutex> lock{ mutex };
-			if (candidates_m.size () < max_candidates)
-			{
-				candidates_m.emplace_back (root, hash);
-				if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
-				{
-					lock.unlock ();
-					condition.notify_all ();
-				}
-			}
-		}
-	}
-}
-
-bool nano::vote_generator::should_broadcast_vote (const nano::write_transaction & transaction, const nano::root & root, const nano::block_hash & hash)
-{
-	auto block = store.block.get (transaction, hash);
-	if (block == nullptr)
-	{
-		return false;
-	}
-	debug_assert (block);
-	debug_assert (block->root () == root);
-
-	if (is_final)
-	{
-		// Allow generation of final votes for active elections only when dependent blocks are already confirmed and final votes database contains current hash
-		if (ledger.dependents_confirmed (transaction, *block))
-		{
-			// `final_vote.check_and_put` will return false if there is an existing hash for block root, and it does not match our `hash`
-			if (store.final_vote.check_and_put (transaction, block->qualified_root (), hash))
-			{
-				return true;
-			}
-		}
-	}
-	else
-	{
-		// Allow generation of non-final votes for active elections only when dependent blocks are already confirmed
-		if (ledger.dependents_confirmed (transaction, *block))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-/*
- * reply requests
- */
-
-void nano::vote_generator::process_batch (std::deque<reply_request_t> & batch)
-{
-	auto transaction = store.tx_begin_read ();
-
-	for (auto & [candidates, channel] : batch)
-	{
-		if (!channel->max ())
-		{
-			auto votes = process_reply_request (transaction, candidates);
-			if (!votes.empty ())
-			{
-				stats.inc (nano::stat::type::vote_generator, nano::stat::detail::reply);
-
-				for (auto & vote : votes)
-				{
-					send (vote, channel);
-				}
-			}
-			else
-			{
-				stats.inc (nano::stat::type::vote_generator, nano::stat::detail::empty_reply);
-			}
-		}
-		else
-		{
-			// TODO: Stats
-		}
-	}
-}
-
-std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::process_reply_request (const nano::transaction & transaction, const std::vector<candidate_t> & candidates)
-{
-	std::deque<candidate_t> valid_candidates;
-	for (auto & candidate : candidates)
-	{
-		// Limit number of votes in a single reply
-		if (valid_candidates.size () >= nano::network::confirm_ack_hashes_max)
-		{
-			break;
-		}
-
-		auto & [root, hash] = candidate;
-		if (should_reply_vote (transaction, root, hash))
-		{
-			valid_candidates.emplace_back (candidate);
-		}
-		else
-		{
-			// TODO: Stats
-		}
-	}
-
-	auto votes = vote (valid_candidates, /* do not check spacing for already cemented blocks */ false);
-	// TODO: Stats
-	return votes;
-}
-
-bool nano::vote_generator::should_reply_vote (const nano::transaction & transaction, const nano::root & root, const nano::block_hash & hash) const
-{
-	if (ledger.block_confirmed (transaction, hash))
-	{
-		return true;
-	}
-	return false;
-}
-
-std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::vote (std::deque<candidate_t> & candidates, bool check_spacing)
+std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::vote (std::deque<candidate_t> & candidates)
 {
 	std::unordered_set<std::shared_ptr<nano::vote>> cached_votes;
 
@@ -421,23 +213,15 @@ std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::vote (std::deque<
 		}
 		else
 		{
-			if (check_spacing)
+			// Check vote spacing for live votes
+			if (spacing.votable (root, hash))
 			{
-				// Check vote spacing for live votes
-				if (spacing.votable (root, hash))
-				{
-					spacing.flag (root, hash);
-					valid_candidates.push_back (candidate);
-				}
-				else
-				{
-					stats.inc (nano::stat::type::vote_generator, nano::stat::detail::generator_spacing);
-				}
+				spacing.flag (root, hash);
+				valid_candidates.push_back (candidate);
 			}
 			else
 			{
-				// Vote replies for already cemented blocks do not use vote spacing
-				valid_candidates.push_back (candidate);
+				stats.inc (nano::stat::type::vote_generator, nano::stat::detail::generator_spacing);
 			}
 		}
 	}
@@ -454,7 +238,7 @@ std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::vote (std::deque<
 	return votes;
 }
 
-std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::generate_votes (const std::vector<candidate_t> & candidates)
+std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::generate_votes (const std::vector<candidate_t> & candidates)
 {
 	debug_assert (candidates.size () <= nano::network::confirm_ack_hashes_max);
 	if (candidates.empty ())
@@ -471,10 +255,10 @@ std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::generate_votes (c
 	// Each local representative generates a single vote
 	std::vector<std::shared_ptr<nano::vote>> result;
 
-	wallets.foreach_representative ([this, &hashes, &result] (nano::public_key const & pub_a, nano::raw_key const & prv_a) {
-		auto timestamp = is_final ? nano::vote::timestamp_max : nano::milliseconds_since_epoch ();
-		uint8_t duration = is_final ? nano::vote::duration_max : /*8192ms*/ 0x9;
+	auto timestamp = is_final ? nano::vote::timestamp_max : nano::milliseconds_since_epoch ();
+	auto duration = is_final ? nano::vote::duration_max : /*8192ms*/ 0x9;
 
+	wallets.foreach_representative ([this, &hashes, &result, timestamp, duration] (nano::public_key const & pub_a, nano::raw_key const & prv_a) {
 		auto vote = std::make_shared<nano::vote> (pub_a, prv_a, timestamp, duration, hashes);
 		result.emplace_back (vote);
 	});
@@ -491,15 +275,119 @@ std::vector<std::shared_ptr<nano::vote>> nano::vote_generator::generate_votes (c
 	return result;
 }
 
-void nano::vote_generator::send (const std::shared_ptr<nano::vote> & vote, std::shared_ptr<nano::transport::channel> & channel)
-{
-	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send, nano::stat::dir::out);
+/*
+ * normal_vote_generator
+ */
 
-	nano::confirm_ack confirm{ config.network_params.network, vote };
-	channel->send (confirm);
+nano::normal_vote_generator::normal_vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::store & store_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a) :
+	config{ config_a },
+	ledger{ ledger_a },
+	store{ store_a },
+	wallets{ wallets_a },
+	vote_processor{ vote_processor_a },
+	history{ history_a },
+	network{ network_a },
+	stats{ stats_a },
+	spacing{ config.network_params.voting.delay },
+	voter{ wallets, spacing, history, stats, is_final },
+	broadcast_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+{
+	broadcast_requests.process_batch = [this] (auto & batch) {
+		process_batch (batch);
+	};
 }
 
-void nano::vote_generator::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
+nano::normal_vote_generator::~normal_vote_generator ()
+{
+	stop ();
+}
+
+void nano::normal_vote_generator::start ()
+{
+	debug_assert (!thread.joinable ());
+	thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::voting);
+		run ();
+	});
+
+	broadcast_requests.start ();
+}
+
+void nano::normal_vote_generator::stop ()
+{
+	broadcast_requests.stop ();
+
+	stopped = true;
+	condition.notify_all ();
+
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
+}
+
+void nano::normal_vote_generator::broadcast (const nano::root & root, const nano::block_hash & hash)
+{
+	broadcast_requests.add (std::make_pair (root, hash));
+}
+
+void nano::normal_vote_generator::process_batch (std::deque<broadcast_request_t> & batch)
+{
+	auto transaction = ledger.store.tx_begin_write ({ tables::final_votes });
+
+	for (auto & [root, hash] : batch)
+	{
+		process (transaction, root, hash);
+	}
+}
+
+void nano::normal_vote_generator::process (nano::transaction const & transaction, nano::root const & root, nano::block_hash const & hash)
+{
+	auto cached_votes = history.votes (root, hash, is_final);
+	if (!cached_votes.empty ())
+	{
+		for (auto const & vote : cached_votes)
+		{
+			send_broadcast (vote);
+		}
+	}
+	else
+	{
+		if (should_vote (transaction, root, hash))
+		{
+			nano::unique_lock<nano::mutex> lock{ mutex };
+			if (candidates_m.size () < max_candidates)
+			{
+				candidates_m.emplace_back (root, hash);
+				if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
+				{
+					lock.unlock ();
+					condition.notify_all ();
+				}
+			}
+		}
+	}
+}
+
+bool nano::normal_vote_generator::should_vote (const nano::transaction & transaction, const nano::root & root, const nano::block_hash & hash)
+{
+	auto block = store.block.get (transaction, hash);
+	if (block == nullptr)
+	{
+		return false;
+	}
+	debug_assert (block);
+	debug_assert (block->root () == root);
+
+	// Allow generation of non-final votes for active elections only when dependent blocks are already confirmed
+	if (ledger.dependents_confirmed (transaction, *block))
+	{
+		return true;
+	}
+	return false;
+}
+
+void nano::normal_vote_generator::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
 {
 	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out);
 
@@ -508,17 +396,13 @@ void nano::vote_generator::send_broadcast (std::shared_ptr<nano::vote> const & v
 	vote_processor.vote (vote_a, std::make_shared<nano::transport::inproc::channel> (network.node, network.node));
 }
 
-/*
- * main_loop
- */
-
-void nano::vote_generator::run_broadcast (nano::unique_lock<nano::mutex> & lock)
+void nano::normal_vote_generator::run_broadcast (nano::unique_lock<nano::mutex> & lock)
 {
 	debug_assert (lock.owns_lock ());
 
 	// Candidates are verified inside `process_broadcast_request`
 	// This pops up to `nano::network::confirm_ack_hashes_max` candidates
-	auto votes = vote (candidates_m, /* check spacing (requires lock) */ true);
+	auto votes = voter.vote (candidates_m);
 
 	lock.unlock ();
 	for (auto & vote : votes)
@@ -528,7 +412,7 @@ void nano::vote_generator::run_broadcast (nano::unique_lock<nano::mutex> & lock)
 	lock.lock ();
 }
 
-void nano::vote_generator::run ()
+void nano::normal_vote_generator::run ()
 {
 	std::chrono::steady_clock::time_point last_broadcast{};
 
@@ -550,15 +434,316 @@ void nano::vote_generator::run ()
 	}
 }
 
-std::unique_ptr<nano::container_info_component> nano::vote_generator::collect_container_info (std::string const & name)
+std::unique_ptr<nano::container_info_component> nano::normal_vote_generator::collect_container_info (std::string const & name)
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "candidates", candidates_m.size (), sizeof (decltype (candidates_m)::value_type) }));
-	composite->add_component (reply_requests.collect_container_info ("reply_requests"));
 	composite->add_component (broadcast_requests.collect_container_info ("broadcast_requests"));
+	return composite;
+}
 
+/*
+ * final_vote_generator
+ */
+
+nano::final_vote_generator::final_vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::store & store_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a) :
+	config{ config_a },
+	ledger{ ledger_a },
+	store{ store_a },
+	wallets{ wallets_a },
+	vote_processor{ vote_processor_a },
+	history{ history_a },
+	network{ network_a },
+	stats{ stats_a },
+	spacing{ config.network_params.voting.delay },
+	voter{ wallets, spacing, history, stats, is_final },
+	broadcast_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+{
+	broadcast_requests.process_batch = [this] (auto & batch) {
+		process_batch (batch);
+	};
+}
+
+nano::final_vote_generator::~final_vote_generator ()
+{
+	stop ();
+}
+
+void nano::final_vote_generator::start ()
+{
+	debug_assert (!thread.joinable ());
+	thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::voting);
+		run ();
+	});
+
+	broadcast_requests.start ();
+}
+
+void nano::final_vote_generator::stop ()
+{
+	broadcast_requests.stop ();
+
+	stopped = true;
+	condition.notify_all ();
+
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
+}
+
+void nano::final_vote_generator::broadcast (const nano::root & root, const nano::block_hash & hash)
+{
+	broadcast_requests.add (std::make_pair (root, hash));
+}
+
+void nano::final_vote_generator::process_batch (std::deque<broadcast_request_t> & batch)
+{
+	auto transaction = ledger.store.tx_begin_write ({ tables::final_votes });
+
+	for (auto & [root, hash] : batch)
+	{
+		process (transaction, root, hash);
+	}
+}
+
+void nano::final_vote_generator::process (nano::write_transaction const & transaction, nano::root const & root, nano::block_hash const & hash)
+{
+	auto cached_votes = history.votes (root, hash, is_final);
+	if (!cached_votes.empty ())
+	{
+		for (auto const & vote : cached_votes)
+		{
+			send_broadcast (vote);
+		}
+	}
+	else
+	{
+		if (should_vote (transaction, root, hash))
+		{
+			nano::unique_lock<nano::mutex> lock{ mutex };
+			if (candidates_m.size () < max_candidates)
+			{
+				candidates_m.emplace_back (root, hash);
+				if (candidates_m.size () >= nano::network::confirm_ack_hashes_max)
+				{
+					lock.unlock ();
+					condition.notify_all ();
+				}
+			}
+		}
+	}
+}
+
+bool nano::final_vote_generator::should_vote (const nano::write_transaction & transaction, const nano::root & root, const nano::block_hash & hash)
+{
+	auto block = store.block.get (transaction, hash);
+	if (block == nullptr)
+	{
+		return false;
+	}
+	debug_assert (block);
+	debug_assert (block->root () == root);
+
+	// Allow generation of final votes for active elections only when dependent blocks are already confirmed and final votes database contains current hash
+	if (ledger.dependents_confirmed (transaction, *block))
+	{
+		// `final_vote.check_and_put` will return false if there is an existing hash for block root, and it does not match our `hash`
+		if (store.final_vote.check_and_put (transaction, block->qualified_root (), hash))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void nano::final_vote_generator::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
+{
+	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out);
+
+	network.flood_vote_pr (vote_a);
+	network.flood_vote (vote_a, 2.0f);
+	vote_processor.vote (vote_a, std::make_shared<nano::transport::inproc::channel> (network.node, network.node));
+}
+
+void nano::final_vote_generator::run_broadcast (nano::unique_lock<nano::mutex> & lock)
+{
+	debug_assert (lock.owns_lock ());
+
+	// Candidates are verified inside `process_broadcast_request`
+	// This pops up to `nano::network::confirm_ack_hashes_max` candidates
+	auto votes = voter.vote (candidates_m);
+
+	lock.unlock ();
+	for (auto & vote : votes)
+	{
+		send_broadcast (vote);
+	}
+	lock.lock ();
+}
+
+void nano::final_vote_generator::run ()
+{
+	std::chrono::steady_clock::time_point last_broadcast{};
+
+	nano::unique_lock<nano::mutex> lock (mutex);
+	while (!stopped)
+	{
+		// Wait until candidates reaches max number of entries in a single vote or deadline expires
+		if (candidates_m.size () >= nano::network::confirm_ack_hashes_max || (last_broadcast + config.vote_generator_delay < std::chrono::steady_clock::now ()))
+		{
+			run_broadcast (lock);
+			last_broadcast = std::chrono::steady_clock::now ();
+		}
+		else
+		{
+			condition.wait_for (lock, config.vote_generator_delay / 2, [this] () {
+				return candidates_m.size () >= nano::network::confirm_ack_hashes_max;
+			});
+		}
+	}
+}
+
+std::unique_ptr<nano::container_info_component> nano::final_vote_generator::collect_container_info (std::string const & name)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "candidates", candidates_m.size (), sizeof (decltype (candidates_m)::value_type) }));
+	composite->add_component (broadcast_requests.collect_container_info ("broadcast_requests"));
+	return composite;
+}
+
+/*
+ * reply_vote_generator
+ */
+
+nano::reply_vote_generator::reply_vote_generator (nano::node_config const & config_a, nano::ledger & ledger_a, nano::store & store_a, nano::wallets & wallets_a, nano::vote_processor & vote_processor_a, nano::local_vote_history & history_a, nano::network & network_a, nano::stat & stats_a) :
+	config{ config_a },
+	ledger{ ledger_a },
+	store{ store_a },
+	wallets{ wallets_a },
+	vote_processor{ vote_processor_a },
+	history{ history_a },
+	network{ network_a },
+	stats{ stats_a },
+	spacing{ std::chrono::milliseconds (0) }, // Disable spacing
+	voter{ wallets, spacing, history, stats, is_final },
+	reply_requests{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+{
+	reply_requests.process_batch = [this] (auto & batch) {
+		process_batch (batch);
+	};
+}
+
+nano::reply_vote_generator::~reply_vote_generator ()
+{
+	reply_requests.stop ();
+}
+
+void nano::reply_vote_generator::start ()
+{
+	reply_requests.start ();
+}
+
+void nano::reply_vote_generator::stop ()
+{
+	reply_requests.stop ();
+}
+
+void nano::reply_vote_generator::request (const std::vector<std::pair<nano::root, nano::block_hash>> & candidates, const std::shared_ptr<nano::transport::channel> & channel)
+{
+	// If channel is full our response will be dropped anyway, so filter that early
+	if (!channel->max ())
+	{
+		reply_requests.add (std::make_pair (candidates, channel));
+	}
+	else
+	{
+		// TODO: Stats
+	}
+}
+
+void nano::reply_vote_generator::process_batch (std::deque<reply_request_t> & batch)
+{
+	auto transaction = store.tx_begin_read ();
+
+	for (auto & [candidates, channel] : batch)
+	{
+		if (!channel->max ())
+		{
+			auto votes = process (transaction, candidates);
+			if (!votes.empty ())
+			{
+				stats.inc (nano::stat::type::vote_generator, nano::stat::detail::reply);
+
+				for (auto & vote : votes)
+				{
+					send (vote, channel);
+				}
+			}
+			else
+			{
+				stats.inc (nano::stat::type::vote_generator, nano::stat::detail::empty_reply);
+			}
+		}
+		else
+		{
+			// TODO: Stats
+		}
+	}
+}
+
+std::vector<std::shared_ptr<nano::vote>> nano::reply_vote_generator::process (const nano::transaction & transaction, const std::vector<candidate_t> & candidates)
+{
+	std::deque<candidate_t> valid_candidates;
+	for (auto & candidate : candidates)
+	{
+		// Limit number of votes in a single reply
+		if (valid_candidates.size () >= nano::network::confirm_ack_hashes_max)
+		{
+			break;
+		}
+
+		auto & [root, hash] = candidate;
+		if (should_vote (transaction, root, hash))
+		{
+			valid_candidates.emplace_back (candidate);
+		}
+		else
+		{
+			// TODO: Stats
+		}
+	}
+
+	auto votes = voter.vote (valid_candidates);
+	// TODO: Stats
+	return votes;
+}
+
+bool nano::reply_vote_generator::should_vote (const nano::transaction & transaction, const nano::root & root, const nano::block_hash & hash) const
+{
+	if (ledger.block_confirmed (transaction, hash))
+	{
+		return true;
+	}
+	return false;
+}
+
+void nano::reply_vote_generator::send (const std::shared_ptr<nano::vote> & vote, std::shared_ptr<nano::transport::channel> & channel)
+{
+	stats.inc (nano::stat::type::vote_generator, nano::stat::detail::send, nano::stat::dir::out);
+
+	nano::confirm_ack confirm{ config.network_params.network, vote };
+	channel->send (confirm);
+}
+
+std::unique_ptr<nano::container_info_component> nano::reply_vote_generator::collect_container_info (std::string const & name)
+{
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (reply_requests.collect_container_info ("reply_requests"));
 	return composite;
 }

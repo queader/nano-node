@@ -468,7 +468,7 @@ public:
 		{
 			if (message_a.block != nullptr)
 			{
-				node.final_generator.reply ({ { message_a.block->root (), message_a.block->hash () } }, channel);
+				node.reply_generator.request ({ { message_a.block->root (), message_a.block->hash () } }, channel);
 			}
 			else if (!message_a.roots_hashes.empty ())
 			{
@@ -478,7 +478,7 @@ public:
 					return std::make_pair (entry.second, entry.first);
 				});
 
-				node.final_generator.reply (candidates, channel);
+				node.reply_generator.request (candidates, channel);
 			}
 		}
 	}
