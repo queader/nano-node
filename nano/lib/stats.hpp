@@ -243,7 +243,9 @@ public:
 		requests,
 		filter,
 		telemetry,
-		vote_generator,
+		normal_vote_generator,
+		final_vote_generator,
+		reply_vote_generator,
 		vote_cache,
 		hinting,
 		blockprocessor,
@@ -256,6 +258,10 @@ public:
 	enum class detail : uint8_t
 	{
 		all = 0,
+
+		// common
+		channel_full,
+		drop,
 
 		// processing queue
 		queue,
@@ -440,6 +446,14 @@ public:
 		reply,
 		empty_reply,
 		send_broadcast,
+		non_votable,
+		generated_hashes,
+		cached_hashes,
+		generated_votes,
+
+		// reply vote generator
+		candidates,
+		valid_candidates,
 
 		// hinting
 		hinted,
@@ -451,11 +465,9 @@ public:
 		write_drop,
 		write_error,
 		blocks,
-		drop,
 		bad_count,
 		response_blocks,
 		response_account_info,
-		channel_full,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
