@@ -159,6 +159,57 @@ private:
 };
 
 /**
+ * Helper class to generate and broadcast votes for submitted live vote candidates
+ */
+class broadcast_voter final
+{
+public:
+	using candidate_t = std::pair<nano::root, nano::block_hash>;
+
+public:
+	broadcast_voter (nano::wallet_voter &, nano::network &, nano::vote_processor &, nano::stat &, std::chrono::milliseconds max_delay);
+	~broadcast_voter ();
+
+	void start ();
+	void stop ();
+
+	/**
+	 * Queue candidate for vote generation
+	 */
+	void submit (nano::root root, nano::block_hash hash);
+
+private:
+	void run ();
+	void run_broadcast (nano::unique_lock<nano::mutex> &);
+	/**
+	 * Floods network with vote for live election
+	 */
+	void send_broadcast (std::shared_ptr<nano::vote> const &) const;
+
+private: // Dependencies
+	nano::wallet_voter & voter;
+	nano::network & network;
+	nano::vote_processor & vote_processor;
+	nano::stat & stats;
+
+private:
+	const std::chrono::milliseconds max_delay;
+
+	mutable nano::mutex mutex;
+	nano::condition_variable condition;
+	std::atomic<bool> stopped{ false };
+	std::thread thread;
+
+	/* Candidates for live vote broadcasting */
+	std::deque<candidate_t> candidates_m;
+
+	constexpr static std::size_t max_candidates = 1024 * 8;
+
+public: // Container info
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+};
+
+/**
  *
  */
 class normal_vote_generator final
@@ -181,9 +232,6 @@ public:
 	void broadcast (nano::root const &, nano::block_hash const &);
 
 private:
-	void run ();
-	void run_broadcast (nano::unique_lock<nano::mutex> &);
-
 	/**
 	 * Process batch of broadcast requests
 	 */
@@ -197,10 +245,6 @@ private:
 	 * Checks whether we should generate a vote for a block coming from live election
 	 */
 	bool should_vote (nano::transaction const &, nano::root const &, nano::block_hash const &);
-	/**
-	 * Floods network with vote for live election
-	 */
-	void send_broadcast (std::shared_ptr<nano::vote> const &) const;
 
 private: // Dependencies
 	nano::node_config const & config;
@@ -215,21 +259,12 @@ private: // Dependencies
 private:
 	nano::vote_spacing spacing;
 	nano::wallet_voter voter;
+	nano::broadcast_voter broadcaster;
 
 	nano::processing_queue<broadcast_request_t> broadcast_requests;
 
 private:
 	constexpr static bool is_final = false;
-
-	mutable nano::mutex mutex;
-	nano::condition_variable condition;
-	std::atomic<bool> stopped{ false };
-	std::thread thread;
-
-	/* Candidates for live vote broadcasting */
-	std::deque<candidate_t> candidates_m;
-
-	constexpr static std::size_t max_candidates = 1024 * 8;
 
 public: // Container info
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
@@ -258,9 +293,6 @@ public:
 	void broadcast (nano::root const &, nano::block_hash const &);
 
 private:
-	void run ();
-	void run_broadcast (nano::unique_lock<nano::mutex> &);
-
 	/**
 	 * Process batch of broadcast requests
 	 */
@@ -274,10 +306,6 @@ private:
 	 * Checks whether we should generate a vote for a block coming from live election
 	 */
 	bool should_vote (nano::write_transaction const &, nano::root const &, nano::block_hash const &);
-	/**
-	 * Floods network with vote for live election
-	 */
-	void send_broadcast (std::shared_ptr<nano::vote> const &) const;
 
 private: // Dependencies
 	nano::node_config const & config;
@@ -292,21 +320,12 @@ private: // Dependencies
 private:
 	nano::vote_spacing spacing;
 	nano::wallet_voter voter;
+	nano::broadcast_voter broadcaster;
 
 	nano::processing_queue<broadcast_request_t> broadcast_requests;
 
 private:
 	constexpr static bool is_final = true;
-
-	mutable nano::mutex mutex;
-	nano::condition_variable condition;
-	std::atomic<bool> stopped{ false };
-	std::thread thread;
-
-	/* Candidates for live vote broadcasting */
-	std::deque<candidate_t> candidates_m;
-
-	constexpr static std::size_t max_candidates = 1024 * 8;
 
 public: // Container info
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
