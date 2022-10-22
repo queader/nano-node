@@ -195,12 +195,24 @@ std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::vote (std::deque<ca
 	std::unordered_set<std::shared_ptr<nano::vote>> cached_votes;
 
 	// Find up to `nano::network::confirm_ack_hashes_max` good candidates to later generate votes for
+	std::vector<candidate_t> cached_candidates;
 	std::vector<candidate_t> valid_candidates;
-	while (!candidates.empty () && valid_candidates.size () < nano::network::confirm_ack_hashes_max)
+	while (!candidates.empty () && valid_candidates.size () < nano::network::confirm_ack_hashes_max && cached_candidates.size () < max_cached_candidates)
 	{
 		auto candidate = candidates.front ();
 		candidates.pop_front ();
 		auto const & [root, hash] = candidate;
+
+		// Check for duplicates
+		// Using simple linear scan because count of elements is very low
+		if (std::find (valid_candidates.begin (), valid_candidates.end (), candidate) != valid_candidates.end ())
+		{
+			continue;
+		}
+		if (std::find (cached_candidates.begin (), cached_candidates.end (), candidate) != cached_candidates.end ())
+		{
+			continue;
+		}
 
 		// Check if there are any votes already cached
 		auto cached = history.votes (root, hash, is_final);
@@ -209,6 +221,7 @@ std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::vote (std::deque<ca
 			stats.inc (stat_type, nano::stat::detail::cached_hashes);
 
 			// Use cached votes
+			cached_candidates.push_back (candidate);
 			for (auto const & cached_vote : cached)
 			{
 				cached_votes.insert (cached_vote);

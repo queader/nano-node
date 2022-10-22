@@ -157,6 +157,13 @@ private: // Dependencies
 private:
 	const bool is_final;
 	const nano::stat::type stat_type;
+
+private:
+	/**
+	 * Maximum number of cached votes to return per request
+	 * Using cached votes is faster but requires more bandwidth
+	 */
+	constexpr static std::size_t max_cached_candidates = 16;
 };
 
 /**
