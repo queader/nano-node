@@ -704,7 +704,9 @@ std::vector<std::shared_ptr<nano::vote>> nano::reply_vote_generator::process (co
 	stats.add (nano::stat::type::reply_vote_generator, nano::stat::detail::candidates, {}, candidates.size ());
 	stats.add (nano::stat::type::reply_vote_generator, nano::stat::detail::valid_candidates, {}, valid_candidates.size ());
 
-	return voter.vote (valid_candidates);
+	auto votes = voter.vote (valid_candidates);
+	debug_assert (valid_candidates.empty ()); // Ensure all candidates were consumed
+	return votes;
 }
 
 bool nano::reply_vote_generator::should_vote (const nano::transaction & transaction, const nano::root & root, const nano::block_hash & hash) const
