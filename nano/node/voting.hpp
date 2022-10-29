@@ -4,6 +4,7 @@
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/processing_queue.hpp>
 #include <nano/lib/utility.hpp>
+#include <nano/node/socket.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/secure/common.hpp>
 
@@ -175,7 +176,7 @@ public:
 	using candidate_t = std::pair<nano::root, nano::block_hash>;
 
 public:
-	broadcast_voter (nano::wallet_voter &, nano::network &, nano::vote_processor &, nano::stat &, std::chrono::milliseconds max_delay, nano::stat::type);
+	broadcast_voter (nano::wallet_voter &, nano::network &, nano::vote_processor &, nano::stat &, std::chrono::milliseconds max_delay, nano::stat::type, nano::buffer_drop_policy);
 	~broadcast_voter ();
 
 	void start ();
@@ -203,6 +204,8 @@ private: // Dependencies
 private:
 	const std::chrono::milliseconds max_delay;
 	const nano::stat::type stat_type;
+
+	const nano::buffer_drop_policy drop_policy;
 
 	mutable nano::mutex mutex;
 	nano::condition_variable condition;
