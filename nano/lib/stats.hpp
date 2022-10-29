@@ -252,6 +252,7 @@ public:
 		bootstrap_server,
 		bootstrap_server_requests,
 		bootstrap_server_responses,
+		active,
 	};
 
 	/** Optional detail type */
@@ -262,6 +263,7 @@ public:
 		// common
 		channel_full,
 		drop,
+		loop,
 
 		// processing queue
 		queue,
@@ -364,6 +366,9 @@ public:
 		election_hinted_started,
 		election_hinted_confirmed,
 		election_hinted_drop,
+		generate_vote,
+		generate_vote_normal,
+		generate_vote_final,
 
 		// udp
 		blocking,

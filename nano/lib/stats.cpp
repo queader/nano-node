@@ -566,6 +566,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::bootstrap_server_responses:
 			res = "bootstrap_server_responses";
 			break;
+		case nano::stat::type::active:
+			res = "active";
+			break;
 	}
 	return res;
 }
@@ -583,6 +586,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::drop:
 			res = "drop";
+			break;
+		case nano::stat::detail::loop:
+			res = "loop";
 			break;
 		case nano::stat::detail::queue:
 			res = "queue";
@@ -834,6 +840,15 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::election_hinted_drop:
 			res = "election_hinted_drop";
+			break;
+		case nano::stat::detail::generate_vote:
+			res = "generate_vote";
+			break;
+		case nano::stat::detail::generate_vote_normal:
+			res = "generate_vote_normal";
+			break;
+		case nano::stat::detail::generate_vote_final:
+			res = "generate_vote_final";
 			break;
 		case nano::stat::detail::blocking:
 			res = "blocking";
