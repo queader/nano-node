@@ -12,7 +12,11 @@ enum class bandwidth_limit_type
 	/** For all message */
 	standard,
 	/** For bootstrap (asc_pull_ack, asc_pull_req) traffic */
-	bootstrap
+	bootstrap,
+	/** */
+	voting,
+	/** */
+	voting_replies,
 };
 
 /**
@@ -42,6 +46,12 @@ public: // Config
 		// bootstrap
 		std::size_t bootstrap_limit;
 		double bootstrap_burst_ratio;
+		// live voting
+		std::size_t voting_limit;
+		double voting_burst_ratio;
+		// reply voting
+		std::size_t voting_replies_limit;
+		double voting_replies_burst_ratio;
 	};
 
 public:
@@ -69,5 +79,7 @@ private:
 private:
 	bandwidth_limiter limiter_standard;
 	bandwidth_limiter limiter_bootstrap;
+	bandwidth_limiter limiter_voting;
+	bandwidth_limiter limiter_voting_replies;
 };
 }

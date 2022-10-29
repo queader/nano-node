@@ -298,13 +298,14 @@ std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::generate_votes (con
  * broadcast_voter
  */
 
-nano::broadcast_voter::broadcast_voter (nano::wallet_voter & voter_a, nano::network & network_a, nano::vote_processor & vote_processor_a, nano::stat & stats_a, std::chrono::milliseconds max_delay_a, nano::stat::type stat_type_a) :
+nano::broadcast_voter::broadcast_voter (nano::wallet_voter & voter_a, nano::network & network_a, nano::vote_processor & vote_processor_a, nano::stat & stats_a, std::chrono::milliseconds max_delay_a, nano::stat::type stat_type_a, nano::buffer_drop_policy drop_policy_a) :
 	voter{ voter_a },
 	network{ network_a },
 	vote_processor{ vote_processor_a },
 	stats{ stats_a },
 	max_delay{ max_delay_a },
-	stat_type{ stat_type_a }
+	stat_type{ stat_type_a },
+	drop_policy{ drop_policy_a }
 {
 }
 
@@ -400,7 +401,7 @@ void nano::broadcast_voter::send_broadcast (std::shared_ptr<nano::vote> const & 
 	stats.inc (stat_type, nano::stat::detail::send_broadcast, nano::stat::dir::out);
 
 	network.flood_vote_pr (vote_a);
-	network.flood_vote (vote_a, 2.0f);
+	network.flood_vote (vote_a, 2.0f, drop_policy);
 	vote_processor.vote (vote_a, std::make_shared<nano::transport::inproc::channel> (network.node, network.node));
 }
 
@@ -428,7 +429,7 @@ nano::normal_vote_generator::normal_vote_generator (nano::node_config const & co
 	stats{ stats_a },
 	spacing{ config.network_params.voting.delay },
 	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::vote_generator_normal },
-	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::vote_generator_normal },
+	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::vote_generator_normal, /* throttle voting */ nano::buffer_drop_policy::limiter },
 	broadcast_requests{ stats, nano::stat::type::vote_generator_normal, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	broadcast_requests.process_batch = [this] (auto & batch) {
@@ -521,7 +522,7 @@ nano::final_vote_generator::final_vote_generator (nano::node_config const & conf
 	stats{ stats_a },
 	spacing{ config.network_params.voting.delay },
 	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::vote_generator_final },
-	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::vote_generator_final },
+	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::vote_generator_final, /* do not throttle final votes */ nano::buffer_drop_policy::no_limiter_drop },
 	broadcast_requests{ stats, nano::stat::type::vote_generator_final, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	broadcast_requests.process_batch = [this] (auto & batch) {
@@ -723,7 +724,7 @@ void nano::reply_vote_generator::send (const std::shared_ptr<nano::vote> & vote,
 	stats.inc (nano::stat::type::vote_generator_reply, nano::stat::detail::send, nano::stat::dir::out);
 
 	nano::confirm_ack confirm{ config.network_params.network, vote };
-	channel->send (confirm);
+	channel->send (confirm, nullptr, nano::buffer_drop_policy::limiter, nano::bandwidth_limit_type::voting_replies);
 }
 
 std::unique_ptr<nano::container_info_component> nano::reply_vote_generator::collect_container_info (std::string const & name)

@@ -26,13 +26,13 @@ public:
 	nano::endpoint endpoint;
 };
 /**
-  * A circular buffer for servicing nano realtime messages.
-  * This container follows a producer/consumer model where the operating system is producing data in to
-  * buffers which are serviced by internal threads.
-  * If buffers are not serviced fast enough they're internally dropped.
-  * This container has a maximum space to hold N buffers of M size and will allocate them in round-robin order.
-  * All public methods are thread-safe
-*/
+ * A circular buffer for servicing nano realtime messages.
+ * This container follows a producer/consumer model where the operating system is producing data in to
+ * buffers which are serviced by internal threads.
+ * If buffers are not serviced fast enough they're internally dropped.
+ * This container has a maximum space to hold N buffers of M size and will allocate them in round-robin order.
+ * All public methods are thread-safe
+ */
 class message_buffer_manager final
 {
 public:
@@ -88,8 +88,8 @@ private:
 	friend class network_tcp_message_manager_Test;
 };
 /**
-  * Node ID cookies for node ID handshakes
-*/
+ * Node ID cookies for node ID handshakes
+ */
 class syn_cookies final
 {
 public:
@@ -126,15 +126,22 @@ public:
 	nano::networks id;
 	void start ();
 	void stop ();
-	void flood_message (nano::message &, nano::buffer_drop_policy const = nano::buffer_drop_policy::limiter, float const = 1.0f);
-	void flood_keepalive (float const scale_a = 1.0f);
-	void flood_keepalive_self (float const scale_a = 0.5f);
-	void flood_vote (std::shared_ptr<nano::vote> const &, float scale);
+	
+	void flood_message (nano::message &, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter, float const = 1.0f);
+	void flood_keepalive (float scale = 1.0f);
+	void flood_keepalive_self (float scale = 0.5f);
+	/**
+	 * TODO: Docs
+	 */
+	void flood_vote (std::shared_ptr<nano::vote> const &, float scale, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter);
+	/**
+	 * TODO: Docs
+	 */
 	void flood_vote_pr (std::shared_ptr<nano::vote> const &);
 	// Flood block to all PRs and a random selection of non-PRs
 	void flood_block_initial (std::shared_ptr<nano::block> const &);
 	// Flood block to a random selection of peers
-	void flood_block (std::shared_ptr<nano::block> const &, nano::buffer_drop_policy const = nano::buffer_drop_policy::limiter);
+	void flood_block (std::shared_ptr<nano::block> const &, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter);
 	void flood_block_many (std::deque<std::shared_ptr<nano::block>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
 	void merge_peers (std::array<nano::endpoint, 8> const &);
 	void merge_peer (nano::endpoint const &);
