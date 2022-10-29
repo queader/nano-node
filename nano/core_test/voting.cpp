@@ -169,21 +169,21 @@ TEST (vote_spacing, vote_generator)
 				 .build_shared ();
 
 	ASSERT_EQ (nano::process_result::progress, node.ledger.process (node.store.tx_begin_write (), *send1).code);
-	ASSERT_EQ (0, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast));
+	ASSERT_EQ (0, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast));
 
 	node.generator.broadcast (nano::dev::genesis->hash (), send1->hash ());
-	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out));
+	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast, nano::stat::dir::out));
 	ASSERT_FALSE (node.ledger.rollback (node.store.tx_begin_write (), send1->hash ()));
 	ASSERT_EQ (nano::process_result::progress, node.ledger.process (node.store.tx_begin_write (), *send2).code);
 
 	node.generator.broadcast (nano::dev::genesis->hash (), send2->hash ());
-	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::generator_spacing));
-	ASSERT_EQ (1, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out));
+	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::generator_spacing));
+	ASSERT_EQ (1, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast, nano::stat::dir::out));
 
 	std::this_thread::sleep_for (config.network_params.voting.delay);
 
 	node.generator.broadcast (nano::dev::genesis->hash (), send2->hash ());
-	ASSERT_TIMELY_EQ (3s, 2, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out));
+	ASSERT_TIMELY_EQ (3s, 2, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast, nano::stat::dir::out));
 }
 
 TEST (vote_spacing, rapid)
@@ -221,16 +221,16 @@ TEST (vote_spacing, rapid)
 	ASSERT_EQ (nano::process_result::progress, node.ledger.process (node.store.tx_begin_write (), *send1).code);
 
 	node.generator.broadcast (nano::dev::genesis->hash (), send1->hash ());
-	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out));
+	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast, nano::stat::dir::out));
 	ASSERT_FALSE (node.ledger.rollback (node.store.tx_begin_write (), send1->hash ()));
 	ASSERT_EQ (nano::process_result::progress, node.ledger.process (node.store.tx_begin_write (), *send2).code);
 
 	node.generator.broadcast (nano::dev::genesis->hash (), send2->hash ());
-	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::generator_spacing));
-	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out));
+	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::generator_spacing));
+	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast, nano::stat::dir::out));
 
 	std::this_thread::sleep_for (config.network_params.voting.delay);
 
 	node.generator.broadcast (nano::dev::genesis->hash (), send2->hash ());
-	ASSERT_TIMELY_EQ (3s, 2, node.stats.count (nano::stat::type::normal_vote_generator, nano::stat::detail::send_broadcast, nano::stat::dir::out));
+	ASSERT_TIMELY_EQ (3s, 2, node.stats.count (nano::stat::type::vote_generator_normal, nano::stat::detail::send_broadcast, nano::stat::dir::out));
 }

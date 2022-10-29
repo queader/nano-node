@@ -427,9 +427,9 @@ nano::normal_vote_generator::normal_vote_generator (nano::node_config const & co
 	network{ network_a },
 	stats{ stats_a },
 	spacing{ config.network_params.voting.delay },
-	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::normal_vote_generator },
-	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::normal_vote_generator },
-	broadcast_requests{ stats, nano::stat::type::normal_vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::vote_generator_normal },
+	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::vote_generator_normal },
+	broadcast_requests{ stats, nano::stat::type::vote_generator_normal, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	broadcast_requests.process_batch = [this] (auto & batch) {
 		process_batch (batch);
@@ -476,7 +476,7 @@ void nano::normal_vote_generator::process (nano::transaction const & transaction
 	}
 	else
 	{
-		stats.inc (nano::stat::type::normal_vote_generator, nano::stat::detail::non_votable);
+		stats.inc (nano::stat::type::vote_generator_normal, nano::stat::detail::non_votable);
 	}
 }
 
@@ -520,9 +520,9 @@ nano::final_vote_generator::final_vote_generator (nano::node_config const & conf
 	network{ network_a },
 	stats{ stats_a },
 	spacing{ config.network_params.voting.delay },
-	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::final_vote_generator },
-	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::final_vote_generator },
-	broadcast_requests{ stats, nano::stat::type::final_vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::vote_generator_final },
+	broadcaster{ voter, network, vote_processor, stats, config.vote_generator_delay, nano::stat::type::vote_generator_final },
+	broadcast_requests{ stats, nano::stat::type::vote_generator_final, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	broadcast_requests.process_batch = [this] (auto & batch) {
 		process_batch (batch);
@@ -569,7 +569,7 @@ void nano::final_vote_generator::process (nano::write_transaction const & transa
 	}
 	else
 	{
-		stats.inc (nano::stat::type::final_vote_generator, nano::stat::detail::non_votable);
+		stats.inc (nano::stat::type::vote_generator_final, nano::stat::detail::non_votable);
 	}
 }
 
@@ -617,8 +617,8 @@ nano::reply_vote_generator::reply_vote_generator (nano::node_config const & conf
 	network{ network_a },
 	stats{ stats_a },
 	spacing{ std::chrono::milliseconds (0) }, // Disable spacing
-	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::reply_vote_generator },
-	reply_requests{ stats, nano::stat::type::reply_vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
+	voter{ wallets, spacing, history, stats, is_final, nano::stat::type::vote_generator_reply },
+	reply_requests{ stats, nano::stat::type::vote_generator_reply, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 }
 {
 	reply_requests.process_batch = [this] (auto & batch) {
 		process_batch (batch);
@@ -649,7 +649,7 @@ void nano::reply_vote_generator::request (const std::vector<std::pair<nano::root
 	}
 	else
 	{
-		stats.inc (nano::stat::type::reply_vote_generator, nano::stat::detail::channel_full, nano::stat::dir::in);
+		stats.inc (nano::stat::type::vote_generator_reply, nano::stat::detail::channel_full, nano::stat::dir::in);
 	}
 }
 
@@ -664,7 +664,7 @@ void nano::reply_vote_generator::process_batch (std::deque<reply_request_t> & ba
 			auto votes = process (transaction, candidates);
 			if (!votes.empty ())
 			{
-				stats.inc (nano::stat::type::reply_vote_generator, nano::stat::detail::reply);
+				stats.inc (nano::stat::type::vote_generator_reply, nano::stat::detail::reply);
 
 				for (auto & vote : votes)
 				{
@@ -673,12 +673,12 @@ void nano::reply_vote_generator::process_batch (std::deque<reply_request_t> & ba
 			}
 			else
 			{
-				stats.inc (nano::stat::type::reply_vote_generator, nano::stat::detail::empty_reply);
+				stats.inc (nano::stat::type::vote_generator_reply, nano::stat::detail::empty_reply);
 			}
 		}
 		else
 		{
-			stats.inc (nano::stat::type::reply_vote_generator, nano::stat::detail::channel_full, nano::stat::dir::out);
+			stats.inc (nano::stat::type::vote_generator_reply, nano::stat::detail::channel_full, nano::stat::dir::out);
 		}
 	}
 }
@@ -701,8 +701,8 @@ std::vector<std::shared_ptr<nano::vote>> nano::reply_vote_generator::process (co
 		}
 	}
 
-	stats.add (nano::stat::type::reply_vote_generator, nano::stat::detail::candidates, {}, candidates.size ());
-	stats.add (nano::stat::type::reply_vote_generator, nano::stat::detail::valid_candidates, {}, valid_candidates.size ());
+	stats.add (nano::stat::type::vote_generator_reply, nano::stat::detail::candidates, {}, candidates.size ());
+	stats.add (nano::stat::type::vote_generator_reply, nano::stat::detail::valid_candidates, {}, valid_candidates.size ());
 
 	auto votes = voter.vote (valid_candidates);
 	debug_assert (valid_candidates.empty ()); // Ensure all candidates were consumed
@@ -720,7 +720,7 @@ bool nano::reply_vote_generator::should_vote (const nano::transaction & transact
 
 void nano::reply_vote_generator::send (const std::shared_ptr<nano::vote> & vote, std::shared_ptr<nano::transport::channel> & channel)
 {
-	stats.inc (nano::stat::type::reply_vote_generator, nano::stat::detail::send, nano::stat::dir::out);
+	stats.inc (nano::stat::type::vote_generator_reply, nano::stat::detail::send, nano::stat::dir::out);
 
 	nano::confirm_ack confirm{ config.network_params.network, vote };
 	channel->send (confirm);

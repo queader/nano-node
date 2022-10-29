@@ -539,14 +539,14 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::telemetry:
 			res = "telemetry";
 			break;
-		case nano::stat::type::normal_vote_generator:
-			res = "normal_vote_generator";
+		case nano::stat::type::vote_generator_normal:
+			res = "vote_generator_normal";
 			break;
-		case nano::stat::type::final_vote_generator:
-			res = "final_vote_generator";
+		case nano::stat::type::vote_generator_final:
+			res = "vote_generator_final";
 			break;
-		case nano::stat::type::reply_vote_generator:
-			res = "reply_vote_generator";
+		case nano::stat::type::vote_generator_reply:
+			res = "vote_generator_reply";
 			break;
 		case nano::stat::type::vote_cache:
 			res = "vote_cache";

@@ -2274,9 +2274,9 @@ TEST (node, local_votes_cache)
 	nano::confirm_req message2{ nano::dev::network_params.network, send2 };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (message1, channel);
-	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 1);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::vote_generator_reply, nano::stat::detail::generated_votes), 1);
 	node.network.inbound (message2, channel);
-	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::vote_generator_reply, nano::stat::detail::generated_votes), 2);
 	for (auto i (0); i < 100; ++i)
 	{
 		node.network.inbound (message1, channel);
@@ -2284,7 +2284,7 @@ TEST (node, local_votes_cache)
 	}
 	WAIT (1s);
 	// Make sure a new vote was not generated
-	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::vote_generator_reply, nano::stat::detail::generated_votes), 2);
 	// Max cache
 	{
 		auto transaction (node.store.tx_begin_write ());
@@ -2297,7 +2297,7 @@ TEST (node, local_votes_cache)
 		node.network.inbound (message3, channel);
 	}
 	WAIT (1s);
-	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::vote_generator_reply, nano::stat::detail::generated_votes), 2);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
 	ASSERT_TIMELY (3s, !node.history.votes (send2->root (), send2->hash ()).empty ());
 	ASSERT_TIMELY (3s, node.history.votes (send3->root (), send3->hash ()).empty ());
@@ -2401,7 +2401,7 @@ TEST (node, local_votes_cache_generate_new_vote)
 	ASSERT_EQ (1, votes1.size ());
 	ASSERT_EQ (1, votes1[0]->hashes.size ());
 	ASSERT_EQ (nano::dev::genesis->hash (), votes1[0]->hashes[0]);
-	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 1);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::vote_generator_reply, nano::stat::detail::generated_votes), 1);
 
 	auto send1 = nano::state_block_builder ()
 				 .account (nano::dev::genesis_key.pub)
@@ -2426,7 +2426,7 @@ TEST (node, local_votes_cache_generate_new_vote)
 	auto votes2 (node.history.votes (send1->root (), send1->hash ()));
 	ASSERT_EQ (1, votes2.size ());
 	ASSERT_EQ (1, votes2[0]->hashes.size ());
-	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::reply_vote_generator, nano::stat::detail::generated_votes), 2);
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::vote_generator_reply, nano::stat::detail::generated_votes), 2);
 	ASSERT_FALSE (node.history.votes (nano::dev::genesis->root (), nano::dev::genesis->hash ()).empty ());
 	ASSERT_FALSE (node.history.votes (send1->root (), send1->hash ()).empty ());
 	// First generated + again cached + new generated
