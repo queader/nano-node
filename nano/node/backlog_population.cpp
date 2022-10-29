@@ -1,13 +1,15 @@
+#include <nano/lib/stats.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/node/backlog_population.hpp>
 #include <nano/node/election_scheduler.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/secure/store.hpp>
 
-nano::backlog_population::backlog_population (const config & config_a, nano::store & store_a, nano::election_scheduler & scheduler_a) :
+nano::backlog_population::backlog_population (const config config_a, nano::store & store_a, nano::election_scheduler & scheduler_a, nano::stat & stats_a) :
 	config_m{ config_a },
-	store_m{ store_a },
-	scheduler{ scheduler_a }
+	store{ store_a },
+	scheduler{ scheduler_a },
+	stats{ stats_a }
 {
 }
 
@@ -19,10 +21,12 @@ nano::backlog_population::~backlog_population ()
 
 void nano::backlog_population::start ()
 {
-	if (!thread.joinable ())
-	{
-		thread = std::thread{ [this] () { run (); } };
-	}
+	debug_assert (!thread.joinable ());
+
+	thread = std::thread{ [this] () {
+		nano::thread_role::set (nano::thread_role::name::backlog_population);
+		run ();
+	} };
 }
 
 void nano::backlog_population::stop ()
@@ -54,13 +58,15 @@ bool nano::backlog_population::predicate () const
 
 void nano::backlog_population::run ()
 {
-	nano::thread_role::set (nano::thread_role::name::backlog_population);
-	const auto delay = std::chrono::seconds{ config_m.delay_between_runs_in_seconds };
+	const auto delay = std::chrono::seconds{ config_m.delay_between_runs_seconds };
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
+		// Run either when predicate is triggered or when delay between runs passed
 		if (predicate () || config_m.ongoing_backlog_population_enabled)
 		{
+			stats.inc (nano::stat::type::backlog, nano::stat::detail::loop);
+
 			triggered = false;
 			lock.unlock ();
 			bool over = populate_backlog ();
@@ -80,18 +86,22 @@ bool nano::backlog_population::populate_backlog ()
 
 	auto done = false;
 	uint64_t const chunk_size = 65536;
-	nano::account next = 0;
+	nano::account next = { 0 }; // Start from the beginning
 	uint64_t total = 0;
 	while (!stopped && !done)
 	{
-		auto transaction = store_m.tx_begin_read ();
+		auto transaction = store.tx_begin_read ();
 		auto count = 0;
-		auto i = store_m.account.begin (transaction, next);
-		const auto end = store_m.account.end ();
+		auto i = store.account.begin (transaction, next);
+		const auto end = store.account.end ();
 		for (; !stopped && i != end && count < chunk_size; ++i, ++count, ++total)
 		{
 			auto const & account = i->first;
-			bool over = scheduler.activate (account, transaction);
+			auto [activated, over] = scheduler.activate (account, transaction);
+			if (activated)
+			{
+				stats.inc (nano::stat::type::backlog, nano::stat::detail::activated);
+			}
 			if (over)
 			{
 				overflow = true;
@@ -99,7 +109,7 @@ bool nano::backlog_population::populate_backlog ()
 
 			next = account.number () + 1;
 		}
-		done = store_m.account.begin (transaction, next) == end;
+		done = store.account.begin (transaction, next) == end;
 	}
 
 	return overflow;

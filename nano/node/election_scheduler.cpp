@@ -21,7 +21,7 @@ void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & bloc
 	notify ();
 }
 
-bool nano::election_scheduler::activate (nano::account const & account_a, nano::transaction const & transaction)
+std::pair<bool, bool> nano::election_scheduler::activate (nano::account const & account_a, nano::transaction const & transaction)
 {
 	debug_assert (!account_a.is_zero ());
 	nano::account_info account_info;
@@ -40,11 +40,11 @@ bool nano::election_scheduler::activate (nano::account const & account_a, nano::
 				nano::lock_guard<nano::mutex> lock{ mutex };
 				bool overflow = priority.push (account_info.modified, block);
 				notify ();
-				return overflow;
+				return { true, overflow }; // Activated, overflow?
 			}
 		}
 	}
-	return false; // No overflow
+	return { false, false }; // Nothing activated, no overflow
 }
 
 void nano::election_scheduler::stop ()

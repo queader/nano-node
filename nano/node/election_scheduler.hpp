@@ -24,12 +24,13 @@ public:
 	// Manualy start an election for a block
 	// Call action with confirmed block, may be different than what we started with
 	void manual (std::shared_ptr<nano::block> const &, boost::optional<nano::uint128_t> const & = boost::none, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
-	
+
 	/**
+	 * TODO: Docs
 	 * Activates the first unconfirmed block of \p account_a
-	 * @return whether there was an overflow of priority queue
+	 * @return <activated, overflow> (whether there was an overflow of priority queue)
 	 */
-	bool activate (nano::account const &, nano::transaction const &);
+	std::pair<bool, bool> activate (nano::account const &, nano::transaction const &);
 
 	void stop ();
 	// Blocks until no more elections can be activated or there are no more elections to activate

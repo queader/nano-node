@@ -563,6 +563,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::active:
 			res = "active";
 			break;
+		case nano::stat::type::backlog:
+			res = "backlog";
+			break;
 	}
 	return res;
 }
@@ -1076,6 +1079,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::response_account_info:
 			res = "response_account_info";
+			break;
+		case nano::stat::detail::activated:
+			res = "activated";
 			break;
 	}
 	return res;
