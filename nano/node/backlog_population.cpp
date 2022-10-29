@@ -13,11 +13,8 @@ nano::backlog_population::backlog_population (const config & config_a, nano::sto
 
 nano::backlog_population::~backlog_population ()
 {
-	stop ();
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
+	// Thread must be stopped before destruction
+	debug_assert (!thread.joinable ());
 }
 
 void nano::backlog_population::start ()
@@ -30,9 +27,12 @@ void nano::backlog_population::start ()
 
 void nano::backlog_population::stop ()
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
 	stopped = true;
 	notify ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
 }
 
 void nano::backlog_population::trigger ()
@@ -49,7 +49,7 @@ void nano::backlog_population::notify ()
 
 bool nano::backlog_population::predicate () const
 {
-	return triggered;
+	return triggered || overflown;
 }
 
 void nano::backlog_population::run ()
@@ -63,8 +63,9 @@ void nano::backlog_population::run ()
 		{
 			triggered = false;
 			lock.unlock ();
-			populate_backlog ();
+			bool over = populate_backlog ();
 			lock.lock ();
+			overflown = over;
 		}
 
 		condition.wait_for (lock, delay, [this] () {
@@ -73,8 +74,10 @@ void nano::backlog_population::run ()
 	}
 }
 
-void nano::backlog_population::populate_backlog ()
+bool nano::backlog_population::populate_backlog ()
 {
+	bool overflow = false;
+
 	auto done = false;
 	uint64_t const chunk_size = 65536;
 	nano::account next = 0;
@@ -88,9 +91,16 @@ void nano::backlog_population::populate_backlog ()
 		for (; !stopped && i != end && count < chunk_size; ++i, ++count, ++total)
 		{
 			auto const & account = i->first;
-			scheduler.activate (account, transaction);
+			bool over = scheduler.activate (account, transaction);
+			if (over)
+			{
+				overflow = true;
+			}
+
 			next = account.number () + 1;
 		}
 		done = store_m.account.begin (transaction, next) == end;
 	}
+
+	return overflow;
 }

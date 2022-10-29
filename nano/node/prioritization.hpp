@@ -27,7 +27,7 @@ class prioritization final
 	public:
 		uint64_t time;
 		std::shared_ptr<nano::block> block;
-		bool operator< (value_type const & other_a) const;
+		bool operator<(value_type const & other_a) const;
 		bool operator== (value_type const & other_a) const;
 	};
 
@@ -47,15 +47,18 @@ class prioritization final
 	decltype (schedule)::const_iterator current;
 
 	/** maximum number of blocks in whole container, each bucket's maximum is maximum / bucket_number */
-	uint64_t const maximum;
+	std::size_t const maximum;
 
 	void next ();
 	void seek ();
 	void populate_schedule ();
 
 public:
-	prioritization (uint64_t maximum = 250000u);
-	void push (uint64_t time, std::shared_ptr<nano::block> block);
+	explicit prioritization (std::size_t maximum = 1'000'000);
+	/**
+	 * @return true if there was an overflow when adding block to queue, false otherwise
+	 */
+	bool push (uint64_t time, std::shared_ptr<nano::block> block);
 	std::shared_ptr<nano::block> top () const;
 	void pop ();
 	std::size_t size () const;
