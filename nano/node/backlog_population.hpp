@@ -33,12 +33,28 @@ public:
 private:
 	void run ();
 	bool predicate () const;
+	/**
+	 * Scans ledger for unconfirmed account chains and activates them via election scheduler
+	 * @return whether there was an overflow of priority queue
+	 */
+	bool populate_backlog ();
 
-	void populate_backlog ();
+private: // Dependencies
+	store & store_m;
+	election_scheduler & scheduler;
 
-	/** This is a manual trigger, the ongoing backlog population does not use this.
-	 *  It can be triggered even when backlog population (frontiers confirmation) is disabled. */
+private:
+	const config config_m;
+
+	/**
+	 * This is a manual trigger, the ongoing backlog population does not use this.
+	 * It can be triggered even when backlog population (frontiers confirmation) is disabled
+	 */
 	bool triggered{ false };
+	/**
+	 * TODO: Docs
+	 */
+	bool overflown{ false };
 
 	std::atomic<bool> stopped{ false };
 
@@ -48,11 +64,5 @@ private:
 	/** Thread that runs the backlog implementation logic. The thread always runs, even if
 	 *  backlog population is disabled, so that it can service a manual trigger (e.g. via RPC). */
 	std::thread thread;
-
-	config config_m;
-
-private: // Dependencies
-	store & store_m;
-	election_scheduler & scheduler;
 };
 }
