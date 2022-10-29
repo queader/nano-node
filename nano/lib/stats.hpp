@@ -253,6 +253,7 @@ public:
 		bootstrap_server_requests,
 		bootstrap_server_responses,
 		active,
+		backlog,
 	};
 
 	/** Optional detail type */
@@ -473,6 +474,9 @@ public:
 		bad_count,
 		response_blocks,
 		response_account_info,
+
+		// backlog
+		activated,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

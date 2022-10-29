@@ -10,6 +10,7 @@ namespace nano
 {
 class store;
 class election_scheduler;
+class stats;
 
 class backlog_population final
 {
@@ -17,10 +18,10 @@ public:
 	struct config
 	{
 		bool ongoing_backlog_population_enabled;
-		unsigned int delay_between_runs_in_seconds;
+		unsigned int delay_between_runs_seconds;
 	};
 
-	explicit backlog_population (const config & config_a, store & store, election_scheduler & scheduler);
+	backlog_population (config, nano::store &, nano::election_scheduler &, nano::stat &);
 	~backlog_population ();
 
 	void start ();
@@ -40,8 +41,9 @@ private:
 	bool populate_backlog ();
 
 private: // Dependencies
-	store & store_m;
-	election_scheduler & scheduler;
+	nano::store & store;
+	nano::election_scheduler & scheduler;
+	nano::stat & stats;
 
 private:
 	const config config_m;

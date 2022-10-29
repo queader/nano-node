@@ -39,7 +39,7 @@ nano::backlog_population::config nano::nodeconfig_to_backlog_population_config (
 {
 	nano::backlog_population::config cfg;
 	cfg.ongoing_backlog_population_enabled = config.frontiers_confirmation != nano::frontiers_confirmation_mode::disabled;
-	cfg.delay_between_runs_in_seconds = config.network_params.network.is_dev_network () ? 1u : 300u;
+	cfg.delay_between_runs_seconds = config.network_params.network.is_dev_network () ? 1u : 60;
 	return cfg;
 }
 
@@ -200,7 +200,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	scheduler{ *this },
 	hinting{ nano::nodeconfig_to_hinted_scheduler_config (config), *this, inactive_vote_cache, active, online_reps, stats },
 	wallets (wallets_store.init_error (), *this),
-	backlog{ nano::nodeconfig_to_backlog_population_config (config), store, scheduler },
+	backlog{ nano::nodeconfig_to_backlog_population_config (config), store, scheduler, stats },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
@@ -785,6 +785,7 @@ void nano::node::stop ()
 		unchecked.stop ();
 		block_processor.stop ();
 		vote_processor.stop ();
+		backlog.stop ();
 		scheduler.stop ();
 		hinting.stop ();
 		active.stop ();
