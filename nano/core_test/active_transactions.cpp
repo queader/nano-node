@@ -1230,7 +1230,7 @@ TEST (active_transactions, activate_inactive)
 	ASSERT_FALSE (node.active.active (open->qualified_root ()) || node.block_confirmed_or_being_confirmed (open->hash ()));
 }
 
-TEST (active_transactions, list_active)
+TEST (active_transactions, list)
 {
 	nano::test::system system (1);
 	auto & node = *system.nodes[0];
@@ -1275,14 +1275,9 @@ TEST (active_transactions, list_active)
 
 	nano::test::blocks_confirm (node, { send, send2, open });
 	ASSERT_EQ (3, node.active.size ());
-	ASSERT_EQ (1, node.active.list_active (1).size ());
-	ASSERT_EQ (2, node.active.list_active (2).size ());
-	ASSERT_EQ (3, node.active.list_active (3).size ());
-	ASSERT_EQ (3, node.active.list_active (4).size ());
-	ASSERT_EQ (3, node.active.list_active (99999).size ());
-	ASSERT_EQ (3, node.active.list_active ().size ());
+	ASSERT_EQ (3, node.active.list ().size ());
 
-	auto active = node.active.list_active ();
+	auto active = node.active.list ();
 }
 
 TEST (active_transactions, vacancy)

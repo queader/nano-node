@@ -168,8 +168,10 @@ public:
 	bool active (nano::block_hash const &) const;
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
 	std::shared_ptr<nano::block> winner (nano::block_hash const &) const;
-	// Returns a list of elections sorted by difficulty
-	std::vector<std::shared_ptr<nano::election>> list_active (std::size_t = std::numeric_limits<std::size_t>::max ());
+	/**
+	 * Returns a list of all elections
+	 */
+	std::vector<std::shared_ptr<nano::election>> list () const;
 	void erase (nano::block const &);
 	void erase_hash (nano::block_hash const &);
 	void erase_oldest ();
@@ -209,8 +211,11 @@ private:
 	void erase (nano::qualified_root const &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
 	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
-	// Returns a list of elections sorted by difficulty, mutex must be locked
-	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
+	/**
+	 * Returns a list of all elections
+	 * Mutex must be locked
+	 */
+	std::vector<std::shared_ptr<nano::election>> list_locked () const;
 	/**
 	 * Checks if vote passes minimum representative weight threshold and adds it to inactive vote cache
 	 * TODO: Should be moved to `vote_cache` class

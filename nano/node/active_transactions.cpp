@@ -208,8 +208,7 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 {
 	debug_assert (lock_a.owns_lock ());
 
-	std::size_t const this_loop_target_l (roots.size ());
-	auto const elections_l{ list_active_impl (this_loop_target_l) };
+	auto const all_elections = list_locked ();
 
 	lock_a.unlock ();
 
@@ -226,7 +225,7 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 	 * Elections extending the soft config.active_elections_size limit are flushed after a certain time-to-live cutoff
 	 * Flushed elections are later re-activated via frontier confirmation
 	 */
-	for (auto const & election_l : elections_l)
+	for (auto const & election_l : all_elections)
 	{
 		bool const confirmed_l (election_l->confirmed ());
 		unconfirmed_count_l += !confirmed_l;
@@ -247,7 +246,7 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 
 	if (node.config.logging.timing_logging ())
 	{
-		node.logger.try_log (boost::str (boost::format ("Processed %1% elections (%2% were already confirmed) in %3% %4%") % this_loop_target_l % (this_loop_target_l - unconfirmed_count_l) % elapsed.value ().count () % elapsed.unit ()));
+		node.logger.try_log (boost::str (boost::format ("Processed %1% elections (%2% were already confirmed) in %3% %4%") % all_elections.size () % (all_elections.size () - unconfirmed_count_l) % elapsed.value ().count () % elapsed.unit ()));
 	}
 }
 
@@ -311,25 +310,21 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	}
 }
 
-std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_active (std::size_t max_a)
+std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list () const
 {
-	nano::lock_guard<nano::mutex> guard (mutex);
-	return list_active_impl (max_a);
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return list_locked ();
 }
 
-std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_active_impl (std::size_t max_a) const
+std::vector<std::shared_ptr<nano::election>> nano::active_transactions::list_locked () const
 {
-	std::vector<std::shared_ptr<nano::election>> result_l;
-	result_l.reserve (std::min (max_a, roots.size ()));
+	std::vector<std::shared_ptr<nano::election>> result;
+	result.reserve (roots.size ());
+	for (auto & root : roots)
 	{
-		auto & sorted_roots_l (roots.get<tag_sequenced> ());
-		std::size_t count_l{ 0 };
-		for (auto i = sorted_roots_l.begin (), n = sorted_roots_l.end (); i != n && count_l < max_a; ++i, ++count_l)
-		{
-			result_l.push_back (i->election);
-		}
+		result.push_back (root.election);
 	}
-	return result_l;
+	return result;
 }
 
 void nano::active_transactions::request_loop ()
