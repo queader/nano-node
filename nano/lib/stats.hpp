@@ -394,6 +394,7 @@ public:
 		// tcp
 		tcp_accept_success,
 		tcp_accept_failure,
+		tcp_write,
 		tcp_write_drop,
 		tcp_write_no_socket_drop,
 		tcp_excluded,
