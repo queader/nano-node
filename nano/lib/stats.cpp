@@ -589,6 +589,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::drop:
 			res = "drop";
 			break;
+		case nano::stat::detail::total:
+			res = "total";
+			break;
 		case nano::stat::detail::queue:
 			res = "queue";
 			break;

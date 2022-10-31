@@ -264,6 +264,7 @@ public:
 		loop,
 		channel_full,
 		drop,
+		total,
 
 		// processing queue
 		queue,
