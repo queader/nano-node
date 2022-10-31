@@ -127,6 +127,7 @@ public:
 	bool disable_bootstrap_bulk_push_client{ false };
 	bool disable_ongoing_bootstrap{ false }; // For testing only
 	bool disable_rep_crawler{ false };
+	bool disable_hinting{ false };
 	bool disable_request_loop{ false }; // For testing only
 	bool disable_tcp_realtime{ false };
 	bool disable_udp{ true };
