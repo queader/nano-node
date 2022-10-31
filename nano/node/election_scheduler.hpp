@@ -21,6 +21,9 @@ public:
 	explicit election_scheduler (nano::node & node);
 	~election_scheduler ();
 
+	void start ();
+	void stop ();
+
 	// Manualy start an election for a block
 	// Call action with confirmed block, may be different than what we started with
 	void manual (std::shared_ptr<nano::block> const &, boost::optional<nano::uint128_t> const & = boost::none, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
@@ -32,7 +35,6 @@ public:
 	 */
 	std::pair<bool, bool> activate (nano::account const &, nano::transaction const &);
 
-	void stop ();
 	// Blocks until no more elections can be activated or there are no more elections to activate
 	void flush ();
 	void notify ();
@@ -47,10 +49,17 @@ private:
 	bool priority_queue_predicate () const;
 	bool manual_queue_predicate () const;
 	bool overfill_predicate () const;
-	nano::prioritization priority;
-	std::deque<std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior, std::function<void (std::shared_ptr<nano::block>)>>> manual_queue;
+
+private: // Dependencies
 	nano::node & node;
-	bool stopped;
+
+private:
+	using manual_entry_t = std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior, std::function<void (std::shared_ptr<nano::block>)>>;
+
+	nano::prioritization priority;
+	std::deque<manual_entry_t> manual_queue;
+
+	std::atomic<bool> stopped{ false };
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;
