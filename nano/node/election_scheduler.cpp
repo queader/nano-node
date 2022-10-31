@@ -2,15 +2,30 @@
 #include <nano/node/node.hpp>
 
 nano::election_scheduler::election_scheduler (nano::node & node) :
-	node{ node },
-	stopped{ false },
-	thread{ [this] () { run (); } }
+	node{ node }
 {
 }
 
 nano::election_scheduler::~election_scheduler ()
 {
-	stop ();
+	// Thread should be stopped before destruction
+	debug_assert (!thread.joinable ());
+}
+
+void nano::election_scheduler::start ()
+{
+	debug_assert (!thread.joinable ());
+	thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::election_scheduler);
+		run ();
+	});
+}
+
+void nano::election_scheduler::stop ()
+{
+	debug_assert (thread.joinable ());
+	stopped = true;
+	notify ();
 	thread.join ();
 }
 
@@ -45,13 +60,6 @@ std::pair<bool, bool> nano::election_scheduler::activate (nano::account const & 
 		}
 	}
 	return { false, false }; // Nothing activated, no overflow
-}
-
-void nano::election_scheduler::stop ()
-{
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	stopped = true;
-	notify ();
 }
 
 void nano::election_scheduler::flush ()
@@ -111,57 +119,61 @@ bool nano::election_scheduler::overfill_predicate () const
 
 void nano::election_scheduler::run ()
 {
-	nano::thread_role::set (nano::thread_role::name::election_scheduler);
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
+		debug_assert (lock.owns_lock ());
+		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
+
+		node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
+
+		if (overfill_predicate ())
+		{
+			node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::overfill_predicate);
+
+			lock.unlock ();
+			node.active.erase_oldest ();
+		}
+		if (manual_queue_predicate ())
+		{
+			node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::manual_predicate);
+
+			auto const [block, previous_balance, election_behavior, confirmation_action] = manual_queue.front ();
+			manual_queue.pop_front ();
+
+			lock.unlock ();
+			nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
+			node.active.insert_impl (lock2, block, election_behavior, confirmation_action);
+		}
+		if (priority_queue_predicate ())
+		{
+			node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::priority_predicate);
+
+			auto block = priority.top ();
+			priority.pop ();
+			lock.unlock ();
+			std::shared_ptr<nano::election> election;
+			nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
+			election = node.active.insert_impl (lock2, block).election;
+			if (election != nullptr)
+			{
+				election->transition_active ();
+			}
+		}
+
+		// TODO: Once flush is removed this can be simplified
+		if (lock.owns_lock ())
+		{
+			lock.unlock ();
+		}
+
+		notify (); // Notify flush
+
+		lock.lock ();
+
 		condition.wait (lock, [this] () {
 			return stopped || priority_queue_predicate () || manual_queue_predicate () || overfill_predicate ();
 		});
-		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
-		if (!stopped)
-		{
-			node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
-
-			if (overfill_predicate ())
-			{
-				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::overfill_predicate);
-
-				lock.unlock ();
-				node.active.erase_oldest ();
-			}
-			else if (manual_queue_predicate ())
-			{
-				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::manual_predicate);
-
-				auto const [block, previous_balance, election_behavior, confirmation_action] = manual_queue.front ();
-				manual_queue.pop_front ();
-				lock.unlock ();
-				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
-				node.active.insert_impl (lock2, block, election_behavior, confirmation_action);
-			}
-			else if (priority_queue_predicate ())
-			{
-				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::priority_predicate);
-
-				auto block = priority.top ();
-				priority.pop ();
-				lock.unlock ();
-				std::shared_ptr<nano::election> election;
-				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
-				election = node.active.insert_impl (lock2, block).election;
-				if (election != nullptr)
-				{
-					election->transition_active ();
-				}
-			}
-			else
-			{
-				lock.unlock ();
-			}
-			notify ();
-			lock.lock ();
-		}
 	}
 }
 

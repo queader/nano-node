@@ -769,6 +769,7 @@ void nano::node::start ()
 	generator.start ();
 	final_generator.start ();
 	reply_generator.start ();
+	scheduler.start ();
 	backlog.start ();
 	hinting.start ();
 	bootstrap_server.start ();
