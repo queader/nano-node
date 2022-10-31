@@ -231,6 +231,7 @@ public:
 		tcp_server,
 		vote,
 		election,
+		election_scheduler,
 		http_callback,
 		peering,
 		ipc,
@@ -478,6 +479,11 @@ public:
 
 		// backlog
 		activated,
+
+		// scheduler
+		overfill_predicate,
+		manual_predicate,
+		priority_predicate,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
