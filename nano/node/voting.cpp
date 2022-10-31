@@ -215,31 +215,31 @@ std::vector<std::shared_ptr<nano::vote>> nano::wallet_voter::vote (std::deque<ca
 		}
 
 		// Check if there are any votes already cached
-		auto cached = history.votes (root, hash, is_final);
-		if (!cached.empty ())
+		//		auto cached = history.votes (root, hash, is_final);
+		//		if (!cached.empty ())
+		//		{
+		//			stats.inc (stat_type, nano::stat::detail::cached_hashes);
+		//
+		//			// Use cached votes
+		//			cached_candidates.push_back (candidate);
+		//			for (auto const & cached_vote : cached)
+		//			{
+		//				cached_votes.insert (cached_vote);
+		//			}
+		//		}
+		//		else
+		//		{
+		// Check vote spacing for live votes
+		if (spacing.votable (root, hash))
 		{
-			stats.inc (stat_type, nano::stat::detail::cached_hashes);
-
-			// Use cached votes
-			cached_candidates.push_back (candidate);
-			for (auto const & cached_vote : cached)
-			{
-				cached_votes.insert (cached_vote);
-			}
+			spacing.flag (root, hash);
+			valid_candidates.push_back (candidate);
 		}
 		else
 		{
-			// Check vote spacing for live votes
-			if (spacing.votable (root, hash))
-			{
-				spacing.flag (root, hash);
-				valid_candidates.push_back (candidate);
-			}
-			else
-			{
-				stats.inc (stat_type, nano::stat::detail::generator_spacing);
-			}
+			stats.inc (stat_type, nano::stat::detail::generator_spacing);
 		}
+		//		}
 	}
 
 	stats.add (stat_type, nano::stat::detail::generated_hashes, {}, valid_candidates.size ());
