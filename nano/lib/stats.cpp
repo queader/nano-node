@@ -866,6 +866,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::tcp_accept_failure:
 			res = "accept_failure";
 			break;
+		case nano::stat::detail::tcp_write:
+			res = "tcp_write";
+			break;
 		case nano::stat::detail::tcp_write_drop:
 			res = "tcp_write_drop";
 			break;

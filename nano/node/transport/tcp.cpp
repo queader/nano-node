@@ -52,6 +52,8 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 				{
 					if (!ec)
 					{
+						node_l->stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write, nano::stat::dir::out);
+
 						node_l->network.tcp_channels.update (endpoint_a);
 					}
 					if (ec == boost::system::errc::host_unreachable)
@@ -67,14 +69,12 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 		}
 		else
 		{
+			node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out);
 			if (policy_a == nano::buffer_drop_policy::no_socket_drop)
 			{
 				node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_no_socket_drop, nano::stat::dir::out);
 			}
-			else
-			{
-				node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out);
-			}
+
 			if (callback_a)
 			{
 				callback_a (boost::system::errc::make_error_code (boost::system::errc::no_buffer_space), 0);
