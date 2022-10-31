@@ -832,6 +832,7 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::election_not_confirmed:
 			res = "election_not_confirmed";
+			break;
 		case nano::stat::detail::election_hinted_overflow:
 			res = "election_hinted_overflow";
 			break;
