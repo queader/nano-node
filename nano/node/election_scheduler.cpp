@@ -52,12 +52,26 @@ std::pair<bool, bool> nano::election_scheduler::activate (nano::account const & 
 			debug_assert (block != nullptr);
 			if (node.ledger.dependents_confirmed (transaction, *block))
 			{
+				node.stats.inc (nano::stat::type::election_scheduler_activate, nano::stat::detail::activated);
+
 				nano::lock_guard<nano::mutex> lock{ mutex };
 				bool overflow = priority.push (account_info.modified, block);
 				notify ();
 				return { true, overflow }; // Activated, overflow?
 			}
+			else
+			{
+				node.stats.inc (nano::stat::type::election_scheduler_activate, nano::stat::detail::missing_dependents);
+			}
 		}
+		else
+		{
+			node.stats.inc (nano::stat::type::election_scheduler_activate, nano::stat::detail::missing_info);
+		}
+	}
+	else
+	{
+		node.stats.inc (nano::stat::type::election_scheduler_activate, nano::stat::detail::missing_account);
 	}
 	return { false, false }; // Nothing activated, no overflow
 }

@@ -232,6 +232,7 @@ public:
 		vote,
 		election,
 		election_scheduler,
+		election_scheduler_activate,
 		http_callback,
 		peering,
 		ipc,
@@ -479,10 +480,15 @@ public:
 		// backlog
 		activated,
 
-		// scheduler
+		// election scheduler
 		overfill_predicate,
 		manual_predicate,
 		priority_predicate,
+
+		// election scheduler activate
+		missing_dependents,
+		missing_info,
+		missing_account,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

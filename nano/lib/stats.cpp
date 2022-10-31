@@ -518,6 +518,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::election_scheduler:
 			res = "election_scheduler";
 			break;
+		case nano::stat::type::election_scheduler_activate:
+			res = "election_scheduler_activate";
+			break;
 		case nano::stat::type::message:
 			res = "message";
 			break;
@@ -1101,6 +1104,15 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::priority_predicate:
 			res = "priority_predicate";
+			break;
+		case nano::stat::detail::missing_dependents:
+			res = "missing_dependents";
+			break;
+		case nano::stat::detail::missing_info:
+			res = "missing_info";
+			break;
+		case nano::stat::detail::missing_account:
+			res = "missing_account";
 			break;
 	}
 	return res;
