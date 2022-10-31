@@ -96,6 +96,8 @@ bool nano::backlog_population::populate_backlog ()
 		const auto end = store.account.end ();
 		for (; !stopped && i != end && count < chunk_size; ++i, ++count, ++total)
 		{
+			stats.inc (nano::stat::type::backlog, nano::stat::detail::total);
+
 			auto const & account = i->first;
 			auto [activated, over] = scheduler.activate (account, transaction);
 			if (activated)
@@ -105,6 +107,7 @@ bool nano::backlog_population::populate_backlog ()
 			if (over)
 			{
 				overflow = true;
+				stats.inc (nano::stat::type::backlog, nano::stat::detail::overflow);
 			}
 
 			next = account.number () + 1;
