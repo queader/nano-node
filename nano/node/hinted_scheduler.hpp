@@ -59,7 +59,7 @@ private: // Dependencies
 private:
 	config const config_m;
 
-	bool stopped;
+	std::atomic<bool> stopped;
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;

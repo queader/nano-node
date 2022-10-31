@@ -15,11 +15,8 @@ nano::hinted_scheduler::hinted_scheduler (config const & config_a, nano::node & 
 
 nano::hinted_scheduler::~hinted_scheduler ()
 {
-	stop ();
-	if (thread.joinable ()) // Ensure thread was started
-	{
-		thread.join ();
-	}
+	// Thread should be stopped before destruction
+	debug_assert (!thread.joinable ());
 }
 
 void nano::hinted_scheduler::start ()
@@ -32,9 +29,12 @@ void nano::hinted_scheduler::start ()
 
 void nano::hinted_scheduler::stop ()
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
 	stopped = true;
 	notify ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
 }
 
 void nano::hinted_scheduler::notify ()

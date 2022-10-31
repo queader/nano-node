@@ -771,7 +771,10 @@ void nano::node::start ()
 	reply_generator.start ();
 	scheduler.start ();
 	backlog.start ();
-	hinting.start ();
+	if (!flags.disable_hinting)
+	{
+		hinting.start ();
+	}
 	bootstrap_server.start ();
 }
 
