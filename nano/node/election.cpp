@@ -204,6 +204,11 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 	}
 
+	{
+		nano::lock_guard<nano::mutex> guard (mutex);
+		last_update = std::chrono::steady_clock::now ();
+	}
+
 	if (!confirmed () && time_to_live () < std::chrono::steady_clock::now () - election_start)
 	{
 		nano::lock_guard<nano::mutex> guard (mutex);
@@ -639,4 +644,104 @@ std::vector<nano::vote_with_weight_info> nano::election::votes_with_weight () co
 	result.reserve (sorted_votes.size ());
 	std::transform (sorted_votes.begin (), sorted_votes.end (), std::back_inserter (result), [] (auto const & entry) { return entry.second; });
 	return result;
+}
+
+nano::ptree nano::election::get_info () const
+{
+	auto votes = votes_with_weight ();
+
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	nano::ptree blocks_info;
+	for (auto & [hash, block] : last_blocks)
+	{
+		blocks_info.add ("", hash.to_string ());
+	}
+
+	auto to_millis = [] (std::chrono::steady_clock::time_point const & time) {
+		return std::chrono::duration_cast<std::chrono::milliseconds> (time.time_since_epoch ()).count ();
+	};
+
+	auto to_millis_ago = [] (std::chrono::steady_clock::time_point const & time) {
+		auto now = std::chrono::steady_clock::now ();
+		return std::chrono::duration_cast<std::chrono::milliseconds> (now - time).count ();
+	};
+
+	nano::ptree votes_info;
+	for (auto & info : votes)
+	{
+		nano::ptree entry;
+		entry.put ("representative", info.representative.to_account ());
+		entry.put ("time", to_millis_ago (info.time));
+		entry.put ("timestamp", info.timestamp);
+		entry.put ("hash", info.hash.to_string ());
+		entry.put ("weight", info.weight);
+		entry.put ("final", (info.timestamp == std::numeric_limits<uint64_t>::max ()));
+
+		votes_info.add_child (info.representative.to_account (), entry);
+	}
+
+	nano::ptree result;
+
+	// election_status
+	result.put ("winner", status.winner->hash ().to_string ());
+	result.put ("tally", status.tally.to_string_dec ());
+	result.put ("final_tally", status.final_tally.to_string_dec ());
+
+	result.put ("state", to_string (state_m));
+	result.put ("quorum", is_quorum);
+	result.put ("confirmation_request_count", confirmation_request_count);
+
+	result.put ("behavior", nano::to_string (behavior));
+	result.put ("height", height);
+	result.put ("root", root.to_string ());
+	result.put ("qualified_root", qualified_root.to_string ());
+
+	result.put ("start_time", to_millis_ago (election_start));
+	result.put ("state_start_time", to_millis_ago (election_start));
+	result.put ("last_update_time", to_millis_ago (last_update));
+	result.put ("last_block_broadcast_time", to_millis_ago (last_block));
+	result.put ("last_confirmation_request_time", to_millis_ago (last_req));
+	result.put ("last_vote_broadcast_time", to_millis_ago (last_vote));
+
+	result.add_child ("blocks", blocks_info);
+	result.add_child ("votes", votes_info);
+	return result;
+}
+
+std::string nano::election::to_string (nano::election::state_t state)
+{
+	switch (state)
+	{
+		case state_t::passive:
+			return "passive";
+			break;
+		case state_t::active:
+			return "active";
+			break;
+		case state_t::confirmed:
+			return "confirmed";
+			break;
+		case state_t::expired_confirmed:
+			return "expired_confirmed";
+			break;
+		case state_t::expired_unconfirmed:
+			return "expired_unconfirmed";
+			break;
+	}
+	return "unknown";
+}
+
+std::string nano::to_string (nano::election_behavior behavior)
+{
+	switch (behavior)
+	{
+		case election_behavior::normal:
+			return "normal";
+			break;
+		case election_behavior::hinted:
+			return "hinted";
+			break;
+	}
+	return "unknown";
 }

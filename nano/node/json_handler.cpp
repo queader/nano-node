@@ -2132,6 +2132,12 @@ void nano::json_handler::confirmation_quorum ()
 	response_errors ();
 }
 
+void nano::json_handler::active_elections ()
+{
+	response_l = node.active.get_info ();
+	response_errors ();
+}
+
 void nano::json_handler::database_txn_tracker ()
 {
 	boost::property_tree::ptree json;
@@ -5300,6 +5306,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("accounts_pending", &nano::json_handler::accounts_pending);
 	no_arg_funcs.emplace ("accounts_receivable", &nano::json_handler::accounts_receivable);
 	no_arg_funcs.emplace ("active_difficulty", &nano::json_handler::active_difficulty);
+	no_arg_funcs.emplace ("active_elections", &nano::json_handler::active_elections);
 	no_arg_funcs.emplace ("available_supply", &nano::json_handler::available_supply);
 	no_arg_funcs.emplace ("block_info", &nano::json_handler::block_info);
 	no_arg_funcs.emplace ("block", &nano::json_handler::block_info);

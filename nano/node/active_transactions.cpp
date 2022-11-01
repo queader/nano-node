@@ -690,6 +690,30 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 	return composite;
 }
 
+nano::ptree nano::active_transactions::get_info () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	nano::ptree elections_info;
+	for (auto & root : roots)
+	{
+		// { qualified root: election info } entries
+		elections_info.add_child (root.root.to_string (), root.election->get_info ());
+	}
+
+	nano::ptree blocks_info;
+	for (auto & [hash, election] : blocks)
+	{
+		// { block hash: qualified root } entries
+		blocks_info.add (hash.to_string (), election->qualified_root.to_string ());
+	}
+
+	nano::ptree result;
+	result.add_child ("elections", elections_info);
+	result.add_child ("blocks", blocks_info);
+	return result;
+}
+
 /*
  * class recently_confirmed
  */

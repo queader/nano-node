@@ -56,6 +56,9 @@ struct election_extended_status final
 	nano::tally_t tally;
 };
 
+// TODO: Move to common header
+using ptree = boost::property_tree::ptree;
+
 class election final : public std::enable_shared_from_this<nano::election>
 {
 public:
@@ -81,6 +84,8 @@ private: // State management
 		expired_unconfirmed
 	};
 
+	static std::string to_string (state_t);
+
 	static unsigned constexpr passive_duration_factor = 5;
 	static unsigned constexpr active_request_count_min = 2;
 	std::atomic<nano::election::state_t> state_m = { state_t::passive };
@@ -93,6 +98,7 @@ private: // State management
 	std::chrono::steady_clock::time_point last_req = {};
 	/** The last time vote for this election was generated */
 	std::chrono::steady_clock::time_point last_vote = {};
+	std::chrono::steady_clock::time_point last_update = {};
 
 	bool valid_change (nano::election::state_t, nano::election::state_t) const;
 	bool state_change (nano::election::state_t, nano::election::state_t);
@@ -142,6 +148,11 @@ public: // Information
 	nano::root const root;
 	nano::qualified_root const qualified_root;
 	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
+
+	/**
+	 * Information for `active_elections` RPC
+	 */
+	nano::ptree get_info () const;
 
 private:
 	nano::tally_t tally_impl () const;
@@ -194,4 +205,6 @@ public: // Only used in tests
 	friend class votes_add_existing_Test;
 	friend class votes_add_old_Test;
 };
+
+std::string to_string (nano::election_behavior);
 }
