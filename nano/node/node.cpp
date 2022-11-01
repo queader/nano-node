@@ -1353,15 +1353,25 @@ std::shared_ptr<nano::election> nano::node::block_confirm (std::shared_ptr<nano:
 	return {};
 }
 
-bool nano::node::block_confirmed (nano::block_hash const & hash_a)
+bool nano::node::block_confirmed (nano::block_hash const & hash) const
 {
-	auto transaction (store.tx_begin_read ());
-	return ledger.block_confirmed (transaction, hash_a);
+	return ledger.block_confirmed (store.tx_begin_read (), hash);
 }
 
-bool nano::node::block_confirmed_or_being_confirmed (nano::block_hash const & hash_a)
+bool nano::node::block_confirmed_or_being_confirmed (nano::block_hash const & hash) const
 {
-	return confirmation_height_processor.is_processing_block (hash_a) || ledger.block_confirmed (store.tx_begin_read (), hash_a);
+	return confirmation_height_processor.is_processing_block (hash) || ledger.block_confirmed (store.tx_begin_read (), hash);
+}
+
+bool nano::node::dependents_confirmed (const nano::block_hash & hash) const
+{
+	auto transaction = store.tx_begin_read ();
+	auto block = store.block.get (transaction, hash);
+	if (block)
+	{
+		return ledger.dependents_confirmed (store.tx_begin_read (), *block);
+	}
+	return false;
 }
 
 void nano::node::ongoing_online_weight_calculation_queue ()
