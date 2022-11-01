@@ -95,6 +95,7 @@ private: // State management
 	std::chrono::steady_clock::time_point last_req = {};
 	/** The last time vote for this election was generated */
 	std::chrono::steady_clock::time_point last_vote = {};
+	/** The last time `transition_time` update function was called */
 	std::chrono::steady_clock::time_point last_update = {};
 
 	bool valid_change (nano::election::state_t, nano::election::state_t) const;
@@ -179,12 +180,17 @@ private:
 	nano::election_behavior const behavior{ nano::election_behavior::normal };
 	std::chrono::steady_clock::time_point const election_start = { std::chrono::steady_clock::now () };
 
+	/** Time to wait before next vote broadcast for current winner, doubles for each broadcast, up to `max_vote_broadcast_delay` */
+	uint64_t vote_broadcast_delay{ 1000 };
+
 	nano::node & node;
 	mutable nano::mutex mutex;
 
 	static std::size_t constexpr max_blocks{ 10 };
-	/** How often to generate and broadcasts votes for active elections (seconds) */
-	static std::size_t constexpr vote_generation_interval{ 15 };
+	/** How often to generate and broadcasts votes for active elections (milliseconds) */
+	static uint64_t constexpr max_vote_broadcast_delay{ 15 * 1000 };
+	/** Margin of randomization for each vote broadcast */
+	static uint64_t constexpr rand_vote_broadcast_delay{ 500 };
 
 	friend class active_transactions;
 	friend class confirmation_solicitor;

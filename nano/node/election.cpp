@@ -5,6 +5,8 @@
 
 #include <boost/format.hpp>
 
+#include <random>
+
 using namespace std::chrono;
 
 std::chrono::milliseconds nano::election::base_latency () const
@@ -164,13 +166,21 @@ void nano::election::broadcast_block (nano::confirmation_solicitor & solicitor_a
 	}
 }
 
+int rand_int (const int & min, const int & max)
+{
+	static thread_local std::default_random_engine generator;
+	std::uniform_int_distribution<int> distribution (min, max);
+	return distribution (generator);
+}
+
 void nano::election::broadcast_vote ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	if (last_vote + std::chrono::seconds (vote_generation_interval) < std::chrono::steady_clock::now ())
+	if (last_vote + std::chrono::milliseconds (vote_broadcast_delay) < std::chrono::steady_clock::now ())
 	{
 		generate_vote ();
 		last_vote = std::chrono::steady_clock::now ();
+		vote_broadcast_delay = std::min (vote_broadcast_delay * 2 + rand_int (0, rand_vote_broadcast_delay), max_vote_broadcast_delay);
 	}
 }
 
@@ -690,6 +700,7 @@ nano::ptree nano::election::get_info () const
 	result.put ("state", to_string (state_m));
 	result.put ("quorum", is_quorum);
 	result.put ("confirmation_request_count", confirmation_request_count);
+	result.put ("vote_broadcast_delay", vote_broadcast_delay);
 
 	result.put ("behavior", nano::to_string (behavior));
 	result.put ("height", height);
