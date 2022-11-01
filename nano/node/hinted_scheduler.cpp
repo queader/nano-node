@@ -62,21 +62,31 @@ bool nano::hinted_scheduler::run_one (nano::uint128_t const & minimum_tally)
 	{
 		const auto hash = top->hash; // Hash of block we want to hint
 
+		// Ensure block is not already confirmed
+		if (node.block_confirmed_or_being_confirmed (hash))
+		{
+			stats.inc (nano::stat::type::hinting, nano::stat::detail::already_confirmed);
+			return false;
+		}
+
+		// Do not hint blocks without their dependents confirmed
+		if (!node.dependents_confirmed (hash))
+		{
+			stats.inc (nano::stat::type::hinting, nano::stat::detail::missing_dependents);
+			return false;
+		}
+
 		// Check if block exists
 		auto block = node.block (hash);
-		if (block != nullptr)
+		if (block)
 		{
-			// Ensure block is not already confirmed
-			if (!node.block_confirmed_or_being_confirmed (hash))
-			{
-				// Try to insert it into AEC as hinted election
-				// We check for AEC vacancy inside our predicate
-				auto result = node.active.insert_hinted (block);
+			// Try to insert it into AEC as hinted election
+			// We check for AEC vacancy inside our predicate
+			auto result = node.active.insert_hinted (block);
 
-				stats.inc (nano::stat::type::hinting, result.inserted ? nano::stat::detail::hinted : nano::stat::detail::insert_failed);
+			stats.inc (nano::stat::type::hinting, result.inserted ? nano::stat::detail::hinted : nano::stat::detail::insert_failed);
 
-				return result.inserted; // Return whether block was inserted
-			}
+			return result.inserted; // Return whether block was inserted
 		}
 		else
 		{
