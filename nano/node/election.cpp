@@ -655,7 +655,12 @@ nano::ptree nano::election::get_info () const
 	nano::ptree blocks_info;
 	for (auto & [hash, block] : last_blocks)
 	{
-		blocks_info.add ("", hash.to_string ());
+		nano::ptree entry;
+		entry.put ("hash", block->hash ().to_string ());
+		entry.put ("exists", node.block (block->hash ()) != nullptr);
+		entry.put ("dependents_confirmed", node.dependents_confirmed (block->hash ()));
+
+		blocks_info.add_child (hash.to_string (), entry);
 	}
 
 	auto to_millis = [] (std::chrono::steady_clock::time_point const & time) {
