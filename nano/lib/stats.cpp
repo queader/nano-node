@@ -1072,6 +1072,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::missing_block:
 			res = "missing_block";
 			break;
+		case nano::stat::detail::already_confirmed:
+			res = "already_confirmed";
+			break;
 		case nano::stat::detail::response:
 			res = "response";
 			break;

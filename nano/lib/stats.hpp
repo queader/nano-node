@@ -467,6 +467,7 @@ public:
 		hinted,
 		insert_failed,
 		missing_block,
+		already_confirmed,
 
 		// bootstrap server
 		response,
