@@ -46,6 +46,7 @@ public:
 	void accounts_pending ();
 	void accounts_receivable ();
 	void active_difficulty ();
+	void active_elections ();
 	void available_supply ();
 	void block_info ();
 	void block_confirm ();

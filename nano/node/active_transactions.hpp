@@ -203,6 +203,11 @@ public:
 	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
 	void remove_election_winner_details (nano::block_hash const &);
 
+	/**
+	 * Information for `active_elections` RPC
+	 */
+	nano::ptree get_info () const;
+
 private:
 	// Call action with confirmed block, may be different than what we started with
 	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
