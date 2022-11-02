@@ -387,6 +387,7 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 		auto last_vote_it (last_votes.find (rep));
 		if (last_vote_it == last_votes.end ())
 		{
+			node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::vote_first);
 			should_process = true;
 		}
 		else
@@ -395,6 +396,10 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 			if (last_vote_l.timestamp < timestamp_a || (last_vote_l.timestamp == timestamp_a && last_vote_l.hash < block_hash_a))
 			{
 				auto max_vote = timestamp_a == std::numeric_limits<uint64_t>::max () && last_vote_l.timestamp < timestamp_a;
+				if (max_vote)
+				{
+					node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::vote_final);
+				}
 
 				bool past_cooldown = true;
 				// Only cooldown live votes
@@ -402,17 +407,28 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 				{
 					const auto cooldown = cooldown_time (weight);
 					past_cooldown = last_vote_l.time <= std::chrono::steady_clock::now () - cooldown;
+					if (past_cooldown)
+					{
+						node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::vote_past_cooldown);
+					}
+					else
+					{
+						node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::vote_cooldown);
+					}
 				}
 
 				should_process = max_vote || past_cooldown;
 			}
 			else
 			{
+				node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::vote_replay);
 				replay = true;
 			}
 		}
 		if (should_process)
 		{
+			node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::should_process);
+
 			last_votes[rep] = { std::chrono::steady_clock::now (), timestamp_a, block_hash_a };
 			if (vote_source_a == vote_source::live)
 			{
@@ -426,8 +442,17 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 				confirm_if_quorum (lock);
 			}
 		}
+		else
+		{
+			node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::should_not_process);
+		}
 	}
-	return nano::election_vote_result (replay, should_process);
+	else
+	{
+		node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::minimum_weight);
+	}
+
+	return { replay, should_process };
 }
 
 bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)

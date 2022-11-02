@@ -231,6 +231,7 @@ public:
 		tcp_server,
 		vote,
 		election,
+		election_vote,
 		election_scheduler,
 		election_scheduler_activate,
 		http_callback,
@@ -373,6 +374,15 @@ public:
 		generate_vote,
 		generate_vote_normal,
 		generate_vote_final,
+
+		// election_vote
+		minimum_weight,
+		should_process,
+		should_not_process,
+		vote_first,
+		vote_final,
+		vote_cooldown,
+		vote_past_cooldown,
 
 		// udp
 		blocking,
