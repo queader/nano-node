@@ -2,6 +2,7 @@
 #include <nano/lib/threading.hpp>
 #include <nano/lib/utility.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/transport/inproc.hpp>
 #include <nano/node/vote_processor.hpp>
@@ -9,6 +10,8 @@
 #include <nano/node/wallet.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
+
+#include <boost/format.hpp>
 
 #include <chrono>
 
@@ -399,6 +402,11 @@ void nano::broadcast_voter::run_broadcast (nano::unique_lock<nano::mutex> & lock
 void nano::broadcast_voter::send_broadcast (std::shared_ptr<nano::vote> const & vote_a) const
 {
 	stats.inc (stat_type, nano::stat::detail::send_broadcast, nano::stat::dir::out);
+
+	for (auto & hash : vote_a->hashes)
+	{
+		network.node.logger.always_log (boost::format ("Voted (final: %2%): %1%") % hash.to_string () % vote_a->is_final ());
+	}
 
 	network.flood_vote_pr (vote_a);
 	network.flood_vote (vote_a, 2.0f, drop_policy);

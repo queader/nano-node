@@ -504,6 +504,11 @@ std::chrono::milliseconds nano::vote::duration () const
 	return std::chrono::milliseconds{ 1u << (duration_bits () + 4) };
 }
 
+bool nano::vote::is_final () const
+{
+	return timestamp_m == std::numeric_limits<uint64_t>::max ();
+}
+
 nano::vote::vote (nano::vote const & other_a) :
 	timestamp_m{ other_a.timestamp_m },
 	hashes{ other_a.hashes },

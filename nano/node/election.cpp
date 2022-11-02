@@ -452,6 +452,13 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 		node.stats.inc (nano::stat::type::election_vote, nano::stat::detail::minimum_weight);
 	}
 
+	node.logger.always_log (boost::format ("Vote for (final: %3%): %1% from %2% | processed: %4% | replay: %5%")
+	% block_hash_a.to_string ()
+	% rep.to_string ()
+	% (timestamp_a == std::numeric_limits<uint64_t>::max ())
+	% should_process
+	% replay);
+
 	return { replay, should_process };
 }
 
