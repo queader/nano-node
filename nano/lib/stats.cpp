@@ -515,6 +515,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::election:
 			res = "election";
 			break;
+		case nano::stat::type::election_vote:
+			res = "election_vote";
+			break;
 		case nano::stat::type::election_scheduler:
 			res = "election_scheduler";
 			break;
@@ -855,6 +858,27 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::generate_vote_final:
 			res = "generate_vote_final";
+			break;
+		case nano::stat::detail::minimum_weight:
+			res = "minimum_weight";
+			break;
+		case nano::stat::detail::should_process:
+			res = "should_process";
+			break;
+		case nano::stat::detail::should_not_process:
+			res = "should_not_process";
+			break;
+		case nano::stat::detail::vote_first:
+			res = "vote_first";
+			break;
+		case nano::stat::detail::vote_final:
+			res = "vote_final";
+			break;
+		case nano::stat::detail::vote_cooldown:
+			res = "vote_cooldown";
+			break;
+		case nano::stat::detail::vote_past_cooldown:
+			res = "vote_past_cooldown";
 			break;
 		case nano::stat::detail::blocking:
 			res = "blocking";
