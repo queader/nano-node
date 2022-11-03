@@ -239,6 +239,7 @@ public:
 		ipc,
 		tcp,
 		udp,
+		socket,
 		confirmation_height,
 		confirmation_observer,
 		drop,
@@ -423,6 +424,14 @@ public:
 
 		// ipc
 		invocations,
+
+		// socket
+		drop_errors,
+		drop_timeout,
+		drop_not_connected,
+		drop_closed,
+		timeout_silent,
+		timeout_io,
 
 		// peering
 		handshake,

@@ -497,6 +497,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::udp:
 			res = "udp";
 			break;
+		case nano::stat::type::socket:
+			res = "socket";
+			break;
 		case nano::stat::type::peering:
 			res = "peering";
 			break;
@@ -745,6 +748,24 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::invocations:
 			res = "invocations";
+			break;
+		case nano::stat::detail::drop_errors:
+			res = "drop_errors";
+			break;
+		case nano::stat::detail::drop_timeout:
+			res = "drop_timeout";
+			break;
+		case nano::stat::detail::drop_not_connected:
+			res = "drop_not_connected";
+			break;
+		case nano::stat::detail::drop_closed:
+			res = "drop_closed";
+			break;
+		case nano::stat::detail::timeout_silent:
+			res = "timeout_silent";
+			break;
+		case nano::stat::detail::timeout_io:
+			res = "timeout_io";
 			break;
 		case nano::stat::detail::keepalive:
 			res = "keepalive";

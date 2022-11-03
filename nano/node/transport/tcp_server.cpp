@@ -557,7 +557,7 @@ void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const
 //  and since we only ever store tcp_server as weak_ptr, socket timeout will automatically trigger tcp_server cleanup
 void nano::transport::tcp_server::timeout ()
 {
-	if (socket->has_timed_out ())
+	if (!socket->alive ())
 	{
 		if (node->config.logging.bulk_pull_logging ())
 		{

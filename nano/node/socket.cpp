@@ -56,19 +56,24 @@ nano::socket::~socket ()
 void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::function<void (boost::system::error_code const &)> callback_a)
 {
 	debug_assert (endpoint_type () == endpoint_type_t::client);
-	checkup ();
-	auto this_l (shared_from_this ());
+
+	// Ongoing checkup runs with a delay, which gives time for a fresh socket to connect
+	ongoing_checkup ();
+
 	set_default_timeout ();
-	this_l->tcp_socket.async_connect (endpoint_a,
-	boost::asio::bind_executor (this_l->strand,
-	[this_l, callback = std::move (callback_a), endpoint_a] (boost::system::error_code const & ec) {
+
+	tcp_socket.async_connect (endpoint_a,
+	boost::asio::bind_executor (strand, [this_l = shared_from_this (), callback = std::move (callback_a), endpoint_a] (boost::system::error_code const & ec) {
 		if (ec)
 		{
 			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in);
+			this_l->errors++;
+			this_l->close ();
 		}
 		else
 		{
 			this_l->set_last_completion ();
+			this_l->connected = true;
 		}
 		this_l->remote = endpoint_a;
 		callback (ec);
@@ -77,30 +82,39 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 
 void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
+	if (manually_closed)
+	{
+		if (callback_a)
+		{
+			node.background ([callback = std::move (callback_a)] () {
+				// TODO: Use a dedicated nano error code
+				callback (boost::system::errc::make_error_code (boost::system::errc::not_supported), 0);
+			});
+		}
+		return;
+	}
+
 	if (size_a <= buffer_a->size ())
 	{
-		auto this_l (shared_from_this ());
-		if (!closed)
-		{
-			set_default_timeout ();
-			boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), size_a, this_l] () mutable {
-				boost::asio::async_read (this_l->tcp_socket, boost::asio::buffer (buffer_a->data (), size_a),
-				boost::asio::bind_executor (this_l->strand,
-				[this_l, buffer_a, cbk = std::move (callback)] (boost::system::error_code const & ec, std::size_t size_a) {
-					if (ec)
-					{
-						this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in);
-					}
-					else
-					{
-						this_l->node.stats.add (nano::stat::type::traffic_tcp, nano::stat::dir::in, size_a);
-						this_l->set_last_completion ();
-						this_l->set_last_receive_time ();
-					}
-					cbk (ec, size_a);
-				}));
+		set_default_timeout ();
+		boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), size_a, this_l = shared_from_this ()] () mutable {
+			boost::asio::async_read (this_l->tcp_socket, boost::asio::buffer (buffer_a->data (), size_a),
+			boost::asio::bind_executor (this_l->strand, [this_l, buffer_a, cbk = std::move (callback)] (boost::system::error_code const & ec, std::size_t size_a) {
+				if (ec)
+				{
+					this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in);
+					this_l->errors++;
+					this_l->close ();
+				}
+				else
+				{
+					this_l->node.stats.add (nano::stat::type::traffic_tcp, nano::stat::dir::in, size_a);
+					this_l->set_last_completion ();
+					this_l->set_last_receive_time ();
+				}
+				cbk (ec, size_a);
 			}));
-		}
+		}));
 	}
 	else
 	{
@@ -112,41 +126,42 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 
 void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
-	if (closed)
+	if (manually_closed)
 	{
 		if (callback_a)
 		{
 			node.background ([callback = std::move (callback_a)] () {
+				// TODO: Use a dedicated nano error code
 				callback (boost::system::errc::make_error_code (boost::system::errc::not_supported), 0);
 			});
 		}
-
 		return;
 	}
 
 	++queue_size;
 
 	boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), this_l = shared_from_this ()] () mutable {
-		if (this_l->closed)
+		if (this_l->manually_closed)
 		{
 			if (callback)
 			{
+				// TODO: Use a dedicated nano error code
 				callback (boost::system::errc::make_error_code (boost::system::errc::not_supported), 0);
 			}
-
 			return;
 		}
 
 		this_l->set_default_timeout ();
 
 		nano::async_write (this_l->tcp_socket, buffer_a,
-		boost::asio::bind_executor (this_l->strand,
-		[buffer_a, cbk = std::move (callback), this_l] (boost::system::error_code ec, std::size_t size_a) {
+		boost::asio::bind_executor (this_l->strand, [buffer_a, cbk = std::move (callback), this_l] (boost::system::error_code ec, std::size_t size_a) {
 			--this_l->queue_size;
 
 			if (ec)
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in);
+				this_l->errors++;
+				this_l->close ();
 			}
 			else
 			{
@@ -189,56 +204,81 @@ void nano::socket::set_last_receive_time ()
 	last_receive_time_or_init = nano::seconds_since_epoch ();
 }
 
-void nano::socket::checkup ()
+void nano::socket::ongoing_checkup ()
 {
 	std::weak_ptr<nano::socket> this_w (shared_from_this ());
-	node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (2), [this_w] () {
+	node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (3), [this_w] () {
 		if (auto this_l = this_w.lock ())
 		{
-			uint64_t now (nano::seconds_since_epoch ());
-			auto condition_to_disconnect{ false };
-
-			// if this is a server socket, and no data is received for silent_connection_tolerance_time seconds then disconnect
-			if (this_l->endpoint_type () == endpoint_type_t::server && (now - this_l->last_receive_time_or_init) > this_l->silent_connection_tolerance_time.count ())
-			{
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_silent_connection_drop, nano::stat::dir::in);
-				condition_to_disconnect = true;
-			}
-
-			// if there is no activity for timeout seconds then disconnect
-			if ((now - this_l->last_completion_time_or_init) > this_l->timeout)
-			{
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop,
-				this_l->endpoint_type () == endpoint_type_t::server ? nano::stat::dir::in : nano::stat::dir::out);
-				condition_to_disconnect = true;
-			}
-
-			if (condition_to_disconnect)
+			if (!this_l->alive ())
 			{
 				if (this_l->node.config.logging.network_timeout_logging ())
 				{
-					// The remote end may have closed the connection before this side timing out, in which case the remote address is no longer available.
-					boost::system::error_code ec_remote_l;
-					boost::asio::ip::tcp::endpoint remote_endpoint_l = this_l->tcp_socket.remote_endpoint (ec_remote_l);
-					if (!ec_remote_l)
-					{
-						this_l->node.logger.try_log (boost::str (boost::format ("Disconnecting from %1% due to timeout") % remote_endpoint_l));
-					}
+					this_l->node.logger.try_log (boost::str (boost::format ("Disconnecting from %1% due to timeout") % this_l->remote_endpoint ()));
 				}
-				this_l->timed_out = true;
+
 				this_l->close ();
 			}
-			else if (!this_l->closed)
+
+			if (!this_l->manually_closed)
 			{
-				this_l->checkup ();
+				this_l->ongoing_checkup ();
 			}
 		}
 	});
 }
 
-bool nano::socket::has_timed_out () const
+bool nano::socket::alive () const
 {
-	return timed_out;
+	// If it has been connected
+	if (!connected)
+	{
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::drop_not_connected);
+		return false;
+	}
+
+	// If there are any IO errors
+	if (errors > 0)
+	{
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::drop_errors);
+		return false;
+	}
+
+	if (closed ())
+	{
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::drop_closed);
+		return false;
+	}
+
+	// If the socket has timed out
+	if (timed_out ())
+	{
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::drop_timeout);
+		return false;
+	}
+
+	return true;
+}
+
+bool nano::socket::timed_out () const
+{
+	uint64_t now = nano::seconds_since_epoch ();
+
+	// If this is a server socket, and no data is received for silent_connection_tolerance_time seconds
+	if (endpoint_type () == endpoint_type_t::server && (now - last_receive_time_or_init) > silent_connection_tolerance_time.count ())
+	{
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::timeout_silent);
+		return true; // Disconnect
+	}
+
+	// If there is no activity for timeout seconds
+	if ((now - last_completion_time_or_init) > timeout)
+	{
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::timeout_io);
+		return true; // Disconnect
+	}
+
+	return false;
 }
 
 void nano::socket::set_default_timeout_value (std::chrono::seconds timeout_a)
@@ -259,10 +299,14 @@ void nano::socket::set_silent_connection_tolerance_time (std::chrono::seconds to
 	}));
 }
 
+bool nano::socket::closed () const
+{
+	return manually_closed || !tcp_socket.is_open ();
+}
+
 void nano::socket::close ()
 {
-	auto this_l (shared_from_this ());
-	boost::asio::dispatch (strand, boost::asio::bind_executor (strand, [this_l] {
+	boost::asio::dispatch (strand, boost::asio::bind_executor (strand, [this_l = shared_from_this ()] {
 		this_l->close_internal ();
 	}));
 }
@@ -270,24 +314,28 @@ void nano::socket::close ()
 // This must be called from a strand or the destructor
 void nano::socket::close_internal ()
 {
-	if (!closed.exchange (true))
+	// Ignore multiple calls
+	if (manually_closed.exchange (true))
 	{
-		default_timeout = std::chrono::seconds (0);
-		boost::system::error_code ec;
+		return;
+	}
 
-		// Ignore error code for shutdown as it is best-effort
-		tcp_socket.shutdown (boost::asio::ip::tcp::socket::shutdown_both, ec);
-		tcp_socket.close (ec);
-		if (ec)
-		{
-			node.logger.try_log ("Failed to close socket gracefully: ", ec.message ());
-			node.stats.inc (nano::stat::type::bootstrap, nano::stat::detail::error_socket_close);
-		}
+	default_timeout = std::chrono::seconds (0);
+	boost::system::error_code ec;
+
+	// Ignore error code for shutdown as it is best-effort
+	tcp_socket.shutdown (boost::asio::ip::tcp::socket::shutdown_both, ec);
+	tcp_socket.close (ec);
+	if (ec)
+	{
+		node.logger.try_log ("Failed to close socket gracefully: ", ec.message ());
+		node.stats.inc (nano::stat::type::bootstrap, nano::stat::detail::error_socket_close);
 	}
 }
 
 nano::tcp_endpoint nano::socket::remote_endpoint () const
 {
+	// Use cached endpoint because we cannot read it directly from tcp_socket after it is closed
 	return remote;
 }
 
@@ -295,6 +343,10 @@ nano::tcp_endpoint nano::socket::local_endpoint () const
 {
 	return tcp_socket.local_endpoint ();
 }
+
+/*
+ * server_socket
+ */
 
 nano::server_socket::server_socket (nano::node & node_a, boost::asio::ip::tcp::endpoint local_a, std::size_t max_connections_a) :
 	socket{ node_a, endpoint_type_t::server },
@@ -453,9 +505,10 @@ void nano::server_socket::on_connection (std::function<bool (std::shared_ptr<nan
 
 			if (!ec_a)
 			{
+				// Ongoing checkup runs with a delay, which gives time for a fresh socket to connect
+				new_connection->ongoing_checkup ();
 				// Make sure the new connection doesn't idle. Note that in most cases, the callback is going to start
 				// an IO operation immediately, which will start a timer.
-				new_connection->checkup ();
 				new_connection->set_timeout (this_l->node.network_params.network.idle_timeout);
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_success, nano::stat::dir::in);
 				this_l->connections_per_address.emplace (new_connection->remote.address (), new_connection);

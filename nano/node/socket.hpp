@@ -53,6 +53,7 @@ public:
 		client
 	};
 
+public:
 	/**
 	 * Constructor
 	 * @param node Owning node
@@ -60,15 +61,17 @@ public:
 	 */
 	explicit socket (nano::node & node, endpoint_type_t endpoint_type_a);
 	virtual ~socket ();
+
 	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
 	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {});
 
 	virtual void close ();
+
+	/** Returns cached remote endpoint */
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;
 	boost::asio::ip::tcp::endpoint local_endpoint () const;
-	/** Returns true if the socket has timed out */
-	bool has_timed_out () const;
+
 	/** This can be called to change the maximum idle time, e.g. based on the type of traffic detected. */
 	void set_default_timeout_value (std::chrono::seconds);
 	std::chrono::seconds get_default_timeout_value () const;
@@ -102,10 +105,16 @@ public:
 	{
 		return type () == nano::socket::type_t::bootstrap;
 	}
-	bool is_closed ()
-	{
-		return closed;
-	}
+
+	/**
+	 * Is this socket closed?
+	 */
+	bool closed () const;
+	/**
+	 * Is this socket alive?
+	 * Socket is alive if it is connected, there are no IO errors and it has not timed out
+	 */
+	bool alive () const;
 
 protected:
 	/** Holds the buffer and callback for queued writes */
@@ -138,11 +147,6 @@ protected:
 	 */
 	std::atomic<uint64_t> last_receive_time_or_init;
 
-	/** Flag that is set when cleanup decides to close the socket due to timeout.
-	 *  NOTE: Currently used by tcp_server::timeout() but I suspect that this and tcp_server::timeout() are not needed.
-	 */
-	std::atomic<bool> timed_out{ false };
-
 	/** the timeout value to use when calling set_default_timeout() */
 	std::atomic<std::chrono::seconds> default_timeout;
 
@@ -159,12 +163,28 @@ protected:
 
 	/** Set by close() - completion handlers must check this. This is more reliable than checking
 	 error codes as the OS may have already completed the async operation. */
-	std::atomic<bool> closed{ false };
+	std::atomic<bool> manually_closed{ false };
+
+	/** Set when socket successfully connects to remote endpoint */
+	std::atomic<bool> connected{ false };
+	/** Number of error encountered when performing IO operations */
+	std::atomic<unsigned> errors{ 0 };
+
 	void close_internal ();
 	void set_default_timeout ();
 	void set_last_completion ();
 	void set_last_receive_time ();
-	void checkup ();
+
+private:
+	/**
+	 * Queues a task that periodically checks for socket timeouts and errors and closes the socket if there are problems
+	 */
+	void ongoing_checkup ();
+	/**
+	 * Checks if the socket has timed out
+	 * Timeout happens when socket does not perform any IO operation for duration of `timeout` seconds
+	 */
+	bool timed_out () const;
 
 private:
 	type_t type_m{ type_t::undefined };
