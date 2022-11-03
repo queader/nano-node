@@ -17,11 +17,7 @@ void nano::transport::message_deserializer::read (std::shared_ptr<nano::socket> 
 
 	status = parse_status::none;
 
-	// Increase timeout to receive TCP header (idle server socket)
-	auto prev_timeout = socket->get_default_timeout_value ();
-	socket->set_default_timeout_value (network_constants_m.idle_timeout);
-
-	socket->async_read (read_buffer, HEADER_SIZE, [this_l = shared_from_this (), socket, callback = std::move (callback), prev_timeout] (boost::system::error_code const & ec, std::size_t size_a) {
+	socket->async_read (read_buffer, HEADER_SIZE, [this_l = shared_from_this (), socket, callback = std::move (callback)] (boost::system::error_code const & ec, std::size_t size_a) {
 		if (ec)
 		{
 			callback (ec, nullptr);
@@ -32,9 +28,6 @@ void nano::transport::message_deserializer::read (std::shared_ptr<nano::socket> 
 			callback (boost::asio::error::fault, nullptr);
 			return;
 		}
-
-		// Decrease timeout to default
-		socket->set_default_timeout_value (prev_timeout);
 
 		this_l->received_header (socket, std::move (callback));
 	});

@@ -100,7 +100,6 @@ void nano::bootstrap_connections::pool_connection (std::shared_ptr<nano::bootstr
 	auto const & socket_l = client_a->socket;
 	if (!stopped && !client_a->pending_stop && !node.network.excluded_peers.check (client_a->channel->get_tcp_endpoint ()))
 	{
-		socket_l->set_timeout (node.network_params.network.idle_timeout);
 		// Push into idle deque
 		if (!push_front)
 		{
@@ -172,8 +171,8 @@ void nano::bootstrap_connections::connect_client (nano::tcp_endpoint const & end
 					case boost::system::errc::connection_refused:
 					case boost::system::errc::operation_canceled:
 					case boost::system::errc::timed_out:
-					case 995: //Windows The I/O operation has been aborted because of either a thread exit or an application request
-					case 10061: //Windows No connection could be made because the target machine actively refused it
+					case 995: // Windows The I/O operation has been aborted because of either a thread exit or an application request
+					case 10061: // Windows No connection could be made because the target machine actively refused it
 						break;
 				}
 			}

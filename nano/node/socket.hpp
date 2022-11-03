@@ -72,11 +72,6 @@ public:
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;
 	boost::asio::ip::tcp::endpoint local_endpoint () const;
 
-	/** This can be called to change the maximum idle time, e.g. based on the type of traffic detected. */
-	void set_default_timeout_value (std::chrono::seconds);
-	std::chrono::seconds get_default_timeout_value () const;
-	void set_timeout (std::chrono::seconds);
-	void set_silent_connection_tolerance_time (std::chrono::seconds tolerance_time_a);
 	bool max () const
 	{
 		return queue_size >= queue_size_max;
@@ -116,6 +111,9 @@ public:
 	 */
 	bool alive () const;
 
+protected: // Dependencies
+	nano::node & node;
+
 protected:
 	/** Holds the buffer and callback for queued writes */
 	class queue_item
@@ -127,31 +125,21 @@ protected:
 
 	boost::asio::strand<boost::asio::io_context::executor_type> strand;
 	boost::asio::ip::tcp::socket tcp_socket;
-	nano::node & node;
 
 	/** The other end of the connection */
 	boost::asio::ip::tcp::endpoint remote;
 
-	/** number of seconds of inactivity that causes a socket timeout
-	 *  activity is any successful connect, send or receive event
-	 */
-	std::atomic<uint64_t> timeout;
-
 	/** the timestamp (in seconds since epoch) of the last time there was successful activity on the socket
 	 *  activity is any successful connect, send or receive event
 	 */
-	std::atomic<uint64_t> last_completion_time_or_init;
+	std::atomic<uint64_t> last_completion_time{ 0 };
 
 	/** the timestamp (in seconds since epoch) of the last time there was successful receive on the socket
 	 *  successful receive includes graceful closing of the socket by the peer (the read succeeds but returns 0 bytes)
 	 */
-	std::atomic<uint64_t> last_receive_time_or_init;
-
-	/** the timeout value to use when calling set_default_timeout() */
-	std::atomic<std::chrono::seconds> default_timeout;
-
-	/** used in real time server sockets, number of seconds of no receive traffic that will cause the socket to timeout */
-	std::chrono::seconds silent_connection_tolerance_time;
+	std::atomic<uint64_t> last_receive_time{ 0 };
+	/** The timestamp of the last successful send on the socket (seconds since epoch) */
+	std::atomic<uint64_t> last_send_time{ 0 };
 
 	/** Tracks number of blocks queued for delivery to the local socket send buffers.
 	 *  Under normal circumstances, this should be zero.
@@ -171,9 +159,11 @@ protected:
 	std::atomic<unsigned> errors{ 0 };
 
 	void close_internal ();
-	void set_default_timeout ();
-	void set_last_completion ();
-	void set_last_receive_time ();
+
+	/** Update the time of latest successful IO operation. Used for detecting timeouts. */
+	void update_last_completion ();
+	void update_last_receive ();
+	void update_last_send ();
 
 private:
 	/**
@@ -189,6 +179,12 @@ private:
 private:
 	type_t type_m{ type_t::undefined };
 	endpoint_type_t endpoint_type_m;
+
+	/** Maximum period of no new received messages for server side sockets (seconds) */
+	// TODO: Bidirectional channel communication will remove distinction between client/server side sockets
+	const int64_t silent_timeout;
+	/** Timeout for IO operations (seconds). IO operation are connect, send or receive */
+	const int64_t io_timeout;
 
 public:
 	static std::size_t constexpr queue_size_max = 128;
