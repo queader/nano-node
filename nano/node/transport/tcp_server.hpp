@@ -78,9 +78,12 @@ private:
 	bool is_bootstrap_connection () const;
 	bool is_realtime_connection () const;
 
+private:
 	std::shared_ptr<nano::transport::message_deserializer> message_deserializer;
 
 	bool allow_bootstrap;
+
+	std::atomic<nano::message_type> last_message{ message_type::invalid };
 
 private:
 	class handshake_message_visitor : public nano::message_visitor

@@ -203,12 +203,21 @@ void nano::transport::tcp_server::receive_message ()
 	message_deserializer->read (socket, [this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
 		if (ec)
 		{
+			this_l->node->logger.always_log (boost::format ("Network Error (tcp_server::receive_message): %1% | %2% | status: %3% | last: %4%")
+			% ec % ec.message ()
+			% nano::transport::message_deserializer::to_string (this_l->message_deserializer->status)
+			% nano::to_string (this_l->last_message));
+
 			// IO error or critical error when deserializing message
 			this_l->node->stats.inc (nano::stat::type::error, nano::transport::message_deserializer::to_stat_detail (this_l->message_deserializer->status));
 			this_l->stop ();
 		}
 		else
 		{
+			if (message)
+			{
+				this_l->last_message = message->type ();
+			}
 			this_l->received_message (std::move (message));
 		}
 	});

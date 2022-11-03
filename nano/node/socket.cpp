@@ -85,6 +85,16 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
 	debug_assert (callback_a);
+	callback_a = [callback_a, node_s = node.shared ()] (auto & ec, auto size) {
+		if (ec)
+		{
+			node_s->logger.always_log (boost::format ("Network Error (socket::async_read): %1% | %2%") % ec % ec.message ());
+		}
+		if (callback_a)
+		{
+			callback_a (ec, size);
+		}
+	};
 
 	if (size_a <= buffer_a->size ())
 	{
@@ -122,6 +132,17 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 
 void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
+	callback_a = [callback_a, node_s = node.shared ()] (auto & ec, auto size) {
+		if (ec)
+		{
+			node_s->logger.always_log (boost::format ("Network Error (socket::async_write): %1% | %2%") % ec % ec.message ());
+		}
+		if (callback_a)
+		{
+			callback_a (ec, size);
+		}
+	};
+
 	if (closed)
 	{
 		if (callback_a)
