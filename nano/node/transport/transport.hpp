@@ -49,9 +49,15 @@ namespace transport
 		virtual nano::endpoint get_endpoint () const = 0;
 		virtual nano::tcp_endpoint get_tcp_endpoint () const = 0;
 		virtual nano::transport::transport_type get_type () const = 0;
+
 		virtual bool max ()
 		{
 			return false;
+		}
+
+		virtual bool alive ()
+		{
+			return true;
 		}
 
 		std::chrono::steady_clock::time_point get_last_bootstrap_attempt () const

@@ -443,8 +443,21 @@ std::unique_ptr<nano::container_info_component> nano::transport::tcp_channels::c
 void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point const & cutoff_a)
 {
 	nano::lock_guard<nano::mutex> lock (mutex);
+
+	// Remove channels with dead underlying sockets
+	for (auto it = channels.begin (); it != channels.end (); ++it)
+	{
+		auto & entry = *it;
+		if (!entry.socket->alive ())
+		{
+			it = channels.erase (it);
+		}
+	}
+
+	// Remove channels with last packet sent with last packet sent older than cutoff
 	auto disconnect_cutoff (channels.get<last_packet_sent_tag> ().lower_bound (cutoff_a));
 	channels.get<last_packet_sent_tag> ().erase (channels.get<last_packet_sent_tag> ().begin (), disconnect_cutoff);
+
 	// Remove keepalive attempt tracking for attempts older than cutoff
 	auto attempts_cutoff (attempts.get<last_attempt_tag> ().lower_bound (cutoff_a));
 	attempts.get<last_attempt_tag> ().erase (attempts.get<last_attempt_tag> ().begin (), attempts_cutoff);

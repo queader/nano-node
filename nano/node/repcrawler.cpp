@@ -292,7 +292,7 @@ void nano::rep_crawler::cleanup_reps ()
 		auto iterator (probable_reps.get<tag_last_request> ().begin ());
 		while (iterator != probable_reps.get<tag_last_request> ().end ())
 		{
-			if (iterator->channel->get_tcp_endpoint ().address () != boost::asio::ip::address_v6::any ())
+			if (iterator->channel->alive ())
 			{
 				channels.push_back (iterator->channel);
 				++iterator;
