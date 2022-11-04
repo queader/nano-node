@@ -130,8 +130,40 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 	}
 }
 
-void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
+namespace
 {
+void verify_message_consistency (std::vector<uint8_t> bytes)
+{
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+}
+
+void verify_message_consistency_2 (std::vector<uint8_t> bytes)
+{
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+}
+}
+
+void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a, bool verify_consistency)
+{
+	node.logger.always_log (boost::format ("Buffer (socket::async_write): %1%") % buffer_a.size ());
+
+	if (verify_consistency)
+	{
+		verify_message_consistency_2 (buffer_a.to_bytes ());
+	}
+
 	callback_a = [callback_a, node_s = node.shared ()] (auto & ec, auto size) {
 		if (ec)
 		{
@@ -157,7 +189,12 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 
 	++queue_size;
 
-	boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), this_l = shared_from_this ()] () mutable {
+	boost::asio::post (strand, boost::asio::bind_executor (strand, [bytes = buffer_a.to_bytes (), callback = std::move (callback_a), this_l = shared_from_this (), verify_consistency] () mutable {
+		if (verify_consistency)
+		{
+			verify_message_consistency (bytes);
+		}
+
 		if (this_l->closed)
 		{
 			if (callback)
@@ -170,9 +207,10 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 
 		this_l->set_default_timeout ();
 
-		nano::async_write (this_l->tcp_socket, buffer_a,
+		boost::asio::async_write (this_l->tcp_socket,
+		boost::asio::buffer (bytes.data (), bytes.size ()),
 		boost::asio::bind_executor (this_l->strand,
-		[buffer_a, cbk = std::move (callback), this_l] (boost::system::error_code ec, std::size_t size_a) {
+		[cbk = std::move (callback), this_l] (boost::system::error_code ec, std::size_t size_a) {
 			--this_l->queue_size;
 
 			if (ec)

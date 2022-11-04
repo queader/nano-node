@@ -51,6 +51,20 @@ nano::transport::channel::channel (nano::node & node_a) :
 	set_network_version (node_a.network_params.network.protocol_version);
 }
 
+namespace
+{
+void verify_message_consistency (std::vector<uint8_t> bytes)
+{
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+}
+}
+
 void nano::transport::channel::send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a, nano::bandwidth_limit_type limiter_type)
 {
 	auto buffer (message_a.to_shared_const_buffer ());
@@ -59,6 +73,8 @@ void nano::transport::channel::send (nano::message & message_a, std::function<vo
 	auto should_pass (node.outbound_limiter.should_pass (buffer.size (), limiter_type));
 	if (!is_droppable_by_limiter || should_pass)
 	{
+		verify_message_consistency (buffer.to_bytes ());
+
 		send_buffer (buffer, callback_a, drop_policy_a);
 		node.stats.inc (nano::stat::type::message, detail, nano::stat::dir::out);
 	}

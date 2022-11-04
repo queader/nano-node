@@ -775,6 +775,8 @@ void nano::publish::serialize (nano::stream & stream_a) const
 {
 	debug_assert (block != nullptr);
 	header.serialize (stream_a);
+
+	release_assert (header.block_type () == block->type ());
 	block->serialize (stream_a);
 }
 

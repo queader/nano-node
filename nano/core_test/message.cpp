@@ -129,6 +129,8 @@ TEST (message, confirm_ack_hash_serialization)
 	// Check overflow with max hashes
 	ASSERT_EQ (header.count_get (), hashes.size ());
 	ASSERT_EQ (header.block_type (), nano::block_type::not_a_block);
+
+	ASSERT_TRUE (nano::at_end (stream2));
 }
 
 TEST (message, confirm_req_serialization)
@@ -157,6 +159,8 @@ TEST (message, confirm_req_serialization)
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
 	ASSERT_EQ (*req.block, *req2.block);
+
+	ASSERT_TRUE (nano::at_end (stream2));
 }
 
 TEST (message, confirm_req_hash_serialization)
@@ -187,6 +191,8 @@ TEST (message, confirm_req_hash_serialization)
 	ASSERT_EQ (req.roots_hashes, req2.roots_hashes);
 	ASSERT_EQ (header.block_type (), nano::block_type::not_a_block);
 	ASSERT_EQ (header.count_get (), req.roots_hashes.size ());
+
+	ASSERT_TRUE (nano::at_end (stream2));
 }
 
 TEST (message, confirm_req_hash_batch_serialization)
@@ -241,6 +247,8 @@ TEST (message, confirm_req_hash_batch_serialization)
 	ASSERT_EQ (req2.roots_hashes, roots_hashes);
 	ASSERT_EQ (header.block_type (), nano::block_type::not_a_block);
 	ASSERT_EQ (header.count_get (), req.roots_hashes.size ());
+
+	ASSERT_TRUE (nano::at_end (stream2));
 }
 
 // this unit test checks that conversion of message_header to string works as expected

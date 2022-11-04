@@ -44,12 +44,32 @@ bool nano::transport::channel_tcp::operator== (nano::transport::channel const & 
 	return result;
 }
 
+namespace
+{
+void verify_message_consistency (std::vector<uint8_t> bytes)
+{
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+}
+}
+
 void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy policy_a)
 {
+	verify_message_consistency (buffer_a.to_bytes ());
+
 	if (auto socket_l = socket.lock ())
 	{
 		if (!socket_l->max () || (policy_a == nano::buffer_drop_policy::no_socket_drop && !socket_l->full ()))
 		{
+			verify_message_consistency (buffer_a.to_bytes ());
+
+			node.logger.always_log (boost::format ("Buffer (channel_tcp::send_buffer): %1%") % buffer_a.size ());
+
 			socket_l->async_write (
 			buffer_a, [endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node> (node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
 				if (auto node_l = node.lock ())
@@ -69,7 +89,8 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 						callback_a (ec, size_a);
 					}
 				}
-			});
+			},
+			true);
 		}
 		else
 		{

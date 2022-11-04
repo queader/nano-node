@@ -63,9 +63,10 @@ public:
 	 */
 	explicit socket (nano::node & node, endpoint_type_t endpoint_type_a);
 	virtual ~socket ();
+
 	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
-	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {});
+	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {}, bool verify_consistency = false);
 
 	virtual void close ();
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;
