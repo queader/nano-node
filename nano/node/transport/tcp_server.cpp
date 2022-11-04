@@ -193,6 +193,20 @@ void nano::transport::tcp_server::stop ()
 	}
 }
 
+namespace
+{
+std::string to_hex (std::vector<uint8_t> const & data)
+{
+	std::stringstream ss;
+	ss << std::hex << std::setfill ('0');
+	for (auto const & d : data)
+	{
+		ss << std::hex << std::setw (2) << static_cast<int> (d);
+	}
+	return ss.str ();
+}
+}
+
 void nano::transport::tcp_server::receive_message ()
 {
 	if (stopped)
@@ -203,10 +217,13 @@ void nano::transport::tcp_server::receive_message ()
 	message_deserializer->read (socket, [this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
 		if (ec)
 		{
-			this_l->node->logger.always_log (boost::format ("Network Error (tcp_server::receive_message): %1% | %2% | status: %3% | last: %4%")
+			this_l->node->logger.always_log (boost::format ("Network Error (tcp_server::receive_message): %1% | %2% | status: %3% | last: %4% | last_header: %5% | last_size: %6% | last_payload: %7%")
 			% ec % ec.message ()
 			% nano::transport::message_deserializer::to_string (this_l->message_deserializer->status)
-			% nano::to_string (this_l->last_message));
+			% nano::to_string (this_l->last_message)
+			% to_hex (this_l->message_deserializer->last_header)
+			% this_l->message_deserializer->last_payload_size
+			% to_hex (this_l->message_deserializer->last_payload));
 
 			// IO error or critical error when deserializing message
 			this_l->node->stats.inc (nano::stat::type::error, nano::transport::message_deserializer::to_stat_detail (this_l->message_deserializer->status));

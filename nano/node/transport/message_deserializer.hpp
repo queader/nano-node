@@ -58,6 +58,11 @@ namespace transport
 		 */
 		void read (std::shared_ptr<nano::socket> socket, callback_type const && callback);
 
+	public:
+		std::size_t last_payload_size;
+		std::vector<uint8_t> last_header;
+		std::vector<uint8_t> last_payload;
+
 	private:
 		void received_header (std::shared_ptr<nano::socket> socket, callback_type const && callback);
 		void received_message (nano::message_header header, std::size_t payload_size, callback_type const && callback);

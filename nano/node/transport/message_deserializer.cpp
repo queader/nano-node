@@ -79,6 +79,9 @@ void nano::transport::message_deserializer::received_header (std::shared_ptr<nan
 	}
 	debug_assert (payload_size <= read_buffer->capacity ());
 
+	last_payload_size = payload_size;
+	last_header = std::vector<uint8_t> (read_buffer->begin (), read_buffer->begin () + HEADER_SIZE);
+
 	if (payload_size == 0)
 	{
 		// Payload size will be 0 for `bulk_push` & `telemetry_req` message type
@@ -121,6 +124,9 @@ void nano::transport::message_deserializer::received_message (nano::message_head
 std::unique_ptr<nano::message> nano::transport::message_deserializer::deserialize (nano::message_header header, std::size_t payload_size)
 {
 	release_assert (payload_size <= MAX_MESSAGE_SIZE);
+
+	last_payload = std::vector<uint8_t> (read_buffer->begin (), read_buffer->begin () + payload_size);
+
 	nano::bufferstream stream{ read_buffer->data (), payload_size };
 	switch (header.type)
 	{
