@@ -11,33 +11,42 @@ WORKDIR /tmp/build
 
 RUN \
 cmake /tmp/src \
+-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 -DCI_BUILD=${CI_BUILD} \
 -DPORTABLE=1 \
 -DACTIVE_NETWORK=nano_${NETWORK}_network \
--DNANO_POW_SERVER=ON
+-DNANO_POW_SERVER=ON \
+-DNANO_STACKTRACE_BACKTRACE=ON
 
-RUN \ 
+RUN \
 make nano_node -j $(nproc) && \
 make nano_rpc -j $(nproc) && \
 make nano_pow_server -j $(nproc) && \
 cd .. && \
 echo ${NETWORK} >/etc/nano-network
 
-FROM ubuntu:20.04
+#FROM ubuntu:20.04
 
 RUN groupadd --gid 1000 nanocurrency && \
 useradd --uid 1000 --gid nanocurrency --shell /bin/bash --create-home nanocurrency
 
-COPY --from=0 /tmp/build/nano_node /usr/bin
-COPY --from=0 /tmp/build/nano_rpc /usr/bin
-COPY --from=0 /tmp/build/nano_pow_server /usr/bin
-COPY --from=0 /tmp/src/api/ /usr/bin/api/
-COPY --from=0 /etc/nano-network /etc
+#COPY --from=0 /tmp/build/nano_node /usr/bin
+#COPY --from=0 /tmp/build/nano_rpc /usr/bin
+#COPY --from=0 /tmp/build/nano_pow_server /usr/bin
+#COPY --from=0 /tmp/src/api/ /usr/bin/api/
+#COPY --from=0 /etc/nano-network /etc
+#COPY docker/node/entry.sh /usr/bin/entry.sh
+#COPY docker/node/config /usr/share/nano/config
+#RUN chmod +x /usr/bin/entry.sh
+#RUN ln -s /usr/bin/nano_node /usr/bin/rai_node
+#RUN ldconfig
+
+RUN ln -s /tmp/build/nano_node /usr/bin/nano_node
+#COPY tmp/build /usr/bin/
+
 COPY docker/node/entry.sh /usr/bin/entry.sh
 COPY docker/node/config /usr/share/nano/config
 RUN chmod +x /usr/bin/entry.sh
-RUN ln -s /usr/bin/nano_node /usr/bin/rai_node
-RUN ldconfig
 
 WORKDIR /root
 USER root
