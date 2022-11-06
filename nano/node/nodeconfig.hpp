@@ -126,7 +126,7 @@ public:
 	bool disable_wallet_bootstrap{ false };
 	bool disable_bootstrap_listener{ false };
 	bool disable_bootstrap_bulk_pull_server{ false };
-	bool disable_bootstrap_bulk_push_client{ false };
+	bool disable_bootstrap_bulk_push_client{ true };
 	bool disable_ongoing_bootstrap{ false }; // For testing only
 	bool disable_rep_crawler{ false };
 	bool disable_hinting{ false };

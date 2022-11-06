@@ -175,7 +175,7 @@ std::string nano::uint256_union::to_string () const
 	return result;
 }
 
-bool nano::uint256_union::operator< (nano::uint256_union const & other_a) const
+bool nano::uint256_union::operator<(nano::uint256_union const & other_a) const
 {
 	return std::memcmp (bytes.data (), other_a.bytes.data (), 32) < 0;
 }
@@ -481,7 +481,7 @@ bool nano::uint128_union::operator!= (nano::uint128_union const & other_a) const
 	return !(*this == other_a);
 }
 
-bool nano::uint128_union::operator< (nano::uint128_union const & other_a) const
+bool nano::uint128_union::operator<(nano::uint128_union const & other_a) const
 {
 	return std::memcmp (bytes.data (), other_a.bytes.data (), 16) < 0;
 }
@@ -944,7 +944,7 @@ uint64_t nano::difficulty::from_multiplier (double const multiplier_a, uint64_t 
 
 double nano::difficulty::to_multiplier (uint64_t const difficulty_a, uint64_t const base_difficulty_a)
 {
-	debug_assert (difficulty_a > 0);
+	debug_assert (difficulty_a >= 0);
 	return static_cast<double> (-base_difficulty_a) / (-difficulty_a);
 }
 

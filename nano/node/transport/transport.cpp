@@ -61,7 +61,7 @@ void verify_message_consistency (std::vector<uint8_t> bytes)
 	bool error = false;
 	nano::message_header header (error, stream);
 
-	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8 - 4));
 }
 }
 

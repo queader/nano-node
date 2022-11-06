@@ -1,6 +1,9 @@
 #include <nano/node/node.hpp>
 #include <nano/node/transport/message_deserializer.hpp>
 
+#include <boost/crc.hpp>
+#include <boost/format.hpp>
+
 nano::transport::message_deserializer::message_deserializer (nano::network_constants const & network_constants_a, nano::network_filter & publish_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a) :
 	read_buffer{ std::make_shared<std::vector<uint8_t>> () },
 	network_constants_m{ network_constants_a },
@@ -42,6 +45,8 @@ void nano::transport::message_deserializer::read (std::shared_ptr<nano::socket> 
 
 void nano::transport::message_deserializer::received_header (std::shared_ptr<nano::socket> socket, const nano::transport::message_deserializer::callback_type && callback)
 {
+	current_header = std::vector<uint8_t> (read_buffer->begin (), read_buffer->begin () + HEADER_SIZE);
+
 	nano::bufferstream stream{ read_buffer->data (), HEADER_SIZE };
 	auto error = false;
 	nano::message_header header{ error, stream };
@@ -70,7 +75,7 @@ void nano::transport::message_deserializer::received_header (std::shared_ptr<nan
 		return;
 	}
 
-	std::size_t payload_size = header.payload_length_bytes ();
+	std::size_t payload_size = header.payload_length_bytes () + /* checksum */ 4;
 	if (payload_size > MAX_MESSAGE_SIZE)
 	{
 		status = parse_status::message_size_too_big;
@@ -100,14 +105,47 @@ void nano::transport::message_deserializer::received_header (std::shared_ptr<nan
 				callback (boost::asio::error::fault, nullptr);
 				return;
 			}
+
 			this_l->received_message (header, size_a, std::move (callback));
 		});
 	}
 }
 
+void nano::transport::message_deserializer::verify_checksum_consistency (std::vector<uint8_t> header, std::vector<uint8_t> payload, nano::message_header & hdr)
+{
+	boost::crc_32_type crc;
+	crc.process_bytes (header.data (), header.size ());
+	crc.process_bytes (payload.data (), payload.size () - 4);
+
+	nano::bufferstream stream{ payload.data (), payload.size () };
+	std::vector<uint8_t> dummy;
+	nano::read (stream, dummy, payload.size () - 4);
+
+	uint32_t checksum;
+	nano::read (stream, checksum);
+
+	uint32_t calculated_checksum = crc.checksum ();
+
+	if (checksum != calculated_checksum)
+	{
+		std::cout << "checksums: received: " << checksum << " | calculated: " << calculated_checksum
+				  << " | "
+				  << "type: " << nano::to_string (hdr.type)
+				  << std::endl;
+
+		//	node.logger.always_log (boost::format ("Checksum (%3%): received %1% | calculated: %2%") % buffer_a.size ());
+
+		release_assert (false, "checksum mismatch");
+	}
+
+	release_assert (checksum == calculated_checksum);
+}
+
 void nano::transport::message_deserializer::received_message (nano::message_header header, std::size_t payload_size, const nano::transport::message_deserializer::callback_type && callback)
 {
-	auto message = deserialize (header, payload_size);
+	verify_checksum_consistency (current_header, std::vector<uint8_t> (read_buffer->begin (), read_buffer->begin () + payload_size), header);
+
+	auto message = deserialize (header, payload_size - 4);
 	if (message)
 	{
 		debug_assert (status == parse_status::none);
@@ -198,6 +236,7 @@ std::unique_ptr<nano::message> nano::transport::message_deserializer::deserializ
 			break;
 		}
 	}
+
 	return {};
 }
 

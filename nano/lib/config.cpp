@@ -154,7 +154,7 @@ double nano::work_thresholds::normalized_multiplier (double const multiplier_a, 
 
 double nano::work_thresholds::denormalized_multiplier (double const multiplier_a, uint64_t const threshold_a) const
 {
-	debug_assert (multiplier_a >= 1);
+	debug_assert (multiplier_a >= 0);
 	auto multiplier (multiplier_a);
 	if (threshold_a == epoch_1 || threshold_a == epoch_2_receive)
 	{

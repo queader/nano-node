@@ -54,7 +54,7 @@ void verify_message_consistency (std::vector<uint8_t> bytes)
 	bool error = false;
 	nano::message_header header (error, stream);
 
-	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8 - 4));
 }
 }
 
@@ -68,7 +68,7 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 		{
 			verify_message_consistency (buffer_a.to_bytes ());
 
-			node.logger.always_log (boost::format ("Buffer (channel_tcp::send_buffer): %1%") % buffer_a.size ());
+//			node.logger.always_log (boost::format ("Buffer (channel_tcp::send_buffer): %1%") % buffer_a.size ());
 
 			socket_l->async_write (
 			buffer_a, [endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node> (node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {

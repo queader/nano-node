@@ -45,7 +45,7 @@ namespace transport
 
 		using callback_type = std::function<void (boost::system::error_code, std::unique_ptr<nano::message>)>;
 
-		parse_status status;
+		parse_status status{ parse_status::none };
 
 		message_deserializer (network_constants const &, network_filter &, block_uniquer &, vote_uniquer &);
 
@@ -59,9 +59,10 @@ namespace transport
 		void read (std::shared_ptr<nano::socket> socket, callback_type const && callback);
 
 	public:
-		std::size_t last_payload_size;
+		std::size_t last_payload_size{ 0 };
 		std::vector<uint8_t> last_header;
 		std::vector<uint8_t> last_payload;
+		std::vector<uint8_t> current_header;
 
 	private:
 		void received_header (std::shared_ptr<nano::socket> socket, callback_type const && callback);
@@ -86,6 +87,9 @@ namespace transport
 		std::unique_ptr<nano::asc_pull_req> deserialize_asc_pull_req (nano::stream &, nano::message_header const &);
 		std::unique_ptr<nano::asc_pull_ack> deserialize_asc_pull_ack (nano::stream &, nano::message_header const &);
 
+		void verify_checksum_consistency (std::vector<uint8_t> header, std::vector<uint8_t> payload, nano::message_header &);
+
+	private:
 		std::shared_ptr<std::vector<uint8_t>> read_buffer;
 
 	private: // Constants

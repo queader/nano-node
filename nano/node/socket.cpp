@@ -140,28 +140,17 @@ void verify_message_consistency (std::vector<uint8_t> bytes)
 	bool error = false;
 	nano::message_header header (error, stream);
 
-	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
-}
-
-void verify_message_consistency_2 (std::vector<uint8_t> bytes)
-{
-	nano::bufferstream stream{ bytes.data (), bytes.size () };
-
-	// Header
-	bool error = false;
-	nano::message_header header (error, stream);
-
-	release_assert (header.payload_length_bytes () == (bytes.size () - 8));
+	release_assert (header.payload_length_bytes () == (bytes.size () - 8 - 4));
 }
 }
 
 void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a, bool verify_consistency)
 {
-	node.logger.always_log (boost::format ("Buffer (socket::async_write): %1%") % buffer_a.size ());
+//	node.logger.always_log (boost::format ("Buffer (socket::async_write): %1%") % buffer_a.size ());
 
 	if (verify_consistency)
 	{
-		verify_message_consistency_2 (buffer_a.to_bytes ());
+		verify_message_consistency (buffer_a.to_bytes ());
 	}
 
 	callback_a = [callback_a, node_s = node.shared ()] (auto & ec, auto size) {

@@ -9,6 +9,7 @@
 #include <nano/node/wallet.hpp>
 #include <nano/secure/buffer.hpp>
 
+#include <boost/crc.hpp>
 #include <boost/endian/conversion.hpp>
 #include <boost/format.hpp>
 #include <boost/pool/pool_alloc.hpp>
@@ -372,8 +373,29 @@ nano::message::message (nano::message_header const & header_a) :
 std::shared_ptr<std::vector<uint8_t>> nano::message::to_bytes () const
 {
 	auto bytes = std::make_shared<std::vector<uint8_t>> ();
-	nano::vectorstream stream (*bytes);
-	serialize (stream);
+	{
+		nano::vectorstream stream (*bytes);
+		serialize (stream);
+	}
+
+	// Checksum
+	boost::crc_32_type crc;
+
+//	std::cout << "send data "
+//			  << "(" << nano::to_string (type ()) << ")"
+//			  << ": " << bytes->size () << std::endl;
+
+	crc.process_bytes (bytes->data (), bytes->size ());
+
+	uint32_t checksum = crc.checksum ();
+
+//	std::cout << "send checksum: " << checksum << std::endl;
+
+	{
+		nano::vectorstream stream (*bytes);
+		nano::write (stream, checksum);
+	}
+
 	return bytes;
 }
 
