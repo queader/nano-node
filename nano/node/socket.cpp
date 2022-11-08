@@ -55,7 +55,9 @@ nano::socket::~socket ()
 
 void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::function<void (boost::system::error_code const &)> callback_a)
 {
+	debug_assert (callback_a);
 	debug_assert (endpoint_type () == endpoint_type_t::client);
+
 	checkup ();
 	auto this_l (shared_from_this ());
 	set_default_timeout ();
@@ -65,6 +67,7 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 		if (ec)
 		{
 			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in);
+			this_l->close ();
 		}
 		else
 		{
@@ -77,6 +80,8 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 
 void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
+	debug_assert (callback_a);
+
 	if (size_a <= buffer_a->size ())
 	{
 		auto this_l (shared_from_this ());
@@ -90,6 +95,7 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 					if (ec)
 					{
 						this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in);
+						this_l->close ();
 					}
 					else
 					{
@@ -147,6 +153,7 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 			if (ec)
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in);
+				this_l->close ();
 			}
 			else
 			{
