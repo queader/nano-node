@@ -61,6 +61,7 @@ public:
 	void bootstrap_lazy ();
 	void bootstrap_status ();
 	void chain (bool = false);
+	void channels ();
 	void confirmation_active ();
 	void confirmation_history ();
 	void confirmation_info ();

@@ -109,6 +109,25 @@ void nano::transport::channel_tcp::set_endpoint ()
 	}
 }
 
+nano::ptree nano::transport::channel_tcp::collect_info () const
+{
+	nano::ptree info;
+	info.put ("type", "tcp");
+	info.put ("alive", std::to_string (alive ()));
+	info.put ("temporary", temporary);
+
+	if (auto socket_l = socket.lock ())
+	{
+		info.push_back (std::make_pair ("socket", socket_l->collect_info ()));
+	}
+	else
+	{
+		info.put ("socket", "destroyed");
+	}
+
+	return info;
+}
+
 /*
  * tcp_channels
  */
