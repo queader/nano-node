@@ -132,6 +132,16 @@ namespace transport
 		nano::endpoint get_peering_endpoint () const;
 		void set_peering_endpoint (nano::endpoint endpoint);
 
+		/**
+		 * Information for `channels` RPC
+		 */
+		virtual nano::ptree collect_info () const
+		{
+			nano::ptree info;
+			info.put ("type", "unknown");
+			return info;
+		}
+
 		mutable nano::mutex channel_mutex;
 
 	private:

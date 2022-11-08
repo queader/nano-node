@@ -35,6 +35,10 @@ bool is_temporary_error (boost::system::error_code const & ec_a)
 }
 }
 
+/*
+ * socket
+ */
+
 nano::socket::socket (nano::node & node_a, endpoint_type_t endpoint_type_a) :
 	strand{ node_a.io_ctx.get_executor () },
 	tcp_socket{ node_a.io_ctx },
@@ -306,6 +310,33 @@ nano::tcp_endpoint nano::socket::local_endpoint () const
 	return tcp_socket.local_endpoint ();
 }
 
+nano::ptree nano::socket::collect_info () const
+{
+	boost::property_tree::ptree info;
+
+	info.put ("type", nano::to_string (type_m));
+	info.put ("local", local_endpoint ());
+	info.put ("remote", remote_endpoint ());
+	info.put ("alive", alive ());
+	info.put ("closed", is_closed ());
+	info.put ("timed_out", has_timed_out ());
+	info.put ("max", max ());
+
+	info.put ("queue_size", queue_size);
+	info.put ("queue_size_max", queue_size_max);
+
+	info.put ("last_completion", last_completion_time_or_init);
+	info.put ("last_receive", last_receive_time_or_init);
+	info.put ("default_timeout", default_timeout.load ().count ());
+	info.put ("silent_tolerance", silent_connection_tolerance_time.count ());
+
+	return info;
+}
+
+/*
+ * server_socket
+ */
+
 nano::server_socket::server_socket (nano::node & node_a, boost::asio::ip::tcp::endpoint local_a, std::size_t max_connections_a) :
 	socket{ node_a, endpoint_type_t::server },
 	acceptor{ node_a.io_ctx },
@@ -529,7 +560,7 @@ void nano::server_socket::evict_dead_connections ()
 	}
 }
 
-std::string nano::socket_type_to_string (nano::socket::type_t type)
+std::string nano::to_string (nano::socket::type_t type)
 {
 	switch (type)
 	{

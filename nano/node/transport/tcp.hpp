@@ -88,6 +88,8 @@ namespace transport
 			return false;
 		}
 
+		nano::ptree collect_info () const override;
+
 	private:
 		nano::tcp_endpoint endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	};

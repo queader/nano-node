@@ -1946,6 +1946,17 @@ void nano::json_handler::chain (bool successors)
 	response_errors ();
 }
 
+void nano::json_handler::channels ()
+{
+	boost::property_tree::ptree channels_info;
+	for (auto & channel : node.network.list (1024 * 1024))
+	{
+		channels_info.add_child ("", channel->collect_info ());
+	}
+	response_l.add_child ("channels", channels_info);
+	response_errors ();
+}
+
 void nano::json_handler::confirmation_active ()
 {
 	uint64_t announcements (0);
@@ -5321,6 +5332,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("bootstrap_any", &nano::json_handler::bootstrap_any);
 	no_arg_funcs.emplace ("bootstrap_lazy", &nano::json_handler::bootstrap_lazy);
 	no_arg_funcs.emplace ("bootstrap_status", &nano::json_handler::bootstrap_status);
+	no_arg_funcs.emplace ("channels", &nano::json_handler::channels);
 	no_arg_funcs.emplace ("confirmation_active", &nano::json_handler::confirmation_active);
 	no_arg_funcs.emplace ("confirmation_height_currently_processing", &nano::json_handler::confirmation_height_currently_processing);
 	no_arg_funcs.emplace ("confirmation_history", &nano::json_handler::confirmation_history);

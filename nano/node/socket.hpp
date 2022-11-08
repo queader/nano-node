@@ -5,6 +5,7 @@
 #include <nano/lib/asio.hpp>
 
 #include <boost/optional.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include <chrono>
 #include <deque>
@@ -32,6 +33,8 @@ enum class buffer_drop_policy
 
 class node;
 class server_socket;
+
+using ptree = boost::property_tree::ptree;
 
 /** Socket class for tcp clients and newly accepted connections */
 class socket : public std::enable_shared_from_this<nano::socket>
@@ -111,6 +114,8 @@ public:
 		return !closed && tcp_socket.is_open ();
 	}
 
+	virtual nano::ptree collect_info () const;
+
 protected:
 	/** Holds the buffer and callback for queued writes */
 	class queue_item
@@ -178,7 +183,7 @@ public:
 	static std::size_t constexpr queue_size_max = 128;
 };
 
-std::string socket_type_to_string (socket::type_t type);
+std::string to_string (socket::type_t type);
 
 using address_socket_mmap = std::multimap<boost::asio::ip::address, std::weak_ptr<socket>>;
 
