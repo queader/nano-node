@@ -1421,10 +1421,10 @@ std::shared_ptr<nano::block> nano::deserialize_block (nano::stream & stream_a, n
 			return {};
 		}
 		default:
-#ifndef NANO_FUZZER_TEST
-			debug_assert (false);
-#endif
-			break;
+			// #ifndef NANO_FUZZER_TEST
+			//			debug_assert (false);
+			// #endif
+			return {};
 	}
 	if (uniquer_a != nullptr)
 	{

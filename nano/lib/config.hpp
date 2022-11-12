@@ -357,11 +357,11 @@ public:
 	/** Initial value is ACTIVE_NETWORK compile flag, but can be overridden by a CLI flag */
 	static nano::networks active_network;
 	/** Current protocol version */
-	uint8_t const protocol_version = 0x14;
+	uint8_t const protocol_version = 0x13;
 	/** Minimum accepted protocol version */
 	uint8_t const protocol_version_min = 0x12;
 	/** Minimum accepted protocol version used when bootstrapping */
-	uint8_t const bootstrap_protocol_version_min = 0x14;
+	uint8_t const bootstrap_protocol_version_min = 0x13;
 };
 
 std::string get_node_toml_config_path (boost::filesystem::path const & data_path);
