@@ -48,12 +48,25 @@ void run_parallel (int thread_count, std::function<void (int)> func)
 		thread.join ();
 	}
 }
+
+void run_background (std::vector<std::function<void ()>> funcs)
+{
+	std::vector<std::thread> threads;
+	for (auto & func : funcs)
+	{
+		threads.emplace_back (func);
+	}
+	for (auto & thread : threads)
+	{
+		thread.join ();
+	}
+}
 }
 
 TEST (channel, stress_test)
 {
 	nano::test::system system{};
-	nano::thread_runner runner{ system.io_ctx, 4 };
+	nano::thread_runner runner{ system.io_ctx, nano::hardware_concurrency () };
 
 	auto & node1 = *system.add_node ();
 	auto & node2 = *system.add_node ();
@@ -71,12 +84,6 @@ TEST (channel, stress_test)
 	node1.observers.message_error.add (error_handler ("node1"));
 	node2.observers.message_error.add (error_handler ("node2"));
 
-	auto channel_list1 = node1.network.list (1);
-	ASSERT_TRUE (!channel_list1.empty ());
-	auto channel1 = channel_list1.front ();
-	ASSERT_TRUE (channel1);
-	ASSERT_TRUE (channel1->alive ());
-
 	nano::test::rate_observer rate;
 
 	std::atomic<int> request_counter{ 0 };
@@ -89,6 +96,9 @@ TEST (channel, stress_test)
 	rate.observe ("errors", [&] () { return error_counter.load (); });
 
 	std::atomic<int> received_counter{ 0 };
+	node1.observers.message_received.add ([&] (nano::message & msg) {
+		++received_counter;
+	});
 	node2.observers.message_received.add ([&] (nano::message & msg) {
 		++received_counter;
 	});
@@ -96,32 +106,51 @@ TEST (channel, stress_test)
 
 	rate.background_print (3s);
 
-	nano::confirm_req message{ nano::dev::network_params.network, nano::test::random_hash (), nano::test::random_hash () };
-	while (true)
-	{
-		ASSERT_TRUE (channel1->alive ());
-
-		if (channel1->max ())
+	auto stress_channel = [&] (std::shared_ptr<nano::transport::channel> channel) {
+		nano::confirm_req message{ nano::dev::network_params.network, nano::test::random_hash (), nano::test::random_hash () };
+		while (true)
 		{
-			std::this_thread::yield ();
-			continue;
+			ASSERT_TRUE (channel->alive ());
+
+			if (channel->max ())
+			{
+				std::this_thread::yield ();
+				continue;
+			}
+
+			channel->send (
+			message,
+			[&] (boost::system::error_code const & ec, std::size_t size) {
+				if (ec)
+				{
+					//				std::cerr << "error sending: " << ec << std::endl;
+					++error_counter;
+				}
+				else
+				{
+					++success_counter;
+				}
+			},
+			nano::buffer_drop_policy::no_limiter_drop);
+
+			++request_counter;
 		}
+	};
 
-		channel1->send (
-		message,
-		[&] (boost::system::error_code const & ec, std::size_t size) {
-			if (ec)
-			{
-				//				std::cerr << "error sending: " << ec << std::endl;
-				++error_counter;
-			}
-			else
-			{
-				++success_counter;
-			}
-		},
-		nano::buffer_drop_policy::no_limiter_drop);
+	auto channel_list1 = node1.network.list (1);
+	ASSERT_TRUE (!channel_list1.empty ());
+	auto channel1 = channel_list1.front ();
+	ASSERT_TRUE (channel1);
+	ASSERT_TRUE (channel1->alive ());
 
-		++request_counter;
-	}
+	auto channel_list2 = node2.network.list (1);
+	ASSERT_TRUE (!channel_list2.empty ());
+	auto channel2 = channel_list2.front ();
+	ASSERT_TRUE (channel2);
+	ASSERT_TRUE (channel2->alive ());
+
+	run_background ({
+	[&] () { stress_channel (channel1); },
+	[&] () { stress_channel (channel2); },
+	});
 }
