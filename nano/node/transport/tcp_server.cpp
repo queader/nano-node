@@ -205,6 +205,8 @@ void nano::transport::tcp_server::receive_message ()
 		{
 			// IO error or critical error when deserializing message
 			this_l->node->stats.inc (nano::stat::type::error, nano::transport::message_deserializer::to_stat_detail (this_l->message_deserializer->status));
+			this_l->node->observers.message_error.notify (ec, this_l->message_deserializer->status);
+
 			this_l->stop ();
 		}
 		else
@@ -219,6 +221,9 @@ void nano::transport::tcp_server::received_message (std::unique_ptr<nano::messag
 	bool should_continue = true;
 	if (message)
 	{
+		node->stats.inc (nano::stat::type::tcp_server, nano::stat::detail::message_received);
+		node->observers.message_received.notify (*message);
+
 		should_continue = process_message (std::move (message));
 	}
 	else

@@ -395,6 +395,9 @@ public:
 		tcp_read_error,
 		tcp_write_error,
 
+		// tcp_server
+		message_received,
+
 		// ipc
 		invocations,
 

@@ -865,6 +865,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::tcp_write_error:
 			res = "tcp_write_error";
 			break;
+		case nano::stat::detail::message_received:
+			res = "message_received";
+			break;
 		case nano::stat::detail::unreachable_host:
 			res = "unreachable_host";
 			break;

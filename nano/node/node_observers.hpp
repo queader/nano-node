@@ -3,6 +3,7 @@
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/utility.hpp>
 #include <nano/node/active_transactions.hpp>
+#include <nano/node/transport/message_deserializer.hpp>
 #include <nano/node/transport/transport.hpp>
 
 namespace nano
@@ -25,6 +26,9 @@ public:
 
 	nano::observer_set<nano::socket &> socket_connected;
 	nano::observer_set<nano::socket &> socket_accepted;
+
+	nano::observer_set<nano::message &> message_received;
+	nano::observer_set<boost::system::error_code, nano::transport::message_deserializer::parse_status> message_error;
 };
 
 std::unique_ptr<container_info_component> collect_container_info (node_observers & node_observers, std::string const & name);

@@ -74,8 +74,12 @@ void nano::test::rate_observer::print_once ()
 		   << " | "
 		   << "total: " << std::setw (14) << observation.total
 		   << " | "
-		   << "rate /s: " << std::setw (12) << std::setprecision (2) << std::fixed << per_sec
-		   << "\n";
+		   << "rate /s: " << std::setw (12) << std::setprecision (2) << std::fixed << per_sec;
+
+		if (counters.size () > 1)
+		{
+			ss << "\n";
+		}
 	}
 	std::cout << ss.str () << std::endl;
 }
