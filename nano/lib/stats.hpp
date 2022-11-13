@@ -256,6 +256,8 @@ public:
 		bootstrap_ascending_thread,
 		bootstrap_ascending_accounts,
 		backlog,
+		active,
+		optimistic,
 	};
 
 	/** Optional detail type */
@@ -452,6 +454,7 @@ public:
 
 		// hinting
 		hinted,
+		insert,
 		insert_failed,
 		missing_block,
 
@@ -502,6 +505,10 @@ public:
 		next_random,
 		// backlog
 		activated,
+
+		// active
+		started_hinted,
+		started_optimistic,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

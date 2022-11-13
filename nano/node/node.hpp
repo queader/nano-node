@@ -22,6 +22,7 @@
 #include <nano/node/node_observers.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/online_reps.hpp>
+#include <nano/node/optimistic_scheduler.hpp>
 #include <nano/node/portmapping.hpp>
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/request_aggregator.hpp>
@@ -63,6 +64,7 @@ backlog_population::config backlog_population_config (node_config const &);
 vote_cache::config nodeconfig_to_vote_cache_config (node_config const &, node_flags const &);
 hinted_scheduler::config nodeconfig_to_hinted_scheduler_config (node_config const &);
 outbound_bandwidth_limiter::config outbound_bandwidth_limiter_config (node_config const &);
+optimistic_scheduler::config optimistic_scheduler_config (node_config const &);
 
 class node final : public std::enable_shared_from_this<nano::node>
 {
@@ -89,6 +91,7 @@ public:
 	void process_local_async (std::shared_ptr<nano::block> const &);
 	void keepalive_preconfigured (std::vector<std::string> const &);
 	std::shared_ptr<nano::block> block (nano::block_hash const &);
+	std::shared_ptr<nano::block> head_block (nano::account const &);
 	std::pair<nano::uint128_t, nano::uint128_t> balance_pending (nano::account const &, bool only_confirmed);
 	nano::uint128_t weight (nano::account const &);
 	nano::block_hash rep_block (nano::account const &);
@@ -182,6 +185,7 @@ public:
 	nano::vote_generator generator;
 	nano::vote_generator final_generator;
 	nano::active_transactions active;
+	nano::optimistic_scheduler optimistic;
 	nano::election_scheduler scheduler;
 	nano::hinted_scheduler hinting;
 	nano::request_aggregator aggregator;

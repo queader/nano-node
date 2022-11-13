@@ -50,6 +50,7 @@ namespace thread_role
 		ascending_bootstrap,
 		bootstrap_server_requests,
 		bootstrap_server_responses,
+		optimistic_scheduler,
 	};
 
 	/*

@@ -577,6 +577,12 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::backlog:
 			res = "backlog";
 			break;
+		case nano::stat::type::active:
+			res = "active";
+			break;
+		case nano::stat::type::optimistic:
+			res = "optimistic";
+			break;
 	}
 	return res;
 }
@@ -1033,6 +1039,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::hinted:
 			res = "hinted";
 			break;
+		case nano::stat::detail::insert:
+			res = "insert";
+			break;
 		case nano::stat::detail::insert_failed:
 			res = "insert_failed";
 			break;
@@ -1142,6 +1151,12 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::activated:
 			res = "activated";
+			break;
+		case nano::stat::detail::started_hinted:
+			res = "started_hinted";
+			break;
+		case nano::stat::detail::started_optimistic:
+			res = "started_optimistic";
 			break;
 	}
 	return res;

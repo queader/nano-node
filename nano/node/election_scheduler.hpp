@@ -15,11 +15,17 @@ namespace nano
 {
 class block;
 class node;
+class optimistic_scheduler;
+
 class election_scheduler final
 {
 public:
-	election_scheduler (nano::node & node);
+	election_scheduler (nano::node &, nano::optimistic_scheduler &);
 	~election_scheduler ();
+
+	void start ();
+	void stop ();
+
 	// Manualy start an election for a block
 	// Call action with confirmed block, may be different than what we started with
 	void manual (std::shared_ptr<nano::block> const &, boost::optional<nano::uint128_t> const & = boost::none, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
@@ -28,7 +34,6 @@ public:
 	 * @return true if account was activated
 	 */
 	bool activate (nano::account const &, nano::transaction const &);
-	void stop ();
 	// Blocks until no more elections can be activated or there are no more elections to activate
 	void flush ();
 	void notify ();
@@ -43,10 +48,16 @@ private:
 	bool priority_queue_predicate () const;
 	bool manual_queue_predicate () const;
 	bool overfill_predicate () const;
-	nano::prioritization priority;
-	std::deque<std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior, std::function<void (std::shared_ptr<nano::block>)>>> manual_queue;
+
+private: // Dependencies
 	nano::node & node;
-	bool stopped;
+	nano::optimistic_scheduler & optimistic;
+
+private:
+	nano::prioritization priority;
+
+	std::deque<std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior, std::function<void (std::shared_ptr<nano::block>)>>> manual_queue;
+	std::atomic<bool> stopped{ false };
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;
