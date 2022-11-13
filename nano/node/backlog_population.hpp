@@ -17,10 +17,18 @@ public:
 	struct config
 	{
 		bool ongoing_backlog_population_enabled;
-		unsigned int delay_between_runs_in_seconds;
+
+		/** Percentage of time to spend doing frontier scanning. Should be limited in order not to steal too much IO from other node operations. (0-100 range) */
+		uint duty_cycle;
+
+	public: // Helpers
+		/**
+		 * Converts duty cycle percentage to thread sleep time.
+		 */
+		std::chrono::duration<double> duty_to_sleep_time () const;
 	};
 
-	explicit backlog_population (const config & config_a, store & store, election_scheduler & scheduler);
+	backlog_population (const config &, nano::store &, nano::election_scheduler &);
 	~backlog_population ();
 
 	void start ();
@@ -29,6 +37,12 @@ public:
 
 	/** Other components call this to notify us about external changes, so we can check our predicate. */
 	void notify ();
+
+private: // Dependencies
+	nano::store & store;
+	nano::election_scheduler & scheduler;
+
+	config config_m;
 
 private:
 	void run ();
@@ -49,10 +63,11 @@ private:
 	 *  backlog population is disabled, so that it can service a manual trigger (e.g. via RPC). */
 	std::thread thread;
 
-	config config_m;
-
-private: // Dependencies
-	store & store_m;
-	election_scheduler & scheduler;
+private: // Config
+	/**
+	 * How many accounts to scan in one internal loop pass
+	 * Should not be too high, as not to hold a database read transaction for too long
+	 */
+	static uint64_t const chunk_size = 1024;
 };
 }
