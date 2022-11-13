@@ -255,6 +255,7 @@ public:
 		bootstrap_ascending_connections,
 		bootstrap_ascending_thread,
 		bootstrap_ascending_accounts,
+		backlog,
 	};
 
 	/** Optional detail type */
@@ -263,7 +264,9 @@ public:
 		all = 0,
 		unknown,
 
+		// common
 		loop,
+		total,
 
 		// processing queue
 		queue,
@@ -497,6 +500,8 @@ public:
 		unblock_failed,
 		next_forwarding,
 		next_random,
+		// backlog
+		activated,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
