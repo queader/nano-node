@@ -66,7 +66,8 @@ void run_background (std::vector<std::function<void ()>> funcs)
 TEST (channel, stress_test)
 {
 	nano::test::system system{};
-	nano::thread_runner runner{ system.io_ctx, nano::hardware_concurrency () };
+	//	nano::thread_runner runner{ system.io_ctx, nano::hardware_concurrency () };
+	nano::thread_runner runner{ system.io_ctx, 4 };
 
 	auto & node1 = *system.add_node ();
 	auto & node2 = *system.add_node ();
@@ -149,8 +150,23 @@ TEST (channel, stress_test)
 	ASSERT_TRUE (channel2);
 	ASSERT_TRUE (channel2->alive ());
 
+	//	run_parallel (4, [&] (int idx) {
+	//		stress_channel (channel1);
+	//	});
+
+	//	run_background ({
+	//	[&] () { stress_channel (channel1); },
+	//	[&] () { stress_channel (channel2); },
+	//	});
+
+	auto stress_channel_parallel = [&] (std::shared_ptr<nano::transport::channel> channel) {
+		run_parallel (4, [&] (int idx) {
+			stress_channel (channel);
+		});
+	};
+
 	run_background ({
-	[&] () { stress_channel (channel1); },
-	[&] () { stress_channel (channel2); },
+	[&] () { stress_channel_parallel (channel1); },
+	[&] () { stress_channel_parallel (channel2); },
 	});
 }
