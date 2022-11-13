@@ -560,6 +560,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::bootstrap_server_responses:
 			res = "bootstrap_server_responses";
 			break;
+		case nano::stat::type::backlog:
+			res = "backlog";
+			break;
 	}
 	return res;
 }
@@ -571,6 +574,12 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 	{
 		case nano::stat::detail::all:
 			res = "all";
+			break;
+		case nano::stat::detail::loop:
+			res = "loop";
+			break;
+		case nano::stat::detail::total:
+			res = "total";
 			break;
 		case nano::stat::detail::queue:
 			res = "queue";
@@ -811,6 +820,7 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::election_not_confirmed:
 			res = "election_not_confirmed";
+			break;
 		case nano::stat::detail::election_hinted_overflow:
 			res = "election_hinted_overflow";
 			break;
@@ -1035,6 +1045,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::channel_full:
 			res = "channel_full";
+			break;
+		case nano::stat::detail::activated:
+			res = "activated";
 			break;
 	}
 	return res;

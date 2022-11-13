@@ -250,12 +250,17 @@ public:
 		bootstrap_server,
 		bootstrap_server_requests,
 		bootstrap_server_responses,
+		backlog,
 	};
 
 	/** Optional detail type */
 	enum class detail : uint8_t
 	{
 		all = 0,
+
+		// common
+		loop,
+		total,
 
 		// processing queue
 		queue,
@@ -453,6 +458,9 @@ public:
 		response_blocks,
 		response_account_info,
 		channel_full,
+
+		// backlog
+		activated,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
