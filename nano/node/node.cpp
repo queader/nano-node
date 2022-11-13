@@ -780,6 +780,7 @@ void nano::node::stop ()
 		// Cancels ongoing work generation tasks, which may be blocking other threads
 		// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
 		distributed_work.stop ();
+		backlog.stop ();
 		unchecked.stop ();
 		block_processor.stop ();
 		aggregator.stop ();

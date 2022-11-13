@@ -4,7 +4,7 @@
 
 #include <string>
 
-bool nano::prioritization::value_type::operator< (value_type const & other_a) const
+bool nano::prioritization::value_type::operator<(value_type const & other_a) const
 {
 	return time < other_a.time || (time == other_a.time && block->hash () < other_a.block->hash ());
 }
@@ -47,7 +47,7 @@ void nano::prioritization::populate_schedule ()
  * Prioritization constructor, construct a container containing approximately 'maximum' number of blocks.
  * @param maximum number of blocks that this container can hold, this is a soft and approximate limit.
  */
-nano::prioritization::prioritization (uint64_t maximum) :
+nano::prioritization::prioritization (std::size_t maximum) :
 	maximum{ maximum }
 {
 	static std::size_t constexpr bucket_count = 129;
@@ -66,9 +66,11 @@ nano::prioritization::prioritization (uint64_t maximum) :
 /**
  * Push a block and its associated time into the prioritization container.
  * The time is given here because sideband might not exist in the case of state blocks.
+ * @return whether there was an overflow of the queue when adding the block
  */
-void nano::prioritization::push (uint64_t time, std::shared_ptr<nano::block> block)
+bool nano::prioritization::push (uint64_t time, std::shared_ptr<nano::block> block)
 {
+	bool overflow = false;
 	auto was_empty = empty ();
 	auto block_has_balance = block->type () == nano::block_type::state || block->type () == nano::block_type::send;
 	debug_assert (block_has_balance || block->has_sideband ());
@@ -79,11 +81,13 @@ void nano::prioritization::push (uint64_t time, std::shared_ptr<nano::block> blo
 	if (bucket.size () > std::max (decltype (maximum){ 1 }, maximum / buckets.size ()))
 	{
 		bucket.erase (--bucket.end ());
+		overflow = true;
 	}
 	if (was_empty)
 	{
 		seek ();
 	}
+	return overflow;
 }
 
 /** Return the highest priority block of the current bucket */
