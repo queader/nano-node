@@ -576,6 +576,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::bootstrap_ascending_accounts:
 			res = "bootstrap_ascending_accounts";
 			break;
+		case nano::stat::type::backlog:
+			res = "backlog";
+			break;
 	}
 	return res;
 }
@@ -593,6 +596,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::unknown:
 			res = "unknown";
+			break;
+		case nano::stat::detail::total:
+			res = "total";
 			break;
 		case nano::stat::detail::queue:
 			res = "queue";
@@ -1144,6 +1150,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::next_random:
 			res = "next_random";
+			break;
+		case nano::stat::detail::activated:
+			res = "activated";
 			break;
 	}
 	return res;

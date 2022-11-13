@@ -251,6 +251,7 @@ public:
 		active,
 		bootstrap_server_requests,
 		bootstrap_server_responses,
+		backlog,
 		unchecked,
 		bootstrap_ascending,
 		bootstrap_ascending_connections,
@@ -266,6 +267,7 @@ public:
 
 		// common
 		loop,
+		total,
 
 		// processing queue
 		queue,
@@ -468,6 +470,8 @@ public:
 		response_account_info,
 		channel_full,
 
+		// backlog
+		activated,
 		// unchecked
 		put,
 		satisfied,
