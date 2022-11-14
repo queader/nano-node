@@ -291,12 +291,14 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 	//			  << "channel: " << channel->to_string ()
 	//			  << std::endl;
 
-	channel->send (request, [this, tag] (boost::system::error_code const & ec, std::size_t size) {
+	channel->send (
+	request, [this, tag] (boost::system::error_code const & ec, std::size_t size) {
 		if (ec)
 		{
 			std::cerr << "send error: " << ec.message () << std::endl;
 		}
-	});
+	},
+	nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
 }
 
 std::optional<nano::account> nano::bootstrap_ascending::pick_account ()

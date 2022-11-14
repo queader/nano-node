@@ -105,7 +105,8 @@ void nano::backlog_population::populate_backlog ()
 		}
 
 		// Give the rest of the node time to progress without holding database lock
-		std::this_thread::sleep_for (config_m.duty_to_sleep_time ());
+		//		std::this_thread::sleep_for (config_m.duty_to_sleep_time ());
+		std::this_thread::sleep_for (std::chrono::milliseconds (100));
 	}
 }
 
