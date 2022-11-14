@@ -72,7 +72,7 @@ nano::optimistic_scheduler::config nano::optimistic_scheduler_config (const nano
 {
 	nano::optimistic_scheduler::config cfg;
 	// TODO: Use node configuration
-	cfg.optimistic_gap_threshold = 16;
+	cfg.optimistic_gap_threshold = 32;
 	return cfg;
 }
 

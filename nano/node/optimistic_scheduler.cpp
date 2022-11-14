@@ -42,27 +42,46 @@ bool nano::optimistic_scheduler::activate (const nano::account & account, const 
 {
 	debug_assert (account_info.block_count >= conf_info.height);
 
+	// Chain with a big enough gap between account frontier and confirmation frontier
 	if (account_info.block_count - conf_info.height > config_m.optimistic_gap_threshold)
 	{
 		{
 			stats.inc (nano::stat::type::optimistic, nano::stat::detail::activated);
 
 			nano::unique_lock<nano::mutex> lock{ mutex };
-			candidates.push_back (account);
-			if (candidates.size () > max_size)
+			gap_candidates.push_back (account);
+			if (gap_candidates.size () > max_size)
 			{
-				candidates.pop_front ();
+				gap_candidates.pop_front ();
 			}
 		}
 		notify ();
 		return true; // Activated
 	}
+
+	// Fresh chain, nothing yet confirmed
+	if (conf_info.height == 0)
+	{
+		{
+			stats.inc (nano::stat::type::optimistic, nano::stat::detail::activated);
+
+			nano::unique_lock<nano::mutex> lock{ mutex };
+			leaf_candidates.push_back (account);
+			if (leaf_candidates.size () > max_size)
+			{
+				leaf_candidates.pop_front ();
+			}
+		}
+		notify ();
+		return true; // Activated
+	}
+
 	return false; // Not activated
 }
 
 bool nano::optimistic_scheduler::predicate () const
 {
-	return !candidates.empty () && active.vacancy_optimistic () > 0;
+	return (!gap_candidates.empty () || !leaf_candidates.empty ()) && active.vacancy_optimistic () > 0;
 }
 
 void nano::optimistic_scheduler::run ()
@@ -74,9 +93,10 @@ void nano::optimistic_scheduler::run ()
 		{
 			stats.inc (nano::stat::type::optimistic, nano::stat::detail::loop);
 
-			run_one (lock);
-
-			debug_assert (lock.owns_lock ());
+			auto candidate = pop_candidate ();
+			lock.unlock ();
+			run_one (candidate);
+			lock.lock ();
 		}
 
 		condition.wait (lock, [this] () {
@@ -85,17 +105,8 @@ void nano::optimistic_scheduler::run ()
 	}
 }
 
-void nano::optimistic_scheduler::run_one (nano::unique_lock<nano::mutex> & lock)
+void nano::optimistic_scheduler::run_one (nano::account candidate)
 {
-	debug_assert (lock.owns_lock ());
-	debug_assert (!candidates.empty ());
-	debug_assert (active.vacancy_optimistic () > 0);
-
-	auto candidate = candidates.front ();
-	candidates.pop_front ();
-
-	lock.unlock ();
-
 	auto block = node.head_block (candidate);
 	if (block)
 	{
@@ -109,6 +120,30 @@ void nano::optimistic_scheduler::run_one (nano::unique_lock<nano::mutex> & lock)
 			stats.inc (nano::stat::type::optimistic, result.inserted ? nano::stat::detail::insert : nano::stat::detail::insert_failed);
 		}
 	}
+}
 
-	lock.lock ();
+nano::account nano::optimistic_scheduler::pop_candidate ()
+{
+	debug_assert (!mutex.try_lock ());
+	debug_assert (!gap_candidates.empty () || !leaf_candidates.empty ());
+	debug_assert (active.vacancy_optimistic () > 0);
+
+	if (!gap_candidates.empty () && counter++ % 2)
+	{
+		stats.inc (nano::stat::type::optimistic, nano::stat::detail::pop_gap);
+
+		auto candidate = gap_candidates.front ();
+		gap_candidates.pop_front ();
+		return candidate;
+	}
+	if (!leaf_candidates.empty ())
+	{
+		stats.inc (nano::stat::type::optimistic, nano::stat::detail::pop_leaf);
+
+		auto candidate = leaf_candidates.front ();
+		leaf_candidates.pop_front ();
+		return candidate;
+	}
+
+	return {};
 }

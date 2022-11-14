@@ -1169,6 +1169,12 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::started_optimistic:
 			res = "started_optimistic";
 			break;
+		case nano::stat::detail::pop_gap:
+			res = "pop_gap";
+			break;
+		case nano::stat::detail::pop_leaf:
+			res = "pop_leaf";
+			break;
 	}
 	return res;
 }

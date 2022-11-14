@@ -516,6 +516,10 @@ public:
 		// active
 		started_hinted,
 		started_optimistic,
+
+		// optimistic
+		pop_gap,
+		pop_leaf,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
