@@ -50,7 +50,10 @@ public:
 private:
 	bool predicate () const;
 	void run ();
-	void run_one (nano::unique_lock<nano::mutex> &);
+	void run_one (nano::account candidate);
+
+	/** Requires mutex lock */
+	nano::account pop_candidate ();
 
 private: // Dependencies
 	nano::node & node;
@@ -60,7 +63,12 @@ private: // Dependencies
 	config const config_m;
 
 private:
-	std::deque<nano::account> candidates;
+	/** Accounts with gap between account frontier and confirmation frontier greater than `optimistic_gap_threshold` */
+	std::deque<nano::account> gap_candidates;
+	/** Accounts without any confirmed blocks in their chain */
+	std::deque<nano::account> leaf_candidates;
+
+	uint64_t counter{ 0 };
 
 	std::atomic<bool> stopped{ false };
 	nano::condition_variable condition;
