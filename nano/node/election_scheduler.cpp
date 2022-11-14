@@ -21,7 +21,7 @@ void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & bloc
 	notify ();
 }
 
-void nano::election_scheduler::activate (nano::account const & account_a, nano::transaction const & transaction)
+bool nano::election_scheduler::activate (nano::account const & account_a, nano::transaction const & transaction)
 {
 	debug_assert (!account_a.is_zero ());
 	nano::account_info account_info;
@@ -40,9 +40,11 @@ void nano::election_scheduler::activate (nano::account const & account_a, nano::
 				nano::lock_guard<nano::mutex> lock{ mutex };
 				priority.push (account_info.modified, block);
 				notify ();
+				return true; // Activated
 			}
 		}
 	}
+	return false; // Not activated
 }
 
 void nano::election_scheduler::stop ()
