@@ -248,6 +248,8 @@ public:
 		hinting,
 		blockprocessor,
 		bootstrap_server,
+		active,
+		backlog,
 		bootstrap_server_requests,
 		bootstrap_server_responses,
 		unchecked,
@@ -263,7 +265,9 @@ public:
 		all = 0,
 		unknown,
 
+		// common
 		loop,
+		total,
 
 		// processing queue
 		queue,
@@ -367,6 +371,9 @@ public:
 		election_hinted_started,
 		election_hinted_confirmed,
 		election_hinted_drop,
+		generate_vote,
+		generate_vote_normal,
+		generate_vote_final,
 
 		// udp
 		blocking,
@@ -463,6 +470,8 @@ public:
 		response_account_info,
 		channel_full,
 
+		// backlog
+		activated,
 		// unchecked
 		put,
 		satisfied,

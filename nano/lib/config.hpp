@@ -201,7 +201,7 @@ public:
 		default_rpc_port (45000),
 		default_ipc_port (46000),
 		default_websocket_port (47000),
-		request_interval_ms (500),
+		aec_loop_interval_ms (300), // Update AEC ~3 times per second
 		cleanup_period (default_cleanup_period),
 		keepalive_period (std::chrono::seconds (15)),
 		idle_timeout (default_cleanup_period * 2),
@@ -211,7 +211,8 @@ public:
 		max_peers_per_ip (default_max_peers_per_ip),
 		max_peers_per_subnetwork (default_max_peers_per_ip * 4),
 		ipv6_subnetwork_prefix_for_limiting (64), // Equivalent to network prefix /64.
-		peer_dump_interval (std::chrono::seconds (5 * 60))
+		peer_dump_interval (std::chrono::seconds (5 * 60)),
+		vote_broadcast_interval (1000)
 	{
 		if (is_live_network ())
 		{
@@ -236,13 +237,14 @@ public:
 		}
 		else if (is_dev_network ())
 		{
-			request_interval_ms = 20;
+			aec_loop_interval_ms = 20;
 			cleanup_period = std::chrono::seconds (1);
 			keepalive_period = std::chrono::seconds (1);
 			idle_timeout = cleanup_period * 15;
 			max_peers_per_ip = 20;
 			max_peers_per_subnetwork = max_peers_per_ip * 4;
 			peer_dump_interval = std::chrono::seconds (1);
+			vote_broadcast_interval = 100;
 		}
 	}
 
@@ -258,7 +260,7 @@ public:
 	uint16_t default_rpc_port;
 	uint16_t default_ipc_port;
 	uint16_t default_websocket_port;
-	unsigned request_interval_ms;
+	unsigned aec_loop_interval_ms;
 
 	std::chrono::seconds cleanup_period;
 	std::chrono::milliseconds cleanup_period_half () const
@@ -282,6 +284,10 @@ public:
 	size_t max_peers_per_subnetwork;
 	size_t ipv6_subnetwork_prefix_for_limiting;
 	std::chrono::seconds peer_dump_interval;
+	/** Time to wait before vote rebroadcasts for active elections, this is doubled for each broadcast, up to `max_vote_broadcast_interval` (milliseconds) */
+	uint64_t vote_broadcast_interval;
+	/** Maximum interval for vote broadcasts for active elections (milliseconds) */
+	static uint64_t constexpr max_vote_broadcast_interval{ 16 * 1000 };
 
 	/** Returns the network this object contains values for */
 	nano::networks network () const
