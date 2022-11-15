@@ -296,7 +296,7 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 		{
 			std::cerr << "send error: " << ec.message () << std::endl;
 		}
-	});
+	}, nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
 }
 
 std::optional<nano::account> nano::bootstrap_ascending::pick_account ()
