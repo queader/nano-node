@@ -430,7 +430,10 @@ TEST (request_aggregator, cannot_vote)
 	nano::test::system system;
 	nano::node_flags flags;
 	flags.disable_request_loop = true;
-	auto & node (*system.add_node (flags));
+	nano::node_config config = system.default_config ();
+	// Starting elections interferes with our test because it changes request aggregator behavior
+	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
+	auto & node (*system.add_node (config, flags));
 	// This prevents activation of blocks which are cemented
 	node.confirmation_height_processor.cemented_observers.clear ();
 	nano::state_block_builder builder;

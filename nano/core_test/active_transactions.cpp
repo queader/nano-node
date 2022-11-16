@@ -24,7 +24,11 @@ namespace nano
 TEST (active_transactions, confirm_election_by_request)
 {
 	nano::test::system system{};
-	auto & node1 = *system.add_node ();
+
+	auto node_config1 = system.default_config ();
+	// TODO: Investigate whether disabling backlog scan is needed
+	node_config1.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
+	auto & node1 = *system.add_node (node_config1);
 
 	nano::state_block_builder builder{};
 	auto send1 = builder
@@ -44,13 +48,21 @@ TEST (active_transactions, confirm_election_by_request)
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
 	// Ensure election on node1 is already confirmed before connecting with node2
+	ASSERT_TIMELY (5s, nano::test::confirm (node1, { send1 }));
 	ASSERT_TIMELY (5s, nano::test::confirmed (node1, { send1 }));
+
+	// Ensure election is not present in AEC
+	ASSERT_TIMELY (5s, !node1.active.active (send1->hash ()));
+	ASSERT_ALWAYS (1s, !node1.active.active (send1->hash ()));
 
 	// At this point node1 should not generate votes for send1 block unless it receives a request
 
 	// Create a second node
 	nano::node_flags node_flags2{};
 	node_flags2.disable_rep_crawler = true;
+	nano::node_config node_config2 = system.default_config ();
+	// TODO: Investigate whether disabling backlog scan is needed
+	node_config2.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node2 = *system.add_node (node_flags2);
 
 	// Process send1 block as live block on node2, this should start an election
@@ -61,8 +73,7 @@ TEST (active_transactions, confirm_election_by_request)
 	ASSERT_TIMELY (5s, (election = node2.active.election (send1->qualified_root ())) != nullptr);
 
 	// Ensure election on node2 did not get confirmed without us requesting votes
-	WAIT (1s);
-	ASSERT_FALSE (election->confirmed ());
+	ASSERT_NEVER (1s, election->confirmed ());
 
 	// Expect that node2 has nobody to send a confirmation_request to (no reps)
 	ASSERT_EQ (0, election->confirmation_request_count);
