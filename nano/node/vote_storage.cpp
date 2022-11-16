@@ -61,8 +61,8 @@ nano::vote_storage::vote_storage_result nano::vote_storage::get_votes_for_hash_o
 {
 	nano::vote_storage::vote_storage_result result;
 
-	if (ledger.block_confirmed (transaction_a, hash_a))
-	{
+//	if (ledger.block_confirmed (transaction_a, hash_a))
+//	{
 		auto account = ledger.account (transaction_a, hash_a);
 		if (!account.is_zero ())
 		{
@@ -90,13 +90,13 @@ nano::vote_storage::vote_storage_result nano::vote_storage::get_votes_for_hash_o
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::vote_invalid);
 			}
 		}
-	}
-	else
-	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::block_not_confirmed);
-	}
+		//	}
+		//	else
+		//	{
+		//		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::block_not_confirmed);
+		//	}
 
-	if (result)
+		if (result)
 	{
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::vote_replay);
 	}

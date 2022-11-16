@@ -36,9 +36,9 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 		nano::thread_role::set (nano::thread_role::name::vote_processing);
 		process_loop ();
 	}),
-	thread_replay_cache([this]() {
-		nano::thread_role::set(nano::thread_role::name::vote_storage_add);
-		cache_loop();
+	thread_replay_cache ([this] () {
+		nano::thread_role::set (nano::thread_role::name::vote_storage_add);
+		cache_loop ();
 	})
 {
 	nano::unique_lock<nano::mutex> lock (mutex);
@@ -97,16 +97,16 @@ void nano::vote_processor::process_loop ()
 	}
 }
 
-void nano::vote_processor::cache_loop()
+void nano::vote_processor::cache_loop ()
 {
-	nano::unique_lock<nano::mutex> lock(mutex_cache);
+	nano::unique_lock<nano::mutex> lock (mutex_cache);
 
 	while (!stopped)
 	{
-		if (!votes_to_cache.empty())
+		if (!votes_to_cache.empty ())
 		{
 			decltype (votes_to_cache) votes_l;
-			votes_l.swap(votes_to_cache);
+			votes_l.swap (votes_to_cache);
 
 			lock.unlock ();
 
@@ -122,7 +122,7 @@ void nano::vote_processor::cache_loop()
 		}
 		else
 		{
-			condition_cache.wait(lock);
+			condition_cache.wait (lock);
 		}
 	}
 }
@@ -203,7 +203,7 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		++i;
 	}
 
-	nano::unique_lock<nano::mutex> lock_cache(mutex_cache);
+	nano::unique_lock<nano::mutex> lock_cache (mutex_cache);
 
 	if (votes_to_cache.size () < max_votes)
 	{
@@ -212,10 +212,10 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		{
 			if (verifications[j++] == 1)
 			{
-				if (vote.first->timestamp() == std::numeric_limits<uint64_t>::max ())
-				{
-					votes_to_cache.emplace_back (vote.first);
-				}
+				//				if (vote.first->timestamp() == std::numeric_limits<uint64_t>::max ())
+				//				{
+				votes_to_cache.emplace_back (vote.first);
+				//				}
 			}
 		}
 	}
@@ -225,7 +225,7 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 	}
 
 	lock_cache.unlock ();
-	condition_cache.notify_all();
+	condition_cache.notify_all ();
 }
 
 nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, bool validated)
@@ -354,12 +354,13 @@ void nano::vote_processor::calculate_weights ()
 
 void nano::vote_processor::add_to_vote_replay_cache (nano::write_transaction const & transaction_a, std::shared_ptr<nano::vote> const & vote_a)
 {
-	const int max_vote_size = 12;
+	const int max_vote_size = 20;
 
 	bool process = false;
 
 	if (vote_a->blocks.size () <= max_vote_size)
 	{
+		nano::unique_lock<nano::mutex> lock (mutex);
 		if (representatives_1_5.find (vote_a->account) != representatives_1_5.end ())
 		{
 			process = true;
@@ -372,6 +373,7 @@ void nano::vote_processor::add_to_vote_replay_cache (nano::write_transaction con
 		{
 			process = true;
 		}
+		lock.unlock ();
 
 		if (process)
 		{

@@ -3,11 +3,12 @@
 #include <nano/node/active_transactions.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/transport/udp.hpp>
-#include <nano/node/voting.hpp>
 #include <nano/node/vote_storage.hpp>
+#include <nano/node/voting.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
@@ -191,7 +192,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			bool generate_final_vote (false);
 			std::shared_ptr<nano::block> block;
 
-			//2. Final votes
+			// 2. Final votes
 			auto final_vote_hashes (ledger.store.final_vote.get (transaction, root));
 			if (!final_vote_hashes.empty ())
 			{
@@ -298,6 +299,12 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			cached_votes.insert (cached_votes.end (), replay_votes.begin (), replay_votes.end ());
 
 			stats.inc (nano::stat::type::requests, nano::stat::detail::republish_vote, stat::dir::out);
+
+			for (auto & vote : replay_votes)
+			{
+				active.node.network.flood_vote_pr (vote);
+				active.node.network.flood_vote (vote, 0.5f);
+			}
 		}
 	}
 	// Unique votes
