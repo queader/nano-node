@@ -557,6 +557,12 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::active:
 			res = "active";
 			break;
+		case nano::stat::type::vote_storage_store:
+			res = "vote_storage_store";
+			break;
+		case nano::stat::type::vote_storage:
+			res = "vote_storage";
+			break;
 	}
 	return res;
 }
@@ -1044,6 +1050,36 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 			break;
 		case nano::stat::detail::channel_full:
 			res = "channel_full";
+			break;
+		case nano::stat::detail::stored:
+			res = "stored";
+			break;
+		case nano::stat::detail::stored_votes:
+			res = "stored_votes";
+			break;
+		case nano::stat::detail::reply:
+			res = "reply";
+			break;
+		case nano::stat::detail::reply_vote:
+			res = "reply_vote";
+			break;
+		case nano::stat::detail::broadcast:
+			res = "broadcast";
+			break;
+		case nano::stat::detail::broadcast_vote:
+			res = "broadcast_vote";
+			break;
+		case nano::stat::detail::broadcast_vote_rep:
+			res = "broadcast_vote_rep";
+			break;
+		case nano::stat::detail::broadcast_vote_random:
+			res = "broadcast_vote_random";
+			break;
+		case nano::stat::detail::empty:
+			res = "empty";
+			break;
+		case nano::stat::detail::low_weight:
+			res = "low_weight";
 			break;
 	}
 	return res;

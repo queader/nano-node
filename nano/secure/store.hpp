@@ -75,6 +75,11 @@ public:
 	{
 	}
 
+	db_val (nano::vote_storage_key const & val_a) :
+		db_val (sizeof (val_a), const_cast<nano::vote_storage_key *> (&val_a))
+	{
+	}
+
 	db_val (nano::account_info const & val_a) :
 		db_val (val_a.db_size (), const_cast<nano::account_info *> (&val_a))
 	{
@@ -147,6 +152,16 @@ public:
 		{
 			nano::vectorstream stream (*buffer);
 			nano::serialize_block (stream, *val_a);
+		}
+		convert_buffer_to_value ();
+	}
+
+	db_val (nano::vote const & val_a) :
+		buffer (std::make_shared<std::vector<uint8_t>> ())
+	{
+		{
+			nano::vectorstream stream (*buffer);
+			val_a.serialize (stream);
 		}
 		convert_buffer_to_value ();
 	}
@@ -241,6 +256,16 @@ public:
 		return result;
 	}
 
+	explicit operator nano::vote () const
+	{
+		nano::bufferstream stream (reinterpret_cast<uint8_t const *> (data ()), size ());
+		nano::vote result;
+		bool error = result.deserialize (stream);
+		(void)error;
+		debug_assert (!error);
+		return result;
+	}
+
 	explicit operator nano::uint128_union () const
 	{
 		return convert<nano::uint128_union> ();
@@ -274,6 +299,11 @@ public:
 	explicit operator nano::uint512_union () const
 	{
 		return convert<nano::uint512_union> ();
+	}
+
+	explicit operator nano::vote_storage_key () const
+	{
+		return convert<nano::vote_storage_key> ();
 	}
 
 	explicit operator std::array<char, 64> () const
@@ -518,7 +548,7 @@ public:
 		return *this;
 	}
 	nano::store_iterator<T, U> & operator= (nano::store_iterator<T, U> const &) = delete;
-	std::pair<T, U> * operator-> ()
+	std::pair<T, U> * operator->()
 	{
 		return &current;
 	}
@@ -551,7 +581,8 @@ enum class tables
 	pending,
 	pruned,
 	unchecked,
-	vote
+	vote,
+	vote_storage,
 };
 
 class transaction_impl
@@ -784,6 +815,21 @@ public:
 };
 
 /**
+ * Manages vote storage and iteration
+ */
+class vote_storage_store
+{
+public:
+	virtual std::size_t put (nano::write_transaction const &, std::shared_ptr<nano::vote> const &) = 0;
+	virtual std::vector<std::shared_ptr<nano::vote>> get (nano::transaction const &, nano::block_hash const &) = 0;
+	//	virtual int del (nano::write_transaction const &, nano::block_hash const &) = 0;
+	//	virtual void del (nano::write_transaction const &, nano::vote_storage_key const &) = 0;
+	//	virtual nano::store_iterator<nano::vote_storage_key, nano::vote> begin (nano::transaction const &) const = 0;
+	virtual nano::store_iterator<nano::vote_storage_key, nano::vote> begin (nano::transaction const &, nano::vote_storage_key const &) const = 0;
+	virtual nano::store_iterator<nano::vote_storage_key, nano::vote> end () const = 0;
+};
+
+/**
  * Manages version storage
  */
 class version_store
@@ -842,6 +888,7 @@ public:
 		nano::peer_store &,
 		nano::confirmation_height_store &,
 		nano::final_vote_store &,
+		nano::vote_storage_store &,
 		nano::version_store &
 	);
 	// clang-format on
@@ -870,8 +917,10 @@ public:
 	peer_store & peer;
 	confirmation_height_store & confirmation_height;
 	final_vote_store & final_vote;
+	vote_storage_store & vote_storage;
 	version_store & version;
 
+public:
 	virtual unsigned max_block_write_batch_num () const = 0;
 
 	virtual bool copy_db (boost::filesystem::path const & destination) = 0;
@@ -894,7 +943,37 @@ public:
 	friend class unchecked_map;
 };
 
-std::unique_ptr<nano::store> make_store (nano::logger_mt & logger, boost::filesystem::path const & path, nano::ledger_constants & constants, bool open_read_only = false, bool add_db_postfix = false, nano::rocksdb_config const & rocksdb_config = nano::rocksdb_config{}, nano::txn_tracking_config const & txn_tracking_config_a = nano::txn_tracking_config{}, std::chrono::milliseconds block_processor_batch_max_time_a = std::chrono::milliseconds (5000), nano::lmdb_config const & lmdb_config_a = nano::lmdb_config{}, bool backup_before_upgrade = false);
+// TODO: `make_store` is declared here (nano/secure library) but is actually implemented in node.cpp (nano/node) WTF?
+// clang-format off
+std::unique_ptr<nano::store> make_store (
+	nano::logger_mt & logger,
+	boost::filesystem::path const & path,
+	nano::ledger_constants & constants,
+	bool open_read_only = false,
+	bool add_db_postfix = false,
+	nano::rocksdb_config const & rocksdb_config = nano::rocksdb_config{},
+	nano::txn_tracking_config const & txn_tracking_config_a = nano::txn_tracking_config{},
+	std::chrono::milliseconds block_processor_batch_max_time_a = std::chrono::milliseconds (5000),
+	nano::lmdb_config const & lmdb_config_a = nano::lmdb_config{},
+	bool backup_before_upgrade = false
+);
+
+/**
+ * Make dedicated database for vote storage
+ */
+std::unique_ptr<nano::store> make_vote_store (
+	nano::logger_mt & logger,
+	boost::filesystem::path const & path,
+	nano::ledger_constants & constants,
+	bool open_read_only = false,
+	bool add_db_postfix = false,
+	nano::rocksdb_config const & rocksdb_config = nano::rocksdb_config{},
+	nano::txn_tracking_config const & txn_tracking_config_a = nano::txn_tracking_config{},
+	std::chrono::milliseconds block_processor_batch_max_time_a = std::chrono::milliseconds (5000),
+	nano::lmdb_config const & lmdb_config_a = nano::lmdb_config{},
+	bool backup_before_upgrade = false
+);
+// clang-format on
 }
 
 namespace std

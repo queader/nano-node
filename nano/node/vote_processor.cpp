@@ -9,6 +9,7 @@
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/signatures.hpp>
 #include <nano/node/vote_processor.hpp>
+#include <nano/node/vote_storage.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
@@ -16,9 +17,10 @@
 #include <boost/format.hpp>
 
 #include <chrono>
+
 using namespace std::chrono_literals;
 
-nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a) :
+nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a, nano::vote_storage & vote_storage_a) :
 	checker (checker_a),
 	active (active_a),
 	observers (observers_a),
@@ -29,6 +31,7 @@ nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano:
 	rep_crawler (rep_crawler_a),
 	ledger (ledger_a),
 	network_params (network_params_a),
+	vote_storage{ vote_storage_a },
 	max_votes (flags_a.vote_processor_capacity),
 	started (false),
 	stopped (false),
@@ -163,6 +166,8 @@ void nano::vote_processor::verify_votes (decltype (votes) const & votes_a)
 		if (verifications[i] == 1)
 		{
 			vote_blocking (vote.first, vote.second, true);
+
+			vote_storage.vote (vote.first);
 		}
 		++i;
 	}

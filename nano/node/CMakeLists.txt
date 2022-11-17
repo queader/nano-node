@@ -123,6 +123,8 @@ add_library(
   lmdb/lmdb_txn.cpp
   lmdb/wallet_value.hpp
   lmdb/wallet_value.cpp
+        lmdb/vote_storage_store.hpp
+        lmdb/vote_storage_store.cpp
   logging.hpp
   logging.cpp
   network.hpp
@@ -208,6 +210,8 @@ add_library(
   vote_cache.cpp
   vote_processor.hpp
   vote_processor.cpp
+        vote_storage.hpp
+        vote_storage.cpp
   voting.hpp
   voting.cpp
   wallet.hpp

@@ -18,6 +18,7 @@
 #include <nano/node/lmdb/pruned_store.hpp>
 #include <nano/node/lmdb/unchecked_store.hpp>
 #include <nano/node/lmdb/version_store.hpp>
+#include <nano/node/lmdb/vote_storage_store.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/versioning.hpp>
 
@@ -43,8 +44,8 @@ class transaction;
 namespace lmdb
 {
 	/**
- * mdb implementation of the block store
- */
+	 * mdb implementation of the block store
+	 */
 	class store : public nano::store
 	{
 	private:
@@ -58,6 +59,7 @@ namespace lmdb
 		nano::lmdb::pending_store pending_store;
 		nano::lmdb::pruned_store pruned_store;
 		nano::lmdb::unchecked_store unchecked_store;
+		nano::lmdb::vote_storage_store vote_storage_store;
 		nano::lmdb::version_store version_store;
 
 		friend class nano::lmdb::account_store;
@@ -70,6 +72,7 @@ namespace lmdb
 		friend class nano::lmdb::pending_store;
 		friend class nano::lmdb::pruned_store;
 		friend class nano::lmdb::unchecked_store;
+		friend class nano::lmdb::vote_storage_store;
 		friend class nano::lmdb::version_store;
 
 	public:

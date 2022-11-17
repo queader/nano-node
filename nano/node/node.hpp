@@ -30,6 +30,7 @@
 #include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_cache.hpp>
 #include <nano/node/vote_processor.hpp>
+#include <nano/node/vote_storage.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/write_database_queue.hpp>
 #include <nano/secure/ledger.hpp>
@@ -151,6 +152,8 @@ public:
 	nano::logger_mt logger;
 	std::unique_ptr<nano::store> store_impl;
 	nano::store & store;
+	std::unique_ptr<nano::store> vote_store_impl;
+	nano::store & vote_store;
 	nano::unchecked_map unchecked;
 	std::unique_ptr<nano::wallets_store> wallets_store_impl;
 	nano::wallets_store & wallets_store;
@@ -168,6 +171,7 @@ public:
 	nano::port_mapping port_mapping;
 	nano::online_reps online_reps;
 	nano::rep_crawler rep_crawler;
+	nano::vote_storage vote_storage;
 	nano::vote_processor vote_processor;
 	unsigned warmed_up;
 	nano::block_processor block_processor;
