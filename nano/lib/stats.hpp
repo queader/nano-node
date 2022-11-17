@@ -249,6 +249,8 @@ public:
 		blockprocessor,
 		bootstrap_server,
 		active,
+		vote_storage_store,
+		vote_storage
 	};
 
 	/** Optional detail type */
@@ -458,6 +460,18 @@ public:
 		response_blocks,
 		response_account_info,
 		channel_full,
+
+		// vote storage
+		stored,
+		stored_votes,
+		reply,
+		reply_vote,
+		broadcast,
+		broadcast_vote,
+		broadcast_vote_rep,
+		broadcast_vote_random,
+		empty,
+		low_weight,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
@@ -510,6 +524,12 @@ public:
 	void inc (stat::type type, stat::detail detail, stat::dir dir = stat::dir::in)
 	{
 		add (type, detail, dir, 1);
+	}
+
+	/** Adds \p value to the given counter */
+	void add (stat::type type, stat::detail detail, uint64_t value)
+	{
+		add (type, detail, stat::dir::in, value);
 	}
 
 	/** Adds \p value to the given counter */

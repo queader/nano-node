@@ -28,7 +28,7 @@ public:
 	uint128_union (nano::uint128_t const &);
 	bool operator== (nano::uint128_union const &) const;
 	bool operator!= (nano::uint128_union const &) const;
-	bool operator< (nano::uint128_union const &) const;
+	bool operator<(nano::uint128_union const &) const;
 	bool operator> (nano::uint128_union const &) const;
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
@@ -75,7 +75,7 @@ public:
 	uint256_union operator^ (nano::uint256_union const &) const;
 	bool operator== (nano::uint256_union const &) const;
 	bool operator!= (nano::uint256_union const &) const;
-	bool operator< (nano::uint256_union const &) const;
+	bool operator<(nano::uint256_union const &) const;
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
 	void encode_dec (std::string &) const;
@@ -241,6 +241,21 @@ public:
 	nano::block_hash const & previous () const
 	{
 		return reinterpret_cast<nano::block_hash const &> (uint256s[1]);
+	}
+};
+
+class vote_storage_key : public uint512_union
+{
+public:
+	using uint512_union::uint512_union;
+
+	nano::block_hash const & block_hash () const
+	{
+		return reinterpret_cast<nano::block_hash const &> (uint256s[0]);
+	}
+	nano::account const & account () const
+	{
+		return reinterpret_cast<nano::account const &> (uint256s[1]);
 	}
 };
 
