@@ -49,6 +49,8 @@ namespace thread_role
 		bootstrap_server,
 		telemetry,
 		optimistic_scheduler,
+		vote_storage_store,
+		vote_storage,
 	};
 
 	/*

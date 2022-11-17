@@ -43,6 +43,9 @@ enum class type : uint8_t
 	unchecked,
 	election_scheduler,
 	optimistic_scheduler,
+	vote_storage,
+	vote_storage_store,
+	vote_storage_broadcast,
 
 	_last // Must be the last enum
 };
@@ -59,6 +62,7 @@ enum class detail : uint8_t
 	update,
 	request,
 	broadcast,
+	empty,
 
 	// processing queue
 	queue,
@@ -272,6 +276,19 @@ enum class detail : uint8_t
 	insert_priority,
 	insert_priority_success,
 	erase_oldest,
+
+	// vote storage
+	stored,
+	stored_votes,
+	frontier,
+	frontier_empty,
+	reply,
+	reply_vote,
+	broadcast_duplicate,
+	broadcast_vote,
+	broadcast_vote_rep,
+	broadcast_vote_random,
+	low_weight,
 
 	_last // Must be the last enum
 };

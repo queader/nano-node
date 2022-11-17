@@ -111,6 +111,12 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::optimistic_scheduler:
 			thread_role_name_string = "Optimistic";
 			break;
+		case nano::thread_role::name::vote_storage:
+			thread_role_name_string = "Vote storage";
+			break;
+		case nano::thread_role::name::vote_storage_store:
+			thread_role_name_string = "Vote storage WR"; // WR = Write
+			break;
 		default:
 			debug_assert (false && "nano::thread_role::get_string unhandled thread role");
 	}

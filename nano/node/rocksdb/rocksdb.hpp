@@ -32,9 +32,37 @@ class rocksdb_block_store_tombstone_count_Test;
 
 namespace rocksdb
 {
+	// Dummy
+	class vote_storage_store : public nano::vote_storage_store
+	{
+		std::size_t put (nano::write_transaction const &, std::shared_ptr<nano::vote> const &) override
+		{
+			release_assert (false, "rocksdb not supported");
+			return 0;
+		}
+		std::vector<std::shared_ptr<nano::vote>> get (nano::transaction const &, nano::block_hash const &) override
+		{
+			release_assert (false, "rocksdb not supported");
+			return {};
+		}
+		//	int del (nano::write_transaction const &, nano::block_hash const &) override;
+		//	void del (nano::write_transaction const &, nano::vote_storage_key const &) override;
+		//	nano::store_iterator<nano::vote_storage_key, nano::vote> begin (nano::transaction const &) const override;
+		nano::store_iterator<nano::vote_storage_key, nano::vote> begin (nano::transaction const &, nano::vote_storage_key const &) const override
+		{
+			release_assert (false, "rocksdb not supported");
+			return { nullptr };
+		}
+		nano::store_iterator<nano::vote_storage_key, nano::vote> end () const override
+		{
+			release_assert (false, "rocksdb not supported");
+			return { nullptr };
+		}
+	};
+
 	/**
- * rocksdb implementation of the block store
- */
+	 * rocksdb implementation of the block store
+	 */
 	class store : public nano::store
 	{
 	private:
@@ -48,6 +76,7 @@ namespace rocksdb
 		nano::rocksdb::pending_store pending_store;
 		nano::rocksdb::pruned_store pruned_store;
 		nano::rocksdb::unchecked_store unchecked_store;
+		nano::rocksdb::vote_storage_store vote_storage_store;
 		nano::rocksdb::version_store version_store;
 
 	public:

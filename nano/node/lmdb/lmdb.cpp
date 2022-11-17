@@ -51,6 +51,7 @@ nano::lmdb::store::store (nano::logger_mt & logger_a, boost::filesystem::path co
 		peer_store,
 		confirmation_height_store,
 		final_vote_store,
+		vote_storage_store,
 		version_store
 	},
 	// clang-format on
@@ -64,6 +65,7 @@ nano::lmdb::store::store (nano::logger_mt & logger_a, boost::filesystem::path co
 	confirmation_height_store{ *this },
 	final_vote_store{ *this },
 	unchecked_store{ *this },
+	vote_storage_store{ *this },
 	version_store{ *this },
 	logger (logger_a),
 	env (error, path_a, nano::mdb_env::options::make ().set_config (lmdb_config_a).set_use_no_mem_init (true)),
@@ -220,6 +222,15 @@ void nano::lmdb::store::open_databases (bool & error_a, nano::transaction const 
 	error_a |= mdb_dbi_open (env.tx (transaction_a), "pending", flags, &pending_store.pending_v0_handle) != 0;
 	pending_store.pending_handle = pending_store.pending_v0_handle;
 	error_a |= mdb_dbi_open (env.tx (transaction_a), "final_votes", flags, &final_vote_store.final_votes_handle) != 0;
+
+	// TODO: This should be done in a cleaner way
+	{
+		bool error_b = mdb_dbi_open (env.tx (transaction_a), "vote_storage", flags, &vote_storage_store.handle) != 0;
+		if (flags & MDB_CREATE)
+		{
+			error_a |= error_b;
+		}
+	}
 
 	auto version_l = version.get (transaction_a);
 	if (version_l < 19)
@@ -880,6 +891,8 @@ MDB_dbi nano::lmdb::store::table_to_dbi (tables table_a) const
 			return confirmation_height_store.confirmation_height_handle;
 		case tables::final_votes:
 			return final_vote_store.final_votes_handle;
+		case tables::vote_storage:
+			return vote_storage_store.handle;
 		default:
 			release_assert (false);
 			return peer_store.peers_handle;

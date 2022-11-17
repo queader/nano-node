@@ -61,8 +61,14 @@ nano::outbound_bandwidth_limiter::config nano::outbound_bandwidth_limiter_config
 	outbound_bandwidth_limiter::config cfg{};
 	cfg.standard_limit = config.bandwidth_limit;
 	cfg.standard_burst_ratio = config.bandwidth_limit_burst_ratio;
+
 	cfg.bootstrap_limit = config.bootstrap_bandwidth_limit;
 	cfg.bootstrap_burst_ratio = config.bootstrap_bandwidth_burst_ratio;
+
+	// TODO: Use nodeconfig
+	cfg.vote_storage_limit = 50 * 1024 * 1024;
+	cfg.vote_storage_burst_ratio = 1.5;
+
 	return cfg;
 }
 
@@ -159,6 +165,8 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	logger (config_a.logging.min_time_between_log_output),
 	store_impl (nano::make_store (logger, application_path_a, network_params.ledger, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, config_a.backup_before_upgrade)),
 	store (*store_impl),
+	vote_store_impl{ nano::make_vote_store (logger, application_path_a, network_params.ledger, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, config_a.backup_before_upgrade) },
+	vote_store{ *vote_store_impl },
 	unchecked{ store, stats, flags.disable_block_processor_unchecked_deletion },
 	wallets_store_impl (std::make_unique<nano::mdb_wallets_store> (application_path_a / "wallets.ldb", config_a.lmdb_config)),
 	wallets_store (*wallets_store_impl),
@@ -184,7 +192,8 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	application_path (application_path_a),
 	port_mapping (*this),
 	rep_crawler (*this),
-	vote_processor (checker, active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params),
+	vote_storage{ *this, vote_store, network, ledger, stats },
+	vote_processor (checker, active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params, vote_storage),
 	warmed_up (0),
 	block_processor (*this, write_database_queue),
 	online_reps (ledger, config),
@@ -694,6 +703,7 @@ void nano::node::start ()
 	bootstrap_server.start ();
 	websocket.start ();
 	telemetry.start ();
+	vote_storage.start ();
 }
 
 void nano::node::stop ()
@@ -732,6 +742,7 @@ void nano::node::stop ()
 	wallets.stop ();
 	stats.stop ();
 	epoch_upgrader.stop ();
+	vote_storage.stop ();
 	workers.stop ();
 	// work pool is not stopped on purpose due to testing setup
 }
@@ -1590,4 +1601,17 @@ std::unique_ptr<nano::store> nano::make_store (nano::logger_mt & logger, boost::
 	}
 
 	return std::make_unique<nano::lmdb::store> (logger, add_db_postfix ? path / "data.ldb" : path, constants, txn_tracking_config_a, block_processor_batch_max_time_a, lmdb_config_a, backup_before_upgrade);
+}
+
+std::unique_ptr<nano::store> nano::make_vote_store (nano::logger_mt & logger, boost::filesystem::path const & path, nano::ledger_constants & constants, bool read_only, bool add_db_postfix, nano::rocksdb_config const & rocksdb_config, nano::txn_tracking_config const & txn_tracking_config_a, std::chrono::milliseconds block_processor_batch_max_time_a, nano::lmdb_config const & lmdb_config_a, bool backup_before_upgrade)
+{
+	if (rocksdb_config.enable)
+	{
+		release_assert (false, "rocksdb not supported");
+		return std::make_unique<nano::rocksdb::store> (logger, add_db_postfix ? path / "rocksdb_votes" : path, constants, rocksdb_config, read_only);
+	}
+	else
+	{
+		return std::make_unique<nano::lmdb::store> (logger, add_db_postfix ? path / "votes.ldb" : path, constants, txn_tracking_config_a, block_processor_batch_max_time_a, lmdb_config_a, backup_before_upgrade);
+	}
 }
