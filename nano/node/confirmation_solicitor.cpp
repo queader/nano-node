@@ -55,6 +55,9 @@ bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
 bool nano::confirmation_solicitor::add (nano::election const & election_a)
 {
 	debug_assert (prepared);
+
+	all_requests.emplace_back (election_a.status.winner->hash (), election_a.status.winner->root ());
+
 	bool error (true);
 	unsigned count = 0;
 	auto const & hash (election_a.status.winner->hash ());
@@ -88,6 +91,7 @@ bool nano::confirmation_solicitor::add (nano::election const & election_a)
 void nano::confirmation_solicitor::flush ()
 {
 	debug_assert (prepared);
+
 	for (auto const & request_queue : requests)
 	{
 		auto const & channel (request_queue.first);
@@ -108,5 +112,19 @@ void nano::confirmation_solicitor::flush ()
 			channel->send (req);
 		}
 	}
+
+	auto random_nodes = network.list (network.fanout ());
+
+	for (auto const & [hash, root] : all_requests)
+	{
+		nano::confirm_req req{ config.network_params.network, hash, root };
+		for (auto & channel : random_nodes)
+		{
+			channel->send (req);
+		}
+	}
+
+	all_requests.clear ();
+
 	prepared = false;
 }

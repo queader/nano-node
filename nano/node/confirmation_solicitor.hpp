@@ -40,5 +40,7 @@ private:
 	using vector_root_hashes = std::vector<std::pair<nano::block_hash, nano::root>>;
 	std::unordered_map<std::shared_ptr<nano::transport::channel>, vector_root_hashes> requests;
 	bool prepared{ false };
+
+	vector_root_hashes all_requests;
 };
 }
