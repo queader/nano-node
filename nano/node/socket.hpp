@@ -175,7 +175,10 @@ private:
 	endpoint_type_t endpoint_type_m;
 
 public:
-	static std::size_t constexpr queue_size_max = 128;
+//	static std::size_t constexpr queue_size_max = 128;
+//	static std::size_t constexpr queue_size_max = 1024 * 16;
+//	static std::size_t constexpr queue_size_max = 1024 * 32;
+	static std::size_t constexpr queue_size_max = 1024 * 4;
 };
 
 std::string socket_type_to_string (socket::type_t type);

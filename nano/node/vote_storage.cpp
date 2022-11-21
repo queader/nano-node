@@ -113,27 +113,27 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::out);
 			}
 		},
-		nano::buffer_drop_policy::limiter, nano::bandwidth_limit_type::vote_storage);
+		nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::vote_storage);
 	}
 }
 
 void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes)
 {
-	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast, nano::stat::dir::out);
+	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast);
 
 	auto pr_nodes = node.rep_crawler.principal_representatives ();
 	auto random_nodes = network.list (network.fanout ());
 
 	for (auto & vote : votes)
 	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::out);
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote);
 
 		nano::confirm_ack message{ node.network_params.network, vote };
 
 		// Send to all representatives
 		for (auto const & rep : pr_nodes)
 		{
-			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep, nano::stat::dir::out);
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep);
 
 			rep.channel->send (
 			message, [this] (auto & ec, auto size) {
@@ -142,23 +142,23 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 					stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::in);
 				}
 			},
-			nano::buffer_drop_policy::limiter, nano::bandwidth_limit_type::vote_storage);
+			nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::vote_storage);
 		}
 
-		// Send to some random nodes
-		for (auto const & channel : random_nodes)
-		{
-			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random, nano::stat::dir::out);
-
-			channel->send (
-			message, [this] (auto & ec, auto size) {
-				if (ec)
-				{
-					stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::in);
-				}
-			},
-			nano::buffer_drop_policy::limiter, nano::bandwidth_limit_type::vote_storage);
-		}
+		//		// Send to some random nodes
+		//		for (auto const & channel : random_nodes)
+		//		{
+		//			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random);
+		//
+		//			channel->send (
+		//			message, [this] (auto & ec, auto size) {
+		//				if (ec)
+		//				{
+		//					stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::in);
+		//				}
+		//			},
+		//			nano::buffer_drop_policy::limiter, nano::bandwidth_limit_type::vote_storage);
+		//		}
 	}
 }
 
