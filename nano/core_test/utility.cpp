@@ -99,6 +99,25 @@ TEST (rate, unlimited)
 	ASSERT_EQ (bucket.largest_burst (), static_cast<size_t> (1e9));
 }
 
+TEST (rate, busy_spin)
+{
+	// Bucket should refill at a rate of 1 token per second
+	nano::rate::token_bucket bucket (1, 1);
+
+	// Run a very tight loop for 5 seconds + a bit of wiggle room
+	int counter = 0;
+	for (auto start = std::chrono::steady_clock::now (), now = start; now < start + std::chrono::milliseconds{ 5500 }; now = std::chrono::steady_clock::now ())
+	{
+		if (bucket.try_consume ())
+		{
+			++counter;
+		}
+	}
+
+	// Bucket starts fully refilled, therefore we see 1 additional request
+	ASSERT_EQ (counter, 6);
+}
+
 TEST (optional_ptr, basic)
 {
 	struct valtype
