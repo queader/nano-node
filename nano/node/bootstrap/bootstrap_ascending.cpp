@@ -12,18 +12,47 @@ using namespace std::chrono_literals;
  * account_sets
  */
 
-nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a) :
+nano::bootstrap_ascending::account_sets::account_sets (nano::node & node_a, nano::store & store_a, nano::stat & stats_a) :
+	node{ node_a },
+	store{ store_a },
 	stats{ stats_a }
 {
 }
 
+nano::bootstrap_ascending::account_sets::~account_sets ()
+{
+	// Thread must be stopped before destruction
+	debug_assert (!thread.joinable ());
+}
+
+void nano::bootstrap_ascending::account_sets::start ()
+{
+	//	seed ();
+
+	thread = std::thread ([this] () {
+		// TODO: Unique thread name
+		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
+		run ();
+	});
+}
+
+void nano::bootstrap_ascending::account_sets::stop ()
+{
+	debug_assert (thread.joinable ());
+
+	stopped = true;
+	thread.join ();
+}
+
 void nano::bootstrap_ascending::account_sets::prioritize (nano::account const & account, float priority)
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
 	if (blocking.count (account) == 0)
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
 
-		forwarding.insert (account);
+//		forwarding.insert (account);
 		auto iter = backoff.find (account);
 		if (iter == backoff.end ())
 		{
@@ -38,6 +67,8 @@ void nano::bootstrap_ascending::account_sets::prioritize (nano::account const & 
 
 void nano::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
 
 	backoff.erase (account);
@@ -47,6 +78,8 @@ void nano::bootstrap_ascending::account_sets::block (nano::account const & accou
 
 void nano::bootstrap_ascending::account_sets::unblock (nano::account const & account, nano::block_hash const & hash)
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
 	// Unblock only if the dependency is fulfilled
 	if (blocking.count (account) > 0 && blocking[account] == hash)
 	{
@@ -63,6 +96,8 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 
 void nano::bootstrap_ascending::account_sets::force_unblock (const nano::account & account)
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
 	blocking.erase (account);
 	backoff[account] = {}; // Reset backoff and cooldown
 }
@@ -123,6 +158,8 @@ std::optional<nano::account> nano::bootstrap_ascending::account_sets::random ()
 
 std::optional<nano::account> nano::bootstrap_ascending::account_sets::next ()
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
 	std::optional<nano::account> result;
 	if (!forwarding.empty ())
 	{
@@ -149,16 +186,116 @@ std::optional<nano::account> nano::bootstrap_ascending::account_sets::next ()
 
 bool nano::bootstrap_ascending::account_sets::blocked (nano::account const & account) const
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
 	return blocking.count (account) > 0;
+}
+
+bool nano::bootstrap_ascending::account_sets::exists (const nano::account & account) const
+{
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+	return backoff.count (account) > 0 || blocking.count (account) > 0;
+}
+
+void nano::bootstrap_ascending::account_sets::run ()
+{
+	while (!stopped)
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::loop);
+
+		resample ();
+
+		std::this_thread::sleep_for (backoff.size () < max_backoff_size ? 100ms : 10s);
+	}
+}
+
+void nano::bootstrap_ascending::account_sets::resample ()
+{
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
+	// Evict surplus backoff entries
+	while (backoff.size () > max_backoff_size)
+	{
+		// Find account with the worst backoff
+		nano::account candidate{ 0 };
+		{
+			float worst_backoff = 0;
+
+			int iterations = 0;
+			while (iterations++ < backoff_exclusion * 10)
+			{
+				nano::account search;
+				nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
+				auto iter = backoff.lower_bound (search);
+				if (iter == backoff.end ())
+				{
+					iter = backoff.begin ();
+				}
+
+				auto const [account, entry] = *iter;
+				if (entry.backoff > worst_backoff)
+				{
+					candidate = account;
+				}
+			}
+		}
+
+		if (!candidate.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::erase);
+
+			backoff.erase (candidate);
+		}
+		else
+		{
+			// If no candidate was found and backoff is not empty then something went wrong
+			debug_assert ("should not happen");
+		}
+	}
+
+	// Randomly sample additional accounts from disk
+	{
+		uint64_t account_count = 0;
+		uint64_t receivable_count = 0;
+
+		nano::account search;
+		nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
+
+		const std::size_t sample_count = 1024 * 16;
+
+		auto tx = store.tx_begin_read ();
+		for (auto i = store.account.begin (tx, search), n = store.account.end (); i != n && account_count < sample_count; ++i)
+		{
+			if (!exists (i->first))
+			{
+				stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::sample_account);
+
+				prioritize (i->first, 0.0f);
+				account_count++;
+			}
+		}
+		for (auto i = store.pending.begin (tx, nano::pending_key (search, 0)), n = store.pending.end (); i != n && receivable_count < sample_count; ++i)
+		{
+			if (!exists (i->first.key ()))
+			{
+				stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::sample_pending);
+
+				prioritize (i->first.key (), 0.0f);
+				receivable_count++;
+			}
+		}
+	}
 }
 
 nano::bootstrap_ascending::account_sets::backoff_info_t nano::bootstrap_ascending::account_sets::backoff_info () const
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
 	return { forwarding, blocking, backoff };
 }
 
 std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::account_sets::collect_container_info (const std::string & name)
 {
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "backoff", backoff.size (), sizeof (decltype (backoff)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "forwarding", forwarding.size (), sizeof (decltype (forwarding)::value_type) }));
@@ -177,7 +314,7 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	ledger{ ledger_a },
 	network{ network_a },
 	stats{ stat_a },
-	accounts{ stats }
+	accounts{ node, store, stats }
 {
 	block_processor.processed.add ([this] (nano::transaction const & tx, nano::process_return const & result, nano::block const & block) {
 		inspect (tx, result, block);
@@ -207,7 +344,7 @@ nano::bootstrap_ascending::~bootstrap_ascending ()
 
 void nano::bootstrap_ascending::start ()
 {
-	seed ();
+	accounts.start ();
 
 	debug_assert (threads.empty ());
 	debug_assert (!timeout_thread.joinable ());
@@ -241,27 +378,8 @@ void nano::bootstrap_ascending::stop ()
 	threads.clear ();
 
 	nano::join_or_pass (timeout_thread);
-}
 
-void nano::bootstrap_ascending::seed ()
-{
-	node.logger.always_log ("Seeding ascending bootstrap...");
-
-	uint64_t account_count = 0, receivable_count = 0;
-
-	auto tx = store.tx_begin_read ();
-	for (auto i = store.account.begin (tx), n = store.account.end (); i != n; ++i)
-	{
-		accounts.prioritize (i->first, 0.0f);
-		account_count++;
-	}
-	for (auto i = store.pending.begin (tx), n = store.pending.end (); i != n; ++i)
-	{
-		accounts.prioritize (i->first.key (), 0.0f);
-		receivable_count++;
-	}
-
-	node.logger.always_log ("Finished seeding ascending bootstrap");
+	accounts.stop ();
 }
 
 uint64_t nano::bootstrap_ascending::generate_id () const
@@ -299,12 +417,6 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 		}
 	},
 	nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
-}
-
-std::optional<nano::account> nano::bootstrap_ascending::pick_account ()
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	return accounts.next ();
 }
 
 /** Inspects a block that has been processed by the block processor
@@ -427,9 +539,9 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 
 bool nano::bootstrap_ascending::request (nano::account & account, std::shared_ptr<nano::transport::channel> & channel)
 {
-	nano::account_info info;
 	nano::hash_or_account start = account;
 
+	nano::account_info info;
 	// check if the account picked has blocks, if it does, start the pull from the highest block
 	if (!store.account.get (store.tx_begin_read (), account, info))
 	{
@@ -614,14 +726,8 @@ void nano::bootstrap_ascending::track (async_tag const & tag)
 	tags.get<tag_id> ().insert (tag);
 }
 
-void nano::bootstrap_ascending::debug_log (const std::string & s) const
-{
-	std::cerr << s << std::endl;
-}
-
 nano::bootstrap_ascending::account_sets::backoff_info_t nano::bootstrap_ascending::backoff_info () const
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
 	return accounts.backoff_info ();
 }
 

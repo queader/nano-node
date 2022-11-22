@@ -1149,6 +1149,15 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::next_random:
 			res = "next_random";
 			break;
+		case nano::stat::detail::erase:
+			res = "erase";
+			break;
+		case nano::stat::detail::sample_account:
+			res = "sample_account";
+			break;
+		case nano::stat::detail::sample_pending:
+			res = "sample_pending";
+			break;
 		case nano::stat::detail::activated:
 			res = "activated";
 			break;

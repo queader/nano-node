@@ -503,6 +503,10 @@ public:
 		unblock_failed,
 		next_forwarding,
 		next_random,
+		erase,
+		sample_account,
+		sample_pending,
+
 		// backlog
 		activated,
 

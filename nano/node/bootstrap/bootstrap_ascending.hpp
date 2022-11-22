@@ -21,7 +21,6 @@ namespace nano
 class block_processor;
 class ledger;
 class network;
-
 namespace transport
 {
 	class channel;
@@ -66,7 +65,11 @@ public:
 	class account_sets
 	{
 	public:
-		explicit account_sets (nano::stat &);
+		explicit account_sets (nano::node &, nano::store &, nano::stat &);
+		~account_sets ();
+
+		void start ();
+		void stop ();
 
 		void prioritize (nano::account const & account, float priority);
 		void block (nano::account const & account, nano::block_hash const & dependency);
@@ -76,11 +79,14 @@ public:
 
 	public:
 		bool blocked (nano::account const & account) const;
+		bool exists (nano::account const & account) const;
 
 	public: // Container info
 		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
 	private: // Dependencies
+		nano::node & node;
+		nano::store & store;
 		nano::stat & stats;
 
 	private:
@@ -109,20 +115,26 @@ public:
 		*/
 		std::vector<double> probability_transform (std::vector<decltype (backoff)::mapped_type> const & attempts) const;
 
+	private: // Resampling
+		void run ();
+		void resample ();
+
 	private:
-		/**
-		 * Number of backoff accounts to sample when selecting random account
-		 */
+		std::atomic<bool> stopped;
+		mutable std::recursive_mutex mutex;
+		std::thread thread;
+
+	private:
+		/** Number of backoff accounts to sample when selecting random account */
 		static std::size_t constexpr backoff_exclusion = 32;
 
-		/**
-		 * Minimum time between subsequent request for the same account
-		 */
+		/** Minimum time between subsequent request for the same account */
 		static nano::millis_t constexpr cooldown = 1000;
+
+		static std::size_t constexpr max_backoff_size = 128 * 1024;
 
 	public:
 		using backoff_info_t = std::tuple<decltype (forwarding), decltype (blocking), decltype (backoff)>; // <forwarding, blocking, backoff>
-
 		backoff_info_t backoff_info () const;
 	};
 
@@ -143,10 +155,6 @@ public: // Events
 	nano::observer_set<async_tag const &> on_timeout;
 
 private:
-	/**
-	 * Seed backoffs with accounts from the ledger
-	 */
-	void seed ();
 	void run ();
 	void run_timeouts ();
 
@@ -171,7 +179,6 @@ private:
 	id_t generate_id () const;
 	bool request_one ();
 	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
-	std::optional<nano::account> pick_account ();
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
 	void track (async_tag const & tag);
 
@@ -192,9 +199,6 @@ private:
 	 * Verify that blocks response is valid
 	 */
 	bool verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
-
-private:
-	void debug_log (const std::string &) const;
 
 private:
 	account_sets accounts;
