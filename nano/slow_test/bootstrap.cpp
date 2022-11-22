@@ -63,12 +63,9 @@ std::unique_ptr<rpc_wrapper> start_rpc (nano::test::system & system, nano::node 
 
 TEST (bootstrap_ascending, profile)
 {
-	//	const auto path_server = "/Users/clemahieu/Library/NanoBeta";
-
-	uint16_t rpc_port = 55000;
 	nano::test::system system;
 	nano::thread_runner runner{ system.io_ctx, 2 };
-	nano::networks network = nano::networks::nano_live_network;
+	nano::networks network = nano::networks::nano_beta_network;
 	nano::network_params network_params{ network };
 
 	// Set up client and server nodes
@@ -81,7 +78,9 @@ TEST (bootstrap_ascending, profile)
 	flags_server.disable_add_initial_peers = true;
 	flags_server.disable_ongoing_bootstrap = true;
 	flags_server.disable_ascending_bootstrap = true;
-	auto server = std::make_shared<nano::node> (system.io_ctx, nano::working_path (network), config_server, system.work, flags_server);
+	auto data_path_server = nano::working_path (network);
+	//auto data_path_server = "";
+	auto server = std::make_shared<nano::node> (system.io_ctx, data_path_server, config_server, system.work, flags_server);
 	system.nodes.push_back (server);
 	server->start ();
 
@@ -94,7 +93,17 @@ TEST (bootstrap_ascending, profile)
 	flags_client.disable_add_initial_peers = true;
 	flags_client.disable_ongoing_bootstrap = true;
 	config_client.ipc_config.transport_tcp.enabled = true;
-	auto client = system.add_node (config_client, flags_client);
+	// Disable database integrity safety for higher throughput
+	config_client.lmdb_config.sync = nano::lmdb_config::sync_strategy::nosync_unsafe;
+	//auto client = system.add_node (config_client, flags_client);
+
+	// macos 16GB RAM disk:  diskutil erasevolume HFS+ "RAMDisk" `hdiutil attach -nomount ram://33554432`
+	//auto data_path_client = "/Volumes/RAMDisk";
+	auto data_path_client = nano::unique_path ();
+	auto client = std::make_shared<nano::node> (system.io_ctx, data_path_client, config_client, system.work, flags_client);
+	system.nodes.push_back (client);
+	client->start ();
+	nano::test::establish_tcp (system, *client, server->network.endpoint ());
 
 	// Set up RPC
 	auto client_rpc = start_rpc (system, *server, 55000);
