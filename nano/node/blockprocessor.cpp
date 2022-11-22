@@ -108,7 +108,7 @@ void nano::block_processor::add (nano::unchecked_info const & info_a)
 	auto const & block = info_a.block;
 	auto const & account = info_a.account;
 	auto const & verified = info_a.verified;
-//	debug_assert (!node.network_params.work.validate_entry (*block));
+	//	debug_assert (!node.network_params.work.validate_entry (*block));
 
 	// Do not allow new blocks when full
 	if (full ())
