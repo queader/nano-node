@@ -221,12 +221,5 @@ private:
 	//		static std::size_t constexpr requests_max = 16;
 	//	static std::size_t constexpr requests_max = 1024;
 	static std::size_t constexpr requests_max = 1024 * 4;
-
-private:
-	std::atomic<int> responses{ 0 };
-	std::atomic<int> requests_total{ 0 };
-	std::atomic<float> weights{ 0 };
-	std::atomic<int> forwarded{ 0 };
-	std::atomic<int> block_total{ 0 };
 };
 }
