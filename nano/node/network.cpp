@@ -225,6 +225,8 @@ void nano::network::flood_vote (std::shared_ptr<nano::vote> const & vote_a, floa
 	nano::confirm_ack message{ node.network_params.network, vote_a };
 	for (auto & i : list (fanout (scale)))
 	{
+		node.logger.always_log (boost::format ("FLOOD VOTE: %1%") % i->get_endpoint ());
+
 		i->send (message, nullptr);
 	}
 }
@@ -234,6 +236,8 @@ void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
 	nano::confirm_ack message{ node.network_params.network, vote_a };
 	for (auto const & i : node.rep_crawler.principal_representatives ())
 	{
+		node.logger.always_log (boost::format ("FLOOD VOTE PR: %1% : %2%") % i.account.to_account () % i.channel->get_endpoint ());
+
 		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
 	}
 }
