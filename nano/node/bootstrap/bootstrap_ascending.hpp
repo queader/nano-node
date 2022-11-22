@@ -37,6 +37,18 @@ public:
 	void stop ();
 
 	/**
+	 * If an account is not blocked, increase its priority.
+	 * Priority is increased whether it is in the normal priority set, or it is currently blocked and in the blocked set.
+	 * Current implementation increases priority by 1.0f each increment
+	 */
+	void priority_up (nano::account const & account_a);
+	/**
+	 * Decreases account priority
+	 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
+	 */
+	void priority_down (nano::account const & account_a);
+
+	/**
 	 * Inspects a block that has been processed by the block processor
 	 * - Marks an account as blocked if the result code is gap source as there is no reason request additional blocks for this account until the dependency is resolved
 	 * - Marks an account as forwarded if it has been recently referenced by a block that has been inserted.
@@ -66,67 +78,79 @@ public:
 	class account_sets
 	{
 	public:
-		explicit account_sets (nano::stat &);
+		explicit account_sets (nano::stat &, nano::store & store);
 
-		void prioritize (nano::account const & account, float priority);
+		void priority_up (nano::account const & account);
+		void priority_down (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
-		void unblock (nano::account const & account, nano::block_hash const & hash);
-		void force_unblock (nano::account const & account);
-		std::optional<nano::account> next ();
+		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash);
+		/**
+		 * Selects a random account from either:
+		 * 1) The priority set in memory
+		 * 2) The accounts in the ledger
+		 * 3) Pending entries in the ledger
+		 * Creates consideration set of "consideration_count" items and returns on randomly weighted by priority
+		 * Half are considered from the "priorities" container, half are considered from the ledger.
+		 */
+		nano::account random ();
 
 	public:
 		bool blocked (nano::account const & account) const;
+		size_t blocked_size () const;
+		float priority (nano::account const & account) const;
 
 	public: // Container info
 		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
 	private: // Dependencies
 		nano::stat & stats;
+		nano::store & store;
 
 	private:
-		std::optional<nano::account> random ();
+		static size_t constexpr consideration_count = 2;
 
-		struct backoff_entry
-		{
-			float backoff{ 0 };
-			nano::millis_t last_request{ 0 };
-		};
-
-		// A forwarded account is an account that has recently had a new block inserted or has been a destination reference and therefore is a more likely candidate for furthur block retrieval
-		std::unordered_set<nano::account> forwarding;
 		// A blocked account is an account that has failed to insert a block because the source block is gapped.
 		// An account is unblocked once it has a block successfully inserted.
-		std::map<nano::account, nano::block_hash> blocking;
-		// Tracks the number of requests for additional blocks without a block being successfully returned
-		// Each time a block is inserted to an account, this number is reset.
-		std::map<nano::account, backoff_entry> backoff;
+		// Maps "blocked account" -> ["blocked hash", "Priority count"]
+		std::map<nano::account, std::pair<nano::block_hash, float>> blocking;
+		class priority_t
+		{
+		public:
+			nano::account account;
+			float priority;
+		};
+		class tag_hash
+		{
+		};
+		class tag_priority
+		{
+		};
+		// Tracks the ongoing account priorities
+		// This only stores account priorities > 1.0f.
+		// Accounts in the ledger but not in this list are assumed priority 1.0f.
+		// Blocked accounts are assumed priority 0.0f
+		boost::multi_index_container<priority_t,
+		boost::multi_index::indexed_by<
+		boost::multi_index::ordered_unique<boost::multi_index::tag<tag_hash>,
+		boost::multi_index::member<priority_t, nano::account, &priority_t::account>>,
+		boost::multi_index::ordered_non_unique<boost::multi_index::tag<tag_priority>,
+		boost::multi_index::member<priority_t, float, &priority_t::priority>>>>
+		priorities;
+		static size_t const priorities_max = 64 * 1024;
 
 		std::default_random_engine rng;
-
-		/**
-			Convert a vector of attempt counts to a probability vector suitable for std::discrete_distribution
-			This implementation applies 1/2^i for each element, effectivly an exponential backoff
-		*/
-		std::vector<double> probability_transform (std::vector<decltype (backoff)::mapped_type> const & attempts) const;
-
-	private:
-		/**
-		 * Number of backoff accounts to sample when selecting random account
-		 */
-		static std::size_t constexpr backoff_exclusion = 32;
-
 		/**
 		 * Minimum time between subsequent request for the same account
 		 */
 		static nano::millis_t constexpr cooldown = 1000;
 
 	public:
-		using backoff_info_t = std::tuple<decltype (forwarding), decltype (blocking), decltype (backoff)>; // <forwarding, blocking, backoff>
+		using info_t = std::tuple<decltype (blocking), decltype (priorities)>; // <blocking, priorities>
 
-		backoff_info_t backoff_info () const;
+		info_t info () const;
 	};
 
-	account_sets::backoff_info_t backoff_info () const;
+	account_sets::info_t info () const;
 
 	using id_t = uint64_t;
 
@@ -143,10 +167,6 @@ public: // Events
 	nano::observer_set<async_tag const &> on_timeout;
 
 private:
-	/**
-	 * Seed backoffs with accounts from the ledger
-	 */
-	void seed ();
 	void run ();
 	void run_timeouts ();
 
@@ -171,7 +191,6 @@ private:
 	id_t generate_id () const;
 	bool request_one ();
 	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
-	std::optional<nano::account> pick_account ();
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
 	void track (async_tag const & tag);
 
