@@ -12,10 +12,69 @@ using namespace std::chrono_literals;
  * account_sets
  */
 
+nano::bootstrap_ascending::account_sets::iterator_t::iterator_t (nano::store & store) :
+store{ store }
+{
+}
+
+nano::account nano::bootstrap_ascending::account_sets::iterator_t::operator* () const
+{
+	return current;
+}
+
+void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transaction & tx)
+{
+	switch (table)
+	{
+	case table_t::account:
+	{
+		auto i = current.number () + 1;
+		auto item = store.account.begin (tx, i);
+		if (item != store.account.end ())
+		{
+			current = item->first;
+		}
+		else
+		{
+			item = nullptr;
+			table = table_t::pending;
+			current = 0;
+			next (tx);
+		}
+		break;
+	}
+	case table_t::pending:
+	{
+		auto i = current.number () + 1;
+		auto item = store.pending.begin (tx, nano::pending_key{ i, 0 });
+		if (item != store.pending.end ())
+		{
+			current = item->first.account;
+		}
+		else
+		{
+			item = nullptr;
+			table = table_t::account;
+			current = 0;
+			next (tx);
+		}
+		break;
+	}
+	}
+}
+
 nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nano::store & store) :
 	stats{ stats_a },
-	store{ store }
+	store{ store },
+	iter{ store }
 {
+	account_sets::iterator_t i{ store };
+	while (true)
+	{
+		auto tx = store.tx_begin_read ();
+		i.next (tx);
+		std::cerr << (*i).to_account() << std::endl;
+	}
 }
 
 void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
