@@ -181,6 +181,16 @@ bool nano::bootstrap_ascending::account_sets::blocked (nano::account const & acc
 	return blocking.count (account) > 0;
 }
 
+size_t nano::bootstrap_ascending::account_sets::priority_size () const
+{
+	return priorities.size ();
+}
+
+size_t nano::bootstrap_ascending::account_sets::blocked_size () const
+{
+	return blocking.size ();
+}
+
 auto nano::bootstrap_ascending::account_sets::info () const -> info_t
 {
 	return { blocking, priorities };
@@ -304,6 +314,18 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 		}
 	},
 	nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
+}
+
+size_t nano::bootstrap_ascending::priority_size () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return accounts.priority_size ();
+}
+
+size_t nano::bootstrap_ascending::blocked_size () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return accounts.blocked_size ();
 }
 
 /** Inspects a block that has been processed by the block processor
@@ -432,7 +454,7 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 		start = info.head;
 	}
 
-	const async_tag tag{ generate_id (), start, nano::milliseconds_since_epoch () };
+	const async_tag tag{ generate_id (), start, nano::milliseconds_since_epoch (), account };
 
 	on_request.notify (tag, channel);
 
@@ -533,6 +555,7 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 	// Continue only if there are any blocks to process
 	if (response.blocks.empty ())
 	{
+		accounts.priority_down (tag.account);
 		return;
 	}
 
