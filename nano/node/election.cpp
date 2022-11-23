@@ -497,11 +497,15 @@ void nano::election::broadcast_vote_impl ()
 
 		if (confirmed () || have_quorum (tally_impl ()))
 		{
+			node.logger.always_log (boost::format ("GENERATING VOTE FINAL: %1%") % status.winner->hash ().to_string ());
+
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_final);
 			node.final_generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
 		}
 		else
 		{
+			node.logger.always_log (boost::format ("GENERATING VOTE NORMAL: %1%") % status.winner->hash ().to_string ());
+
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_normal);
 			node.generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
 		}
