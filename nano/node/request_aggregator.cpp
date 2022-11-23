@@ -3,6 +3,7 @@
 #include <nano/node/active_transactions.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/transport/udp.hpp>
@@ -11,7 +12,9 @@
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
 
-nano::request_aggregator::request_aggregator (nano::node_config const & config_a, nano::stat & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a) :
+#include <boost/format.hpp>
+
+nano::request_aggregator::request_aggregator (nano::node & node_a, nano::node_config const & config_a, nano::stat & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a) :
 	config{ config_a },
 	max_delay (config_a.network_params.network.is_dev_network () ? 50 : 300),
 	small_delay (config_a.network_params.network.is_dev_network () ? 10 : 50),
@@ -23,6 +26,7 @@ nano::request_aggregator::request_aggregator (nano::node_config const & config_a
 	active (active_a),
 	generator (generator_a),
 	final_generator (final_generator_a),
+	node{ node_a },
 	thread ([this] () { run (); })
 {
 	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
@@ -151,6 +155,15 @@ bool nano::request_aggregator::empty ()
 
 void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const
 {
+	if (vote_a->is_final ())
+	{
+		node.logger.always_log (boost::format ("REPLY VOTE FINAL: %1% [%2%]") % channel_a->get_endpoint () % vote_a->hashes_string ());
+	}
+	else
+	{
+		node.logger.always_log (boost::format ("REPLY VOTE NORMAL: %1% [%2%]") % channel_a->get_endpoint () % vote_a->hashes_string ());
+	}
+
 	nano::confirm_ack confirm{ config.network_params.network, vote_a };
 	channel_a->send (confirm);
 }
@@ -188,7 +201,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			bool generate_final_vote (false);
 			std::shared_ptr<nano::block> block;
 
-			//2. Final votes
+			// 2. Final votes
 			auto final_vote_hashes (ledger.store.final_vote.get (transaction, root));
 			if (!final_vote_hashes.empty ())
 			{
