@@ -77,6 +77,22 @@ public:
 	/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 	class account_sets
 	{
+		class iterator_t
+		{
+			enum class table_t
+			{
+				account,
+				pending
+			};
+		public:
+			iterator_t (nano::store & store);
+			nano::account operator* () const;
+			void next (nano::transaction & tx);
+		private:
+			nano::store & store;
+			nano::account current{ 0 };
+			table_t table{ table_t::account };
+		};
 	public:
 		explicit account_sets (nano::stat &, nano::store & store);
 
@@ -105,6 +121,7 @@ public:
 	private: // Dependencies
 		nano::stat & stats;
 		nano::store & store;
+		iterator_t iter;
 
 	private:
 		static size_t constexpr consideration_count = 2;
