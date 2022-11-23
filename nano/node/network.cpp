@@ -225,7 +225,14 @@ void nano::network::flood_vote (std::shared_ptr<nano::vote> const & vote_a, floa
 	nano::confirm_ack message{ node.network_params.network, vote_a };
 	for (auto & i : list (fanout (scale)))
 	{
-		node.logger.always_log (boost::format ("FLOOD VOTE: %1% [%2%]") % i->get_endpoint () % vote_a->hashes_string ());
+		if (vote_a->is_final ())
+		{
+			node.logger.always_log (boost::format ("FLOOD VOTE FINAL: %1% [%2%]") % i->get_endpoint () % vote_a->hashes_string ());
+		}
+		else
+		{
+			node.logger.always_log (boost::format ("FLOOD VOTE NORMAL: %1% [%2%]") % i->get_endpoint () % vote_a->hashes_string ());
+		}
 
 		i->send (message, nullptr);
 	}
@@ -236,7 +243,14 @@ void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
 	nano::confirm_ack message{ node.network_params.network, vote_a };
 	for (auto const & i : node.rep_crawler.principal_representatives ())
 	{
-		node.logger.always_log (boost::format ("FLOOD VOTE PR: %1% : %2% [%3%]") % i.account.to_account () % i.channel->get_endpoint () % vote_a->hashes_string ());
+		if (vote_a->is_final ())
+		{
+			node.logger.always_log (boost::format ("FLOOD VOTE PR FINAL: %1% : %2% [%3%]") % i.account.to_account () % i.channel->get_endpoint () % vote_a->hashes_string ());
+		}
+		else
+		{
+			node.logger.always_log (boost::format ("FLOOD VOTE PR NORMAL: %1% : %2% [%3%]") % i.account.to_account () % i.channel->get_endpoint () % vote_a->hashes_string ());
+		}
 
 		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
 	}
