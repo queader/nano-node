@@ -68,6 +68,8 @@ bool nano::local_vote_history::consistency_check (nano::root const & root_a) con
 
 void nano::local_vote_history::add (nano::root const & root_a, nano::block_hash const & hash_a, std::shared_ptr<nano::vote> const & vote_a)
 {
+	return;
+
 	nano::lock_guard<nano::mutex> guard (mutex);
 	clean ();
 	auto add_vote (true);
