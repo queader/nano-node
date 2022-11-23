@@ -62,6 +62,8 @@ public:
 
 public: // Container info
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+	size_t blocked_size () const;
+	size_t priority_size () const;
 
 private: // Dependencies
 	nano::node & node;
@@ -112,6 +114,7 @@ public:
 
 	public:
 		bool blocked (nano::account const & account) const;
+		size_t priority_size () const;
 		size_t blocked_size () const;
 		float priority (nano::account const & account) const;
 
@@ -176,6 +179,7 @@ public:
 		id_t id{ 0 };
 		nano::hash_or_account start{ 0 };
 		nano::millis_t time{ 0 };
+		nano::account account{ 0 };
 	};
 
 public: // Events
@@ -256,6 +260,6 @@ private:
 private:
 	//		static std::size_t constexpr requests_max = 16;
 	//	static std::size_t constexpr requests_max = 1024;
-	static std::size_t constexpr requests_max = 1024 * 4;
+	static std::size_t constexpr requests_max = 1024 * 8;
 };
 }
