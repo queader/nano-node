@@ -68,13 +68,6 @@ nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nan
 	store{ store },
 	iter{ store }
 {
-	account_sets::iterator_t i{ store };
-	while (true)
-	{
-		auto tx = store.tx_begin_read ();
-		i.next (tx);
-		std::cerr << (*i).to_account() << std::endl;
-	}
 }
 
 void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
@@ -154,81 +147,28 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 
 nano::account nano::bootstrap_ascending::account_sets::random ()
 {
+	if (priorities.empty ())
+	{
+		auto tx = store.tx_begin_read ();
+		iter.next (tx);
+		std::cerr << "Disk: " << (*iter).to_account () << '\n';
+		return *iter;
+	}
 	std::vector<float> weights;
 	std::vector<nano::account> candidates;
+	while (candidates.size () < account_sets::consideration_count)
 	{
-		while (!priorities.empty () && candidates.size () < account_sets::consideration_count / 2)
+		debug_assert (candidates.size () == weights.size ());
+		nano::account search;
+		nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
+		auto iter = priorities.get<tag_hash> ().lower_bound (search);
+		if (iter == priorities.get<tag_hash> ().end ())
 		{
-			debug_assert (candidates.size () == weights.size ());
-			nano::account search;
-			nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
-			auto iter = priorities.get<tag_hash> ().lower_bound (search);
-			if (iter == priorities.get<tag_hash> ().end ())
-			{
-				iter = priorities.get<tag_hash> ().begin ();
-			}
-			candidates.push_back (iter->account);
-			weights.push_back (iter->priority);
+			iter = priorities.get<tag_hash> ().begin ();
 		}
-		auto tx = store.tx_begin_read ();
-		do
-		{
-			nano::account search;
-			nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
-			if (nano::random_pool::generate_byte () & 0x1)
-			{
-				nano::account_info info;
-				auto iter = store.account.begin (tx, search);
-				if (iter == store.account.end ())
-				{
-					iter = store.account.begin (tx);
-				}
-				candidates.push_back (iter->first);
-				weights.push_back (1.0f);
-			}
-			else
-			{
-				nano::pending_info info;
-				auto iter = store.pending.begin (tx, nano::pending_key{ search, 0 });
-				if (iter == store.pending.end ())
-				{
-					iter = store.pending.begin (tx);
-				}
-				if (iter != store.pending.end ())
-				{
-					candidates.push_back (iter->first.account);
-					weights.push_back (1.0f);
-				}
-			}
-		} while (candidates.size () < account_sets::consideration_count);
+		candidates.push_back (iter->account);
+		weights.push_back (iter->priority);
 	}
-	std::string dump;
-	/*if (std::any_of (weights.begin (), weights.end (), [] (float const & val) { return val > 2.0f; }))
-	{
-		dump += "------------\n";
-		for (auto i = 0; i < candidates.size (); ++i)
-		{
-			dump += candidates[i].to_account();
-			dump += " ";
-			dump += std::to_string (weights[i]);
-			dump += "\n";
-		}
-	}*/
-	static int count = 0;
-	if (count++ % 100'000 == 0)
-	{
-		//this->dump ();
-	}
-	/*dump += "============\n";
-	for (auto i: priorities)
-	{
-		dump += i.first.to_account ();
-		dump += " ";
-		dump += std::to_string (i.second);
-		dump += "\n";
-	}*/
-	std::cerr << dump;
-
 	std::discrete_distribution dist{ weights.begin (), weights.end () };
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
