@@ -70,6 +70,31 @@ nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nan
 {
 }
 
+void nano::bootstrap_ascending::account_sets::dump () const
+{
+	std::cerr << boost::str (boost::format ("Blocking: %1%\n") % blocking.size ());
+	std::deque<size_t> weight_counts;
+	float max = 0.0f;
+	for (auto const & [account, priority] : priorities)
+	{
+		auto count = std::log2 (priority);
+		if (weight_counts.size () <= count)
+		{
+			weight_counts.resize (count + 1);
+		}
+		++weight_counts[count];
+		max = std::max (max, priority);
+	}
+	std::string output;
+	output += "Priorities hist (max: " + std::to_string (max) + " size: " + std::to_string (priorities.size ()) + "): ";
+	for (size_t i = 0, n = weight_counts.size (); i < n; ++i)
+	{
+		output += std::to_string (weight_counts[i]) + ' ';
+	}
+	output += '\n';
+	std::cerr << output;
+}
+
 void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
 {
 	auto blocking_iter = blocking.find (account);
@@ -169,6 +194,11 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 		candidates.push_back (iter->account);
 		weights.push_back (iter->priority);
 	}
+	static int count = 0;
+	if (count++ % 100'000 == 0)
+	{
+		this->dump ();
+	}
 	std::discrete_distribution dist{ weights.begin (), weights.end () };
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
@@ -189,6 +219,20 @@ size_t nano::bootstrap_ascending::account_sets::priority_size () const
 size_t nano::bootstrap_ascending::account_sets::blocked_size () const
 {
 	return blocking.size ();
+}
+
+float nano::bootstrap_ascending::account_sets::priority (nano::account const & account) const
+{
+	if (blocked (account))
+	{
+		return 0.0f;
+	}
+	auto existing = priorities.find (account);
+	if (existing == priorities.end ())
+	{
+		return 1.0f;
+	}
+	return existing->priority;
 }
 
 auto nano::bootstrap_ascending::account_sets::info () const -> info_t
@@ -386,6 +430,9 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			break;
 		}
 		case nano::process_result::gap_previous:
+			break;
+		case nano::process_result::old:
+			accounts.priority_down (ledger.account (tx, hash));
 			break;
 		default:
 			break;
