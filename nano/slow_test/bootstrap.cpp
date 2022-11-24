@@ -103,7 +103,6 @@ TEST (bootstrap_ascending, profile)
 	auto client = std::make_shared<nano::node> (system.io_ctx, data_path_client, config_client, system.work, flags_client);
 	system.nodes.push_back (client);
 	client->start ();
-	nano::test::establish_tcp (system, *client, server->network.endpoint ());
 
 	// Set up RPC
 	auto client_rpc = start_rpc (system, *server, 55000);
@@ -183,9 +182,15 @@ TEST (bootstrap_ascending, profile)
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::reply, nano::stat::dir::in);
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in);
 	rate.observe (*server, nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::old);
 	rate.background_print (3s);
 
-	wait_for_key ();
+	//wait_for_key ();
+	while (true)
+	{
+		nano::test::establish_tcp (system, *client, server->network.endpoint ());
+		std::this_thread::sleep_for (10s);
+	}
 
 	server->stop ();
 	client->stop ();
