@@ -472,6 +472,7 @@ public:
 		broadcast_vote_random,
 		empty,
 		low_weight,
+		broadcast_duplicate,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */

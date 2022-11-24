@@ -55,6 +55,11 @@ private:
 	nano::processing_queue<broadcast_entry_t> broadcast_queue;
 
 private:
+	std::unordered_set<nano::block_hash> recently_broadcasted;
+	std::unordered_set<nano::signature> recently_broadcasted_signatures;
+	mutable nano::mutex mutex;
+
+private:
 	void process_batch (decltype (store_queue)::batch_t &);
 	void process_batch (decltype (broadcast_queue)::batch_t &);
 

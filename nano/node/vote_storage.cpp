@@ -77,7 +77,25 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 			if (weight (votes) > vote_weight_threshold)
 			{
 				reply (votes, channel);
-				broadcast (votes);
+
+				nano::unique_lock<nano::mutex> lock{ mutex };
+				if (recently_broadcasted.count (hash) > 0)
+				{
+					stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
+					continue;
+				}
+				else
+				{
+					recently_broadcasted.insert (hash);
+					if (recently_broadcasted.size () > 1024 * 64)
+					{
+						recently_broadcasted.clear ();
+					}
+
+					lock.unlock ();
+
+					broadcast (votes);
+				}
 			}
 			else
 			{
