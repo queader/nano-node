@@ -76,6 +76,8 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 		{
 			if (weight (votes) > vote_weight_threshold)
 			{
+				votes = filter (votes);
+
 				reply (votes, channel);
 
 				nano::unique_lock<nano::mutex> lock{ mutex };
@@ -87,7 +89,7 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 				else
 				{
 					recently_broadcasted.insert (hash);
-					if (recently_broadcasted.size () > 1024 * 64)
+					if (recently_broadcasted.size () > 1024)
 					{
 						recently_broadcasted.clear ();
 					}
@@ -186,6 +188,19 @@ nano::uint128_t nano::vote_storage::weight (const nano::vote_storage::vote_list_
 	for (auto const & vote : votes)
 	{
 		result += ledger.weight (vote->account);
+	}
+	return result;
+}
+
+nano::vote_storage::vote_list_t nano::vote_storage::filter (const nano::vote_storage::vote_list_t & votes) const
+{
+	nano::vote_storage::vote_list_t result;
+	for (auto const & vote : votes)
+	{
+		if (ledger.weight (vote->account) >= rep_weight_threshold)
+		{
+			result.push_back (vote);
+		}
 	}
 	return result;
 }

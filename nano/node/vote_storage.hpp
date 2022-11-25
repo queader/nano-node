@@ -56,7 +56,6 @@ private:
 
 private:
 	std::unordered_set<nano::block_hash> recently_broadcasted;
-	std::unordered_set<nano::signature> recently_broadcasted_signatures;
 	mutable nano::mutex mutex;
 
 private:
@@ -64,12 +63,16 @@ private:
 	void process_batch (decltype (broadcast_queue)::batch_t &);
 
 	uint128_t weight (vote_list_t const &) const;
+	vote_list_t filter (vote_list_t const &) const;
 
 	void reply (vote_list_t const &, std::shared_ptr<nano::transport::channel> const &);
 	void broadcast (vote_list_t const &);
 
 private:
 	// TODO: Use nodeconfig
-	uint128_t const vote_weight_threshold = 20000 * nano::Gxrb_ratio;
+	uint128_t const vote_weight_threshold{ 60000 * nano::Gxrb_ratio };
+	//	uint128_t const vote_weight_threshold{ 120000 * nano::Gxrb_ratio }; // Disable
+
+	uint128_t const rep_weight_threshold{ 600 * nano::Gxrb_ratio };
 };
 }
