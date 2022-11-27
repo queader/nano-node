@@ -31,7 +31,7 @@ enum class frontiers_confirmation_mode : uint8_t
 /**
  * Node configuration
  */
-class node_config
+class node_config final
 {
 public:
 	node_config (nano::network_params & network_params = nano::dev::network_params);
@@ -110,6 +110,45 @@ public:
 	nano::frontiers_confirmation_mode deserialize_frontiers_confirmation (std::string const &);
 	/** Entry is ignored if it cannot be parsed as a valid address:port */
 	void deserialize_address (std::string const &, std::vector<std::pair<std::string, uint16_t>> &) const;
+
+public:
+	/**
+	 * Holds per second rate limits for each message type
+	 * Use 0 for unlimited
+	 */
+	class message_rate final
+	{
+	public:
+		double burst_ratio{ 3. };
+
+		/** Limit for all messages combined */
+		std::size_t all{ 0 };
+
+		std::size_t node_id_handshake{ 10 };
+		std::size_t keepalive{ 10 };
+		std::size_t publish{ 100 };
+		std::size_t confirm_req{ 100 };
+		std::size_t confirm_ack{ 1000 };
+		std::size_t bulk_pull{ 100 };
+		std::size_t bulk_push{ 100 };
+		std::size_t bulk_pull_account{ 100 };
+		std::size_t frontier_req{ 100 };
+		std::size_t telemetry_req{ 10 };
+		std::size_t telemetry_ack{ 100 };
+		std::size_t asc_pull_req{ 100 };
+		std::size_t asc_pull_ack{ 100 };
+
+	public:
+		/** Throws exception on error */
+		void serialize_toml (nano::tomlconfig &) const;
+		/** Throws exception on error */
+		void deserialize_toml (nano::tomlconfig &);
+	};
+
+	/** Rate limits for messages for the whole node */
+	message_rate global_message_rate{};
+	/** Rate limits for messages per channel */
+	message_rate channel_message_rate{};
 };
 
 class node_flags final

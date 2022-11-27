@@ -243,6 +243,17 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			rocksdb_config.deserialize_toml (rocksdb_config_l);
 		}
 
+		if (toml.has_key ("global_message_rate"))
+		{
+			auto config = toml.get_required_child ("global_message_rate");
+			global_message_rate.deserialize_toml (config);
+		}
+		if (toml.has_key ("channel_message_rate"))
+		{
+			auto config = toml.get_required_child ("channel_message_rate");
+			channel_message_rate.deserialize_toml (config);
+		}
+
 		if (toml.has_key ("work_peers"))
 		{
 			work_peers.clear ();
@@ -526,4 +537,46 @@ nano::account nano::node_config::random_representative () const
 	std::size_t index (nano::random_pool::generate_word32 (0, static_cast<CryptoPP::word32> (preconfigured_representatives.size () - 1)));
 	auto result (preconfigured_representatives[index]);
 	return result;
+}
+
+/*
+ * message_rate_config
+ */
+
+void nano::node_config::message_rate::deserialize_toml (nano::tomlconfig & toml)
+{
+	toml.get<double> ("burst_ratio", burst_ratio);
+	toml.get<std::size_t> ("all", all);
+	toml.get<std::size_t> ("node_id_handshake", node_id_handshake);
+	toml.get<std::size_t> ("keepalive", keepalive);
+	toml.get<std::size_t> ("publish", publish);
+	toml.get<std::size_t> ("confirm_req", confirm_req);
+	toml.get<std::size_t> ("confirm_ack", confirm_ack);
+	toml.get<std::size_t> ("bulk_pull", bulk_pull);
+	toml.get<std::size_t> ("bulk_push", bulk_push);
+	toml.get<std::size_t> ("bulk_pull_account", bulk_pull_account);
+	toml.get<std::size_t> ("frontier_req", frontier_req);
+	toml.get<std::size_t> ("telemetry_req", telemetry_req);
+	toml.get<std::size_t> ("telemetry_ack", telemetry_ack);
+	toml.get<std::size_t> ("asc_pull_req", asc_pull_req);
+	toml.get<std::size_t> ("asc_pull_ack", asc_pull_ack);
+}
+
+void nano::node_config::message_rate::serialize_toml (nano::tomlconfig & toml) const
+{
+	toml.put ("burst_ratio", burst_ratio, "Burst ratio for message rate limits.\ntype:double");
+	toml.put ("all", all, "TODO");
+	toml.put ("node_id_handshake", node_id_handshake, "TODO");
+	toml.put ("keepalive", keepalive, "TODO");
+	toml.put ("publish", publish, "TODO");
+	toml.put ("confirm_req", confirm_req, "TODO");
+	toml.put ("confirm_ack", confirm_ack, "TODO");
+	toml.put ("bulk_pull", bulk_pull, "TODO");
+	toml.put ("bulk_push", bulk_push, "TODO");
+	toml.put ("bulk_pull_account", bulk_pull_account, "TODO");
+	toml.put ("frontier_req", frontier_req, "TODO");
+	toml.put ("telemetry_req", telemetry_req, "TODO");
+	toml.put ("telemetry_ack", telemetry_ack, "TODO");
+	toml.put ("asc_pull_req", asc_pull_req, "TODO");
+	toml.put ("asc_pull_ack", asc_pull_ack, "TODO");
 }
