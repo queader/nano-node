@@ -102,10 +102,10 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
 
-		auto iter = priorities.get<tag_hash> ().find (account);
-		if (iter != priorities.get<tag_hash> ().end ())
+		auto iter = priorities.get<tag_account> ().find (account);
+		if (iter != priorities.get<tag_account> ().end ())
 		{
-			priorities.get<tag_hash> ().modify (iter, [] (auto & val) {
+			priorities.get<tag_account> ().modify (iter, [] (auto & val) {
 				val.priority += 0.4f;
 			});
 		}
@@ -125,17 +125,17 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 
 void nano::bootstrap_ascending::account_sets::priority_down (nano::account const & account)
 {
-	auto iter = priorities.get<tag_hash> ().find (account);
-	if (iter != priorities.get<tag_hash> ().end ())
+	auto iter = priorities.get<tag_account> ().find (account);
+	if (iter != priorities.get<tag_account> ().end ())
 	{
 		auto priority_new = iter->priority / 2.0f;
 		if (priority_new <= 1.0f)
 		{
-			priorities.get<tag_hash> ().erase (iter);
+			priorities.get<tag_account> ().erase (iter);
 		}
 		else
 		{
-			priorities.get<tag_hash> ().modify (iter, [priority_new] (auto & val) {
+			priorities.get<tag_account> ().modify (iter, [priority_new] (auto & val) {
 				val.priority = priority_new;
 			});
 		}
@@ -144,17 +144,17 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 
 void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const & account)
 {
-	auto iter = priorities.get<tag_hash> ().find (account);
-	if (iter != priorities.get<tag_hash> ().end ())
+	auto iter = priorities.get<tag_account> ().find (account);
+	if (iter != priorities.get<tag_account> ().end ())
 	{
 		auto priority_new = iter->priority - 0.5f;
 		if (priority_new <= 1.0f)
 		{
-			priorities.get<tag_hash> ().erase (iter);
+			priorities.get<tag_account> ().erase (iter);
 		}
 		else
 		{
-			priorities.get<tag_hash> ().modify (iter, [priority_new] (auto & val) {
+			priorities.get<tag_account> ().modify (iter, [priority_new] (auto & val) {
 				val.priority = priority_new;
 			});
 		}
@@ -164,9 +164,9 @@ void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const 
 void nano::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
-	auto existing = priorities.get<tag_hash> ().find (account);
-	auto count = existing == priorities.get<tag_hash> ().end () ? 1.0f : existing->priority;
-	priorities.get<tag_hash> ().erase (account);
+	auto existing = priorities.get<tag_account> ().find (account);
+	auto count = existing == priorities.get<tag_account> ().end () ? 1.0f : existing->priority;
+	priorities.get<tag_account> ().erase (account);
 	blocking[account] = std::make_pair (dependency, count);
 }
 
@@ -205,10 +205,10 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 		debug_assert (candidates.size () == weights.size ());
 		nano::account search;
 		nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
-		auto iter = priorities.get<tag_hash> ().lower_bound (search);
-		if (iter == priorities.get<tag_hash> ().end ())
+		auto iter = priorities.get<tag_account> ().lower_bound (search);
+		if (iter == priorities.get<tag_account> ().end ())
 		{
-			iter = priorities.get<tag_hash> ().begin ();
+			iter = priorities.get<tag_account> ().begin ();
 		}
 		candidates.push_back (iter->account);
 		weights.push_back (iter->priority);
