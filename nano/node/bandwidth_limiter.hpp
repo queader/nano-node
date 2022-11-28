@@ -18,13 +18,13 @@ enum class bandwidth_limit_type
 };
 
 /**
- * Class that tracks and manages bandwidth limits for IO operations
+ * Class that tracks and manages rate limits
  */
-class bandwidth_limiter final
+class rate_limiter final
 {
 public:
 	// initialize with limit 0 = unbounded
-	bandwidth_limiter (std::size_t limit, double burst_ratio);
+	rate_limiter (std::size_t limit, double burst_ratio);
 
 	bool should_pass (std::size_t buffer_size);
 	void reset (std::size_t limit, double burst_ratio);
@@ -69,14 +69,14 @@ private:
 	/**
 	 * Returns reference to limiter corresponding to the limit type
 	 */
-	nano::bandwidth_limiter & select_limiter (bandwidth_limit_type);
+	nano::rate_limiter & select_limiter (bandwidth_limit_type);
 
 private:
 	const config config_m;
 
 private:
-	nano::bandwidth_limiter limiter_standard;
-	nano::bandwidth_limiter limiter_bootstrap;
+	nano::rate_limiter limiter_standard;
+	nano::rate_limiter limiter_bootstrap;
 };
 
 class message_limiter final
@@ -90,22 +90,22 @@ public: // Info
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
 
 private:
-	nano::bandwidth_limiter & select_limiter (nano::message_type);
+	nano::rate_limiter & select_limiter (nano::message_type);
 
 private: // Limiters
-	nano::bandwidth_limiter all;
-	nano::bandwidth_limiter node_id_handshake;
-	nano::bandwidth_limiter keepalive;
-	nano::bandwidth_limiter publish;
-	nano::bandwidth_limiter confirm_req;
-	nano::bandwidth_limiter confirm_ack;
-	nano::bandwidth_limiter bulk_pull;
-	nano::bandwidth_limiter bulk_push;
-	nano::bandwidth_limiter bulk_pull_account;
-	nano::bandwidth_limiter frontier_req;
-	nano::bandwidth_limiter telemetry_req;
-	nano::bandwidth_limiter telemetry_ack;
-	nano::bandwidth_limiter asc_pull_req;
-	nano::bandwidth_limiter asc_pull_ack;
+	nano::rate_limiter all;
+	nano::rate_limiter node_id_handshake;
+	nano::rate_limiter keepalive;
+	nano::rate_limiter publish;
+	nano::rate_limiter confirm_req;
+	nano::rate_limiter confirm_ack;
+	nano::rate_limiter bulk_pull;
+	nano::rate_limiter bulk_push;
+	nano::rate_limiter bulk_pull_account;
+	nano::rate_limiter frontier_req;
+	nano::rate_limiter telemetry_req;
+	nano::rate_limiter telemetry_ack;
+	nano::rate_limiter asc_pull_req;
+	nano::rate_limiter asc_pull_ack;
 };
 }
