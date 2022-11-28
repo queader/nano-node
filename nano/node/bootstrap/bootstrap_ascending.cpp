@@ -77,7 +77,7 @@ void nano::bootstrap_ascending::account_sets::dump () const
 	float max = 0.0f;
 	for (auto const & [account, priority] : priorities)
 	{
-		auto count = std::log2 (priority);
+		auto count = std::log2 (std::max (priority, 1.0f));
 		if (weight_counts.size () <= count)
 		{
 			weight_counts.resize (count + 1);
@@ -106,14 +106,14 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 		if (iter != priorities.get<tag_hash> ().end ())
 		{
 			priorities.get<tag_hash> ().modify (iter, [] (auto & val) {
-				val.priority += 1.0f;
+				val.priority += 0.4f;
 			});
 		}
 		else
 		{
 			if (priorities.size () < priorities_max)
 			{
-				priorities.insert ({ account, 2.0f });
+				priorities.insert ({ account, 1.4f });
 			}
 		}
 	}
@@ -129,6 +129,25 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 	if (iter != priorities.get<tag_hash> ().end ())
 	{
 		auto priority_new = iter->priority / 2.0f;
+		if (priority_new <= 1.0f)
+		{
+			priorities.get<tag_hash> ().erase (iter);
+		}
+		else
+		{
+			priorities.get<tag_hash> ().modify (iter, [priority_new] (auto & val) {
+				val.priority = priority_new;
+			});
+		}
+	}
+}
+
+void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const & account)
+{
+	auto iter = priorities.get<tag_hash> ().find (account);
+	if (iter != priorities.get<tag_hash> ().end ())
+	{
+		auto priority_new = iter->priority - 0.5f;
 		if (priority_new <= 1.0f)
 		{
 			priorities.get<tag_hash> ().erase (iter);
@@ -176,7 +195,7 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 	{
 		auto tx = store.tx_begin_read ();
 		iter.next (tx);
-		std::cerr << "Disk: " << (*iter).to_account () << '\n';
+		//std::cerr << "Disk: " << (*iter).to_account () << '\n';
 		return *iter;
 	}
 	std::vector<float> weights;
@@ -203,6 +222,7 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
 	auto result = candidates[selection];
+	priority_dec (result);
 	return result;
 }
 
@@ -323,6 +343,18 @@ void nano::bootstrap_ascending::stop ()
 	nano::join_or_pass (timeout_thread);
 }
 
+void nano::bootstrap_ascending::priority_up (nano::account const & account_a)
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	accounts.priority_up (account_a);
+}
+
+void nano::bootstrap_ascending::priority_down (nano::account const & account_a)
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	accounts.priority_down (account_a);
+}
+
 uint64_t nano::bootstrap_ascending::generate_id () const
 {
 	id_t id;
@@ -429,13 +461,21 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			accounts.block (account, source);
 			break;
 		}
+		case nano::process_result::old:
+		{
+			auto account = ledger.account (tx, hash);
+			//std::cerr << boost::str (boost::format ("old account: %1%\n") % account.to_account ());
+			nano::lock_guard<nano::mutex> lock{ mutex };
+			accounts.priority_down (account);
+			break;
+		}
 		case nano::process_result::gap_previous:
 			break;
-		case nano::process_result::old:
-			accounts.priority_down (ledger.account (tx, hash));
-			break;
 		default:
+		{
+			std::clog << '\0';
 			break;
+		}
 	}
 }
 
@@ -495,6 +535,7 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 	nano::account_info info;
 	nano::hash_or_account start = account;
 
+	//std::cerr << boost::str (boost::format ("req account: %1%\n") % account.to_account ());
 	// check if the account picked has blocks, if it does, start the pull from the highest block
 	if (!store.account.get (store.tx_begin_read (), account, info))
 	{
@@ -602,7 +643,7 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 	// Continue only if there are any blocks to process
 	if (response.blocks.empty ())
 	{
-		accounts.priority_down (tag.account);
+		priority_down (tag.account);
 		return;
 	}
 
