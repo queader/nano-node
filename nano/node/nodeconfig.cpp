@@ -188,6 +188,10 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	rocksdb_config.serialize_toml (rocksdb_l);
 	toml.put_child ("rocksdb", rocksdb_l);
 
+	nano::tomlconfig message_rate_l;
+	message_rate_config.serialize_toml (message_rate_l);
+	toml.put_child ("message_rate", message_rate_l);
+
 	nano::tomlconfig lmdb_l;
 	lmdb_config.serialize_toml (lmdb_l);
 	toml.put_child ("lmdb", lmdb_l);
@@ -243,15 +247,10 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			rocksdb_config.deserialize_toml (rocksdb_config_l);
 		}
 
-		if (toml.has_key ("global_message_rate"))
+		if (toml.has_key ("message_rate"))
 		{
-			auto config = toml.get_required_child ("global_message_rate");
-			global_message_rate.deserialize_toml (config);
-		}
-		if (toml.has_key ("channel_message_rate"))
-		{
-			auto config = toml.get_required_child ("channel_message_rate");
-			channel_message_rate.deserialize_toml (config);
+			auto config = toml.get_required_child ("message_rate");
+			message_rate_config.deserialize_toml (config);
 		}
 
 		if (toml.has_key ("work_peers"))
@@ -540,13 +539,27 @@ nano::account nano::node_config::random_representative () const
 }
 
 /*
- * message_rate_config
+ * message_rate_config::limits
  */
 
-void nano::node_config::message_rate::deserialize_toml (nano::tomlconfig & toml)
+void nano::message_rate_config::limits::deserialize_toml (nano::tomlconfig & toml)
 {
+	toml.get<std::size_t> ("limit", limit);
 	toml.get<double> ("burst_ratio", burst_ratio);
-	toml.get<std::size_t> ("all", all);
+}
+
+void nano::message_rate_config::limits::serialize_toml (nano::tomlconfig & toml) const
+{
+	toml.put ("burst_ratio", burst_ratio, "TODO.\ntype:double");
+	toml.put ("limit", limit, "TODO.\ntype:uint64");
+}
+
+/*
+ * message_rate_config::weights
+ */
+
+void nano::message_rate_config::weights::deserialize_toml (nano::tomlconfig & toml)
+{
 	toml.get<std::size_t> ("node_id_handshake", node_id_handshake);
 	toml.get<std::size_t> ("keepalive", keepalive);
 	toml.get<std::size_t> ("publish", publish);
@@ -562,10 +575,8 @@ void nano::node_config::message_rate::deserialize_toml (nano::tomlconfig & toml)
 	toml.get<std::size_t> ("asc_pull_ack", asc_pull_ack);
 }
 
-void nano::node_config::message_rate::serialize_toml (nano::tomlconfig & toml) const
+void nano::message_rate_config::weights::serialize_toml (nano::tomlconfig & toml) const
 {
-	toml.put ("burst_ratio", burst_ratio, "Burst ratio for message rate limits.\ntype:double");
-	toml.put ("all", all, "TODO");
 	toml.put ("node_id_handshake", node_id_handshake, "TODO");
 	toml.put ("keepalive", keepalive, "TODO");
 	toml.put ("publish", publish, "TODO");
@@ -579,4 +590,74 @@ void nano::node_config::message_rate::serialize_toml (nano::tomlconfig & toml) c
 	toml.put ("telemetry_ack", telemetry_ack, "TODO");
 	toml.put ("asc_pull_req", asc_pull_req, "TODO");
 	toml.put ("asc_pull_ack", asc_pull_ack, "TODO");
+}
+
+std::size_t nano::message_rate_config::weights::weight (nano::message_type type) const
+{
+	switch (type)
+	{
+		case message_type::invalid:
+		case message_type::not_a_type:
+			break;
+		case message_type::keepalive:
+			return keepalive;
+		case message_type::publish:
+			return publish;
+		case message_type::confirm_req:
+			return confirm_req;
+		case message_type::confirm_ack:
+			return confirm_ack;
+		case message_type::bulk_pull:
+			return bulk_pull;
+		case message_type::bulk_push:
+			return bulk_push;
+		case message_type::frontier_req:
+			return frontier_req;
+		case message_type::node_id_handshake:
+			return node_id_handshake;
+		case message_type::bulk_pull_account:
+			return bulk_pull_account;
+		case message_type::telemetry_req:
+			return telemetry_req;
+		case message_type::telemetry_ack:
+			return telemetry_ack;
+		case message_type::asc_pull_req:
+			return asc_pull_req;
+		case message_type::asc_pull_ack:
+			return asc_pull_ack;
+	}
+	debug_assert (false, "missing message_type case");
+	return 1;
+}
+
+/*
+ * message_rate_config
+ */
+
+void nano::message_rate_config::deserialize_toml (nano::tomlconfig & toml)
+{
+	if (toml.has_key ("incoming"))
+	{
+		auto toml_l = toml.get_required_child ("incoming");
+		incoming_config.deserialize_toml (toml_l);
+	}
+	if (toml.has_key ("weights"))
+	{
+		auto toml_l = toml.get_required_child ("weights");
+		weights_config.deserialize_toml (toml_l);
+	}
+}
+
+void nano::message_rate_config::serialize_toml (nano::tomlconfig & toml) const
+{
+	{
+		nano::tomlconfig toml_l;
+		incoming_config.serialize_toml (toml_l);
+		toml.put_child ("incoming", toml_l);
+	}
+	{
+		nano::tomlconfig toml_l;
+		weights_config.serialize_toml (toml_l);
+		toml.put_child ("weights", toml_l);
+	}
 }

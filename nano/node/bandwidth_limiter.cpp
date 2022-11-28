@@ -80,28 +80,29 @@ std::unique_ptr<nano::container_info_component> nano::bandwidth_limiter::collect
  * message_limiter
  */
 
-nano::message_limiter::message_limiter (const nano::node_config::message_rate & config) :
-	all{ config.all, config.burst_ratio },
-	node_id_handshake{ config.node_id_handshake, config.burst_ratio },
-	keepalive{ config.keepalive, config.burst_ratio },
-	publish{ config.publish, config.burst_ratio },
-	confirm_req{ config.confirm_req, config.burst_ratio },
-	confirm_ack{ config.confirm_ack, config.burst_ratio },
-	bulk_pull{ config.bulk_pull, config.burst_ratio },
-	bulk_push{ config.bulk_push, config.burst_ratio },
-	bulk_pull_account{ config.bulk_pull_account, config.burst_ratio },
-	frontier_req{ config.frontier_req, config.burst_ratio },
-	telemetry_req{ config.telemetry_req, config.burst_ratio },
-	telemetry_ack{ config.telemetry_ack, config.burst_ratio },
-	asc_pull_req{ config.asc_pull_req, config.burst_ratio },
-	asc_pull_ack{ config.asc_pull_ack, config.burst_ratio }
+nano::message_limiter::message_limiter (nano::message_rate_config::limits const & limits_a, nano::message_rate_config::weights const & weights_a) :
+	message_weights{ weights_a },
+	node_id_handshake{ limits_a.limit, limits_a.burst_ratio },
+	keepalive{ limits_a.limit, limits_a.burst_ratio },
+	publish{ limits_a.limit, limits_a.burst_ratio },
+	confirm_req{ limits_a.limit, limits_a.burst_ratio },
+	confirm_ack{ limits_a.limit, limits_a.burst_ratio },
+	bulk_pull{ limits_a.limit, limits_a.burst_ratio },
+	bulk_push{ limits_a.limit, limits_a.burst_ratio },
+	bulk_pull_account{ limits_a.limit, limits_a.burst_ratio },
+	frontier_req{ limits_a.limit, limits_a.burst_ratio },
+	telemetry_req{ limits_a.limit, limits_a.burst_ratio },
+	telemetry_ack{ limits_a.limit, limits_a.burst_ratio },
+	asc_pull_req{ limits_a.limit, limits_a.burst_ratio },
+	asc_pull_ack{ limits_a.limit, limits_a.burst_ratio }
 {
 }
 
-bool nano::message_limiter::should_pass (nano::message_type type, std::size_t weight)
+bool nano::message_limiter::should_pass (nano::message_type type)
 {
+	const auto weight = message_weights.weight (type);
 	auto & limiter = select_limiter (type);
-	return all.should_pass (weight) && limiter.should_pass (weight);
+	return limiter.should_pass (weight);
 }
 
 nano::rate_limiter & nano::message_limiter::select_limiter (nano::message_type type)
@@ -138,14 +139,13 @@ nano::rate_limiter & nano::message_limiter::select_limiter (nano::message_type t
 		case message_type::not_a_type:
 			break;
 	}
-	debug_assert ("missing message_type case");
-	return all;
+	debug_assert (false, "missing message_type case");
+	return other;
 }
 
 std::unique_ptr<nano::container_info_component> nano::message_limiter::collect_container_info (const std::string & name)
 {
 	auto composite = std::make_unique<nano::container_info_composite> (name);
-	composite->add_component (all.collect_container_info ("all"));
 	composite->add_component (node_id_handshake.collect_container_info ("node_id_handshake"));
 	composite->add_component (keepalive.collect_container_info ("keepalive"));
 	composite->add_component (publish.collect_container_info ("publish"));
@@ -159,5 +159,6 @@ std::unique_ptr<nano::container_info_component> nano::message_limiter::collect_c
 	composite->add_component (telemetry_ack.collect_container_info ("telemetry_ack"));
 	composite->add_component (asc_pull_req.collect_container_info ("asc_pull_req"));
 	composite->add_component (asc_pull_ack.collect_container_info ("asc_pull_ack"));
+	composite->add_component (other.collect_container_info ("other"));
 	return composite;
 }

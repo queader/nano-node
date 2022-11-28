@@ -148,7 +148,7 @@ nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::socket> socket_a,
 	node{ std::move (node_a) },
 	allow_bootstrap{ allow_bootstrap_a },
 	message_deserializer{ std::make_shared<nano::transport::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer) },
-	message_limiter{ node->config.channel_message_rate }
+	message_limiter{ node->config.message_rate_config.incoming_config, node->config.message_rate_config.weights_config }
 {
 	debug_assert (socket != nullptr);
 }

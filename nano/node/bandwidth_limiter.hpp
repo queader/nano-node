@@ -82,18 +82,20 @@ private: // Limiters
 class message_limiter final
 {
 public:
-	explicit message_limiter (nano::node_config::message_rate const &);
+	explicit message_limiter (nano::message_rate_config::limits const &, nano::message_rate_config::weights const &);
 
-	bool should_pass (nano::message_type, std::size_t weight = 1);
+	bool should_pass (nano::message_type);
 
 public: // Info
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+
+private: // Dependencies
+	const nano::message_rate_config::weights message_weights;
 
 private:
 	nano::rate_limiter & select_limiter (nano::message_type);
 
 private: // Limiters
-	nano::rate_limiter all;
 	nano::rate_limiter node_id_handshake;
 	nano::rate_limiter keepalive;
 	nano::rate_limiter publish;
@@ -107,5 +109,7 @@ private: // Limiters
 	nano::rate_limiter telemetry_ack;
 	nano::rate_limiter asc_pull_req;
 	nano::rate_limiter asc_pull_ack;
+
+	nano::rate_limiter other{ 0, 0 };
 };
 }

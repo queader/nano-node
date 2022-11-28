@@ -9,6 +9,7 @@
 #include <nano/lib/stats.hpp>
 #include <nano/node/ipc/ipc_config.hpp>
 #include <nano/node/logging.hpp>
+#include <nano/node/messages.hpp>
 #include <nano/node/websocketconfig.hpp>
 #include <nano/secure/common.hpp>
 
@@ -28,6 +29,57 @@ enum class frontiers_confirmation_mode : uint8_t
 	invalid
 };
 
+class message_rate_config final
+{
+public:
+	class limits final
+	{
+	public: // Values
+		std::size_t limit{ 1000 };
+		double burst_ratio{ 3. };
+
+	public:
+		void serialize_toml (nano::tomlconfig &) const;
+		void deserialize_toml (nano::tomlconfig &);
+	};
+
+	/**
+	 * Higher weight indicates more resource intensive processing
+	 */
+	class weights final
+	{
+	public: // Values
+		std::size_t node_id_handshake{ 1 };
+		std::size_t keepalive{ 1 };
+		std::size_t publish{ 10 };
+		std::size_t confirm_req{ 10 };
+		std::size_t confirm_ack{ 1 };
+		std::size_t bulk_pull{ 10 };
+		std::size_t bulk_push{ 10 };
+		std::size_t bulk_pull_account{ 10 };
+		std::size_t frontier_req{ 10 };
+		std::size_t telemetry_req{ 10 };
+		std::size_t telemetry_ack{ 1 };
+		std::size_t asc_pull_req{ 10 };
+		std::size_t asc_pull_ack{ 1 };
+
+	public:
+		void serialize_toml (nano::tomlconfig &) const;
+		void deserialize_toml (nano::tomlconfig &);
+
+	public:
+		std::size_t weight (nano::message_type) const;
+	};
+
+public: // Values
+	limits incoming_config;
+	weights weights_config;
+
+public:
+	void serialize_toml (nano::tomlconfig &) const;
+	void deserialize_toml (nano::tomlconfig &);
+};
+
 /**
  * Node configuration
  */
@@ -36,10 +88,13 @@ class node_config final
 public:
 	node_config (nano::network_params & network_params = nano::dev::network_params);
 	node_config (const std::optional<uint16_t> &, nano::logging const &, nano::network_params & network_params = nano::dev::network_params);
+
 	nano::error serialize_toml (nano::tomlconfig &) const;
 	nano::error deserialize_toml (nano::tomlconfig &);
 	bool upgrade_json (unsigned, nano::jsonconfig &);
 	nano::account random_representative () const;
+
+public:
 	nano::network_params & network_params;
 	std::optional<uint16_t> peering_port{};
 	nano::logging logging;
@@ -67,15 +122,11 @@ public:
 	unsigned bootstrap_initiator_threads{ 1 };
 	unsigned bootstrap_serving_threads{ std::max (2u, nano::hardware_concurrency () / 2) };
 	uint32_t bootstrap_frontier_request_count{ 1024 * 1024 };
-	nano::websocket::config websocket_config;
-	nano::diagnostics_config diagnostics_config;
 	std::size_t confirmation_history_size{ 2048 };
 	std::string callback_address;
 	uint16_t callback_port{ 0 };
 	std::string callback_target;
 	bool allow_local_peers{ !(network_params.network.is_live_network () || network_params.network.is_test_network ()) }; // disable by default for live network
-	nano::stat_config stat_config;
-	nano::ipc::ipc_config ipc_config;
 	std::string external_address;
 	uint16_t external_port{ 0 };
 	std::chrono::milliseconds block_processor_batch_max_time{ network_params.network.is_dev_network () ? std::chrono::milliseconds (500) : std::chrono::milliseconds (5000) };
@@ -103,52 +154,22 @@ public:
 	uint32_t max_queued_requests{ 512 };
 	std::chrono::seconds max_pruning_age{ !network_params.network.is_beta_network () ? std::chrono::seconds (24 * 60 * 60) : std::chrono::seconds (5 * 60) }; // 1 day; 5 minutes for beta network
 	uint64_t max_pruning_depth{ 0 };
-	nano::rocksdb_config rocksdb_config;
-	nano::lmdb_config lmdb_config;
 	nano::frontiers_confirmation_mode frontiers_confirmation{ nano::frontiers_confirmation_mode::automatic };
 	std::string serialize_frontiers_confirmation (nano::frontiers_confirmation_mode) const;
 	nano::frontiers_confirmation_mode deserialize_frontiers_confirmation (std::string const &);
+
+public: // Configs
+	nano::websocket::config websocket_config;
+	nano::diagnostics_config diagnostics_config;
+	nano::stat_config stat_config;
+	nano::ipc::ipc_config ipc_config;
+	nano::rocksdb_config rocksdb_config;
+	nano::lmdb_config lmdb_config;
+	nano::message_rate_config message_rate_config{};
+
+public: // Helpers
 	/** Entry is ignored if it cannot be parsed as a valid address:port */
 	void deserialize_address (std::string const &, std::vector<std::pair<std::string, uint16_t>> &) const;
-
-public:
-	/**
-	 * Holds per second rate limits for each message type
-	 * Use 0 for unlimited
-	 */
-	class message_rate final
-	{
-	public:
-		double burst_ratio{ 3. };
-
-		/** Limit for all messages combined */
-		std::size_t all{ 0 };
-
-		std::size_t node_id_handshake{ 10 };
-		std::size_t keepalive{ 10 };
-		std::size_t publish{ 100 };
-		std::size_t confirm_req{ 100 };
-		std::size_t confirm_ack{ 1000 };
-		std::size_t bulk_pull{ 100 };
-		std::size_t bulk_push{ 100 };
-		std::size_t bulk_pull_account{ 100 };
-		std::size_t frontier_req{ 100 };
-		std::size_t telemetry_req{ 10 };
-		std::size_t telemetry_ack{ 100 };
-		std::size_t asc_pull_req{ 100 };
-		std::size_t asc_pull_ack{ 100 };
-
-	public:
-		/** Throws exception on error */
-		void serialize_toml (nano::tomlconfig &) const;
-		/** Throws exception on error */
-		void deserialize_toml (nano::tomlconfig &);
-	};
-
-	/** Rate limits for messages for the whole node */
-	message_rate global_message_rate{};
-	/** Rate limits for messages per channel */
-	message_rate channel_message_rate{};
 };
 
 class node_flags final
