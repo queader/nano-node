@@ -147,7 +147,7 @@ TEST (bootstrap_ascending, profile)
 		requests[tag.id].received = true;
 	});
 
-	client->ascendboot.on_timeout.add ([&] (auto & tag) {
+	/*client->ascendboot.on_timeout.add ([&] (auto & tag) {
 		nano::lock_guard<nano::mutex> lock{ mutex };
 
 		if (requests.count (tag.id))
@@ -168,7 +168,7 @@ TEST (bootstrap_ascending, profile)
 		{
 			std::cerr << "unknown timeout: " << tag.id << std::endl;
 		}
-	});
+	});*/
 
 	std::cout << "server count: " << server->ledger.cache.block_count << std::endl;
 
@@ -183,6 +183,9 @@ TEST (bootstrap_ascending, profile)
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in);
 	rate.observe (*server, nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out);
 	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::old);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_epoch_open_pending);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_source);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_previous);
 	rate.background_print (3s);
 
 	//wait_for_key ();

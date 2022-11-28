@@ -100,6 +100,7 @@ public:
 
 		void priority_up (nano::account const & account);
 		void priority_down (nano::account const & account);
+		void priority_dec (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
 		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash);
 		/**
