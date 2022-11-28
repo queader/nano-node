@@ -141,7 +141,7 @@ public:
 			nano::account account;
 			float priority;
 		};
-		class tag_hash
+		class tag_account
 		{
 		};
 		class tag_priority
@@ -153,7 +153,7 @@ public:
 		// Blocked accounts are assumed priority 0.0f
 		boost::multi_index_container<priority_t,
 		boost::multi_index::indexed_by<
-		boost::multi_index::ordered_unique<boost::multi_index::tag<tag_hash>,
+		boost::multi_index::ordered_unique<boost::multi_index::tag<tag_account>,
 		boost::multi_index::member<priority_t, nano::account, &priority_t::account>>,
 		boost::multi_index::ordered_non_unique<boost::multi_index::tag<tag_priority>,
 		boost::multi_index::member<priority_t, float, &priority_t::priority>>>>
