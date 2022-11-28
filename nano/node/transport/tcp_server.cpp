@@ -9,6 +9,10 @@
 #include <boost/format.hpp>
 #include <boost/variant/get.hpp>
 
+/*
+ * tcp_listener
+ */
+
 nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_a) :
 	node (node_a),
 	port (port_a)
@@ -135,11 +139,16 @@ std::unique_ptr<nano::container_info_component> nano::transport::collect_contain
 	return composite;
 }
 
+/*
+ * tcp_server
+ */
+
 nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ std::move (socket_a) },
 	node{ std::move (node_a) },
 	allow_bootstrap{ allow_bootstrap_a },
-	message_deserializer{ std::make_shared<nano::transport::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer) }
+	message_deserializer{ std::make_shared<nano::transport::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer) },
+	message_limiter{ node->config.channel_message_rate }
 {
 	debug_assert (socket != nullptr);
 }
@@ -262,20 +271,20 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 		if (handshake_visitor.process)
 		{
 			queue_realtime (std::move (message));
-			return true;
+			return true; // Keep receiving
 		}
 		else if (handshake_visitor.bootstrap)
 		{
 			if (!to_bootstrap_connection ())
 			{
 				stop ();
-				return false;
+				return false; // Stop receiving
 			}
 		}
 		else
 		{
 			// Neither handshake nor bootstrap received when in handshake mode
-			return true;
+			return true; // Keep receiving
 		}
 	}
 	else if (is_realtime_connection ())
@@ -286,7 +295,7 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 		{
 			queue_realtime (std::move (message));
 		}
-		return true;
+		return true; // Keep receiving
 	}
 	// the server will switch to bootstrap mode immediately after processing the first bootstrap message, thus no `else if`
 	if (is_bootstrap_connection ())
@@ -301,6 +310,20 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 
 void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
+	// Local message rate limit
+	if (!message_limiter.should_pass (message->type ()))
+	{
+		node->stats.inc (nano::stat::type::rate_limit_channel, nano::to_stat_detail (message->type ()));
+		return;
+	}
+
+	// Global message rate limit
+	if (!node->message_limiter.should_pass (message->type ()))
+	{
+		node->stats.inc (nano::stat::type::rate_limit_global, nano::to_stat_detail (message->type ()));
+		return;
+	}
+
 	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
 }
 

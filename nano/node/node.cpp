@@ -167,6 +167,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	ledger (store, stats, network_params.ledger, flags_a.generate_cache),
 	checker (config.signature_checker_threads),
 	outbound_limiter{ outbound_bandwidth_limiter_config (config) },
+	message_limiter{ config.global_message_rate },
 	// empty `config.peering_port` means the user made no port choice at all;
 	// otherwise, any value is considered, with `0` having the special meaning of 'let the OS pick a port instead'
 	//

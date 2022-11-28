@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/node/bandwidth_limiter.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/messages.hpp>
 #include <nano/node/socket.hpp>
@@ -78,9 +79,11 @@ private:
 	bool is_bootstrap_connection () const;
 	bool is_realtime_connection () const;
 
-	std::shared_ptr<nano::transport::message_deserializer> message_deserializer;
+private:
+	const bool allow_bootstrap;
 
-	bool allow_bootstrap;
+	std::shared_ptr<nano::transport::message_deserializer> message_deserializer;
+	nano::message_limiter message_limiter;
 
 private:
 	class handshake_message_visitor : public nano::message_visitor

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <nano/lib/rate_limiting.hpp>
+#include <nano/node/messages.hpp>
+#include <nano/node/nodeconfig.hpp>
 
 namespace nano
 {
@@ -61,13 +63,40 @@ private:
 	/**
 	 * Returns reference to limiter corresponding to the limit type
 	 */
-	bandwidth_limiter & select_limiter (bandwidth_limit_type);
+	nano::bandwidth_limiter & select_limiter (bandwidth_limit_type);
 
 private:
 	const config config_m;
 
 private:
-	bandwidth_limiter limiter_standard;
-	bandwidth_limiter limiter_bootstrap;
+	nano::bandwidth_limiter limiter_standard;
+	nano::bandwidth_limiter limiter_bootstrap;
+};
+
+class message_limiter final
+{
+public:
+	explicit message_limiter (nano::node_config::message_rate const &);
+
+	bool should_pass (nano::message_type, std::size_t weight = 1);
+
+private:
+	nano::bandwidth_limiter & select_limiter (nano::message_type);
+
+private: // Limiters
+	nano::bandwidth_limiter all;
+	nano::bandwidth_limiter node_id_handshake;
+	nano::bandwidth_limiter keepalive;
+	nano::bandwidth_limiter publish;
+	nano::bandwidth_limiter confirm_req;
+	nano::bandwidth_limiter confirm_ack;
+	nano::bandwidth_limiter bulk_pull;
+	nano::bandwidth_limiter bulk_push;
+	nano::bandwidth_limiter bulk_pull_account;
+	nano::bandwidth_limiter frontier_req;
+	nano::bandwidth_limiter telemetry_req;
+	nano::bandwidth_limiter telemetry_ack;
+	nano::bandwidth_limiter asc_pull_req;
+	nano::bandwidth_limiter asc_pull_ack;
 };
 }

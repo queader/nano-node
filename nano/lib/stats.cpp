@@ -557,6 +557,12 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::active:
 			res = "active";
 			break;
+		case nano::stat::type::rate_limit_channel:
+			res = "rate_limit_channel";
+			break;
+		case nano::stat::type::rate_limit_global:
+			res = "rate_limit_global";
+			break;
 	}
 	return res;
 }
