@@ -16,15 +16,15 @@ enum class bandwidth_limit_type
 };
 
 /**
- * Class that tracks and manages bandwidth limits for IO operations
+ * Class that tracks and manages rate limits
  */
-class bandwidth_limiter final
+class rate_limiter final
 {
 public:
 	// initialize with limit 0 = unbounded
-	bandwidth_limiter (std::size_t limit, double burst_ratio);
+	rate_limiter (std::size_t limit, double burst_ratio);
 
-	bool should_pass (std::size_t buffer_size);
+	bool should_pass (std::size_t size = 1);
 	void reset (std::size_t limit, double burst_ratio);
 
 private:
@@ -61,13 +61,13 @@ private:
 	/**
 	 * Returns reference to limiter corresponding to the limit type
 	 */
-	bandwidth_limiter & select_limiter (bandwidth_limit_type);
+	nano::rate_limiter & select_limiter (bandwidth_limit_type);
 
 private:
 	const config config_m;
 
 private:
-	bandwidth_limiter limiter_standard;
-	bandwidth_limiter limiter_bootstrap;
+	nano::rate_limiter limiter_standard;
+	nano::rate_limiter limiter_bootstrap;
 };
 }
