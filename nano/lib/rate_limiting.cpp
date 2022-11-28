@@ -62,3 +62,9 @@ void nano::rate::token_bucket::reset (std::size_t max_token_count_a, std::size_t
 	refill_rate = refill_rate_a;
 	last_refill = std::chrono::steady_clock::now ();
 }
+
+std::pair<std::size_t, std::size_t> nano::rate::token_bucket::info () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return { max_token_count - current_size, max_token_count };
+}

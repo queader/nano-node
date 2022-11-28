@@ -41,6 +41,9 @@ namespace rate
 		/** Returns the largest burst observed */
 		std::size_t largest_burst () const;
 
+		/** Return <used tokens, token limit> info */
+		std::pair<std::size_t, std::size_t> info () const;
+
 		/** Update the max_token_count and/or refill_rate_a parameters */
 		void reset (std::size_t max_token_count, std::size_t refill_rate);
 

@@ -20,6 +20,16 @@ void nano::bandwidth_limiter::reset (std::size_t limit_a, double burst_ratio_a)
 	bucket.reset (static_cast<std::size_t> (limit_a * burst_ratio_a), limit_a);
 }
 
+std::unique_ptr<nano::container_info_component> nano::bandwidth_limiter::collect_container_info (const std::string & name)
+{
+	auto const [used, limit] = bucket.info ();
+
+	auto composite = std::make_unique<nano::container_info_composite> (name);
+	composite->add_component (std::make_unique<nano::container_info_leaf> (container_info{ "used", used, 0 }));
+	composite->add_component (std::make_unique<nano::container_info_leaf> (container_info{ "limit", limit, 0 }));
+	return composite;
+}
+
 /*
  * outbound_bandwidth_limiter
  */
@@ -56,6 +66,14 @@ void nano::outbound_bandwidth_limiter::reset (std::size_t limit, double burst_ra
 {
 	auto & limiter = select_limiter (type);
 	limiter.reset (limit, burst_ratio);
+}
+
+std::unique_ptr<nano::container_info_component> nano::outbound_bandwidth_limiter::collect_container_info (const std::string & name)
+{
+	auto composite = std::make_unique<nano::container_info_composite> (name);
+	composite->add_component (limiter_standard.collect_container_info ("standard"));
+	composite->add_component (limiter_bootstrap.collect_container_info ("bootstrap"));
+	return composite;
 }
 
 /*
@@ -122,4 +140,24 @@ nano::bandwidth_limiter & nano::message_limiter::select_limiter (nano::message_t
 	}
 	debug_assert ("missing message_type case");
 	return all;
+}
+
+std::unique_ptr<nano::container_info_component> nano::message_limiter::collect_container_info (const std::string & name)
+{
+	auto composite = std::make_unique<nano::container_info_composite> (name);
+	composite->add_component (all.collect_container_info ("all"));
+	composite->add_component (node_id_handshake.collect_container_info ("node_id_handshake"));
+	composite->add_component (keepalive.collect_container_info ("keepalive"));
+	composite->add_component (publish.collect_container_info ("publish"));
+	composite->add_component (confirm_req.collect_container_info ("confirm_req"));
+	composite->add_component (confirm_ack.collect_container_info ("confirm_ack"));
+	composite->add_component (bulk_pull.collect_container_info ("bulk_pull"));
+	composite->add_component (bulk_push.collect_container_info ("bulk_push"));
+	composite->add_component (bulk_pull_account.collect_container_info ("bulk_pull_account"));
+	composite->add_component (frontier_req.collect_container_info ("frontier_req"));
+	composite->add_component (telemetry_req.collect_container_info ("telemetry_req"));
+	composite->add_component (telemetry_ack.collect_container_info ("telemetry_ack"));
+	composite->add_component (asc_pull_req.collect_container_info ("asc_pull_req"));
+	composite->add_component (asc_pull_ack.collect_container_info ("asc_pull_ack"));
+	return composite;
 }

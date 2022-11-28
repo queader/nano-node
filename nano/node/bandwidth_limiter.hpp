@@ -29,6 +29,9 @@ public:
 	bool should_pass (std::size_t buffer_size);
 	void reset (std::size_t limit, double burst_ratio);
 
+public: // Info
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+
 private:
 	nano::rate::token_bucket bucket;
 };
@@ -59,6 +62,9 @@ public:
 	 */
 	void reset (std::size_t limit, double burst_ratio, bandwidth_limit_type = bandwidth_limit_type::standard);
 
+public: // Info
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+
 private:
 	/**
 	 * Returns reference to limiter corresponding to the limit type
@@ -79,6 +85,9 @@ public:
 	explicit message_limiter (nano::node_config::message_rate const &);
 
 	bool should_pass (nano::message_type, std::size_t weight = 1);
+
+public: // Info
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
 
 private:
 	nano::bandwidth_limiter & select_limiter (nano::message_type);
