@@ -224,6 +224,7 @@ public:
 		traffic_tcp,
 		error,
 		message,
+		message_limit,
 		block,
 		ledger,
 		rollback,
@@ -249,8 +250,6 @@ public:
 		blockprocessor,
 		bootstrap_server,
 		active,
-		rate_limit_channel,
-		rate_limit_global,
 	};
 
 	/** Optional detail type */

@@ -167,7 +167,6 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	ledger (store, stats, network_params.ledger, flags_a.generate_cache),
 	checker (config.signature_checker_threads),
 	outbound_limiter{ outbound_bandwidth_limiter_config (config) },
-	message_limiter{ config.message_rate_config.incoming_config, config.message_rate_config.weights_config },
 	// empty `config.peering_port` means the user made no port choice at all;
 	// otherwise, any value is considered, with `0` having the special meaning of 'let the OS pick a port instead'
 	//
@@ -656,7 +655,6 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (node.inactive_vote_cache.collect_container_info ("inactive_vote_cache"));
 	composite->add_component (collect_container_info (node.generator, "vote_generator"));
 	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
-	composite->add_component (node.message_limiter.collect_container_info ("message_limiter"));
 	composite->add_component (node.outbound_limiter.collect_container_info ("bandwidth_limiter"));
 	return composite;
 }

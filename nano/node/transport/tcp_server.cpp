@@ -310,21 +310,15 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 
 void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
-	// Local message rate limit
-	if (!message_limiter.should_pass (message->type ()))
+	// Message rate limit
+	if (message_limiter.should_pass (message->type ()))
 	{
-		node->stats.inc (nano::stat::type::rate_limit_channel, nano::to_stat_detail (message->type ()));
-		return;
+		node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
 	}
-
-	// Global message rate limit
-	if (!node->message_limiter.should_pass (message->type ()))
+	else
 	{
-		node->stats.inc (nano::stat::type::rate_limit_global, nano::to_stat_detail (message->type ()));
-		return;
+		node->stats.inc (nano::stat::type::message_limit, nano::to_stat_detail (message->type ()));
 	}
-
-	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
 }
 
 /*

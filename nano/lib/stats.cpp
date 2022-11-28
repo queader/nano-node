@@ -518,6 +518,9 @@ std::string nano::stat::type_to_string (stat::type type)
 		case nano::stat::type::message:
 			res = "message";
 			break;
+		case nano::stat::type::message_limit:
+			res = "message_limit";
+			break;
 		case nano::stat::type::confirmation_observer:
 			res = "observer";
 			break;
@@ -556,12 +559,6 @@ std::string nano::stat::type_to_string (stat::type type)
 			break;
 		case nano::stat::type::active:
 			res = "active";
-			break;
-		case nano::stat::type::rate_limit_channel:
-			res = "rate_limit_channel";
-			break;
-		case nano::stat::type::rate_limit_global:
-			res = "rate_limit_global";
 			break;
 	}
 	return res;

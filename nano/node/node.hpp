@@ -158,7 +158,6 @@ public:
 	nano::ledger ledger;
 	nano::signature_checker checker;
 	nano::bandwidth_limiter outbound_limiter;
-	nano::message_limiter message_limiter;
 	nano::network network;
 	std::shared_ptr<nano::telemetry> telemetry;
 	nano::bootstrap_initiator bootstrap_initiator;
