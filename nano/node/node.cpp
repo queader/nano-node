@@ -57,9 +57,9 @@ nano::hinted_scheduler::config nano::nodeconfig_to_hinted_scheduler_config (cons
 	return cfg;
 }
 
-nano::outbound_bandwidth_limiter::config nano::outbound_bandwidth_limiter_config (const nano::node_config & config)
+nano::bandwidth_limiter::config nano::outbound_bandwidth_limiter_config (const nano::node_config & config)
 {
-	outbound_bandwidth_limiter::config cfg;
+	bandwidth_limiter::config cfg;
 	cfg.standard_limit = config.bandwidth_limit;
 	cfg.standard_burst_ratio = config.bandwidth_limit_burst_ratio;
 	cfg.bootstrap_limit = config.bootstrap_bandwidth_limit;

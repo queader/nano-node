@@ -36,7 +36,7 @@ private:
 	nano::rate::token_bucket bucket;
 };
 
-class outbound_bandwidth_limiter final
+class bandwidth_limiter final
 {
 public: // Config
 	struct config
@@ -50,7 +50,7 @@ public: // Config
 	};
 
 public:
-	explicit outbound_bandwidth_limiter (config);
+	explicit bandwidth_limiter (config);
 
 	/**
 	 * Check whether packet falls withing bandwidth limits and should be allowed
@@ -74,7 +74,7 @@ private:
 private:
 	const config config_m;
 
-private:
+private: // Limiters
 	nano::rate_limiter limiter_standard;
 	nano::rate_limiter limiter_bootstrap;
 };
