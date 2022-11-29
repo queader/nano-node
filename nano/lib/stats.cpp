@@ -1078,6 +1078,12 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::empty:
 			res = "empty";
 			break;
+		case nano::stat::detail::frontier:
+			res = "frontier";
+			break;
+		case nano::stat::detail::frontier_empty:
+			res = "frontier_empty";
+			break;
 		case nano::stat::detail::low_weight:
 			res = "low_weight";
 			break;

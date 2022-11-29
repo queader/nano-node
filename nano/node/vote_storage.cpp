@@ -71,42 +71,28 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 
 	for (auto & [hash, channel] : batch)
 	{
-		auto votes = store.vote_storage.get (transaction, hash);
+		auto votes = query_hash (transaction, hash);
 		if (!votes.empty ())
 		{
-			if (weight (votes) > vote_weight_threshold)
-			{
-				votes = filter (votes);
-
-				reply (votes, channel);
-
-				nano::unique_lock<nano::mutex> lock{ mutex };
-				if (recently_broadcasted.count (hash) > 0)
-				{
-					stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
-					continue;
-				}
-				else
-				{
-					recently_broadcasted.insert (hash);
-					if (recently_broadcasted.size () > 1024)
-					{
-						recently_broadcasted.clear ();
-					}
-
-					lock.unlock ();
-
-					broadcast (votes);
-				}
-			}
-			else
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::low_weight);
-			}
+			reply (votes, channel);
+			broadcast (votes, hash);
 		}
 		else
 		{
 			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::empty);
+		}
+
+		auto [frontier_votes, frontier_hash] = query_frontier (transaction, hash);
+		if (!frontier_votes.empty ())
+		{
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier);
+
+			reply (frontier_votes, channel);
+			broadcast (frontier_votes, frontier_hash);
+		}
+		else
+		{
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier_empty);
 		}
 	}
 }
@@ -137,7 +123,27 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 	}
 }
 
-void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes)
+void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	if (recently_broadcasted.count (hash) > 0)
+	{
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
+		return;
+	}
+
+	recently_broadcasted.insert (hash);
+	if (recently_broadcasted.size () > 1024)
+	{
+		recently_broadcasted.clear ();
+	}
+
+	lock.unlock ();
+
+	broadcast_impl (votes);
+}
+
+void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t & votes)
 {
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast);
 
@@ -202,5 +208,67 @@ nano::vote_storage::vote_list_t nano::vote_storage::filter (const nano::vote_sto
 			result.push_back (vote);
 		}
 	}
-	return result;
+	return votes;
+}
+
+nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::transaction & transaction, const nano::block_hash & hash, std::size_t count_threshold)
+{
+	auto votes = store.vote_storage.get (transaction, hash);
+	if (!votes.empty ())
+	{
+		if (count_threshold == 0 || votes.size () >= count_threshold)
+		{
+			if (weight (votes) >= vote_weight_threshold)
+			{
+				auto filtered = filter (votes);
+				return filtered.size () >= count_threshold ? filtered : votes;
+			}
+			else
+			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::low_weight);
+			}
+		}
+	}
+	return {};
+}
+
+std::pair<nano::vote_storage::vote_list_t, nano::block_hash> nano::vote_storage::query_frontier (nano::transaction const & transaction, const nano::block_hash & hash)
+{
+	auto account = ledger.account_safe (transaction, hash);
+	if (account.is_zero ())
+	{
+		return {};
+	}
+
+	auto maybe_account_info = store.account.get (transaction, account);
+	if (!maybe_account_info)
+	{
+		return {};
+	}
+	auto account_info = *maybe_account_info;
+
+	auto frontier = account_info.head;
+
+	const int max_tries = 128;
+	for (int n = 0; n < max_tries && !frontier.is_zero () && frontier != hash; ++n)
+	{
+		auto votes = query_hash (transaction, frontier, /* needed for v23 vote hinting */ rep_count_threshold);
+		if (!votes.empty ())
+		{
+			return { votes, frontier };
+		}
+
+		// TODO: Create `ledger.previous(hash)` helper
+		auto block = store.block.get (transaction, frontier);
+		if (block)
+		{
+			frontier = block->previous ();
+		}
+		else
+		{
+			frontier = { 0 };
+		}
+	}
+
+	return {};
 }

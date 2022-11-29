@@ -471,6 +471,8 @@ public:
 		broadcast_vote_rep,
 		broadcast_vote_random,
 		empty,
+		frontier,
+		frontier_empty,
 		low_weight,
 		broadcast_duplicate,
 	};

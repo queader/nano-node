@@ -66,13 +66,19 @@ private:
 	vote_list_t filter (vote_list_t const &) const;
 
 	void reply (vote_list_t const &, std::shared_ptr<nano::transport::channel> const &);
-	void broadcast (vote_list_t const &);
+	void broadcast (vote_list_t const &, nano::block_hash const &);
+	void broadcast_impl (vote_list_t const &);
+
+	vote_list_t query_hash (nano::transaction const &, nano::block_hash const &, std::size_t count_threshold = 0);
+	/** @return <votes, votes frontier> */
+	std::pair<vote_list_t, nano::block_hash> query_frontier (nano::transaction const &, nano::block_hash const &);
 
 private:
 	// TODO: Use nodeconfig
 	uint128_t const vote_weight_threshold{ 60000 * nano::Gxrb_ratio };
 	//	uint128_t const vote_weight_threshold{ 120000 * nano::Gxrb_ratio }; // Disable
 
-	uint128_t const rep_weight_threshold{ 600 * nano::Gxrb_ratio };
+	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
+	std::size_t const rep_count_threshold{ 15 };
 };
 }
