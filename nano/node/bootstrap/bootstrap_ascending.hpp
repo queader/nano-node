@@ -258,10 +258,26 @@ private:
 	mutable nano::condition_variable condition;
 	std::vector<std::thread> threads;
 	std::thread timeout_thread;
+	
+	class old_t
+	{
+	public:
+		nano::account account;
+		int old;
+		int request;
+	};
+	class tag_account {};
+	class tag_old_count {};
+	class tag_request_count {};
+	boost::multi_index_container<old_t,
+	mi::indexed_by<
+		mi::hashed_unique<mi::tag<tag_account>, mi::member<old_t, nano::account, &old_t::account>>,
+		mi::ordered_non_unique<mi::tag<tag_old_count>, mi::member<old_t, int, &old_t::old>>,
+		mi::ordered_non_unique<mi::tag<tag_request_count>, mi::member<old_t, int, &old_t::request>>>> account_stats;
 
 private:
 	//		static std::size_t constexpr requests_max = 16;
 	//	static std::size_t constexpr requests_max = 1024;
-	static std::size_t constexpr requests_max = 128;
+	static std::size_t constexpr requests_max = 2;
 };
 }

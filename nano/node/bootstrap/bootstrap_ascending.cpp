@@ -140,6 +140,11 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 			});
 		}
 	}
+	auto blocking_iter = blocking.find (account);
+	if (blocking_iter != blocking.end ())
+	{
+		blocking_iter->second.second /= 2.0f;
+	}
 }
 
 void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const & account)
@@ -158,6 +163,11 @@ void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const 
 				val.priority = priority_new;
 			});
 		}
+	}
+	auto blocking_iter = blocking.find (account);
+	if (blocking_iter != blocking.end ())
+	{
+		blocking_iter->second.second -= 0.5f;
 	}
 }
 
@@ -212,11 +222,6 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 		}
 		candidates.push_back (iter->account);
 		weights.push_back (iter->priority);
-	}
-	static int count = 0;
-	if (count++ % 100'000 == 0)
-	{
-		this->dump ();
 	}
 	std::discrete_distribution dist{ weights.begin (), weights.end () };
 	auto selection = dist (rng);
@@ -466,7 +471,18 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			auto account = ledger.account (tx, hash);
 			//std::cerr << boost::str (boost::format ("old account: %1%\n") % account.to_account ());
 			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.priority_down (account);
+			accounts.priority_dec (account);
+			auto existing = account_stats.get<tag_account> ().find (account);
+			if (existing == account_stats.end ())
+			{
+				account_stats.insert ({ account, 1, 0 });
+			}
+			else
+			{
+				account_stats.modify (existing, [] (auto & item) {
+					item.old += 1;
+				});
+			}
 			break;
 		}
 		case nano::process_result::gap_previous:
@@ -523,7 +539,29 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
 
-		return accounts.random ();
+		auto account = accounts.random ();
+		auto existing = account_stats.get<tag_account> ().find (account);
+		if (existing == account_stats.end ())
+		{
+			account_stats.insert ({ account, 0, 1 });
+		}
+		else
+		{
+			account_stats.modify (existing, [] (auto & item) {
+				item.request += 1;
+			});
+		}
+		static int count = 0;
+		if (count++ % 100'000 == 0)
+		{
+			accounts.dump ();
+			auto count = 0;
+			for (auto i = account_stats.get <tag_old_count> ().rbegin (), n = account_stats.get<tag_old_count> ().rend (); i != n && count < 100; ++i, ++count)
+			{
+				std::cerr << boost::str (boost::format ("%1% : %2% : %3%\n") % i->account.to_account () % std::to_string (i->old) % std::to_string (i->request));
+			}
+		}
+		return account;
 
 		condition.wait_for (lock, 100ms);
 	}
