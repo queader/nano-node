@@ -27,7 +27,7 @@ namespace transport
 	class channel;
 }
 
-class bootstrap_ascending
+class bootstrap_ascending final
 {
 public:
 	bootstrap_ascending (nano::node &, nano::store &, nano::block_processor &, nano::ledger &, nano::network &, nano::stat &);
@@ -35,18 +35,6 @@ public:
 
 	void start ();
 	void stop ();
-
-	/**
-	 * If an account is not blocked, increase its priority.
-	 * Priority is increased whether it is in the normal priority set, or it is currently blocked and in the blocked set.
-	 * Current implementation increases priority by 1.0f each increment
-	 */
-	void priority_up (nano::account const & account_a);
-	/**
-	 * Decreases account priority
-	 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
-	 */
-	void priority_down (nano::account const & account_a);
 
 	/**
 	 * Inspects a block that has been processed by the block processor
@@ -62,8 +50,8 @@ public:
 
 public: // Container info
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
-	size_t blocked_size () const;
-	size_t priority_size () const;
+	std::size_t blocked_size () const;
+	std::size_t priority_size () const;
 
 private: // Dependencies
 	nano::node & node;
@@ -79,30 +67,30 @@ public:
 	/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 	class account_sets
 	{
-		class iterator_t
-		{
-			enum class table_t
-			{
-				account,
-				pending
-			};
-		public:
-			iterator_t (nano::store & store);
-			nano::account operator* () const;
-			void next (nano::transaction & tx);
-		private:
-			nano::store & store;
-			nano::account current{ 0 };
-			table_t table{ table_t::account };
-		};
 	public:
 		explicit account_sets (nano::stat &, nano::store & store);
 
-		void priority_up (nano::account const & account);
-		void priority_down (nano::account const & account);
-		void priority_dec (nano::account const & account);
+		void advance (nano::account const & account, std::optional<nano::block_hash> const & source = std::nullopt);
+		void suppress (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
-		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash);
+
+		nano::account next ();
+
+	private:
+		/**
+		 * If an account is not blocked, increase its priority.
+		 * Priority is increased whether it is in the normal priority set, or it is currently blocked and in the blocked set.
+		 * Current implementation increases priority by 1.0f each increment
+		 */
+		void priority_up (nano::account const & account);
+		/**
+		 * Decreases account priority
+		 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
+		 */
+		void priority_down (nano::account const & account);
+		bool unblock (nano::account const & account, std::optional<nano::block_hash> const & source = std::nullopt);
+		void timestamp (nano::account const & account, nano::millis_t time);
+
 		/**
 		 * Selects a random account from either:
 		 * 1) The priority set in memory
@@ -111,7 +99,9 @@ public:
 		 * Creates consideration set of "consideration_count" items and returns on randomly weighted by priority
 		 * Half are considered from the "priorities" container, half are considered from the ledger.
 		 */
-		nano::account random ();
+
+		nano::account next_prioritization ();
+		nano::account next_database ();
 
 	public:
 		bool blocked (nano::account const & account) const;
@@ -126,44 +116,76 @@ public:
 	private: // Dependencies
 		nano::stat & stats;
 		nano::store & store;
-		iterator_t iter;
 
 	private:
-		static size_t constexpr consideration_count = 2;
+		class iterator_t
+		{
+			enum class table_t
+			{
+				account,
+				pending
+			};
+
+		public:
+			iterator_t (nano::store & store);
+			nano::account operator* () const;
+			void next (nano::transaction & tx);
+
+		private:
+			nano::store & store;
+			nano::account current{ 0 };
+			table_t table{ table_t::account };
+		};
+
+	private:
+		mutable std::recursive_mutex mutex;
+
+		iterator_t iter;
 
 		// A blocked account is an account that has failed to insert a block because the source block is gapped.
 		// An account is unblocked once it has a block successfully inserted.
 		// Maps "blocked account" -> ["blocked hash", "Priority count"]
-		std::map<nano::account, std::pair<nano::block_hash, float>> blocking;
-		class priority_t
+		std::map<nano::account, nano::block_hash> blocking;
+
+		struct priority_entry
 		{
-		public:
-			nano::account account;
-			float priority;
+			nano::account account{ 0 };
+			float priority{ 0 };
+			nano::millis_t last_request{ 0 };
 		};
-		class tag_account
-		{
-		};
-		class tag_priority
-		{
-		};
+
+		// clang-format off
+		class tag_sequenced {};
+		class tag_account {};
+		class tag_priority {};
+
+		using ordered_priorities = boost::multi_index_container<priority_entry,
+		mi::indexed_by<
+			mi::sequenced<mi::tag<tag_sequenced>>,
+			mi::ordered_unique<boost::multi_index::tag<tag_account>,
+				mi::member<priority_entry, nano::account, &priority_entry::account>>,
+			mi::ordered_non_unique<boost::multi_index::tag<tag_priority>,
+				mi::member<priority_entry, float, &priority_entry::priority>>
+		>>;
+		// clang-format on
+
 		// Tracks the ongoing account priorities
 		// This only stores account priorities > 1.0f.
 		// Accounts in the ledger but not in this list are assumed priority 1.0f.
 		// Blocked accounts are assumed priority 0.0f
-		boost::multi_index_container<priority_t,
-		boost::multi_index::indexed_by<
-		boost::multi_index::ordered_unique<boost::multi_index::tag<tag_account>,
-		boost::multi_index::member<priority_t, nano::account, &priority_t::account>>,
-		boost::multi_index::ordered_non_unique<boost::multi_index::tag<tag_priority>,
-		boost::multi_index::member<priority_t, float, &priority_t::priority>>>>
-		priorities;
-		static size_t const priorities_max = 64 * 1024;
+		ordered_priorities priorities;
 
 		std::default_random_engine rng;
-		/**
-		 * Minimum time between subsequent request for the same account
-		 */
+
+	private: // Constants
+		static std::size_t constexpr consideration_count = 4;
+
+		/** Accounts below this priority value will be evicted */
+		static float constexpr priority_cutoff = 1.0f;
+
+		static std::size_t constexpr max_priorities_size = 64 * 1024;
+
+		/** Minimum time between subsequent request for the same account */
 		static nano::millis_t constexpr cooldown = 1000;
 
 	public:
@@ -258,26 +280,11 @@ private:
 	mutable nano::condition_variable condition;
 	std::vector<std::thread> threads;
 	std::thread timeout_thread;
-	
-	class old_t
-	{
-	public:
-		nano::account account;
-		int old;
-		int request;
-	};
-	class tag_account {};
-	class tag_old_count {};
-	class tag_request_count {};
-	boost::multi_index_container<old_t,
-	mi::indexed_by<
-		mi::hashed_unique<mi::tag<tag_account>, mi::member<old_t, nano::account, &old_t::account>>,
-		mi::ordered_non_unique<mi::tag<tag_old_count>, mi::member<old_t, int, &old_t::old>>,
-		mi::ordered_non_unique<mi::tag<tag_request_count>, mi::member<old_t, int, &old_t::request>>>> account_stats;
 
 private:
-	//		static std::size_t constexpr requests_max = 16;
+	//	static std::size_t constexpr requests_max = 16;
 	//	static std::size_t constexpr requests_max = 1024;
-	static std::size_t constexpr requests_max = 2;
+	//	static std::size_t constexpr requests_max = 2;
+	static std::size_t constexpr requests_max = 4096;
 };
 }

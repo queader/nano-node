@@ -501,8 +501,9 @@ public:
 		block,
 		unblock,
 		unblock_failed,
-		next_forwarding,
-		next_random,
+		next_database,
+		next_prioritization,
+
 		// backlog
 		activated,
 

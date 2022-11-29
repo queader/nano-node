@@ -1143,11 +1143,11 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::unblock_failed:
 			res = "unblock_failed";
 			break;
-		case nano::stat::detail::next_forwarding:
-			res = "next_forwarding";
+		case nano::stat::detail::next_database:
+			res = "next_database";
 			break;
-		case nano::stat::detail::next_random:
-			res = "next_random";
+		case nano::stat::detail::next_prioritization:
+			res = "next_prioritization";
 			break;
 		case nano::stat::detail::activated:
 			res = "activated";
