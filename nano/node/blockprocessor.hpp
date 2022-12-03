@@ -56,7 +56,7 @@ public:
 	bool half_full ();
 	void add_local (nano::unchecked_info const & info_a);
 	void add (nano::unchecked_info const &);
-	void add (std::shared_ptr<nano::block> const &);
+	void add (std::shared_ptr<nano::block> const &, std::function<void (nano::process_result)> callback = nullptr);
 	void force (std::shared_ptr<nano::block> const &);
 	void wait_write ();
 	bool should_log ();

@@ -6,6 +6,8 @@
 
 #include <boost/format.hpp>
 
+#include <algorithm>
+
 using namespace std::chrono_literals;
 
 /*
@@ -327,7 +329,15 @@ float nano::bootstrap_ascending::account_sets::priority (nano::account const & a
 auto nano::bootstrap_ascending::account_sets::info () const -> info_t
 {
 	nano::lock_guard<std::recursive_mutex> guard{ mutex };
-	return { blocking, priorities };
+
+	std::vector<nano::account> blocking_list;
+	std::transform (blocking.begin (), blocking.end (), std::back_inserter (blocking_list), [] (auto const & entry) { return entry.first; });
+
+	std::vector<priority_entry> priorities_list;
+	std::transform (priorities.begin (), priorities.end (), std::back_inserter (priorities_list), [] (auto const & entry) { return entry; });
+
+	//	return { blocking_list, priorities_list };
+	return { blocking, priorities_list };
 }
 
 std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::account_sets::collect_container_info (const std::string & name)
@@ -336,6 +346,79 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::accou
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "priorities", priorities.size (), sizeof (decltype (priorities)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocking", blocking.size (), sizeof (decltype (blocking)::value_type) }));
 	return composite;
+}
+
+void nano::bootstrap_ascending::account_sets::stat (const nano::account & account, stat_type type, std::size_t increase)
+{
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
+	auto iter = priorities.get<tag_account> ().find (account);
+	if (iter != priorities.get<tag_account> ().end ())
+	{
+		priorities.get<tag_account> ().modify (iter, [type, increase] (priority_entry & entry) {
+			switch (type)
+			{
+				case stat_type::request:
+					entry.stats.request += increase;
+					break;
+				case stat_type::timeout:
+					entry.stats.timeout += increase;
+					break;
+				case stat_type::reply:
+					entry.stats.reply += increase;
+					break;
+				case stat_type::old:
+					entry.stats.old += increase;
+					break;
+				case stat_type::blocks:
+					entry.stats.blocks += increase;
+					break;
+				case stat_type::progress:
+					entry.stats.progress += increase;
+					break;
+				case stat_type::gap_source:
+					entry.stats.gap_source += increase;
+					break;
+				case stat_type::gap_previous:
+					entry.stats.gap_previous += increase;
+					break;
+				case stat_type::corrupt:
+					entry.stats.corrupt += increase;
+					break;
+				case stat_type::nothing_new:
+					entry.stats.nothing_new += increase;
+					break;
+				case stat_type::wtf:
+					entry.stats.wtf += increase;
+					break;
+			}
+		});
+	}
+}
+
+boost::property_tree::ptree nano::bootstrap_ascending::account_sets::priority_entry::collect_info () const
+{
+	boost::property_tree::ptree ptree;
+	ptree.put ("account", account.to_account ());
+	ptree.put ("priority", priority);
+	ptree.put ("last_request", last_request);
+
+	boost::property_tree::ptree stats_ptree;
+	stats_ptree.put ("request", stats.request);
+	stats_ptree.put ("timeout", stats.timeout);
+	stats_ptree.put ("reply", stats.reply);
+	stats_ptree.put ("old", stats.old);
+	stats_ptree.put ("blocks", stats.blocks);
+	stats_ptree.put ("progress", stats.progress);
+	stats_ptree.put ("gap_source", stats.gap_source);
+	stats_ptree.put ("gap_previous", stats.gap_previous);
+	stats_ptree.put ("corrupt", stats.corrupt);
+	stats_ptree.put ("nothing_new", stats.nothing_new);
+	stats_ptree.put ("wtf", stats.wtf);
+
+	ptree.add_child ("stats", stats_ptree);
+
+	return ptree;
 }
 
 /*
@@ -529,10 +612,9 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 
 			// Mark account as blocked because it is missing the source block
 			accounts.block (account, source);
+
 			break;
 		}
-		case nano::process_result::gap_previous:
-			break;
 		default:
 			break;
 	}
@@ -587,7 +669,7 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 		}
 
 		nano::unique_lock<nano::mutex> lock{ mutex };
-		condition.wait_for (lock, 100ms);
+		condition.wait_for (lock, 10ms);
 	}
 	return {};
 }
@@ -614,6 +696,8 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 
 	track (tag);
 	send (channel, tag);
+
+	accounts.stat (tag.account, account_sets::stat_type::request);
 
 	return true; // Request sent
 }
@@ -670,6 +754,7 @@ void nano::bootstrap_ascending::run_timeouts ()
 				tags_by_order.pop_front ();
 				on_timeout.notify (tag);
 				stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::timeout);
+				accounts.stat (tag.account, account_sets::stat_type::timeout);
 			}
 		}
 
@@ -723,13 +808,18 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 {
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::reply);
 
+	accounts.stat (tag.account, account_sets::stat_type::reply);
+
 	if (nothing_new (tag, response.blocks))
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::old);
 
 		accounts.suppress (tag.account);
+		accounts.stat (tag.account, account_sets::stat_type::nothing_new);
 		return;
 	}
+
+	accounts.stat (tag.account, account_sets::stat_type::blocks, response.blocks.size ());
 
 	if (verify (response, tag))
 	//	if (true)
@@ -740,11 +830,42 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 
 		for (auto & block : response.blocks)
 		{
-			block_processor.add (block);
+			block_processor.add (block, [this, account = tag.account] (nano::process_result result) {
+				switch (result)
+				{
+					case nano::process_result::progress:
+					{
+						accounts.stat (account, account_sets::stat_type::progress);
+						break;
+					}
+					case nano::process_result::gap_source:
+					{
+						accounts.stat (account, account_sets::stat_type::gap_source);
+						break;
+					}
+					case nano::process_result::gap_previous:
+					{
+						accounts.stat (account, account_sets::stat_type::gap_previous);
+						break;
+					}
+					case nano::process_result::old:
+					{
+						accounts.stat (account, account_sets::stat_type::old);
+						break;
+					}
+					default:
+					{
+						accounts.stat (account, account_sets::stat_type::wtf);
+						break;
+					}
+				}
+			});
 		}
 	}
 	else
 	{
+		accounts.stat (tag.account, account_sets::stat_type::corrupt);
+
 		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::bad_sender);
 	}
 }

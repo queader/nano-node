@@ -5244,7 +5244,8 @@ void nano::json_handler::backoff_info ()
 			boost::property_tree::ptree response_priorities;
 			for (auto const & entry : priorities)
 			{
-				response_priorities.put (entry.account.to_account (), entry.priority);
+				//				response_priorities.put (entry.account.to_account (), entry.priority);
+				response_priorities.add_child (entry.account.to_account (), entry.collect_info ());
 			}
 			response_l.add_child ("priorities", response_priorities);
 		}

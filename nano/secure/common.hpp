@@ -186,7 +186,7 @@ public:
 	unchecked_key (nano::uint512_union const &);
 	bool deserialize (nano::stream &);
 	bool operator== (nano::unchecked_key const &) const;
-	bool operator< (nano::unchecked_key const &) const;
+	bool operator<(nano::unchecked_key const &) const;
 	nano::block_hash const & key () const;
 	nano::block_hash previous{ 0 };
 	nano::block_hash hash{ 0 };
@@ -203,6 +203,32 @@ enum class signature_verification : uint8_t
 	valid_epoch = 3 // Valid for epoch blocks
 };
 
+enum class process_result
+{
+	progress, // Hasn't been seen before, signed correctly
+	bad_signature, // Signature was bad, forged or transmission error
+	old, // Already seen and was valid
+	negative_spend, // Malicious attempt to spend a negative amount
+	fork, // Malicious fork based on previous
+	unreceivable, // Source block doesn't exist, has already been received, or requires an account upgrade (epoch blocks)
+	gap_previous, // Block marked as previous is unknown
+	gap_source, // Block marked as source is unknown
+	gap_epoch_open_pending, // Block marked as pending blocks required for epoch open block are unknown
+	opened_burn_account, // Block attempts to open the burn account
+	balance_mismatch, // Balance and amount delta don't match
+	representative_mismatch, // Representative is changed when it is not allowed
+	block_position, // This block cannot follow the previous block
+	insufficient_work // Insufficient work for this block, even though it passed the minimal validation
+};
+
+class process_return final
+{
+public:
+	nano::process_result code;
+	nano::signature_verification verified;
+	nano::amount previous_balance;
+};
+
 /**
  * Information on an unchecked block
  */
@@ -217,6 +243,8 @@ public:
 	uint64_t modified () const;
 	std::shared_ptr<nano::block> block;
 	nano::account account{};
+
+	std::function<void (nano::process_result)> callback{ nullptr };
 
 private:
 	/** Seconds since posix epoch */
@@ -340,30 +368,6 @@ enum class vote_code
 	indeterminate // Unknown if replay or vote
 };
 
-enum class process_result
-{
-	progress, // Hasn't been seen before, signed correctly
-	bad_signature, // Signature was bad, forged or transmission error
-	old, // Already seen and was valid
-	negative_spend, // Malicious attempt to spend a negative amount
-	fork, // Malicious fork based on previous
-	unreceivable, // Source block doesn't exist, has already been received, or requires an account upgrade (epoch blocks)
-	gap_previous, // Block marked as previous is unknown
-	gap_source, // Block marked as source is unknown
-	gap_epoch_open_pending, // Block marked as pending blocks required for epoch open block are unknown
-	opened_burn_account, // Block attempts to open the burn account
-	balance_mismatch, // Balance and amount delta don't match
-	representative_mismatch, // Representative is changed when it is not allowed
-	block_position, // This block cannot follow the previous block
-	insufficient_work // Insufficient work for this block, even though it passed the minimal validation
-};
-class process_return final
-{
-public:
-	nano::process_result code;
-	nano::signature_verification verified;
-	nano::amount previous_balance;
-};
 enum class tally_result
 {
 	vote,

@@ -97,9 +97,11 @@ bool nano::block_processor::half_full ()
 	return size () >= node.flags.block_processor_full_size / 2;
 }
 
-void nano::block_processor::add (std::shared_ptr<nano::block> const & block_a)
+void nano::block_processor::add (std::shared_ptr<nano::block> const & block_a, std::function<void (nano::process_result)> callback)
 {
 	nano::unchecked_info info (block_a, 0, nano::signature_verification::unknown);
+	info.callback = callback;
+
 	add (info);
 }
 
@@ -118,7 +120,7 @@ void nano::block_processor::add (nano::unchecked_info const & info_a)
 
 	if (verified == nano::signature_verification::unknown && (block->type () == nano::block_type::state || block->type () == nano::block_type::open || !account.is_zero ()))
 	{
-		state_block_signature_verification.add ({ block, account, verified });
+		state_block_signature_verification.add (info_a);
 	}
 	else
 	{
@@ -205,31 +207,31 @@ void nano::block_processor::process_verified_state_blocks (std::deque<nano::stat
 		{
 			debug_assert (verifications[i] == 1 || verifications[i] == 0);
 			auto & item = items.front ();
-			auto & [block, account, verified] = item;
-			if (!block->link ().is_zero () && node.ledger.is_epoch_link (block->link ()))
+			auto & entry = item;
+			if (!entry.block->link ().is_zero () && node.ledger.is_epoch_link (entry.block->link ()))
 			{
 				// Epoch blocks
 				if (verifications[i] == 1)
 				{
-					verified = nano::signature_verification::valid_epoch;
-					blocks.emplace_back (block, account, verified);
+					entry.verified = nano::signature_verification::valid_epoch;
+					blocks.emplace_back (entry);
 				}
 				else
 				{
 					// Possible regular state blocks with epoch link (send subtype)
-					verified = nano::signature_verification::unknown;
-					blocks.emplace_back (block, account, verified);
+					entry.verified = nano::signature_verification::unknown;
+					blocks.emplace_back (entry);
 				}
 			}
 			else if (verifications[i] == 1)
 			{
 				// Non epoch blocks
-				verified = nano::signature_verification::valid;
-				blocks.emplace_back (block, account, verified);
+				entry.verified = nano::signature_verification::valid;
+				blocks.emplace_back (entry);
 			}
 			else
 			{
-				requeue_invalid (hashes[i], { block, account, verified });
+				requeue_invalid (hashes[i], entry);
 			}
 			items.pop_front ();
 		}
@@ -513,6 +515,11 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 	}
 
 	node.stats.inc (nano::stat::type::blockprocessor, nano::to_stat_detail (result.code));
+
+	if (info_a.callback)
+	{
+		info_a.callback (result.code);
+	}
 
 	return result;
 }

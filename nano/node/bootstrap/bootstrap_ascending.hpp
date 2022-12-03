@@ -76,6 +76,24 @@ public:
 
 		nano::account next ();
 
+	public: // Stats
+		enum class stat_type
+		{
+			request,
+			timeout,
+			reply,
+			old,
+			blocks,
+			progress,
+			gap_source,
+			gap_previous,
+			corrupt,
+			nothing_new,
+			wtf,
+		};
+
+		void stat (nano::account const & account, stat_type, std::size_t increase = 1);
+
 	private:
 		/**
 		 * If an account is not blocked, increase its priority.
@@ -147,13 +165,34 @@ public:
 		// Maps "blocked account" -> ["blocked hash", "Priority count"]
 		std::map<nano::account, nano::block_hash> blocking;
 
+	public:
 		struct priority_entry
 		{
 			nano::account account{ 0 };
 			float priority{ 0 };
 			nano::millis_t last_request{ 0 };
+
+			struct stat
+			{
+				std::size_t request{ 0 };
+				std::size_t timeout{ 0 };
+				std::size_t reply{ 0 };
+				std::size_t old{ 0 };
+				std::size_t blocks{ 0 };
+				std::size_t progress{ 0 };
+				std::size_t gap_source{ 0 };
+				std::size_t gap_previous{ 0 };
+				std::size_t corrupt{ 0 };
+				std::size_t nothing_new{ 0 };
+				std::size_t wtf{ 0 };
+			};
+
+			stat stats{};
+
+			boost::property_tree::ptree collect_info () const;
 		};
 
+	private:
 		// clang-format off
 		class tag_sequenced {};
 		class tag_account {};
@@ -189,7 +228,8 @@ public:
 		static nano::millis_t constexpr cooldown = 1000;
 
 	public:
-		using info_t = std::tuple<decltype (blocking), decltype (priorities)>; // <blocking, priorities>
+		//		using info_t = std::tuple<std::vector<nano::account>, std::vector<priority_entry>>; // <blocking, priorities>
+		using info_t = std::tuple<decltype (blocking), std::vector<priority_entry>>; // <blocking, priorities>
 
 		info_t info () const;
 	};
