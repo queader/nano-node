@@ -79,7 +79,7 @@ TEST (bootstrap_ascending, profile)
 	flags_server.disable_ongoing_bootstrap = true;
 	flags_server.disable_ascending_bootstrap = true;
 	auto data_path_server = nano::working_path (network);
-	//auto data_path_server = "";
+	// auto data_path_server = "";
 	auto server = std::make_shared<nano::node> (system.io_ctx, data_path_server, config_server, system.work, flags_server);
 	system.nodes.push_back (server);
 	server->start ();
@@ -95,10 +95,10 @@ TEST (bootstrap_ascending, profile)
 	config_client.ipc_config.transport_tcp.enabled = true;
 	// Disable database integrity safety for higher throughput
 	config_client.lmdb_config.sync = nano::lmdb_config::sync_strategy::nosync_unsafe;
-	//auto client = system.add_node (config_client, flags_client);
+	// auto client = system.add_node (config_client, flags_client);
 
 	// macos 16GB RAM disk:  diskutil erasevolume HFS+ "RAMDisk" `hdiutil attach -nomount ram://33554432`
-	//auto data_path_client = "/Volumes/RAMDisk";
+	// auto data_path_client = "/Volumes/RAMDisk";
 	auto data_path_client = nano::unique_path ();
 	auto client = std::make_shared<nano::node> (system.io_ctx, data_path_client, config_client, system.work, flags_client);
 	system.nodes.push_back (client);
@@ -177,7 +177,7 @@ TEST (bootstrap_ascending, profile)
 	rate.observe ("unchecked", [&] () { return client->unchecked.count (); });
 	rate.observe ("block_processor", [&] () { return client->block_processor.size (); });
 	rate.observe ("priority", [&] () { return client->ascendboot.priority_size (); });
-	rate.observe ("blocking", [&] () { return client->ascendboot.blocked_size(); });
+	rate.observe ("blocking", [&] () { return client->ascendboot.blocked_size (); });
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::reply, nano::stat::dir::in);
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in);
@@ -188,7 +188,7 @@ TEST (bootstrap_ascending, profile)
 	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_previous);
 	rate.background_print (3s);
 
-	//wait_for_key ();
+	// wait_for_key ();
 	while (true)
 	{
 		nano::test::establish_tcp (system, *client, server->network.endpoint ());
@@ -197,4 +197,81 @@ TEST (bootstrap_ascending, profile)
 
 	server->stop ();
 	client->stop ();
+}
+
+namespace
+{
+nano::block_hash parse_hash (std::string text)
+{
+	nano::block_hash result (0);
+	if (result.decode_hex (text))
+	{
+		return { 0 };
+	}
+	return result;
+}
+
+nano::account parse_account (std::string text)
+{
+	nano::account result{};
+	if (result.decode_account (text))
+	{
+		return { 0 };
+	}
+	return result;
+}
+}
+
+TEST (bootstrap_ascdending, epoch_successors)
+{
+	nano::test::system system;
+	nano::thread_runner runner{ system.io_ctx, 2 };
+	nano::networks network = nano::networks::nano_live_network;
+	nano::network_params network_params{ network };
+
+	nano::node_config config_server{ network_params };
+	config_server.preconfigured_peers.clear ();
+	config_server.bandwidth_limit = 0; // Unlimited server bandwidth
+	nano::node_flags flags_server;
+	flags_server.disable_legacy_bootstrap = true;
+	flags_server.disable_wallet_bootstrap = true;
+	flags_server.disable_add_initial_peers = true;
+	flags_server.disable_ongoing_bootstrap = true;
+	flags_server.disable_ascending_bootstrap = true;
+	auto data_path_server = nano::working_path (network);
+	auto node_s = std::make_shared<nano::node> (system.io_ctx, data_path_server, config_server, system.work, flags_server);
+	system.nodes.push_back (node_s);
+	node_s->start ();
+	auto & node = *node_s;
+
+	// Request blocks from the middle of the chain
+	nano::asc_pull_req request{ node.network_params.network };
+	request.id = 7;
+	request.type = nano::asc_pull_type::blocks;
+
+	nano::asc_pull_req::blocks_payload request_payload;
+	request_payload.start = parse_account ("nano_17zztxtdkbwi5egc7f9bstppjfic6aerixe69n9tc8euyhorbjenp5qse3eb");
+	request_payload.count = nano::bootstrap_server::max_blocks;
+
+	request.payload = request_payload;
+	request.update_header ();
+
+	node.bootstrap_server.on_response.add ([&] (nano::asc_pull_ack & response, auto & channel) {
+		std::cout << "got response: " << response.id << std::endl;
+
+		nano::asc_pull_ack::blocks_payload response_payload;
+		ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+
+		std::cout << "blocks: " << response_payload.blocks.size () << std::endl;
+
+		std::cout << "----------------" << std::endl;
+		for (auto & block : response_payload.blocks)
+		{
+			std::cout << "block: " << block->hash ().to_string () << std::endl;
+		}
+	});
+
+	node.network.inbound (request, nano::test::fake_channel (node));
+
+	node.stop ();
 }
