@@ -512,6 +512,7 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 	nano::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = tag.start;
 	request_payload.count = nano::bootstrap_server::max_blocks;
+	request_payload.start_type = tag.pulling_by_account () ? nano::asc_pull_req::blocks_payload::type::account : nano::asc_pull_req::blocks_payload::type::blocks;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -886,21 +887,23 @@ bool nano::bootstrap_ascending::verify (const nano::asc_pull_ack::blocks_payload
 	debug_assert (!response.blocks.empty ());
 
 	auto first = response.blocks.front ();
-	// The `start` field should correspond to either previous block or account
-	if (first->hash () == tag.start)
+
+	if (tag.pulling_by_account ())
 	{
-		// Pass
-	}
-	// Open & state blocks always contain account field
-	else if (first->account () == tag.start)
-	{
-		// Pass
+		// Open & state blocks always contain account field
+		if (first->account () != tag.start)
+		{
+			// TODO: Stat & log
+			return false;
+		}
 	}
 	else
 	{
-		// TODO: Stat & log
-		//		std::cerr << "bad head" << std::endl;
-		return false; // Bad head block
+		if (first->hash () != tag.start)
+		{
+			// TODO: Stat & log
+			return false;
+		}
 	}
 
 	// Verify blocks make a valid chain

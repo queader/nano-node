@@ -244,6 +244,11 @@ public:
 		nano::hash_or_account start{ 0 };
 		nano::millis_t time{ 0 };
 		nano::account account{ 0 };
+
+		bool pulling_by_account () const
+		{
+			return account == start;
+		}
 	};
 
 public: // Events
