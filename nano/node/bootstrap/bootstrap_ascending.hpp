@@ -169,6 +169,8 @@ public:
 	public:
 		struct priority_entry
 		{
+			uint64_t id{ 0 };
+
 			nano::account account{ 0 };
 			float priority{ 0 };
 			nano::millis_t last_request{ 0 };
@@ -198,6 +200,7 @@ public:
 		class tag_sequenced {};
 		class tag_account {};
 		class tag_priority {};
+		class tag_id {};
 
 		using ordered_priorities = boost::multi_index_container<priority_entry,
 		mi::indexed_by<
@@ -205,7 +208,9 @@ public:
 			mi::ordered_unique<boost::multi_index::tag<tag_account>,
 				mi::member<priority_entry, nano::account, &priority_entry::account>>,
 			mi::ordered_non_unique<boost::multi_index::tag<tag_priority>,
-				mi::member<priority_entry, float, &priority_entry::priority>>
+				mi::member<priority_entry, float, &priority_entry::priority>>,
+			mi::ordered_non_unique<boost::multi_index::tag<tag_id>,
+				mi::member<priority_entry, uint64_t, &priority_entry::id>>
 		>>;
 		// clang-format on
 

@@ -143,7 +143,7 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 		}
 		else
 		{
-			priorities.get<tag_account> ().insert ({ account, priority_initial, 0 });
+			priorities.get<tag_account> ().insert ({ bootstrap_ascending::generate_id (), account, priority_initial, 0 });
 
 			// Erase oldest entry
 			if (max_priorities_size > 0 && priorities.size () > max_priorities_size)
@@ -259,12 +259,12 @@ nano::account nano::bootstrap_ascending::account_sets::next_prioritization ()
 	{
 		debug_assert (candidates.size () == weights.size ());
 
-		nano::account search;
-		nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
-		auto iter = priorities.get<tag_account> ().lower_bound (search);
-		if (iter == priorities.get<tag_account> ().end ())
+		auto search = generate_id ();
+
+		auto iter = priorities.get<tag_id> ().lower_bound (search);
+		if (iter == priorities.get<tag_id> ().end ())
 		{
-			iter = priorities.get<tag_account> ().begin ();
+			iter = priorities.get<tag_id> ().begin ();
 		}
 
 		// Ensure there is enough spacing between requests for the same account
