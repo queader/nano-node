@@ -50,6 +50,8 @@ public:
 
 public: // Container info
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+	boost::property_tree::ptree collect_info () const;
+
 	std::size_t blocked_size () const;
 	std::size_t priority_size () const;
 
@@ -238,6 +240,8 @@ public:
 		using info_t = std::tuple<decltype (blocking), std::vector<priority_entry>>; // <blocking, priorities>
 
 		info_t info () const;
+
+		boost::property_tree::ptree collect_info () const;
 	};
 
 	account_sets::info_t info () const;
@@ -255,6 +259,8 @@ public:
 		{
 			return account == start;
 		}
+
+		boost::property_tree::ptree collect_info () const;
 	};
 
 public: // Events
@@ -284,8 +290,8 @@ private:
 	 */
 	nano::account wait_available_account (nano::unique_lock<nano::mutex> &);
 
+	static id_t generate_id ();
 
-	id_t generate_id () const;
 	bool request_one ();
 	bool request (nano::unique_lock<nano::mutex> &, nano::account &, std::shared_ptr<nano::transport::channel> &);
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);

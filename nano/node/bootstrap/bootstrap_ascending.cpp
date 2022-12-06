@@ -356,6 +356,33 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::accou
 	return composite;
 }
 
+boost::property_tree::ptree nano::bootstrap_ascending::account_sets::collect_info () const
+{
+	boost::property_tree::ptree ptree;
+
+	// priorities
+	{
+		boost::property_tree::ptree response_priorities;
+		for (auto const & entry : priorities)
+		{
+			//				response_priorities.put (entry.account.to_account (), entry.priority);
+			response_priorities.add_child (entry.account.to_account (), entry.collect_info ());
+		}
+		ptree.add_child ("priorities", response_priorities);
+	}
+	// blocking
+	{
+		boost::property_tree::ptree response_blocking;
+		for (auto const & [account, dependency] : blocking)
+		{
+			response_blocking.put (account.to_account (), dependency.to_string ());
+		}
+		ptree.add_child ("blocking", response_blocking);
+	}
+
+	return ptree;
+}
+
 void nano::bootstrap_ascending::account_sets::stat (const nano::account & account, stat_type type, std::size_t increase)
 {
 	nano::lock_guard<std::recursive_mutex> guard{ mutex };
@@ -504,7 +531,7 @@ void nano::bootstrap_ascending::stop ()
 	nano::join_or_pass (timeout_thread);
 }
 
-nano::bootstrap_ascending::id_t nano::bootstrap_ascending::generate_id () const
+nano::bootstrap_ascending::id_t nano::bootstrap_ascending::generate_id ()
 {
 	id_t id;
 	nano::random_pool::generate_block (reinterpret_cast<uint8_t *> (&id), sizeof (id));
@@ -966,6 +993,36 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::colle
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "tags", tags.size (), sizeof (decltype (tags)::value_type) }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
 	return composite;
+}
+
+boost::property_tree::ptree nano::bootstrap_ascending::collect_info () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	boost::property_tree::ptree ptree;
+
+	// tags
+	boost::property_tree::ptree tags_ptree;
+	for (auto & tag : tags)
+	{
+		tags_ptree.add_child (tag.account.to_account (), tag.collect_info ());
+	}
+
+	ptree.add_child ("tags", tags_ptree);
+	ptree.add_child ("accounts", accounts.collect_info ());
+
+	return ptree;
+}
+
+boost::property_tree::ptree nano::bootstrap_ascending::async_tag::collect_info () const
+{
+	boost::property_tree::ptree ptree;
+	ptree.put ("account", account.to_account ());
+	ptree.put ("start", pulling_by_account () ? start.to_account () : start.to_string ());
+	ptree.put ("time", time);
+	ptree.put ("account", account.to_account ());
+	return ptree;
 }

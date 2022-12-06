@@ -5237,27 +5237,7 @@ void nano::json_handler::backoff_info ()
 {
 	if (!ec)
 	{
-		auto [blocking, priorities] = node.ascendboot.info ();
-
-		// priorities
-		{
-			boost::property_tree::ptree response_priorities;
-			for (auto const & entry : priorities)
-			{
-				//				response_priorities.put (entry.account.to_account (), entry.priority);
-				response_priorities.add_child (entry.account.to_account (), entry.collect_info ());
-			}
-			response_l.add_child ("priorities", response_priorities);
-		}
-		// blocking
-		{
-			boost::property_tree::ptree response_blocking;
-			for (auto const & [account, dependency] : blocking)
-			{
-				response_blocking.put (account.to_account (), dependency.to_string ());
-			}
-			response_l.add_child ("blocking", response_blocking);
-		}
+		response_l = node.ascendboot.collect_info ();
 	}
 	response_errors ();
 }
