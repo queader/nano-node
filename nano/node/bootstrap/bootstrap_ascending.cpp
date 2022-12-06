@@ -72,13 +72,21 @@ nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nan
 {
 }
 
-void nano::bootstrap_ascending::account_sets::advance (const nano::account & account, const std::optional<nano::block_hash> & source)
+void nano::bootstrap_ascending::account_sets::advance (const nano::account & account)
+{
+	nano::lock_guard<std::recursive_mutex> guard{ mutex };
+
+	unblock (account);
+	priority_up (account);
+	timestamp (account, 0); // Reset timestamp
+}
+
+void nano::bootstrap_ascending::account_sets::send (const nano::account & account, const nano::block_hash & source)
 {
 	nano::lock_guard<std::recursive_mutex> guard{ mutex };
 
 	unblock (account, source);
-	priority_up (account);
-	timestamp (account, 0); // Reset timestamp
+	priority_up (account, /* only insert new priority entry */ 0.0f);
 }
 
 void nano::bootstrap_ascending::account_sets::suppress (const nano::account & account)
@@ -113,7 +121,7 @@ void nano::bootstrap_ascending::account_sets::dump () const
 	//	std::cerr << output;
 }
 
-void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
+void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account, float priority_increase)
 {
 	nano::lock_guard<std::recursive_mutex> guard{ mutex };
 
@@ -122,7 +130,7 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::prioritize);
 
-		const float priority_increase = 0.4f;
+		//		const float priority_increase = 0.4f;
 		const float priority_initial = 1.4f;
 		const float priority_max = 64.0f;
 
@@ -575,8 +583,8 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 				// Initialize with value of 1.0 a value of lower priority than an account itselt
 				// This is the same priority as if it had already made 1 attempt.
 
-				nano::account destination{ 0 };
 				// TODO: Encapsulate this as a helper somewhere
+				nano::account destination{ 0 };
 				switch (block.type ())
 				{
 					// Forward and initialize backoff for the referenced account
@@ -592,7 +600,8 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 				}
 				if (!destination.is_zero ())
 				{
-					accounts.advance (destination, hash);
+					//					accounts.advance (destination, hash); // TODO: Do not increase priority & timestamp
+					accounts.send (destination, hash);
 
 					//					bool unblocked = accounts.unblock (destination, hash);
 					//					if (unblocked)
@@ -659,7 +668,7 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::wait_availa
 	return channel;
 }
 
-nano::account nano::bootstrap_ascending::wait_available_account ()
+nano::account nano::bootstrap_ascending::wait_available_account (nano::unique_lock<nano::mutex> & lock)
 {
 	while (!stopped)
 	{
@@ -675,7 +684,7 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 	return {};
 }
 
-bool nano::bootstrap_ascending::request (nano::account & account, std::shared_ptr<nano::transport::channel> & channel)
+bool nano::bootstrap_ascending::request (nano::unique_lock<nano::mutex> & lock, nano::account & account, std::shared_ptr<nano::transport::channel> & channel)
 {
 	nano::account_info info;
 	nano::hash_or_account start = account;
@@ -696,6 +705,9 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 	on_request.notify (tag, channel);
 
 	track (tag);
+
+	lock.unlock ();
+
 	send (channel, tag);
 
 	accounts.stat (tag.account, account_sets::stat_type::request);
@@ -717,13 +729,15 @@ bool nano::bootstrap_ascending::request_one ()
 		return false;
 	}
 
-	auto account = wait_available_account ();
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	auto account = wait_available_account (lock);
 	if (account.is_zero ())
 	{
 		return false;
 	}
 
-	bool success = request (account, channel);
+	bool success = request (lock, account, channel);
 	return success;
 }
 
@@ -927,7 +941,7 @@ void nano::bootstrap_ascending::track (async_tag const & tag)
 {
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::track);
 
-	nano::lock_guard<nano::mutex> lock{ mutex };
+	//	nano::lock_guard<nano::mutex> lock{ mutex };
 	tags.get<tag_id> ().insert (tag);
 }
 

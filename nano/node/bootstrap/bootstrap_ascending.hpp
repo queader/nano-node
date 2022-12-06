@@ -70,9 +70,10 @@ public:
 	public:
 		explicit account_sets (nano::stat &, nano::store & store);
 
-		void advance (nano::account const & account, std::optional<nano::block_hash> const & source = std::nullopt);
+		void advance (nano::account const & account);
 		void suppress (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
+		void send (nano::account const & account, nano::block_hash const & source);
 
 		nano::account next ();
 
@@ -100,7 +101,7 @@ public:
 		 * Priority is increased whether it is in the normal priority set, or it is currently blocked and in the blocked set.
 		 * Current implementation increases priority by 1.0f each increment
 		 */
-		void priority_up (nano::account const & account);
+		void priority_up (nano::account const & account, float priority_increase = 0.4f);
 		/**
 		 * Decreases account priority
 		 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
@@ -276,11 +277,12 @@ private:
 	/**
 	 * Waits until a suitable account outside of cooldown period is available
 	 */
-	nano::account wait_available_account ();
+	nano::account wait_available_account (nano::unique_lock<nano::mutex> &);
+
 
 	id_t generate_id () const;
 	bool request_one ();
-	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
+	bool request (nano::unique_lock<nano::mutex> &, nano::account &, std::shared_ptr<nano::transport::channel> &);
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
 	void track (async_tag const & tag);
 
