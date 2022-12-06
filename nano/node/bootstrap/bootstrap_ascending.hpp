@@ -313,12 +313,16 @@ private:
 	// clang-format off
 	class tag_sequenced {};
 	class tag_id {};
+	class tag_account {};
 
 	using ordered_tags = boost::multi_index_container<async_tag,
 	mi::indexed_by<
 		mi::sequenced<mi::tag<tag_sequenced>>,
 		mi::hashed_unique<mi::tag<tag_id>,
-			mi::member<async_tag, id_t, &async_tag::id>>>>;
+			mi::member<async_tag, id_t, &async_tag::id>>,
+		mi::hashed_non_unique<mi::tag<tag_account>,
+			mi::member<async_tag, nano::account , &async_tag::account>>
+	>>;
 	// clang-format on
 	ordered_tags tags;
 

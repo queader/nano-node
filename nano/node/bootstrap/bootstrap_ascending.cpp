@@ -673,13 +673,18 @@ nano::account nano::bootstrap_ascending::wait_available_account (nano::unique_lo
 	while (!stopped)
 	{
 		auto account = accounts.next ();
+
 		if (!account.is_zero ())
 		{
-			return account;
+			if (tags.get<tag_account> ().count (account) == 0)
+			{
+				return account;
+			}
 		}
-
-		nano::unique_lock<nano::mutex> lock{ mutex };
-		condition.wait_for (lock, 10ms);
+		else
+		{
+			condition.wait_for (lock, 10ms);
+		}
 	}
 	return {};
 }
