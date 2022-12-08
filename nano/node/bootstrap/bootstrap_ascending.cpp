@@ -95,7 +95,7 @@ void nano::bootstrap_ascending::account_sets::dump () const
 	std::cerr << output;
 }
 
-void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
+void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account, float increase)
 {
 	if (!blocked (account))
 	{
@@ -104,8 +104,8 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 		auto iter = priorities.get<tag_account> ().find (account);
 		if (iter != priorities.get<tag_account> ().end ())
 		{
-			priorities.get<tag_account> ().modify (iter, [] (auto & val) {
-				val.priority += 0.4f;
+			priorities.get<tag_account> ().modify (iter, [increase] (auto & val) {
+				val.priority += increase;
 			});
 		}
 		else
@@ -460,35 +460,33 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			nano::lock_guard<nano::mutex> lock{ mutex };
 
 			// If we've inserted any block in to an account, unmark it as blocked
-			accounts.unblock (account, std::nullopt);
-			// Forward and initialize backoff value with 0.0 for the current account
-			// 0.0 has the highest priority
+			accounts.unblock (account);
 			accounts.priority_up (account);
 
 			if (is_send)
 			{
-				// Initialize with value of 1.0 a value of lower priority than an account itselt
-				// This is the same priority as if it had already made 1 attempt.
-				auto const send_factor = 1.0f;
-
+				// TODO: Encapsulate this as a helper somewhere
+				nano::account destination{ 0 };
 				switch (block.type ())
 				{
-					// Forward and initialize backoff for the referenced account
 					case nano::block_type::send:
-						accounts.unblock (block.destination (), hash);
-						accounts.priority_up (block.destination ());
+						destination = block.destination ();
 						break;
 					case nano::block_type::state:
-						accounts.unblock (block.link ().as_account (), hash);
-						accounts.priority_up (block.link ().as_account ());
+						destination = block.link ().as_account ();
 						break;
 					default:
-						debug_assert (false);
+						debug_assert (false, "unexpected block type");
 						break;
 				}
+				if (!destination.is_zero ())
+				{
+					accounts.unblock (destination, hash);
+					accounts.priority_up (destination, /* do not increase priority */ 0.0f);
+				}
 			}
-			break;
 		}
+		break;
 		case nano::process_result::gap_source:
 		{
 			const auto account = block.previous ().is_zero () ? block.account () : ledger.account (tx, block.previous ());
@@ -497,8 +495,8 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			nano::lock_guard<nano::mutex> lock{ mutex };
 			// Mark account as blocked because it is missing the source block
 			accounts.block (account, source);
-			break;
 		}
+		break;
 		case nano::process_result::old:
 		{
 			auto account = ledger.account (tx, hash);
@@ -516,15 +514,15 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 					item.old += 1;
 				});
 			}
-			break;
 		}
+		break;
 		case nano::process_result::gap_previous:
-			break;
-		default:
 		{
-			std::clog << '\0';
-			break;
+			// TODO: Track stats
 		}
+		break;
+		default: // No need to handle other cases
+			break;
 	}
 }
 

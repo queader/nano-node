@@ -101,11 +101,11 @@ public:
 	public:
 		explicit account_sets (nano::stat &, nano::store & store);
 
-		void priority_up (nano::account const & account);
+		void priority_up (nano::account const & account, float increase = account_sets::priority_increase);
 		void priority_down (nano::account const & account);
 		void priority_dec (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
-		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash);
+		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
 
 		/**
 		 * Selects a random account from either:
