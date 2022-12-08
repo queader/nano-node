@@ -118,10 +118,13 @@ public:
 
 	public:
 		bool blocked (nano::account const & account) const;
-		size_t priority_size () const;
-		size_t blocked_size () const;
+		std::size_t priority_size () const;
+		std::size_t blocked_size () const;
 		float priority (nano::account const & account) const;
 		void dump () const;
+
+	private:
+		void trim_overflow ();
 
 	public: // Container info
 		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
@@ -139,9 +142,18 @@ public:
 			float priority{ 0 };
 		};
 
+		class blocking_entry
+		{
+		public:
+			nano::account account{ 0 };
+			nano::block_hash dependency{ 0 };
+			priority_entry original_entry{};
+		};
+
 		// clang-format off
 		class tag_account {};
 		class tag_priority {};
+		class tag_sequenced {};
 
 		// Tracks the ongoing account priorities
 		// This only stores account priorities > 1.0f.
@@ -149,23 +161,31 @@ public:
 		// Blocked accounts are assumed priority 0.0f
 		using ordered_priorities = boost::multi_index_container<priority_entry,
 		mi::indexed_by<
+			mi::sequenced<mi::tag<tag_sequenced>>,
 			mi::ordered_unique<mi::tag<tag_account>,
 				mi::member<priority_entry, nano::account, &priority_entry::account>>,
 			mi::ordered_non_unique<mi::tag<tag_priority>,
 				mi::member<priority_entry, float, &priority_entry::priority>>
 		>>;
-		// clang-format on
-
-		ordered_priorities priorities;
 
 		// A blocked account is an account that has failed to insert a block because the source block is gapped.
 		// An account is unblocked once it has a block successfully inserted.
 		// Maps "blocked account" -> ["blocked hash", "Priority count"]
-		std::map<nano::account, std::pair<nano::block_hash, priority_entry>> blocking;
+		using ordered_blocking = boost::multi_index_container<blocking_entry,
+		mi::indexed_by<
+			mi::sequenced<mi::tag<tag_sequenced>>,
+			mi::ordered_unique<mi::tag<tag_account>,
+				mi::member<blocking_entry, nano::account, &blocking_entry::account>>
+		>>;
+		// clang-format on
+
+		ordered_priorities priorities;
+		ordered_blocking blocking;
 
 	private:
 		static std::size_t constexpr consideration_count = 2;
 		static std::size_t constexpr priorities_max = 64 * 1024;
+		static std::size_t constexpr blocking_max = 64 * 1024;
 
 		std::default_random_engine rng;
 
