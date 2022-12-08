@@ -161,7 +161,8 @@ void nano::block_processor::process_blocks ()
 		{
 			active = true;
 			lock.unlock ();
-			process_batch (lock);
+			auto processed = process_batch (lock);
+			batch_processed.notify (processed);
 			lock.lock ();
 			active = false;
 		}
@@ -237,8 +238,10 @@ void nano::block_processor::process_verified_state_blocks (std::deque<nano::stat
 	condition.notify_all ();
 }
 
-void nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock_a)
+std::deque<nano::block_processor::processed_t> nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock_a)
 {
+	std::deque<processed_t> processed;
+
 	auto scoped_write_guard = write_database_queue.wait (nano::writer::process_batch);
 	block_post_events post_events ([&store = node.store] { return store.tx_begin_read (); });
 	auto transaction (node.store.tx_begin_write ({ tables::accounts, tables::blocks, tables::frontiers, tables::pending, tables::unchecked }));
@@ -307,7 +310,10 @@ void nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 			}
 		}
 		number_of_blocks_processed++;
-		process_one (transaction, post_events, info, force);
+
+		auto result = process_one (transaction, post_events, info, force);
+		processed.emplace_back (result, info.block);
+
 		lock_a.lock ();
 	}
 	awaiting_write = false;
@@ -317,6 +323,8 @@ void nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 	{
 		node.logger.always_log (boost::str (boost::format ("Processed %1% blocks (%2% blocks were forced) in %3% %4%") % number_of_blocks_processed % number_of_forced_processed % timer_l.value ().count () % timer_l.unit ()));
 	}
+
+	return processed;
 }
 
 void nano::block_processor::process_live (nano::transaction const & transaction_a, nano::block_hash const & hash_a, std::shared_ptr<nano::block> const & block_a, nano::process_return const & process_return_a, nano::block_origin const origin_a)

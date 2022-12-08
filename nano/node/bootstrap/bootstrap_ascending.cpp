@@ -172,6 +172,8 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::unblock);
 
+		blocking.get<tag_account> ().erase (account);
+
 		debug_assert (priorities.get<tag_account> ().count (account) == 0);
 		if (!existing->original_entry.account.is_zero ())
 		{
@@ -182,8 +184,6 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 		{
 			priorities.get<tag_account> ().insert ({ account, account_sets::priority_initial });
 		}
-
-		blocking.get<tag_account> ().erase (account);
 
 		trim_overflow ();
 	}
@@ -257,7 +257,9 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority (account_qu
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
 	auto result = candidates[selection];
-	priority_dec (result); // TODO: Is this really needed?
+
+	//	priority_dec (result); // TODO: Is this really needed?
+
 	return result;
 }
 
@@ -342,8 +344,21 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	stats{ stat_a },
 	accounts{ stats, store_a }
 {
-	block_processor.processed.add ([this] (nano::transaction const & tx, nano::process_return const & result, nano::block const & block) {
-		inspect (tx, result, block);
+	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
+	block_processor.batch_processed.add ([this] (auto const & batch) {
+		nano::unique_lock<nano::mutex> lock{ mutex };
+
+		auto transaction = store.tx_begin_read ();
+		for (auto const & [result, block] : batch)
+		{
+			debug_assert (block != nullptr);
+
+			inspect (transaction, result, *block);
+		}
+
+		lock.unlock ();
+
+		condition.notify_all ();
 	});
 
 	//	on_timeout.add ([this] (auto tag) {
@@ -483,8 +498,6 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			const auto account = ledger.account (tx, hash);
 			const auto is_send = ledger.is_send (tx, block);
 
-			nano::lock_guard<nano::mutex> lock{ mutex };
-
 			// If we've inserted any block in to an account, unmark it as blocked
 			accounts.unblock (account);
 			accounts.priority_up (account);
@@ -518,7 +531,6 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 			const auto account = block.previous ().is_zero () ? block.account () : ledger.account (tx, block.previous ());
 			const auto source = block.source ().is_zero () ? block.link ().as_block_hash () : block.source ();
 
-			nano::lock_guard<nano::mutex> lock{ mutex };
 			// Mark account as blocked because it is missing the source block
 			accounts.block (account, source);
 		}
@@ -527,8 +539,7 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 		{
 			auto account = ledger.account (tx, hash);
 			// std::cerr << boost::str (boost::format ("old account: %1%\n") % account.to_account ());
-			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.priority_dec (account);
+
 			auto existing = account_stats.get<tag_account> ().find (account);
 			if (existing == account_stats.end ())
 			{
@@ -592,10 +603,10 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::wait_availa
 
 nano::account nano::bootstrap_ascending::wait_available_account ()
 {
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
 	while (!stopped)
 	{
-		nano::unique_lock<nano::mutex> lock{ mutex };
-
 		auto account = accounts.next ([this] (nano::account account) {
 			return tags.get<tag_account> ().count (account) > 0;
 		});
@@ -736,7 +747,6 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack & message)
 		tags_by_id.erase (iterator);
 
 		lock.unlock ();
-		condition.notify_all ();
 
 		on_reply.notify (tag);
 
