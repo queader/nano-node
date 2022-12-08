@@ -36,10 +36,8 @@ void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transactio
 			}
 			else
 			{
-				item = nullptr;
 				table = table_t::pending;
-				current = 0;
-				next (tx);
+				current = { 0 };
 			}
 			break;
 		}
@@ -53,10 +51,8 @@ void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transactio
 			}
 			else
 			{
-				item = nullptr;
 				table = table_t::account;
-				current = 0;
-				next (tx);
+				current = { 0 };
 			}
 			break;
 		}
@@ -211,19 +207,19 @@ void nano::bootstrap_ascending::account_sets::trim_overflow ()
 	}
 }
 
-nano::account nano::bootstrap_ascending::account_sets::next ()
+nano::account nano::bootstrap_ascending::account_sets::next (account_query_t const & query)
 {
 	if (!priorities.empty ())
 	{
-		return next_priority ();
+		return next_priority (query);
 	}
 	else
 	{
-		return next_database ();
+		return next_database (query);
 	}
 }
 
-nano::account nano::bootstrap_ascending::account_sets::next_priority ()
+nano::account nano::bootstrap_ascending::account_sets::next_priority (account_query_t const & query)
 {
 	debug_assert (!priorities.empty ());
 
@@ -232,9 +228,11 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority ()
 	std::vector<float> weights;
 	std::vector<nano::account> candidates;
 
-	while (candidates.size () < account_sets::consideration_count)
+	int iterations = 0;
+	while (candidates.size () < account_sets::consideration_count && iterations++ < account_sets::consideration_count * 10)
 	{
 		debug_assert (candidates.size () == weights.size ());
+
 		nano::account search;
 		nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
 		auto iter = priorities.get<tag_account> ().lower_bound (search);
@@ -242,23 +240,40 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority ()
 		{
 			iter = priorities.get<tag_account> ().begin ();
 		}
-		candidates.push_back (iter->account);
-		weights.push_back (iter->priority);
+
+		if (!query (iter->account))
+		{
+			candidates.push_back (iter->account);
+			weights.push_back (iter->priority);
+		}
+	}
+
+	if (candidates.empty ())
+	{
+		return { 0 }; // All sampled accounts are busy
 	}
 
 	std::discrete_distribution dist{ weights.begin (), weights.end () };
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
 	auto result = candidates[selection];
-	priority_dec (result);
+	priority_dec (result); // TODO: Is this really needed?
 	return result;
 }
 
-nano::account nano::bootstrap_ascending::account_sets::next_database ()
+nano::account nano::bootstrap_ascending::account_sets::next_database (account_query_t const & query)
 {
 	auto tx = store.tx_begin_read ();
-	iter.next (tx);
-	return *iter;
+	do
+	{
+		iter.next (tx);
+		if (!query (*iter))
+		{
+			return *iter;
+		}
+	} while (!(*iter).is_zero ());
+
+	return { 0 };
 }
 
 bool nano::bootstrap_ascending::account_sets::blocked (nano::account const & account) const
@@ -570,29 +585,40 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
 
-		auto account = accounts.next ();
-		auto existing = account_stats.get<tag_account> ().find (account);
-		if (existing == account_stats.end ())
+		auto account = accounts.next ([this] (nano::account account) {
+			return tags.get<tag_account> ().count (account) > 0;
+		});
+
+		if (!account.is_zero ())
 		{
-			account_stats.insert ({ account, 0, 1 });
-		}
-		else
-		{
-			account_stats.modify (existing, [] (auto & item) {
-				item.request += 1;
-			});
-		}
-		static int count = 0;
-		if (count++ % 100'000 == 0)
-		{
-			accounts.dump ();
-			auto count = 0;
-			for (auto i = account_stats.get<tag_old_count> ().rbegin (), n = account_stats.get<tag_old_count> ().rend (); i != n && count < 100; ++i, ++count)
+			debug_assert (tags.get<tag_account> ().count (account) == 0);
+
+			// Stats
+			auto existing = account_stats.get<tag_account> ().find (account);
+			if (existing == account_stats.end ())
 			{
-				std::cerr << boost::str (boost::format ("%1% : %2% : %3%\n") % i->account.to_account () % std::to_string (i->old) % std::to_string (i->request));
+				account_stats.insert ({ account, 0, 1 });
 			}
+			else
+			{
+				account_stats.modify (existing, [] (auto & item) {
+					item.request += 1;
+				});
+			}
+
+			static int count = 0;
+			if (count++ % 100'000 == 0)
+			{
+				accounts.dump ();
+				auto count = 0;
+				for (auto i = account_stats.get<tag_old_count> ().rbegin (), n = account_stats.get<tag_old_count> ().rend (); i != n && count < 100; ++i, ++count)
+				{
+					std::cerr << boost::str (boost::format ("%1% : %2% : %3%\n") % i->account.to_account () % std::to_string (i->old) % std::to_string (i->request));
+				}
+			}
+
+			return account;
 		}
-		return account;
 
 		condition.wait_for (lock, 100ms);
 	}

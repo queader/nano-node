@@ -115,7 +115,14 @@ public:
 		 * Creates consideration set of "consideration_count" items and returns on randomly weighted by priority
 		 * Half are considered from the "priorities" container, half are considered from the ledger.
 		 */
-		nano::account next ();
+
+		/**
+		 * Returns whether account has any existing queries in progress
+		 * @return true if present, false otherwise
+		 */
+		using account_query_t = std::function<bool (nano::account const &)>;
+
+		nano::account next (account_query_t const &);
 
 	public:
 		bool blocked (nano::account const & account) const;
@@ -125,8 +132,8 @@ public:
 		void dump () const;
 
 	private:
-		nano::account next_priority ();
-		nano::account next_database ();
+		nano::account next_priority (account_query_t const &);
+		nano::account next_database (account_query_t const &);
 
 		void trim_overflow ();
 
@@ -296,12 +303,16 @@ private:
 	// clang-format off
 	class tag_sequenced {};
 	class tag_id {};
+	class tag_account {};
 
 	using ordered_tags = boost::multi_index_container<async_tag,
 	mi::indexed_by<
 		mi::sequenced<mi::tag<tag_sequenced>>,
 		mi::hashed_unique<mi::tag<tag_id>,
-			mi::member<async_tag, id_t, &async_tag::id>>>>;
+			mi::member<async_tag, id_t, &async_tag::id>>,
+		mi::hashed_unique<mi::tag<tag_account>,
+			mi::member<async_tag, nano::account , &async_tag::account>>
+	>>;
 	// clang-format on
 	ordered_tags tags;
 
@@ -318,9 +329,6 @@ private: // Stats
 		nano::account account;
 		int old;
 		int request;
-	};
-	class tag_account
-	{
 	};
 	class tag_old_count
 	{
