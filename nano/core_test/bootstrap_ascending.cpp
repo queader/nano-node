@@ -96,12 +96,13 @@ TEST (account_sets, priority_unblock_keep)
 	ASSERT_FALSE (store->init_error ());
 	nano::bootstrap_ascending::account_sets sets{ stats, *store };
 	sets.priority_up (account);
-	ASSERT_EQ (2.0f, sets.priority (account));
+	sets.priority_up (account);
+	ASSERT_EQ (sets.priority (account), nano::bootstrap_ascending::account_sets::priority_initial + nano::bootstrap_ascending::account_sets::priority_increase);
 	auto hash = random_hash ();
 	sets.block (account, hash);
 	ASSERT_EQ (0.0f, sets.priority (account));
 	sets.unblock (account, hash);
-	ASSERT_EQ (2.0f, sets.priority (account));
+	ASSERT_EQ (sets.priority (account), nano::bootstrap_ascending::account_sets::priority_initial + nano::bootstrap_ascending::account_sets::priority_increase);
 }
 
 TEST (account_sets, priority_up_down)
@@ -113,7 +114,7 @@ TEST (account_sets, priority_up_down)
 	ASSERT_FALSE (store->init_error ());
 	nano::bootstrap_ascending::account_sets sets{ stats, *store };
 	sets.priority_up (account);
-	ASSERT_EQ (2.0f, sets.priority (account));
+	ASSERT_EQ (sets.priority (account), nano::bootstrap_ascending::account_sets::priority_initial);
 	sets.priority_down (account);
 	ASSERT_EQ (1.0f, sets.priority (account));
 }
