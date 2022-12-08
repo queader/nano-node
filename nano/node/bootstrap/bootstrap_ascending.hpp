@@ -86,15 +86,18 @@ public:
 				account,
 				pending
 			};
+
 		public:
 			iterator_t (nano::store & store);
 			nano::account operator* () const;
 			void next (nano::transaction & tx);
+
 		private:
 			nano::store & store;
 			nano::account current{ 0 };
 			table_t table{ table_t::account };
 		};
+
 	public:
 		explicit account_sets (nano::stat &, nano::store & store);
 
@@ -129,42 +132,53 @@ public:
 		iterator_t iter;
 
 	private:
-		static size_t constexpr consideration_count = 2;
-
-		// A blocked account is an account that has failed to insert a block because the source block is gapped.
-		// An account is unblocked once it has a block successfully inserted.
-		// Maps "blocked account" -> ["blocked hash", "Priority count"]
-		std::map<nano::account, std::pair<nano::block_hash, float>> blocking;
-		class priority_t
+		class priority_entry
 		{
 		public:
-			nano::account account;
-			float priority;
+			nano::account account{ 0 };
+			float priority{ 0 };
 		};
-		class tag_account
-		{
-		};
-		class tag_priority
-		{
-		};
+
+		// clang-format off
+		class tag_account {};
+		class tag_priority {};
+
 		// Tracks the ongoing account priorities
 		// This only stores account priorities > 1.0f.
 		// Accounts in the ledger but not in this list are assumed priority 1.0f.
 		// Blocked accounts are assumed priority 0.0f
-		boost::multi_index_container<priority_t,
-		boost::multi_index::indexed_by<
-		boost::multi_index::ordered_unique<boost::multi_index::tag<tag_account>,
-		boost::multi_index::member<priority_t, nano::account, &priority_t::account>>,
-		boost::multi_index::ordered_non_unique<boost::multi_index::tag<tag_priority>,
-		boost::multi_index::member<priority_t, float, &priority_t::priority>>>>
-		priorities;
-		static size_t const priorities_max = 64 * 1024;
+		using ordered_priorities = boost::multi_index_container<priority_entry,
+		mi::indexed_by<
+			mi::ordered_unique<mi::tag<tag_account>,
+				mi::member<priority_entry, nano::account, &priority_entry::account>>,
+			mi::ordered_non_unique<mi::tag<tag_priority>,
+				mi::member<priority_entry, float, &priority_entry::priority>>
+		>>;
+		// clang-format on
+
+		ordered_priorities priorities;
+
+		// A blocked account is an account that has failed to insert a block because the source block is gapped.
+		// An account is unblocked once it has a block successfully inserted.
+		// Maps "blocked account" -> ["blocked hash", "Priority count"]
+		std::map<nano::account, std::pair<nano::block_hash, priority_entry>> blocking;
+
+	private:
+		static std::size_t constexpr consideration_count = 2;
+		static std::size_t constexpr priorities_max = 64 * 1024;
 
 		std::default_random_engine rng;
+
 		/**
 		 * Minimum time between subsequent request for the same account
 		 */
 		static nano::millis_t constexpr cooldown = 1000;
+
+	public: // Consts
+		static float constexpr priority_initial = 1.4f;
+		static float constexpr priority_increase = 0.4f;
+		static float constexpr priority_max = 32.0f;
+		static float constexpr priority_cutoff = 1.0f;
 
 	public:
 		using info_t = std::tuple<decltype (blocking), decltype (priorities)>; // <blocking, priorities>
@@ -258,7 +272,8 @@ private:
 	mutable nano::condition_variable condition;
 	std::vector<std::thread> threads;
 	std::thread timeout_thread;
-	
+
+private: // Stats
 	class old_t
 	{
 	public:
@@ -266,14 +281,21 @@ private:
 		int old;
 		int request;
 	};
-	class tag_account {};
-	class tag_old_count {};
-	class tag_request_count {};
+	class tag_account
+	{
+	};
+	class tag_old_count
+	{
+	};
+	class tag_request_count
+	{
+	};
 	boost::multi_index_container<old_t,
 	mi::indexed_by<
-		mi::hashed_unique<mi::tag<tag_account>, mi::member<old_t, nano::account, &old_t::account>>,
-		mi::ordered_non_unique<mi::tag<tag_old_count>, mi::member<old_t, int, &old_t::old>>,
-		mi::ordered_non_unique<mi::tag<tag_request_count>, mi::member<old_t, int, &old_t::request>>>> account_stats;
+	mi::hashed_unique<mi::tag<tag_account>, mi::member<old_t, nano::account, &old_t::account>>,
+	mi::ordered_non_unique<mi::tag<tag_old_count>, mi::member<old_t, int, &old_t::old>>,
+	mi::ordered_non_unique<mi::tag<tag_request_count>, mi::member<old_t, int, &old_t::request>>>>
+	account_stats;
 
 private:
 	//		static std::size_t constexpr requests_max = 16;

@@ -13,7 +13,7 @@ using namespace std::chrono_literals;
  */
 
 nano::bootstrap_ascending::account_sets::iterator_t::iterator_t (nano::store & store) :
-store{ store }
+	store{ store }
 {
 }
 
@@ -26,40 +26,40 @@ void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transactio
 {
 	switch (table)
 	{
-	case table_t::account:
-	{
-		auto i = current.number () + 1;
-		auto item = store.account.begin (tx, i);
-		if (item != store.account.end ())
+		case table_t::account:
 		{
-			current = item->first;
+			auto i = current.number () + 1;
+			auto item = store.account.begin (tx, i);
+			if (item != store.account.end ())
+			{
+				current = item->first;
+			}
+			else
+			{
+				item = nullptr;
+				table = table_t::pending;
+				current = 0;
+				next (tx);
+			}
+			break;
 		}
-		else
+		case table_t::pending:
 		{
-			item = nullptr;
-			table = table_t::pending;
-			current = 0;
-			next (tx);
+			auto i = current.number () + 1;
+			auto item = store.pending.begin (tx, nano::pending_key{ i, 0 });
+			if (item != store.pending.end ())
+			{
+				current = item->first.account;
+			}
+			else
+			{
+				item = nullptr;
+				table = table_t::account;
+				current = 0;
+				next (tx);
+			}
+			break;
 		}
-		break;
-	}
-	case table_t::pending:
-	{
-		auto i = current.number () + 1;
-		auto item = store.pending.begin (tx, nano::pending_key{ i, 0 });
-		if (item != store.pending.end ())
-		{
-			current = item->first.account;
-		}
-		else
-		{
-			item = nullptr;
-			table = table_t::account;
-			current = 0;
-			next (tx);
-		}
-		break;
-	}
 	}
 }
 
@@ -117,10 +117,6 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 			}
 		}
 	}
-	else
-	{
-		blocking_iter->second.second += 1.0f;
-	}
 }
 
 void nano::bootstrap_ascending::account_sets::priority_down (nano::account const & account)
@@ -139,11 +135,6 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 				val.priority = priority_new;
 			});
 		}
-	}
-	auto blocking_iter = blocking.find (account);
-	if (blocking_iter != blocking.end ())
-	{
-		blocking_iter->second.second /= 2.0f;
 	}
 }
 
@@ -164,20 +155,17 @@ void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const 
 			});
 		}
 	}
-	auto blocking_iter = blocking.find (account);
-	if (blocking_iter != blocking.end ())
-	{
-		blocking_iter->second.second -= 0.5f;
-	}
 }
 
 void nano::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
+
 	auto existing = priorities.get<tag_account> ().find (account);
-	auto count = existing == priorities.get<tag_account> ().end () ? 1.0f : existing->priority;
+	auto entry = existing == priorities.get<tag_account> ().end () ? priority_entry{} : *existing;
+
 	priorities.get<tag_account> ().erase (account);
-	blocking[account] = std::make_pair (dependency, count);
+	blocking[account] = std::make_pair (dependency, entry);
 }
 
 void nano::bootstrap_ascending::account_sets::unblock (nano::account const & account, std::optional<nano::block_hash> const & hash)
@@ -187,9 +175,16 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 	if (existing != blocking.end () && (!hash || existing->second.first == *hash))
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::unblock);
+
+		// TODO: Merge duplicate logic
 		if (priorities.size () < priorities_max)
 		{
-			priorities.insert ({ account, existing->second.second });
+			auto & [blocking_hash, entry] = existing->second;
+			if (!entry.account.is_zero ())
+			{
+				debug_assert (entry.account == account);
+				priorities.insert (entry);
+			}
 		}
 		blocking.erase (account);
 	}
@@ -205,7 +200,7 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 	{
 		auto tx = store.tx_begin_read ();
 		iter.next (tx);
-		//std::cerr << "Disk: " << (*iter).to_account () << '\n';
+		// std::cerr << "Disk: " << (*iter).to_account () << '\n';
 		return *iter;
 	}
 	std::vector<float> weights;
@@ -469,7 +464,7 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 		case nano::process_result::old:
 		{
 			auto account = ledger.account (tx, hash);
-			//std::cerr << boost::str (boost::format ("old account: %1%\n") % account.to_account ());
+			// std::cerr << boost::str (boost::format ("old account: %1%\n") % account.to_account ());
 			nano::lock_guard<nano::mutex> lock{ mutex };
 			accounts.priority_dec (account);
 			auto existing = account_stats.get<tag_account> ().find (account);
@@ -556,7 +551,7 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 		{
 			accounts.dump ();
 			auto count = 0;
-			for (auto i = account_stats.get <tag_old_count> ().rbegin (), n = account_stats.get<tag_old_count> ().rend (); i != n && count < 100; ++i, ++count)
+			for (auto i = account_stats.get<tag_old_count> ().rbegin (), n = account_stats.get<tag_old_count> ().rend (); i != n && count < 100; ++i, ++count)
 			{
 				std::cerr << boost::str (boost::format ("%1% : %2% : %3%\n") % i->account.to_account () % std::to_string (i->old) % std::to_string (i->request));
 			}
@@ -573,8 +568,8 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 	nano::account_info info;
 	nano::hash_or_account start = account;
 
-	//std::cerr << boost::str (boost::format ("req account: %1%\n") % account.to_account ());
-	// check if the account picked has blocks, if it does, start the pull from the highest block
+	// std::cerr << boost::str (boost::format ("req account: %1%\n") % account.to_account ());
+	//  check if the account picked has blocks, if it does, start the pull from the highest block
 	if (!store.account.get (store.tx_begin_read (), account, info))
 	{
 		start = info.head;
