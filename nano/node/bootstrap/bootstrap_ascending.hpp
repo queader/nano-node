@@ -213,6 +213,8 @@ public:
 	public: // Consts
 		static float constexpr priority_initial = 1.4f;
 		static float constexpr priority_increase = 0.4f;
+		static float constexpr priority_decrease = 0.5f;
+		static float constexpr priority_halving = 0.5f;
 		static float constexpr priority_max = 32.0f;
 		static float constexpr priority_cutoff = 1.0f;
 

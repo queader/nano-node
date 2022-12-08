@@ -118,7 +118,7 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 	auto iter = priorities.get<tag_account> ().find (account);
 	if (iter != priorities.get<tag_account> ().end ())
 	{
-		auto priority_new = iter->priority / 2.0f;
+		auto priority_new = iter->priority * account_sets::priority_halving;
 		if (priority_new <= account_sets::priority_cutoff)
 		{
 			priorities.get<tag_account> ().erase (iter);
@@ -137,7 +137,7 @@ void nano::bootstrap_ascending::account_sets::priority_dec (nano::account const 
 	auto iter = priorities.get<tag_account> ().find (account);
 	if (iter != priorities.get<tag_account> ().end ())
 	{
-		auto priority_new = iter->priority - 0.5f;
+		auto priority_new = iter->priority - account_sets::priority_decrease;
 		if (priority_new <= account_sets::priority_cutoff)
 		{
 			priorities.get<tag_account> ().erase (iter);
