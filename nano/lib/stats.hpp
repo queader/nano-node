@@ -486,6 +486,7 @@ public:
 		process,
 		track,
 		timeout,
+		nothing_new,
 
 		// bootstrap ascending connections
 		connect,

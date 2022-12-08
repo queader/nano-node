@@ -1107,6 +1107,9 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::timeout:
 			res = "timeout";
 			break;
+		case nano::stat::detail::nothing_new:
+			res = "nothing_new";
+			break;
 		case nano::stat::detail::connect:
 			res = "connect";
 			break;

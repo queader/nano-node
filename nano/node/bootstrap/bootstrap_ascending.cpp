@@ -705,7 +705,7 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack & message)
 
 		on_reply.notify (tag);
 
-		return std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
+		std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
 	}
 	else
 	{
@@ -716,13 +716,6 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack & message)
 void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payload & response, const nano::bootstrap_ascending::async_tag & tag)
 {
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::reply);
-
-	// Continue only if there are any blocks to process
-	if (response.blocks.empty ())
-	{
-		priority_down (tag.account);
-		return;
-	}
 
 	auto result = verify (response, tag);
 	switch (result)
@@ -739,12 +732,15 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 		break;
 		case verify_result::nothing_new:
 		{
-			// TODO: Decrease priority
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::nothing_new);
+
+			priority_down (tag.account);
 		}
 		break;
 		case verify_result::invalid:
 		{
-			// TODO: Stat & log
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::invalid);
+			// TODO: Log
 		}
 		break;
 	}
