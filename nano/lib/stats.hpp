@@ -257,8 +257,6 @@ public:
 		bootstrap_ascending_connections,
 		bootstrap_ascending_thread,
 		bootstrap_ascending_accounts,
-		backlog,
-		active,
 		optimistic,
 	};
 
@@ -476,6 +474,7 @@ public:
 
 		// backlog
 		activated,
+
 		// unchecked
 		put,
 		satisfied,
@@ -510,9 +509,6 @@ public:
 		unblock_failed,
 		next_priority,
 		next_database,
-
-		// backlog
-		activated,
 
 		// active
 		started_hinted,

@@ -561,6 +561,7 @@ std::string nano::stat::type_to_string (stat::type type)
 			break;
 		case nano::stat::type::bootstrap_server_responses:
 			res = "bootstrap_server_responses";
+			break;
 		case nano::stat::type::unchecked:
 			res = "unchecked";
 			break;
@@ -578,9 +579,6 @@ std::string nano::stat::type_to_string (stat::type type)
 			break;
 		case nano::stat::type::backlog:
 			res = "backlog";
-			break;
-		case nano::stat::type::active:
-			res = "active";
 			break;
 		case nano::stat::type::optimistic:
 			res = "optimistic";
