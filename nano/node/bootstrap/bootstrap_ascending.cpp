@@ -105,7 +105,7 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 		if (iter != priorities.get<tag_account> ().end ())
 		{
 			priorities.get<tag_account> ().modify (iter, [increase] (auto & val) {
-				val.priority += increase;
+				val.priority = std::min (val.priority + increase, priority_max);
 			});
 		}
 		else

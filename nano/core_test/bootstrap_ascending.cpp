@@ -132,6 +132,22 @@ TEST (account_sets, priority_down_sat)
 	ASSERT_EQ (1.0f, sets.priority (account));
 }
 
+// Ensure priority value is bounded
+TEST (account_sets, saturate_priority)
+{
+	nano::account account{ 1 };
+	nano::stat stats;
+	nano::logger_mt logger;
+	auto store = nano::make_store (logger, nano::unique_path (), nano::dev::constants);
+	ASSERT_FALSE (store->init_error ());
+	nano::bootstrap_ascending::account_sets sets{ stats, *store };
+	for (int n = 0; n < 1000; ++n)
+	{
+		sets.priority_up (account);
+	}
+	ASSERT_EQ (sets.priority (account), nano::bootstrap_ascending::account_sets::priority_max);
+}
+
 /**
  * Tests the base case for returning
  */
