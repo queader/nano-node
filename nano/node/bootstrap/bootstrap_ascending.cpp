@@ -399,6 +399,8 @@ uint64_t nano::bootstrap_ascending::generate_id () const
 
 void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> channel, async_tag tag)
 {
+	debug_assert (tag.type == async_tag::query_type::blocks_by_hash || tag.type == async_tag::query_type::blocks_by_account);
+
 	nano::asc_pull_req request{ node.network_params.network };
 	request.id = tag.id;
 	request.type = nano::asc_pull_type::blocks;
@@ -406,6 +408,7 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 	nano::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = tag.start;
 	request_payload.count = nano::bootstrap_server::max_blocks;
+	request_payload.start_type = tag.type == async_tag::query_type::blocks_by_hash ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -600,17 +603,23 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 
 bool nano::bootstrap_ascending::request (nano::account & account, std::shared_ptr<nano::transport::channel> & channel)
 {
-	nano::account_info info;
-	nano::hash_or_account start = account;
+	async_tag tag{};
+	tag.id = generate_id ();
+	tag.account = account;
+	tag.time = nano::milliseconds_since_epoch ();
 
-	// std::cerr << boost::str (boost::format ("req account: %1%\n") % account.to_account ());
-	//  check if the account picked has blocks, if it does, start the pull from the highest block
-	if (!store.account.get (store.tx_begin_read (), account, info))
+	// Check if the account picked has blocks, if it does, start the pull from the highest block
+	auto info = store.account.get (store.tx_begin_read (), account);
+	if (info)
 	{
-		start = info.head;
+		tag.type = async_tag::query_type::blocks_by_hash;
+		tag.start = info->head;
 	}
-
-	const async_tag tag{ generate_id (), start, nano::milliseconds_since_epoch (), account };
+	else
+	{
+		tag.type = async_tag::query_type::blocks_by_account;
+		tag.start = account;
+	}
 
 	on_request.notify (tag, channel);
 
@@ -715,19 +724,29 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 		return;
 	}
 
-	if (verify (response, tag))
-	//	if (true)
+	auto result = verify (response, tag);
+	switch (result)
 	{
-		stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in, response.blocks.size ());
-
-		for (auto & block : response.blocks)
+		case verify_result::ok:
 		{
-			block_processor.add (block);
+			stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in, response.blocks.size ());
+
+			for (auto & block : response.blocks)
+			{
+				block_processor.add (block);
+			}
 		}
-	}
-	else
-	{
-		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::bad_sender);
+		break;
+		case verify_result::nothing_new:
+		{
+			// TODO: Decrease priority
+		}
+		break;
+		case verify_result::invalid:
+		{
+			// TODO: Stat & log
+		}
+		break;
 	}
 }
 
@@ -742,43 +761,59 @@ void nano::bootstrap_ascending::process (const nano::empty_payload & response, c
 	debug_assert (false, "empty payload");
 }
 
-bool nano::bootstrap_ascending::verify (const nano::asc_pull_ack::blocks_payload & response, const nano::bootstrap_ascending::async_tag & tag) const
+nano::bootstrap_ascending::verify_result nano::bootstrap_ascending::verify (const nano::asc_pull_ack::blocks_payload & response, const nano::bootstrap_ascending::async_tag & tag) const
 {
-	debug_assert (!response.blocks.empty ());
+	auto const & blocks = response.blocks;
 
-	auto first = response.blocks.front ();
-	// The `start` field should correspond to either previous block or account
-	if (first->hash () == tag.start)
+	if (blocks.empty ())
 	{
-		// Pass
+		return verify_result::nothing_new;
 	}
-	// Open & state blocks always contain account field
-	else if (first->account () == tag.start)
+	if (blocks.size () == 1 && blocks.front ()->hash () == tag.start)
 	{
-		// Pass
+		return verify_result::nothing_new;
 	}
-	else
+
+	auto const & first = blocks.front ();
+	switch (tag.type)
 	{
-		// TODO: Stat & log
-		//		std::cerr << "bad head" << std::endl;
-		return false; // Bad head block
+		case async_tag::query_type::blocks_by_hash:
+		{
+			if (first->hash () != tag.start)
+			{
+				// TODO: Stat & log
+				return verify_result::invalid;
+			}
+		}
+		break;
+		case async_tag::query_type::blocks_by_account:
+		{
+			// Open & state blocks always contain account field
+			if (first->account () != tag.start)
+			{
+				// TODO: Stat & log
+				return verify_result::invalid;
+			}
+		}
+		break;
+		default:
+			return verify_result::invalid;
 	}
 
 	// Verify blocks make a valid chain
-	nano::block_hash previous_hash = response.blocks.front ()->hash ();
-	for (int n = 1; n < response.blocks.size (); ++n)
+	nano::block_hash previous_hash = blocks.front ()->hash ();
+	for (int n = 1; n < blocks.size (); ++n)
 	{
-		auto & block = response.blocks[n];
+		auto & block = blocks[n];
 		if (block->previous () != previous_hash)
 		{
 			// TODO: Stat & log
-			//			std::cerr << "bad previous" << std::endl;
-			return false; // Blocks do not make a chain
+			return verify_result::invalid; // Blocks do not make a chain
 		}
 		previous_hash = block->hash ();
 	}
 
-	return true; // Pass verification
+	return verify_result::ok;
 }
 
 void nano::bootstrap_ascending::track (async_tag const & tag)

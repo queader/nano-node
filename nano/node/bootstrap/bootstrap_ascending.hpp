@@ -139,16 +139,14 @@ public:
 		iterator_t iter;
 
 	private:
-		class priority_entry
+		struct priority_entry
 		{
-		public:
 			nano::account account{ 0 };
 			float priority{ 0 };
 		};
 
-		class blocking_entry
+		struct blocking_entry
 		{
-		public:
 			nano::account account{ 0 };
 			nano::block_hash dependency{ 0 };
 			priority_entry original_entry{};
@@ -216,6 +214,15 @@ public:
 
 	struct async_tag
 	{
+		enum class query_type
+		{
+			invalid = 0, // Default initialization
+			blocks_by_hash,
+			blocks_by_account,
+			// TODO: account_info,
+		};
+
+		query_type type{ 0 };
 		id_t id{ 0 };
 		nano::hash_or_account start{ 0 };
 		nano::millis_t time{ 0 };
@@ -268,10 +275,17 @@ private:
 	 */
 	void process (nano::empty_payload const & response, async_tag const & tag);
 
+	enum class verify_result
+	{
+		ok,
+		nothing_new,
+		invalid,
+	};
+
 	/**
 	 * Verify that blocks response is valid
 	 */
-	bool verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
+	verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
 
 private:
 	void debug_log (const std::string &) const;
