@@ -74,7 +74,7 @@ private: // Dependencies
 	nano::stat & stats;
 
 public:
-	class async_tag;
+	using id_t = uint64_t;
 
 	/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 	class account_sets
@@ -99,7 +99,7 @@ public:
 		};
 
 	public:
-		explicit account_sets (nano::stat &, nano::store & store);
+		account_sets (nano::stat &, nano::store & store);
 
 		void priority_up (nano::account const & account, float increase = account_sets::priority_increase);
 		void priority_down (nano::account const & account);
@@ -150,19 +150,24 @@ public:
 		{
 			nano::account account{ 0 };
 			float priority{ 0 };
+
+			id_t id{ 0 }; // Uniformly distributed, used for random querying
+
+			priority_entry (nano::account account, float priority);
 		};
 
 		struct blocking_entry
 		{
 			nano::account account{ 0 };
 			nano::block_hash dependency{ 0 };
-			priority_entry original_entry{};
+			priority_entry original_entry{ 0, 0 };
 		};
 
 		// clang-format off
 		class tag_account {};
 		class tag_priority {};
 		class tag_sequenced {};
+		class tag_id {};
 
 		// Tracks the ongoing account priorities
 		// This only stores account priorities > 1.0f.
@@ -174,7 +179,9 @@ public:
 			mi::ordered_unique<mi::tag<tag_account>,
 				mi::member<priority_entry, nano::account, &priority_entry::account>>,
 			mi::ordered_non_unique<mi::tag<tag_priority>,
-				mi::member<priority_entry, float, &priority_entry::priority>>
+				mi::member<priority_entry, float, &priority_entry::priority>>,
+			mi::ordered_unique<mi::tag<tag_id>,
+				mi::member<priority_entry, bootstrap_ascending::id_t, &priority_entry::id>>
 		>>;
 
 		// A blocked account is an account that has failed to insert a block because the source block is gapped.
@@ -216,8 +223,6 @@ public:
 	};
 
 	account_sets::info_t info () const;
-
-	using id_t = uint64_t;
 
 	struct async_tag
 	{
@@ -263,7 +268,6 @@ private:
 	 */
 	nano::account wait_available_account ();
 
-	id_t generate_id () const;
 	bool request_one ();
 	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
@@ -293,6 +297,8 @@ private:
 	 * Verify that blocks response is valid
 	 */
 	verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
+
+	static id_t generate_id ();
 
 private:
 	void debug_log (const std::string &) const;

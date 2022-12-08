@@ -71,7 +71,7 @@ void nano::bootstrap_ascending::account_sets::dump () const
 	std::cerr << boost::str (boost::format ("Blocking: %1%\n") % blocking.size ());
 	std::deque<size_t> weight_counts;
 	float max = 0.0f;
-	for (auto const & [account, priority] : priorities)
+	for (auto const & [account, priority, _] : priorities)
 	{
 		auto count = std::log2 (std::max (priority, 1.0f));
 		if (weight_counts.size () <= count)
@@ -156,7 +156,7 @@ void nano::bootstrap_ascending::account_sets::block (nano::account const & accou
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
 
 	auto existing = priorities.get<tag_account> ().find (account);
-	auto entry = existing == priorities.get<tag_account> ().end () ? priority_entry{} : *existing;
+	auto entry = existing == priorities.get<tag_account> ().end () ? priority_entry{ 0, 0 } : *existing;
 
 	priorities.get<tag_account> ().erase (account);
 	blocking.get<tag_account> ().insert ({ account, dependency, entry });
@@ -233,12 +233,12 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority (account_qu
 	{
 		debug_assert (candidates.size () == weights.size ());
 
-		nano::account search;
-		nano::random_pool::generate_block (search.bytes.data (), search.bytes.size ());
-		auto iter = priorities.get<tag_account> ().lower_bound (search);
-		if (iter == priorities.get<tag_account> ().end ())
+		// Use a dedicated, uniformly distributed field for sampling to avoid problematic corner case when accounts in the queue are very close together
+		auto search = bootstrap_ascending::generate_id ();
+		auto iter = priorities.get<tag_id> ().lower_bound (search);
+		if (iter == priorities.get<tag_id> ().end ())
 		{
-			iter = priorities.get<tag_account> ().begin ();
+			iter = priorities.get<tag_id> ().begin ();
 		}
 
 		if (!query (iter->account))
@@ -316,6 +316,17 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::accou
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "priorities", priorities.size (), sizeof (decltype (priorities)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocking", blocking.size (), sizeof (decltype (blocking)::value_type) }));
 	return composite;
+}
+
+/*
+ * priority_entry
+ */
+
+nano::bootstrap_ascending::account_sets::priority_entry::priority_entry (nano::account account_a, float priority_a) :
+	account{ account_a },
+	priority{ priority_a }
+{
+	id = nano::bootstrap_ascending::generate_id ();
 }
 
 /*
@@ -405,7 +416,7 @@ void nano::bootstrap_ascending::priority_down (nano::account const & account_a)
 	accounts.priority_down (account_a);
 }
 
-uint64_t nano::bootstrap_ascending::generate_id () const
+nano::bootstrap_ascending::id_t nano::bootstrap_ascending::generate_id ()
 {
 	id_t id;
 	nano::random_pool::generate_block (reinterpret_cast<uint8_t *> (&id), sizeof (id));
