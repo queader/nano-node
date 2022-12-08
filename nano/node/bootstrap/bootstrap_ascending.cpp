@@ -379,25 +379,19 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 nano::bootstrap_ascending::~bootstrap_ascending ()
 {
 	// All threads must be stopped before destruction
-	debug_assert (threads.empty ());
+	debug_assert (!thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 }
 
 void nano::bootstrap_ascending::start ()
 {
-	debug_assert (threads.empty ());
+	debug_assert (!thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 
-	// TODO: Use value read from node config
-	const std::size_t thread_count = 2;
-
-	for (int n = 0; n < thread_count; ++n)
-	{
-		threads.emplace_back ([this] () {
-			nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
-			run ();
-		});
-	}
+	thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
+		run ();
+	});
 
 	timeout_thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
@@ -408,14 +402,7 @@ void nano::bootstrap_ascending::start ()
 void nano::bootstrap_ascending::stop ()
 {
 	stopped = true;
-
-	for (auto & thread : threads)
-	{
-		debug_assert (thread.joinable ());
-		thread.join ();
-	}
-	threads.clear ();
-
+	nano::join_or_pass (thread);
 	nano::join_or_pass (timeout_thread);
 }
 

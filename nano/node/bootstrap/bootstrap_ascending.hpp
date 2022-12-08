@@ -327,7 +327,7 @@ private:
 	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;
 	mutable nano::condition_variable condition;
-	std::vector<std::thread> threads;
+	std::thread thread;
 	std::thread timeout_thread;
 
 private: // Stats
