@@ -106,6 +106,7 @@ public:
 		void priority_dec (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
 		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash);
+
 		/**
 		 * Selects a random account from either:
 		 * 1) The priority set in memory
@@ -114,7 +115,7 @@ public:
 		 * Creates consideration set of "consideration_count" items and returns on randomly weighted by priority
 		 * Half are considered from the "priorities" container, half are considered from the ledger.
 		 */
-		nano::account random ();
+		nano::account next ();
 
 	public:
 		bool blocked (nano::account const & account) const;
@@ -124,6 +125,9 @@ public:
 		void dump () const;
 
 	private:
+		nano::account next_priority ();
+		nano::account next_database ();
+
 		void trim_overflow ();
 
 	public: // Container info

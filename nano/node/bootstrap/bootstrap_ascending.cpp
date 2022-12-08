@@ -211,17 +211,27 @@ void nano::bootstrap_ascending::account_sets::trim_overflow ()
 	}
 }
 
-nano::account nano::bootstrap_ascending::account_sets::random ()
+nano::account nano::bootstrap_ascending::account_sets::next ()
 {
-	if (priorities.empty ())
+	if (!priorities.empty ())
 	{
-		auto tx = store.tx_begin_read ();
-		iter.next (tx);
-		// std::cerr << "Disk: " << (*iter).to_account () << '\n';
-		return *iter;
+		return next_priority ();
 	}
+	else
+	{
+		return next_database ();
+	}
+}
+
+nano::account nano::bootstrap_ascending::account_sets::next_priority ()
+{
+	debug_assert (!priorities.empty ());
+
+	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_priority);
+
 	std::vector<float> weights;
 	std::vector<nano::account> candidates;
+
 	while (candidates.size () < account_sets::consideration_count)
 	{
 		debug_assert (candidates.size () == weights.size ());
@@ -235,12 +245,20 @@ nano::account nano::bootstrap_ascending::account_sets::random ()
 		candidates.push_back (iter->account);
 		weights.push_back (iter->priority);
 	}
+
 	std::discrete_distribution dist{ weights.begin (), weights.end () };
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
 	auto result = candidates[selection];
 	priority_dec (result);
 	return result;
+}
+
+nano::account nano::bootstrap_ascending::account_sets::next_database ()
+{
+	auto tx = store.tx_begin_read ();
+	iter.next (tx);
+	return *iter;
 }
 
 bool nano::bootstrap_ascending::account_sets::blocked (nano::account const & account) const
@@ -551,7 +569,7 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
 
-		auto account = accounts.random ();
+		auto account = accounts.next ();
 		auto existing = account_stats.get<tag_account> ().find (account);
 		if (existing == account_stats.end ())
 		{
