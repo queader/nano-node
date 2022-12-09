@@ -66,31 +66,6 @@ nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nan
 {
 }
 
-void nano::bootstrap_ascending::account_sets::dump () const
-{
-	std::cerr << boost::str (boost::format ("Blocking: %1%\n") % blocking.size ());
-	std::deque<size_t> weight_counts;
-	float max = 0.0f;
-	for (auto const & entry : priorities)
-	{
-		auto count = std::log2 (std::max (entry.priority, 1.0f));
-		if (weight_counts.size () <= count)
-		{
-			weight_counts.resize (count + 1);
-		}
-		++weight_counts[count];
-		max = std::max (max, entry.priority);
-	}
-	std::string output;
-	output += "Priorities hist (max: " + std::to_string (max) + " size: " + std::to_string (priorities.size ()) + "): ";
-	for (size_t i = 0, n = weight_counts.size (); i < n; ++i)
-	{
-		output += std::to_string (weight_counts[i]) + ' ';
-	}
-	output += '\n';
-	std::cerr << output;
-}
-
 void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account, float increase)
 {
 	if (!blocked (account))
@@ -237,11 +212,11 @@ nano::account nano::bootstrap_ascending::account_sets::next ()
 {
 	if (!priorities.empty ())
 	{
-		return next_priority (query);
+		return next_priority ();
 	}
 	else
 	{
-		return next_database (query);
+		return next_database ();
 	}
 }
 
@@ -283,9 +258,6 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority ()
 	auto selection = dist (rng);
 	debug_assert (!weights.empty () && selection < weights.size ());
 	auto result = candidates[selection];
-
-	//	priority_dec (result); // TODO: Is this really needed?
-
 	return result;
 }
 
@@ -373,34 +345,20 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
 	block_processor.batch_processed.add ([this] (auto const & batch) {
-		nano::unique_lock<nano::mutex> lock{ mutex };
-
-		auto transaction = store.tx_begin_read ();
-		for (auto const & [result, block] : batch)
 		{
-			debug_assert (block != nullptr);
+			nano::lock_guard<nano::mutex> lock{ mutex };
 
-			inspect (transaction, result, *block);
+			auto transaction = store.tx_begin_read ();
+			for (auto const & [result, block] : batch)
+			{
+				debug_assert (block != nullptr);
+
+				inspect (transaction, result, *block);
+			}
 		}
-
-		lock.unlock ();
 
 		condition.notify_all ();
 	});
-
-	//	on_timeout.add ([this] (auto tag) {
-	//		std::cout << "timeout: " << tag.id
-	//				  << " | "
-	//				  << "count: " << tags.size ()
-	//				  << std::endl;
-	//	});
-	//
-	//	on_request.add ([this] (auto tag, auto channel) {
-	//		std::cout << "requesting: " << tag.id
-	//				  << " | "
-	//				  << "channel: " << channel->to_string ()
-	//				  << std::endl;
-	//	});
 }
 
 nano::bootstrap_ascending::~bootstrap_ascending ()
@@ -433,18 +391,6 @@ void nano::bootstrap_ascending::stop ()
 	nano::join_or_pass (timeout_thread);
 }
 
-void nano::bootstrap_ascending::priority_up (nano::account const & account_a)
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	accounts.priority_up (account_a);
-}
-
-void nano::bootstrap_ascending::priority_down (nano::account const & account_a)
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	accounts.priority_down (account_a);
-}
-
 nano::bootstrap_ascending::id_t nano::bootstrap_ascending::generate_id ()
 {
 	id_t id;
@@ -470,18 +416,8 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
 
-	//		std::cout << "requesting: " << std::setw (28) << tag.id
-	//			  << " | "
-	//			  << "channel: " << channel->to_string ()
-	//			  << std::endl;
-
 	channel->send (
-	request, [this, tag] (boost::system::error_code const & ec, std::size_t size) {
-		if (ec)
-		{
-			std::cerr << "send error: " << ec.message () << std::endl;
-		}
-	},
+	request, nullptr,
 	nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
 }
 
@@ -548,24 +484,13 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 
 			// Mark account as blocked because it is missing the source block
 			accounts.block (account, source);
+
+			// TODO: Track stats
 		}
 		break;
 		case nano::process_result::old:
 		{
-			auto account = ledger.account (tx, hash);
-			// std::cerr << boost::str (boost::format ("old account: %1%\n") % account.to_account ());
-
-			auto existing = account_stats.get<tag_account> ().find (account);
-			if (existing == account_stats.end ())
-			{
-				account_stats.insert ({ account, 1, 0 });
-			}
-			else
-			{
-				account_stats.modify (existing, [] (auto & item) {
-					item.old += 1;
-				});
-			}
+			// TODO: Track stats
 		}
 		break;
 		case nano::process_result::gap_previous:
@@ -626,31 +551,6 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 		if (!account.is_zero ())
 		{
 			accounts.timestamp (account);
-
-			// Stats
-			auto existing = account_stats.get<tag_account> ().find (account);
-			if (existing == account_stats.end ())
-			{
-				account_stats.insert ({ account, 0, 1 });
-			}
-			else
-			{
-				account_stats.modify (existing, [] (auto & item) {
-					item.request += 1;
-				});
-			}
-
-			static int count = 0;
-			if (count++ % 100'000 == 0)
-			{
-				accounts.dump ();
-				auto count = 0;
-				for (auto i = account_stats.get<tag_old_count> ().rbegin (), n = account_stats.get<tag_old_count> ().rend (); i != n && count < 100; ++i, ++count)
-				{
-					std::cerr << boost::str (boost::format ("%1% : %2% : %3%\n") % i->account.to_account () % std::to_string (i->old) % std::to_string (i->request));
-				}
-			}
-
 			return account;
 		}
 
@@ -759,9 +659,7 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack & message)
 		lock.unlock ();
 
 		on_reply.notify (tag);
-
 		condition.notify_all ();
-
 		std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
 	}
 	else
@@ -878,12 +776,8 @@ void nano::bootstrap_ascending::track (async_tag const & tag)
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::track);
 
 	nano::lock_guard<nano::mutex> lock{ mutex };
+	debug_assert (tags.get<tag_id> ().count (tag.id) == 0);
 	tags.get<tag_id> ().insert (tag);
-}
-
-void nano::bootstrap_ascending::debug_log (const std::string & s) const
-{
-	std::cerr << s << std::endl;
 }
 
 auto nano::bootstrap_ascending::info () const -> account_sets::info_t

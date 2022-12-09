@@ -31,31 +31,14 @@ namespace transport
 
 class bootstrap_ascending
 {
+	using id_t = uint64_t;
+
 public:
 	bootstrap_ascending (nano::node &, nano::store &, nano::block_processor &, nano::ledger &, nano::network &, nano::stat &);
 	~bootstrap_ascending ();
 
 	void start ();
 	void stop ();
-
-	/**
-	 * If an account is not blocked, increase its priority.
-	 * Priority is increased whether it is in the normal priority set, or it is currently blocked and in the blocked set.
-	 * Current implementation increases priority by 1.0f each increment
-	 */
-	void priority_up (nano::account const & account_a);
-	/**
-	 * Decreases account priority
-	 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
-	 */
-	void priority_down (nano::account const & account_a);
-
-	/**
-	 * Inspects a block that has been processed by the block processor
-	 * - Marks an account as blocked if the result code is gap source as there is no reason request additional blocks for this account until the dependency is resolved
-	 * - Marks an account as forwarded if it has been recently referenced by a block that has been inserted.
-	 */
-	void inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
 
 	/**
 	 * Process `asc_pull_ack` message coming from network
@@ -75,9 +58,73 @@ private: // Dependencies
 	nano::network & network;
 	nano::stat & stats;
 
-public:
-	using id_t = uint64_t;
+public: // async_tag
+	struct async_tag
+	{
+		enum class query_type
+		{
+			invalid = 0, // Default initialization
+			blocks_by_hash,
+			blocks_by_account,
+			// TODO: account_info,
+		};
 
+		query_type type{ 0 };
+		id_t id{ 0 };
+		nano::hash_or_account start{ 0 };
+		nano::millis_t time{ 0 };
+		nano::account account{ 0 };
+	};
+
+public: // Events
+	nano::observer_set<async_tag const &, std::shared_ptr<nano::transport::channel> &> on_request;
+	nano::observer_set<async_tag const &> on_reply;
+	nano::observer_set<async_tag const &> on_timeout;
+
+private:
+	/* Inspects a block that has been processed by the block processor */
+	void inspect (nano::transaction const &, nano::process_return const & result, nano::block const & block);
+
+	void run ();
+	void run_timeouts ();
+
+	/* Limits the number of requests per second we make */
+	void wait_available_request ();
+	/* Throttles requesting new blocks, not to overwhelm blockprocessor */
+	void wait_blockprocessor ();
+	/* Waits for channel with free capacity for bootstrap messages */
+	std::shared_ptr<nano::transport::channel> wait_available_channel ();
+	std::shared_ptr<nano::transport::channel> available_channel ();
+	/* Waits until a suitable account outside of cool down period is available */
+	nano::account wait_available_account ();
+
+	bool request_one ();
+	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
+	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
+	void track (async_tag const & tag);
+
+	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
+	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
+	void process (nano::empty_payload const & response, async_tag const & tag);
+
+	enum class verify_result
+	{
+		ok,
+		nothing_new,
+		invalid,
+	};
+
+	/**
+	 * Verifies whether the received response is valid. Returns:
+	 * - invalid: when received blocks do not correspond to requested hash/account or they do not make a valid chain
+	 * - nothing_new: when received response indicates that the account chain does not have more blocks
+	 * - ok: otherwise, if all checks pass
+	 */
+	verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
+
+	static id_t generate_id ();
+
+public: // account_sets
 	/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 	class account_sets
 	{
@@ -103,21 +150,21 @@ public:
 	public:
 		account_sets (nano::stat &, nano::store & store);
 
+		/**
+		 * If an account is not blocked, increase its priority.
+		 * If the account does not exist in priority set and is not blocked, inserts a new entry.
+		 * Current implementation increases priority by 1.0f each increment
+		 */
 		void priority_up (nano::account const & account, float increase = account_sets::priority_increase);
+		/**
+		 * Decreases account priority
+		 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
+		 */
 		void priority_down (nano::account const & account);
 		void priority_dec (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
 		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
 		void timestamp (nano::account const & account, bool reset = false);
-
-		/**
-		 * Selects a random account from either:
-		 * 1) The priority set in memory
-		 * 2) The accounts in the ledger
-		 * 3) Pending entries in the ledger
-		 * Creates consideration set of "consideration_count" items and returns on randomly weighted by priority
-		 * Half are considered from the "priorities" container, half are considered from the ledger.
-		 */
 
 		nano::account next ();
 
@@ -125,8 +172,14 @@ public:
 		bool blocked (nano::account const & account) const;
 		std::size_t priority_size () const;
 		std::size_t blocked_size () const;
+		/**
+		 * Accounts in the ledger but not in priority list are assumed priority 1.0f
+		 * Blocked accounts are assumed priority 0.0f
+		 */
 		float priority (nano::account const & account) const;
-		void dump () const;
+
+	public: // Container info
+		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
 	private:
 		nano::account next_priority ();
@@ -134,9 +187,6 @@ public:
 
 		void trim_overflow ();
 		bool check_timestamp (nano::account const & account) const;
-
-	public: // Container info
-		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
 	private: // Dependencies
 		nano::stat & stats;
@@ -169,8 +219,6 @@ public:
 
 		// Tracks the ongoing account priorities
 		// This only stores account priorities > 1.0f.
-		// Accounts in the ledger but not in this list are assumed priority 1.0f.
-		// Blocked accounts are assumed priority 0.0f
 		using ordered_priorities = boost::multi_index_container<priority_entry,
 		mi::indexed_by<
 			mi::sequenced<mi::tag<tag_sequenced>>,
@@ -182,9 +230,8 @@ public:
 				mi::member<priority_entry, bootstrap_ascending::id_t, &priority_entry::id>>
 		>>;
 
-		// A blocked account is an account that has failed to insert a block because the source block is gapped.
-		// An account is unblocked once it has a block successfully inserted.
-		// Maps "blocked account" -> ["blocked hash", "Priority count"]
+		// A blocked account is an account that has failed to insert a new block because the source block is not currently present in the ledger
+		// An account is unblocked once it has a block successfully inserted
 		using ordered_blocking = boost::multi_index_container<blocking_entry,
 		mi::indexed_by<
 			mi::sequenced<mi::tag<tag_sequenced>>,
@@ -196,14 +243,18 @@ public:
 		ordered_priorities priorities;
 		ordered_blocking blocking;
 
+		std::default_random_engine rng;
+
 	private:
-		static std::size_t constexpr consideration_count = 2;
+		static std::size_t constexpr consideration_count = 4;
+
 		static std::size_t constexpr priorities_max = 64 * 1024;
+		//		static std::size_t constexpr priorities_max = 64 * 1024 * 1024;
+
 		static std::size_t constexpr blocking_max = 64 * 1024;
+		//		static std::size_t constexpr blocking_max = 64 * 1024 * 1024;
 
 		static nano::millis_t constexpr cooldown = 3 * 1000;
-
-		std::default_random_engine rng;
 
 	public: // Consts
 		static float constexpr priority_initial = 1.4f;
@@ -215,90 +266,10 @@ public:
 
 	public:
 		using info_t = std::tuple<decltype (blocking), decltype (priorities)>; // <blocking, priorities>
-
 		info_t info () const;
 	};
 
 	account_sets::info_t info () const;
-
-	struct async_tag
-	{
-		enum class query_type
-		{
-			invalid = 0, // Default initialization
-			blocks_by_hash,
-			blocks_by_account,
-			// TODO: account_info,
-		};
-
-		query_type type{ 0 };
-		id_t id{ 0 };
-		nano::hash_or_account start{ 0 };
-		nano::millis_t time{ 0 };
-		nano::account account{ 0 };
-	};
-
-public: // Events
-	nano::observer_set<async_tag const &, std::shared_ptr<nano::transport::channel> &> on_request;
-	nano::observer_set<async_tag const &> on_reply;
-	nano::observer_set<async_tag const &> on_timeout;
-
-private:
-	void run ();
-	void run_timeouts ();
-
-	/**
-	 * Limits the number of parallel requests we make
-	 */
-	void wait_available_request ();
-	/**
-	 * Throttle receiving new blocks, not to overwhelm blockprocessor
-	 */
-	void wait_blockprocessor ();
-	/**
-	 * Waits for channel with free capacity for bootstrap messages
-	 */
-	std::shared_ptr<nano::transport::channel> wait_available_channel ();
-	std::shared_ptr<nano::transport::channel> available_channel ();
-	/**
-	 * Waits until a suitable account outside of cooldown period is available
-	 */
-	nano::account wait_available_account ();
-
-	bool request_one ();
-	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
-	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
-	void track (async_tag const & tag);
-
-	/**
-	 * Process blocks response
-	 */
-	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
-	/**
-	 * Process account info response
-	 */
-	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
-	/**
-	 * Handle empty payload response
-	 */
-	void process (nano::empty_payload const & response, async_tag const & tag);
-
-	enum class verify_result
-	{
-		ok,
-		nothing_new,
-		invalid,
-	};
-
-	/**
-	 * Verify that blocks response is valid
-	 */
-	verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
-
-	static id_t generate_id ();
-
-private:
-	void debug_log (const std::string &) const;
 
 private:
 	account_sets accounts;
@@ -327,31 +298,10 @@ private:
 	std::thread thread;
 	std::thread timeout_thread;
 
-private: // Stats
-	class old_t
-	{
-	public:
-		nano::account account;
-		int old;
-		int request;
-	};
-	class tag_old_count
-	{
-	};
-	class tag_request_count
-	{
-	};
-	boost::multi_index_container<old_t,
-	mi::indexed_by<
-	mi::hashed_unique<mi::tag<tag_account>, mi::member<old_t, nano::account, &old_t::account>>,
-	mi::ordered_non_unique<mi::tag<tag_old_count>, mi::member<old_t, int, &old_t::old>>,
-	mi::ordered_non_unique<mi::tag<tag_request_count>, mi::member<old_t, int, &old_t::request>>>>
-	account_stats;
-
 private:
 	//	static std::size_t constexpr requests_limit{ 1024 };
 	static std::size_t constexpr requests_limit{ 1024 * 16 };
-	
+
 	static float constexpr requests_burst_ratio{ 2.0f };
 
 	//	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
