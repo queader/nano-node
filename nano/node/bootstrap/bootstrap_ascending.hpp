@@ -108,6 +108,7 @@ public:
 		void priority_dec (nano::account const & account);
 		void block (nano::account const & account, nano::block_hash const & dependency);
 		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
+		void timestamp (nano::account const & account, bool reset = false);
 
 		/**
 		 * Selects a random account from either:
@@ -118,13 +119,7 @@ public:
 		 * Half are considered from the "priorities" container, half are considered from the ledger.
 		 */
 
-		/**
-		 * Returns whether account has any existing queries in progress
-		 * @return true if present, false otherwise
-		 */
-		using account_query_t = std::function<bool (nano::account const &)>;
-
-		nano::account next (account_query_t const &);
+		nano::account next ();
 
 	public:
 		bool blocked (nano::account const & account) const;
@@ -134,10 +129,11 @@ public:
 		void dump () const;
 
 	private:
-		nano::account next_priority (account_query_t const &);
-		nano::account next_database (account_query_t const &);
+		nano::account next_priority ();
+		nano::account next_database ();
 
 		void trim_overflow ();
+		bool check_timestamp (nano::account const & account) const;
 
 	public: // Container info
 		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
@@ -152,7 +148,7 @@ public:
 		{
 			nano::account account{ 0 };
 			float priority{ 0 };
-
+			nano::millis_t timestamp{ 0 };
 			id_t id{ 0 }; // Uniformly distributed, used for random querying
 
 			priority_entry (nano::account account, float priority);
@@ -205,12 +201,9 @@ public:
 		static std::size_t constexpr priorities_max = 64 * 1024;
 		static std::size_t constexpr blocking_max = 64 * 1024;
 
-		std::default_random_engine rng;
+		static nano::millis_t constexpr cooldown = 3 * 1000;
 
-		/**
-		 * Minimum time between subsequent request for the same account
-		 */
-		static nano::millis_t constexpr cooldown = 1000;
+		std::default_random_engine rng;
 
 	public: // Consts
 		static float constexpr priority_initial = 1.4f;
@@ -320,7 +313,7 @@ private:
 		mi::sequenced<mi::tag<tag_sequenced>>,
 		mi::hashed_unique<mi::tag<tag_id>,
 			mi::member<async_tag, id_t, &async_tag::id>>,
-		mi::hashed_unique<mi::tag<tag_account>,
+		mi::hashed_non_unique<mi::tag<tag_account>,
 			mi::member<async_tag, nano::account , &async_tag::account>>
 	>>;
 	// clang-format on
@@ -363,5 +356,7 @@ private:
 
 	//	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
 	static std::size_t constexpr pull_count{ 32 };
+
+	static nano::millis_t constexpr timeout{ 1000 * 3 };
 };
 }
