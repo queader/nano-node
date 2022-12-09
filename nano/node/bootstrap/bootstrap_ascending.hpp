@@ -2,7 +2,9 @@
 
 #include <nano/lib/observer_set.hpp>
 #include <nano/lib/timer.hpp>
+#include <nano/node/bandwidth_limiter.hpp>
 #include <nano/node/bootstrap/bootstrap_attempt.hpp>
+#include <nano/node/bootstrap/bootstrap_server.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/member.hpp>
@@ -255,11 +257,11 @@ private:
 	/**
 	 * Limits the number of parallel requests we make
 	 */
-	void wait_available_request () const;
+	void wait_available_request ();
 	/**
 	 * Throttle receiving new blocks, not to overwhelm blockprocessor
 	 */
-	void wait_blockprocessor () const;
+	void wait_blockprocessor ();
 	/**
 	 * Waits for channel with free capacity for bootstrap messages
 	 */
@@ -324,6 +326,8 @@ private:
 	// clang-format on
 	ordered_tags tags;
 
+	nano::rate_limiter limiter;
+
 	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;
 	mutable nano::condition_variable condition;
@@ -352,8 +356,12 @@ private: // Stats
 	account_stats;
 
 private:
-	//		static std::size_t constexpr requests_max = 16;
-	//	static std::size_t constexpr requests_max = 1024;
-	static std::size_t constexpr requests_max = 2;
+	//	static std::size_t constexpr requests_limit{ 1024 };
+	static std::size_t constexpr requests_limit{ 1024 * 16 };
+	
+	static float constexpr requests_burst_ratio{ 2.0f };
+
+	//	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
+	static std::size_t constexpr pull_count{ 32 };
 };
 }

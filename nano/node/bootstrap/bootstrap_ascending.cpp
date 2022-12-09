@@ -342,7 +342,8 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	ledger{ ledger_a },
 	network{ network_a },
 	stats{ stat_a },
-	accounts{ stats, store_a }
+	accounts{ stats, store_a },
+	limiter{ requests_limit, requests_burst_ratio }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
 	block_processor.batch_processed.add ([this] (auto const & batch) {
@@ -435,7 +436,7 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 
 	nano::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = tag.start;
-	request_payload.count = nano::bootstrap_server::max_blocks;
+	request_payload.count = pull_count;
 	request_payload.start_type = tag.type == async_tag::query_type::blocks_by_hash ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
 
 	request.payload = request_payload;
@@ -550,7 +551,7 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 	}
 }
 
-void nano::bootstrap_ascending::wait_blockprocessor () const
+void nano::bootstrap_ascending::wait_blockprocessor ()
 {
 	while (!stopped && block_processor.half_full ())
 	{
@@ -558,10 +559,12 @@ void nano::bootstrap_ascending::wait_blockprocessor () const
 	}
 }
 
-void nano::bootstrap_ascending::wait_available_request () const
+void nano::bootstrap_ascending::wait_available_request ()
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	condition.wait (lock, [this] () { return stopped || tags.size () < requests_max; });
+	while (!stopped && !limiter.should_pass ())
+	{
+		std::this_thread::sleep_for (50ms); // Give it at least some time to cooldown to avoid hitting the limit too frequently
+	}
 }
 
 std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::available_channel ()
