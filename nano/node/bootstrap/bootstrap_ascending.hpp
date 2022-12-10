@@ -128,25 +128,6 @@ public: // account_sets
 	/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 	class account_sets
 	{
-		class iterator_t
-		{
-			enum class table_t
-			{
-				account,
-				pending
-			};
-
-		public:
-			iterator_t (nano::store & store);
-			nano::account operator* () const;
-			void next (nano::transaction & tx);
-
-		private:
-			nano::store & store;
-			nano::account current{ 0 };
-			table_t table{ table_t::account };
-		};
-
 	public:
 		account_sets (nano::stat &, nano::store & store);
 
@@ -191,7 +172,48 @@ public: // account_sets
 	private: // Dependencies
 		nano::stat & stats;
 		nano::store & store;
-		iterator_t iter;
+
+	private: // Iterators
+		class database_iterator
+		{
+		public:
+			enum class table_type
+			{
+				account,
+				pending
+			};
+
+			database_iterator (nano::store & store, table_type);
+			nano::account operator* () const;
+			void next (nano::transaction & tx);
+
+		private:
+			nano::store & store;
+			nano::account current{ 0 };
+			const table_type table;
+		};
+
+		class buffered_iterator
+		{
+		public:
+			buffered_iterator (nano::store & store);
+			nano::account operator* () const;
+			void next ();
+
+		private:
+			void fill ();
+
+		private:
+			nano::store & store;
+			std::deque<nano::account> buffer;
+
+			database_iterator accounts_iterator;
+			database_iterator pending_iterator;
+
+			static std::size_t constexpr size = 1024;
+		};
+
+		buffered_iterator iterator;
 
 	private:
 		struct priority_entry

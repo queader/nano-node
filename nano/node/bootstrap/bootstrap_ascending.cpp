@@ -9,24 +9,25 @@
 using namespace std::chrono_literals;
 
 /*
- * account_sets
+ * database_iterator
  */
 
-nano::bootstrap_ascending::account_sets::iterator_t::iterator_t (nano::store & store) :
-	store{ store }
+nano::bootstrap_ascending::account_sets::database_iterator::database_iterator (nano::store & store_a, table_type table_a) :
+	store{ store_a },
+	table{ table_a }
 {
 }
 
-nano::account nano::bootstrap_ascending::account_sets::iterator_t::operator* () const
+nano::account nano::bootstrap_ascending::account_sets::database_iterator::operator* () const
 {
 	return current;
 }
 
-void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transaction & tx)
+void nano::bootstrap_ascending::account_sets::database_iterator::next (nano::transaction & tx)
 {
 	switch (table)
 	{
-		case table_t::account:
+		case table_type::account:
 		{
 			auto i = current.number () + 1;
 			auto item = store.account.begin (tx, i);
@@ -36,12 +37,11 @@ void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transactio
 			}
 			else
 			{
-				table = table_t::pending;
 				current = { 0 };
 			}
 			break;
 		}
-		case table_t::pending:
+		case table_type::pending:
 		{
 			auto i = current.number () + 1;
 			auto item = store.pending.begin (tx, nano::pending_key{ i, 0 });
@@ -51,7 +51,6 @@ void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transactio
 			}
 			else
 			{
-				table = table_t::account;
 				current = { 0 };
 			}
 			break;
@@ -59,10 +58,68 @@ void nano::bootstrap_ascending::account_sets::iterator_t::next (nano::transactio
 	}
 }
 
-nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nano::store & store) :
+/*
+ * buffered_iterator
+ */
+
+nano::bootstrap_ascending::account_sets::buffered_iterator::buffered_iterator (nano::store & store_a) :
+	store{ store_a },
+	accounts_iterator{ store, database_iterator::table_type::account },
+	pending_iterator{ store, database_iterator::table_type::pending }
+{
+}
+
+nano::account nano::bootstrap_ascending::account_sets::buffered_iterator::operator* () const
+{
+	return !buffer.empty () ? buffer.front () : nano::account{ 0 };
+}
+
+void nano::bootstrap_ascending::account_sets::buffered_iterator::next ()
+{
+	if (!buffer.empty ())
+	{
+		buffer.pop_front ();
+	}
+	else
+	{
+		fill ();
+	}
+}
+
+void nano::bootstrap_ascending::account_sets::buffered_iterator::fill ()
+{
+	debug_assert (buffer.empty ());
+
+	// Fill half from accounts table and half from pending table
+	auto transaction = store.tx_begin_read ();
+
+	for (int n = 0; n < size / 2; ++n)
+	{
+		accounts_iterator.next (transaction);
+		if (!(*accounts_iterator).is_zero ())
+		{
+			buffer.push_back (*accounts_iterator);
+		}
+	}
+
+	for (int n = 0; n < size / 2; ++n)
+	{
+		pending_iterator.next (transaction);
+		if (!(*pending_iterator).is_zero ())
+		{
+			buffer.push_back (*pending_iterator);
+		}
+	}
+}
+
+/*
+ * account_sets
+ */
+
+nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nano::store & store_a) :
 	stats{ stats_a },
-	store{ store },
-	iter{ store }
+	store{ store_a },
+	iterator{ store }
 {
 }
 
@@ -212,19 +269,22 @@ nano::account nano::bootstrap_ascending::account_sets::next ()
 {
 	if (!priorities.empty ())
 	{
-		return next_priority ();
+		auto account = next_priority ();
+		// If zero account is returned then all accounts in priority queue are inside cooldown period
+		if (!account.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_priority);
+			return account;
+		}
 	}
-	else
-	{
-		return next_database ();
-	}
+
+	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_database);
+	return next_database ();
 }
 
 nano::account nano::bootstrap_ascending::account_sets::next_priority ()
 {
 	debug_assert (!priorities.empty ());
-
-	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_priority);
 
 	std::vector<float> weights;
 	std::vector<nano::account> candidates;
@@ -263,15 +323,14 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority ()
 
 nano::account nano::bootstrap_ascending::account_sets::next_database ()
 {
-	auto tx = store.tx_begin_read ();
 	do
 	{
-		iter.next (tx);
-		if (check_timestamp (*iter))
+		iterator.next ();
+		if (check_timestamp (*iterator))
 		{
-			return *iter;
+			return *iterator;
 		}
-	} while (!(*iter).is_zero ());
+	} while (!(*iterator).is_zero ());
 
 	return { 0 };
 }
@@ -791,6 +850,7 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::colle
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "tags", tags.size (), sizeof (decltype (tags)::value_type) }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
 	return composite;
 }
