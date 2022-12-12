@@ -40,7 +40,7 @@ public:
 	bool exists (nano::unchecked_key const & key) const;
 	void del (nano::unchecked_key const & key);
 	void clear ();
-	size_t count () const;
+	std::size_t count () const;
 	void stop ();
 	void flush ();
 
@@ -68,7 +68,7 @@ private:
 
 	void process_queries (decltype (buffer) const & back_buffer);
 
-	static size_t constexpr mem_block_count_max = 1024 * 1024;
+	static std::size_t constexpr mem_block_count_max = 64 * 1024;
 
 private: // In memory store
 	class entry

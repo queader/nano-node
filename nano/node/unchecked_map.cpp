@@ -79,7 +79,7 @@ void nano::unchecked_map::clear ()
 	entries.clear ();
 }
 
-size_t nano::unchecked_map::count () const
+std::size_t nano::unchecked_map::count () const
 {
 	nano::lock_guard<std::recursive_mutex> lock{ entries_mutex };
 	return entries.size ();
