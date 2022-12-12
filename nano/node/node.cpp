@@ -215,9 +215,9 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
-	unchecked.satisfied = [this] (nano::unchecked_info const & info) {
-		this->block_processor.add (info);
-	};
+	unchecked.satisfied.add ([this] (nano::unchecked_info const & info) {
+		block_processor.add (info);
+	});
 
 	inactive_vote_cache.rep_weight_query = [this] (nano::account const & rep) {
 		return ledger.weight (rep);
@@ -667,6 +667,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (collect_container_info (node.generator, "vote_generator"));
 	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
 	composite->add_component (node.ascendboot.collect_container_info ("bootstrap_ascending"));
+	composite->add_component (node.unchecked.collect_container_info ("unchecked"));
 	return composite;
 }
 

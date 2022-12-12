@@ -152,7 +152,7 @@ void nano::unchecked_map::query_impl (nano::block_hash const & hash)
 	for_each (hash, [this, &delete_queue] (nano::unchecked_key const & key, nano::unchecked_info const & info) {
 		delete_queue.push_back (key);
 		stats.inc (nano::stat::type::unchecked, nano::stat::detail::satisfied);
-		satisfied (info);
+		satisfied.notify (info);
 	});
 	if (!disable_delete)
 	{
@@ -161,4 +161,14 @@ void nano::unchecked_map::query_impl (nano::block_hash const & hash)
 			del (key);
 		}
 	}
+}
+
+std::unique_ptr<nano::container_info_component> nano::unchecked_map::collect_container_info (const std::string & name)
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "entries", entries.size (), sizeof (decltype (entries)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queries", buffer.size (), sizeof (decltype (buffer)::value_type) }));
+	return composite;
 }

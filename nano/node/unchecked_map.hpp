@@ -2,6 +2,7 @@
 
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/lib/observer_set.hpp>
 #include <nano/secure/store.hpp>
 
 #include <boost/multi_index/member.hpp>
@@ -44,9 +45,13 @@ public:
 	void stop ();
 	void flush ();
 
-public: // Trigger requested dependencies
+	/**
+	 * Trigger requested dependencies
+	 */
 	void trigger (nano::hash_or_account const & dependency);
-	std::function<void (nano::unchecked_info const &)> satisfied{ [] (nano::unchecked_info const &) {} };
+
+public: // Events
+	nano::observer_set<nano::unchecked_info const &> satisfied;
 
 private:
 	void run ();
@@ -70,10 +75,9 @@ private:
 
 	static std::size_t constexpr mem_block_count_max = 64 * 1024;
 
-private: // In memory store
-	class entry
+private:
+	struct entry
 	{
-	public:
 		nano::unchecked_key key;
 		nano::unchecked_info info;
 	};
@@ -91,5 +95,8 @@ private: // In memory store
 	ordered_unchecked entries;
 
 	mutable std::recursive_mutex entries_mutex;
+
+public: // Container info
+	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 };
 }
