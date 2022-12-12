@@ -22,10 +22,10 @@ class rate_limiter final
 {
 public:
 	// initialize with limit 0 = unbounded
-	rate_limiter (std::size_t limit, double burst_ratio);
+	rate_limiter (std::size_t limit, double burst_ratio = 1);
 
 	bool should_pass (std::size_t size = 1);
-	void reset (std::size_t limit, double burst_ratio);
+	void reset (std::size_t limit, double burst_ratio = 1);
 
 private:
 	nano::rate::token_bucket bucket;

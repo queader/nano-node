@@ -119,7 +119,8 @@ void nano::bootstrap_ascending::account_sets::buffered_iterator::fill ()
 nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nano::store & store_a) :
 	stats{ stats_a },
 	store{ store_a },
-	iterator{ store }
+	iterator{ store },
+	database_limiter{ bootstrap_ascending::database_requests_limit }
 {
 }
 
@@ -269,6 +270,8 @@ nano::account nano::bootstrap_ascending::account_sets::next ()
 {
 	if (!priorities.empty ())
 	{
+		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_priority_try);
+
 		auto account = next_priority ();
 		// If zero account is returned then all accounts in priority queue are inside cooldown period
 		if (!account.is_zero ())
@@ -278,8 +281,18 @@ nano::account nano::bootstrap_ascending::account_sets::next ()
 		}
 	}
 
-	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_database);
-	return next_database ();
+	if (database_limiter.should_pass ())
+	{
+		auto account = next_database ();
+		if (!account.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_database);
+			return account;
+		}
+	}
+
+	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_none);
+	return { 0 };
 }
 
 nano::account nano::bootstrap_ascending::account_sets::next_priority ()
@@ -400,7 +413,7 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	network{ network_a },
 	stats{ stat_a },
 	accounts{ stats, store_a },
-	limiter{ requests_limit, requests_burst_ratio }
+	limiter{ requests_limit }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
 	block_processor.batch_processed.add ([this] (auto const & batch) {
@@ -615,7 +628,7 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 
 		condition.wait_for (lock, 100ms);
 	}
-	return {};
+	return { 0 };
 }
 
 bool nano::bootstrap_ascending::request (nano::account & account, std::shared_ptr<nano::transport::channel> & channel)

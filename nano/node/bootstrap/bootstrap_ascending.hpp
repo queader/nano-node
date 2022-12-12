@@ -267,6 +267,10 @@ public: // account_sets
 
 		std::default_random_engine rng;
 
+		// Requests for accounts from database have much lower hitrate and could introduce strain on the network
+		// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
+		nano::rate_limiter database_limiter;
+
 	private:
 		static std::size_t constexpr consideration_count = 4;
 
@@ -322,9 +326,10 @@ private:
 
 private:
 	//	static std::size_t constexpr requests_limit{ 1024 };
+	//	static std::size_t constexpr requests_limit{ 1024 * 4 };
 	static std::size_t constexpr requests_limit{ 1024 * 16 };
 
-	static float constexpr requests_burst_ratio{ 2.0f };
+	static std::size_t constexpr database_requests_limit{ 1024 };
 
 	//	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
 	static std::size_t constexpr pull_count{ 32 };
