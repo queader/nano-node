@@ -256,13 +256,13 @@ void nano::bootstrap_ascending::account_sets::trim_overflow ()
 {
 	if (priorities.size () > priorities_max)
 	{
-		// Evict the oldest entry
-		priorities.get<tag_sequenced> ().pop_front ();
+		// Evict the lowest priority entry
+		priorities.get<tag_priority> ().erase (priorities.get<tag_priority> ().begin ());
 	}
 	if (blocking.size () > blocking_max)
 	{
-		// Evict the oldest entry
-		blocking.get<tag_sequenced> ().pop_front ();
+		// Evict the lowest priority entry
+		blocking.get<tag_priority> ().erase (blocking.get<tag_priority> ().begin ());
 	}
 }
 

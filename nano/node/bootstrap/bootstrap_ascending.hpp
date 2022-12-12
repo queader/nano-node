@@ -7,6 +7,7 @@
 #include <nano/node/bootstrap/bootstrap_server.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
@@ -231,6 +232,11 @@ public: // account_sets
 			nano::account account{ 0 };
 			nano::block_hash dependency{ 0 };
 			priority_entry original_entry{ 0, 0 };
+
+			float priority () const
+			{
+				return original_entry.priority;
+			}
 		};
 
 		// clang-format off
@@ -258,7 +264,9 @@ public: // account_sets
 		mi::indexed_by<
 			mi::sequenced<mi::tag<tag_sequenced>>,
 			mi::ordered_unique<mi::tag<tag_account>,
-				mi::member<blocking_entry, nano::account, &blocking_entry::account>>
+				mi::member<blocking_entry, nano::account, &blocking_entry::account>>,
+			mi::ordered_non_unique<mi::tag<tag_priority>,
+				mi::const_mem_fun<blocking_entry, float, &blocking_entry::priority>>
 		>>;
 		// clang-format on
 
