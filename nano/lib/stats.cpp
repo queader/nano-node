@@ -1167,6 +1167,30 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::next_none:
 			res = "next_none";
 			break;
+		case nano::stat::detail::blocking_insert:
+			res = "blocking_insert";
+			break;
+		case nano::stat::detail::blocking_erase_overflow:
+			res = "blocking_erase_overflow";
+			break;
+		case nano::stat::detail::priority_insert:
+			res = "priority_insert";
+			break;
+		case nano::stat::detail::priority_erase_threshold:
+			res = "priority_erase_threshold";
+			break;
+		case nano::stat::detail::priority_erase_block:
+			res = "priority_erase_block";
+			break;
+		case nano::stat::detail::priority_erase_overflow:
+			res = "priority_erase_overflow";
+			break;
+		case nano::stat::detail::deprioritize:
+			res = "deprioritize";
+			break;
+		case nano::stat::detail::deprioritize_failed:
+			res = "deprioritize_failed";
+			break;
 		case nano::stat::detail::activated:
 			res = "activated";
 			break;

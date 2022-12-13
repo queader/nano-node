@@ -508,10 +508,20 @@ public:
 		block,
 		unblock,
 		unblock_failed,
+		
 		next_priority,
 		next_priority_try,
 		next_database,
 		next_none,
+
+		blocking_insert,
+		blocking_erase_overflow,
+		priority_insert,
+		priority_erase_threshold,
+		priority_erase_block,
+		priority_erase_overflow,
+		deprioritize,
+		deprioritize_failed,
 
 		// active
 		started_hinted,
