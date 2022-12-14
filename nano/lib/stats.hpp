@@ -508,9 +508,8 @@ public:
 		block,
 		unblock,
 		unblock_failed,
-		
+
 		next_priority,
-		next_priority_try,
 		next_database,
 		next_none,
 

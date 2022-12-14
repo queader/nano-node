@@ -12,18 +12,18 @@ using namespace std::chrono_literals;
  * database_iterator
  */
 
-nano::bootstrap_ascending::account_sets::database_iterator::database_iterator (nano::store & store_a, table_type table_a) :
+nano::bootstrap_ascending::database_iterator::database_iterator (nano::store & store_a, table_type table_a) :
 	store{ store_a },
 	table{ table_a }
 {
 }
 
-nano::account nano::bootstrap_ascending::account_sets::database_iterator::operator* () const
+nano::account nano::bootstrap_ascending::database_iterator::operator* () const
 {
 	return current;
 }
 
-void nano::bootstrap_ascending::account_sets::database_iterator::next (nano::transaction & tx)
+void nano::bootstrap_ascending::database_iterator::next (nano::transaction & tx)
 {
 	switch (table)
 	{
@@ -62,19 +62,19 @@ void nano::bootstrap_ascending::account_sets::database_iterator::next (nano::tra
  * buffered_iterator
  */
 
-nano::bootstrap_ascending::account_sets::buffered_iterator::buffered_iterator (nano::store & store_a) :
+nano::bootstrap_ascending::buffered_iterator::buffered_iterator (nano::store & store_a) :
 	store{ store_a },
 	accounts_iterator{ store, database_iterator::table_type::account },
 	pending_iterator{ store, database_iterator::table_type::pending }
 {
 }
 
-nano::account nano::bootstrap_ascending::account_sets::buffered_iterator::operator* () const
+nano::account nano::bootstrap_ascending::buffered_iterator::operator* () const
 {
 	return !buffer.empty () ? buffer.front () : nano::account{ 0 };
 }
 
-void nano::bootstrap_ascending::account_sets::buffered_iterator::next ()
+nano::account nano::bootstrap_ascending::buffered_iterator::next ()
 {
 	if (!buffer.empty ())
 	{
@@ -84,9 +84,11 @@ void nano::bootstrap_ascending::account_sets::buffered_iterator::next ()
 	{
 		fill ();
 	}
+
+	return *(*this);
 }
 
-void nano::bootstrap_ascending::account_sets::buffered_iterator::fill ()
+void nano::bootstrap_ascending::buffered_iterator::fill ()
 {
 	debug_assert (buffer.empty ());
 
@@ -116,11 +118,8 @@ void nano::bootstrap_ascending::account_sets::buffered_iterator::fill ()
  * account_sets
  */
 
-nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a, nano::store & store_a) :
-	stats{ stats_a },
-	store{ store_a },
-	iterator{ store },
-	database_limiter{ bootstrap_ascending::database_requests_limit }
+nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a) :
+	stats{ stats_a }
 {
 }
 
@@ -271,36 +270,10 @@ void nano::bootstrap_ascending::account_sets::trim_overflow ()
 
 nano::account nano::bootstrap_ascending::account_sets::next ()
 {
-	if (!priorities.empty ())
+	if (priorities.empty ())
 	{
-		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_priority_try);
-
-		auto account = next_priority ();
-		// If zero account is returned then all accounts in priority queue are inside cooldown period
-		if (!account.is_zero ())
-		{
-			stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_priority);
-			return account;
-		}
+		return { 0 };
 	}
-
-	if (database_limiter.should_pass ())
-	{
-		auto account = next_database ();
-		if (!account.is_zero ())
-		{
-			stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_database);
-			return account;
-		}
-	}
-
-	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::next_none);
-	return { 0 };
-}
-
-nano::account nano::bootstrap_ascending::account_sets::next_priority ()
-{
-	debug_assert (!priorities.empty ());
 
 	std::vector<float> weights;
 	std::vector<nano::account> candidates;
@@ -335,20 +308,6 @@ nano::account nano::bootstrap_ascending::account_sets::next_priority ()
 	debug_assert (!weights.empty () && selection < weights.size ());
 	auto result = candidates[selection];
 	return result;
-}
-
-nano::account nano::bootstrap_ascending::account_sets::next_database ()
-{
-	do
-	{
-		iterator.next ();
-		if (check_timestamp (*iterator))
-		{
-			return *iterator;
-		}
-	} while (!(*iterator).is_zero ());
-
-	return { 0 };
 }
 
 bool nano::bootstrap_ascending::account_sets::blocked (nano::account const & account) const
@@ -415,8 +374,10 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	ledger{ ledger_a },
 	network{ network_a },
 	stats{ stat_a },
-	accounts{ stats, store_a },
-	limiter{ requests_limit }
+	accounts{ stats },
+	iterator{ store },
+	limiter{ requests_limit },
+	database_limiter{ database_requests_limit }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
 	block_processor.batch_processed.add ([this] (auto const & batch) {
@@ -617,19 +578,46 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::wait_availa
 	return channel;
 }
 
+nano::account nano::bootstrap_ascending::available_account ()
+{
+	{
+		auto account = accounts.next ();
+		if (!account.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_priority);
+			return account;
+		}
+	}
+
+	if (database_limiter.should_pass ())
+	{
+		auto account = iterator.next ();
+		if (!account.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_database);
+			return account;
+		}
+	}
+
+	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_none);
+	return { 0 };
+}
+
 nano::account nano::bootstrap_ascending::wait_available_account ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
-		auto account = accounts.next ();
+		auto account = available_account ();
 		if (!account.is_zero ())
 		{
 			accounts.timestamp (account);
 			return account;
 		}
-
-		condition.wait_for (lock, 100ms);
+		else
+		{
+			condition.wait_for (lock, 100ms);
+		}
 	}
 	return { 0 };
 }

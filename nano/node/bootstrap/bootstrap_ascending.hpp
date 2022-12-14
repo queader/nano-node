@@ -97,6 +97,7 @@ private:
 	std::shared_ptr<nano::transport::channel> wait_available_channel ();
 	std::shared_ptr<nano::transport::channel> available_channel ();
 	/* Waits until a suitable account outside of cool down period is available */
+	nano::account available_account ();
 	nano::account wait_available_account ();
 
 	bool request_one ();
@@ -130,7 +131,7 @@ public: // account_sets
 	class account_sets
 	{
 	public:
-		account_sets (nano::stat &, nano::store & store);
+		explicit account_sets (nano::stat &);
 
 		/**
 		 * If an account is not blocked, increase its priority.
@@ -163,57 +164,11 @@ public: // account_sets
 		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
 	private:
-		nano::account next_priority ();
-		nano::account next_database ();
-
 		void trim_overflow ();
 		bool check_timestamp (nano::account const & account) const;
 
 	private: // Dependencies
 		nano::stat & stats;
-		nano::store & store;
-
-	private: // Iterators
-		class database_iterator
-		{
-		public:
-			enum class table_type
-			{
-				account,
-				pending
-			};
-
-			database_iterator (nano::store & store, table_type);
-			nano::account operator* () const;
-			void next (nano::transaction & tx);
-
-		private:
-			nano::store & store;
-			nano::account current{ 0 };
-			const table_type table;
-		};
-
-		class buffered_iterator
-		{
-		public:
-			buffered_iterator (nano::store & store);
-			nano::account operator* () const;
-			void next ();
-
-		private:
-			void fill ();
-
-		private:
-			nano::store & store;
-			std::deque<nano::account> buffer;
-
-			database_iterator accounts_iterator;
-			database_iterator pending_iterator;
-
-			static std::size_t constexpr size = 1024;
-		};
-
-		buffered_iterator iterator;
 
 	private:
 		struct priority_entry
@@ -274,10 +229,6 @@ public: // account_sets
 
 		std::default_random_engine rng;
 
-		// Requests for accounts from database have much lower hitrate and could introduce strain on the network
-		// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
-		nano::rate_limiter database_limiter;
-
 	private:
 		static std::size_t constexpr consideration_count = 4;
 
@@ -304,8 +255,49 @@ public: // account_sets
 
 	account_sets::info_t info () const;
 
+private: // Database iterators
+	class database_iterator
+	{
+	public:
+		enum class table_type
+		{
+			account,
+			pending
+		};
+
+		explicit database_iterator (nano::store & store, table_type);
+		nano::account operator* () const;
+		void next (nano::transaction & tx);
+
+	private:
+		nano::store & store;
+		nano::account current{ 0 };
+		const table_type table;
+	};
+
+	class buffered_iterator
+	{
+	public:
+		explicit buffered_iterator (nano::store & store);
+		nano::account operator* () const;
+		nano::account next ();
+
+	private:
+		void fill ();
+
+	private:
+		nano::store & store;
+		std::deque<nano::account> buffer;
+
+		database_iterator accounts_iterator;
+		database_iterator pending_iterator;
+
+		static std::size_t constexpr size = 1024;
+	};
+
 private:
 	account_sets accounts;
+	buffered_iterator iterator;
 
 	// clang-format off
 	class tag_sequenced {};
@@ -324,6 +316,9 @@ private:
 	ordered_tags tags;
 
 	nano::rate_limiter limiter;
+	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
+	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
+	nano::rate_limiter database_limiter;
 
 	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;

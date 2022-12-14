@@ -1158,9 +1158,6 @@ std::string nano::stat::detail_to_string (stat::detail detail)
 		case nano::stat::detail::next_priority:
 			res = "next_priority";
 			break;
-		case nano::stat::detail::next_priority_try:
-			res = "next_priority_try";
-			break;
 		case nano::stat::detail::next_database:
 			res = "next_database";
 			break;
