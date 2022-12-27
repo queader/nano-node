@@ -5,6 +5,7 @@
 #include <boost/current_function.hpp>
 #include <boost/preprocessor/facilities/empty.hpp>
 #include <boost/preprocessor/facilities/overload.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include <cassert>
 #include <functional>
@@ -57,6 +58,8 @@ void assert_internal (char const * check_expr, char const * func, char const * f
 
 namespace nano
 {
+using ptree = boost::property_tree::ptree;
+
 /* These containers are used to collect information about sequence containers.
  * It makes use of the composite design pattern to collect information
  * from sequence containers and sequence containers inside member variables.

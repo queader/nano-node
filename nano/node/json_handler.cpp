@@ -2132,6 +2132,12 @@ void nano::json_handler::confirmation_quorum ()
 	response_errors ();
 }
 
+void nano::json_handler::elections_info ()
+{
+	response_l = node.active.collect_info ();
+	response_errors ();
+}
+
 void nano::json_handler::database_txn_tracker ()
 {
 	boost::property_tree::ptree json;
@@ -5323,6 +5329,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("delegators", &nano::json_handler::delegators);
 	no_arg_funcs.emplace ("delegators_count", &nano::json_handler::delegators_count);
 	no_arg_funcs.emplace ("deterministic_key", &nano::json_handler::deterministic_key);
+	no_arg_funcs.emplace ("elections_info", &nano::json_handler::elections_info);
 	no_arg_funcs.emplace ("epoch_upgrade", &nano::json_handler::epoch_upgrade);
 	no_arg_funcs.emplace ("frontiers", &nano::json_handler::frontiers);
 	no_arg_funcs.emplace ("frontier_count", &nano::json_handler::account_count);

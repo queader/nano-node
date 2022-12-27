@@ -107,4 +107,16 @@ inline uint64_t seconds_since_epoch ()
 {
 	return std::chrono::duration_cast<std::chrono::seconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
 }
+
+template <typename CLOCK = std::chrono::steady_clock>
+uint64_t to_millis (typename CLOCK::time_point const & time)
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds> (time.time_since_epoch ()).count ();
+}
+
+template <typename CLOCK = std::chrono::steady_clock>
+uint64_t to_millis_ago (typename CLOCK::time_point const & time)
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds> (CLOCK::now () - time).count ();
+}
 }

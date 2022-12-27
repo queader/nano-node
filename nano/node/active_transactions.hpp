@@ -201,6 +201,9 @@ public:
 	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
 	void remove_election_winner_details (nano::block_hash const &);
 
+public:
+	nano::ptree collect_info () const;
+
 private:
 	// Call action with confirmed block, may be different than what we started with
 	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
@@ -229,6 +232,23 @@ public:
 	// TODO: This mutex is currently public because many tests access it
 	// TODO: This is bad. Remove the need to explicitly lock this from any code outside of this class
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
+
+private:
+	// clang-format off
+	using ordered_recent = boost::multi_index_container<conflict_info,
+	mi::indexed_by<
+		mi::sequenced<mi::tag<tag_sequenced>>,
+		mi::hashed_non_unique<mi::tag<tag_root>,
+			mi::member<conflict_info, nano::qualified_root, &conflict_info::root>>
+	>>;
+	// clang-format on
+
+	/** All recently finished elections (confirmed and unconfirmed) */
+	ordered_recent recents;
+
+	static std::size_t constexpr max_recent = 1024 * 64;
+
+	void add_recent (conflict_info const &);
 
 private:
 	nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };

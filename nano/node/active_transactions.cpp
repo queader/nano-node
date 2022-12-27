@@ -285,7 +285,14 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 		debug_assert (erased == 1);
 		node.inactive_vote_cache.erase (hash);
 	}
-	roots.get<tag_root> ().erase (roots.get<tag_root> ().find (election->qualified_root));
+
+	auto roots_it = roots.get<tag_root> ().find (election->qualified_root);
+	debug_assert (roots_it != roots.get<tag_root> ().end ());
+
+	// Remember erased election in recent elections list
+	add_recent (*roots_it);
+
+	roots.get<tag_root> ().erase (roots_it);
 
 	lock_a.unlock ();
 	vacancy_update ();
@@ -668,6 +675,49 @@ void nano::active_transactions::clear ()
 		roots.clear ();
 	}
 	vacancy_update ();
+}
+
+void nano::active_transactions::add_recent (const conflict_info & info)
+{
+	debug_assert (!mutex.try_lock ());
+
+	recents.get<tag_root> ().insert (info);
+	if (recents.size () > max_recent)
+	{
+		recents.get<tag_sequenced> ().pop_front (); // Erase oldest
+	}
+}
+
+nano::ptree nano::active_transactions::collect_info () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	nano::ptree elections_info;
+	for (auto & root : roots)
+	{
+		// { qualified root: election info } entries
+		elections_info.add_child (root.root.to_string (), root.election->collect_info ());
+	}
+
+	nano::ptree recent_info;
+	for (auto & root : recents)
+	{
+		// { qualified root: election info } entries
+		recent_info.add_child (root.root.to_string (), root.election->collect_info ());
+	}
+
+	nano::ptree blocks_info;
+	for (auto & [hash, election] : blocks)
+	{
+		// { block hash: qualified root } entries
+		blocks_info.add (hash.to_string (), election->qualified_root.to_string ());
+	}
+
+	nano::ptree result;
+	result.add_child ("active", elections_info);
+	result.add_child ("recent", recent_info);
+	result.add_child ("blocks", blocks_info);
+	return result;
 }
 
 std::unique_ptr<nano::container_info_component> nano::collect_container_info (active_transactions & active_transactions, std::string const & name)

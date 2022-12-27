@@ -59,7 +59,7 @@ public:
 	void bootstrap_any ();
 	void bootstrap_lazy ();
 	void bootstrap_status ();
-	void chain (bool = false);
+	void chain (bool successors = false);
 	void confirmation_active ();
 	void confirmation_history ();
 	void confirmation_info ();
@@ -69,6 +69,7 @@ public:
 	void delegators ();
 	void delegators_count ();
 	void deterministic_key ();
+	void elections_info ();
 	void epoch_upgrade ();
 	void frontiers ();
 	void keepalive ();
@@ -83,7 +84,7 @@ public:
 	void node_id_delete ();
 	void password_change ();
 	void password_enter ();
-	void password_valid (bool = false);
+	void password_valid (bool wallet_locked = false);
 	void peers ();
 	void pending ();
 	void pending_exists ();
