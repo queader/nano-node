@@ -48,10 +48,13 @@ add_library(
   locks.hpp
   locks.cpp
   logger_mt.hpp
+        logging.hpp
   memory.hpp
   memory.cpp
   numbers.hpp
   numbers.cpp
+        object_stream.hpp
+        object_stream.cpp
   observer_set.hpp
   optional_ptr.hpp
   processing_queue.hpp
