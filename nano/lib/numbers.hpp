@@ -3,6 +3,8 @@
 #include <boost/functional/hash.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 
+#include <ostream>
+
 namespace nano
 {
 using uint128_t = boost::multiprecision::uint128_t;
@@ -28,7 +30,7 @@ public:
 	uint128_union (nano::uint128_t const &);
 	bool operator== (nano::uint128_union const &) const;
 	bool operator!= (nano::uint128_union const &) const;
-	bool operator< (nano::uint128_union const &) const;
+	bool operator<(nano::uint128_union const &) const;
 	bool operator> (nano::uint128_union const &) const;
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
@@ -59,6 +61,7 @@ public:
 	using uint128_union::uint128_union;
 };
 class raw_key;
+
 class uint256_union
 {
 public:
@@ -96,6 +99,8 @@ public:
 	};
 };
 static_assert (std::is_nothrow_move_constructible<uint256_union>::value, "uint256_union should be noexcept MoveConstructible");
+
+std::ostream & operator<< (std::ostream & os, const uint256_union & val);
 
 class link;
 class root;

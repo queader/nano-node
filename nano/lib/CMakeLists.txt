@@ -48,6 +48,8 @@ add_library(
   locks.hpp
   locks.cpp
   logger_mt.hpp
+        logging.hpp
+        logging.cpp
   memory.hpp
   memory.cpp
   numbers.hpp
