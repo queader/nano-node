@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/logging.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
@@ -190,5 +191,8 @@ public: // Only used in tests
 	friend class confirmation_solicitor_bypass_max_requests_cap_Test;
 	friend class votes_add_existing_Test;
 	friend class votes_add_old_Test;
+
+public: // Format
+	void operator() (nano::object_stream &);
 };
 }
