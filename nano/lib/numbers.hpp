@@ -4,6 +4,7 @@
 #include <boost/multiprecision/cpp_int.hpp>
 
 #include <array>
+#include <ostream>
 
 namespace nano
 {
@@ -30,7 +31,7 @@ public:
 	uint128_union (nano::uint128_t const &);
 	bool operator== (nano::uint128_union const &) const;
 	bool operator!= (nano::uint128_union const &) const;
-	bool operator< (nano::uint128_union const &) const;
+	bool operator<(nano::uint128_union const &) const;
 	bool operator> (nano::uint128_union const &) const;
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
@@ -61,6 +62,7 @@ public:
 	using uint128_union::uint128_union;
 };
 class raw_key;
+
 class uint256_union
 {
 public:
@@ -107,6 +109,8 @@ inline bool operator< (nano::uint256_union const & lhs, nano::uint256_union cons
 	return std::memcmp (lhs.bytes.data (), rhs.bytes.data (), 32) < 0;
 }
 static_assert (std::is_nothrow_move_constructible<uint256_union>::value, "uint256_union should be noexcept MoveConstructible");
+
+std::ostream & operator<< (std::ostream & os, const uint256_union & val);
 
 class link;
 class root;
