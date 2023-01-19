@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/lib/config.hpp>
+#include <nano/lib/logging.hpp>
 #include <nano/lib/stats.hpp>
 #include <nano/lib/work.hpp>
 #include <nano/node/active_transactions.hpp>
@@ -65,6 +66,8 @@ outbound_bandwidth_limiter::config outbound_bandwidth_limiter_config (node_confi
 
 class node final : public std::enable_shared_from_this<nano::node>
 {
+	nano::log::logger nlogger{ "node" };
+
 public:
 	node (boost::asio::io_context &, uint16_t, boost::filesystem::path const &, nano::logging const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
 	node (boost::asio::io_context &, boost::filesystem::path const &, nano::node_config const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
@@ -218,7 +221,7 @@ private:
 	nano::locked<std::future<void>> epoch_upgrading;
 };
 
-nano::keypair load_or_create_node_id (boost::filesystem::path const & application_path, nano::logger_mt & logger);
+nano::keypair load_or_create_node_id (boost::filesystem::path const & application_path, nano::log::logger &);
 std::unique_ptr<container_info_component> collect_container_info (node & node, std::string const & name);
 
 nano::node_flags const & inactive_node_flag_defaults ();

@@ -11,7 +11,7 @@ endif()
 
 # OSX compatibility needs to be set before project is declared
 set(CMAKE_OSX_DEPLOYMENT_TARGET
-    10.15
+    12
     CACHE STRING "")
 
 project(nano-node)
@@ -500,6 +500,10 @@ add_subdirectory(crypto/ed25519-donna)
 add_subdirectory(nano/ipc_flatbuffers_lib)
 add_subdirectory(nano/ipc_flatbuffers_test)
 
+# spdlog
+find_package(spdlog REQUIRED)
+
+# miniupnp
 set(UPNPC_BUILD_SHARED
     OFF
     CACHE BOOL "")

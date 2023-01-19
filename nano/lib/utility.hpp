@@ -9,6 +9,7 @@
 #include <cassert>
 #include <functional>
 #include <mutex>
+#include <sstream>
 #include <vector>
 
 namespace boost
@@ -175,4 +176,37 @@ constexpr TARGET_TYPE narrow_cast (SOURCE_TYPE const & val)
 
 // Issue #3748
 void sort_options_description (const boost::program_options::options_description & source, boost::program_options::options_description & target);
+}
+
+namespace nano::util
+{
+/**
+ * Joins elements with specified delimiter while transforming those elements via specified transform function
+ */
+template <class InputIt, class Func>
+std::string join (InputIt first, InputIt last, std::string_view delimiter, Func transform)
+{
+	bool start = true;
+	std::stringstream ss;
+	while (first != last)
+	{
+		if (start)
+		{
+			start = false;
+		}
+		else
+		{
+			ss << delimiter << " ";
+		}
+		ss << transform (*first);
+		++first;
+	}
+	return ss.str ();
+}
+
+template <class Container, class Func>
+std::string join (Container const & container, std::string_view delimiter, Func transform)
+{
+	return join (container.begin (), container.end (), delimiter, transform);
+}
 }
