@@ -48,6 +48,7 @@ add_library(
   locks.hpp
   locks.cpp
   logger_mt.hpp
+  logging.hpp
   memory.hpp
   memory.cpp
   numbers.hpp
@@ -94,6 +95,7 @@ target_link_libraries(
   ipc_flatbuffers_lib
   ${CRYPTOPP_LIBRARY}
   ${CMAKE_DL_LIBS}
+  spdlog::spdlog
   Boost::asio
   Boost::circular_buffer
   Boost::dll

@@ -500,6 +500,10 @@ add_subdirectory(crypto/ed25519-donna)
 add_subdirectory(nano/ipc_flatbuffers_lib)
 add_subdirectory(nano/ipc_flatbuffers_test)
 
+# spdlog
+find_package(spdlog REQUIRED)
+
+# miniupnp
 set(UPNPC_BUILD_SHARED
     OFF
     CACHE BOOL "")
