@@ -17,6 +17,8 @@
 #include <csignal>
 #include <iostream>
 
+#include <spdlog/cfg/env.h>
+
 namespace
 {
 void nano_abort_signal_handler (int signum)
@@ -73,6 +75,8 @@ static void load_and_set_bandwidth_params (std::shared_ptr<nano::node> const & n
 
 void nano_daemon::daemon::run (boost::filesystem::path const & data_path, nano::node_flags const & flags)
 {
+	// TODO: Move to system/node_wrapper
+	spdlog::cfg::load_env_levels ();
 	install_abort_signal_handler ();
 
 	boost::filesystem::create_directories (data_path);
