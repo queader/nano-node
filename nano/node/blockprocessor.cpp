@@ -269,7 +269,7 @@ void nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 			if (successor != nullptr && successor->hash () != hash)
 			{
 				// Replace our block with the winner and roll back any dependent blocks
-				nlogger.debug (logtag::ledger_rollback, "Rolling back: {} and replacing with: {}", successor->hash ().to_string (), hash.to_string ());
+				nlogger.debug ("Rolling back: {} and replacing with: {}", successor->hash ().to_string (), hash.to_string ());
 
 				std::vector<std::shared_ptr<nano::block>> rollback_list;
 				if (node.ledger.rollback (transaction, successor->hash (), rollback_list))
@@ -279,7 +279,7 @@ void nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 				}
 				else
 				{
-					nlogger.debug (logtag::ledger_rollback, "Blocks rolled back: {}", rollback_list.size ());
+					nlogger.debug ("Blocks rolled back: {}", rollback_list.size ());
 				}
 
 				// Deleting from votes cache, stop active transaction
@@ -303,7 +303,7 @@ void nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 
 	if (number_of_blocks_processed != 0 && timer_l.stop () > std::chrono::milliseconds (100))
 	{
-		nlogger.debug (logtag::timing, "Processed {} blocks ({} forced) in {}{}", number_of_blocks_processed, number_of_forced_processed, timer_l.value ().count (), timer_l.unit ());
+		nlogger.debug ("Processed {} blocks ({} forced) in {}{}", number_of_blocks_processed, number_of_forced_processed, timer_l.value ().count (), timer_l.unit ());
 	}
 }
 
@@ -348,7 +348,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 	{
 		case nano::process_result::progress:
 		{
-			nlogger.debug (logtag::ledger, "Processing block: {}", hash.to_string ());
+			nlogger_process.debug ("Processing block: {}", hash.to_string ());
 
 			events_a.events.emplace_back ([this, hash, block = info_a.block, result, origin_a] (nano::transaction const & post_event_transaction_a) {
 				process_live (post_event_transaction_a, hash, block, result, origin_a);
@@ -367,7 +367,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		}
 		case nano::process_result::gap_previous:
 		{
-			nlogger.debug (logtag::ledger, "Gap previous: {}", hash.to_string ());
+			nlogger_process.debug ("Gap previous: {}", hash.to_string ());
 
 			debug_assert (info_a.modified () != 0);
 			node.unchecked.put (block->previous (), info_a);
@@ -378,7 +378,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		}
 		case nano::process_result::gap_source:
 		{
-			nlogger.debug (logtag::ledger, "Gap source: {}", hash.to_string ());
+			nlogger_process.debug ("Gap source: {}", hash.to_string ());
 
 			debug_assert (info_a.modified () != 0);
 			node.unchecked.put (node.ledger.block_source (transaction_a, *(block)), info_a);
@@ -389,7 +389,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		}
 		case nano::process_result::gap_epoch_open_pending:
 		{
-			nlogger.debug (logtag::ledger, "Gap pending entries for epoch open: {}", hash.to_string ());
+			nlogger_process.debug ("Gap pending entries for epoch open: {}", hash.to_string ());
 
 			debug_assert (info_a.modified () != 0);
 			node.unchecked.put (block->account (), info_a); // Specific unchecked key starting with epoch open block account public key
@@ -399,31 +399,31 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		}
 		case nano::process_result::old:
 		{
-			nlogger.debug (logtag::ledger, "Old: {}", hash.to_string ());
+			nlogger_process.debug ("Old: {}", hash.to_string ());
 
 			node.stats.inc (nano::stat::type::ledger, nano::stat::detail::old);
 			break;
 		}
 		case nano::process_result::bad_signature:
 		{
-			nlogger.debug (logtag::ledger, "Bad signature: {}", hash.to_string ());
+			nlogger_process.debug ("Bad signature: {}", hash.to_string ());
 
 			events_a.events.emplace_back ([this, hash, info_a] (nano::transaction const & /* unused */) { requeue_invalid (hash, info_a); });
 			break;
 		}
 		case nano::process_result::negative_spend:
 		{
-			nlogger.debug (logtag::ledger, "Negative spend: {}", hash.to_string ());
+			nlogger_process.debug ("Negative spend: {}", hash.to_string ());
 			break;
 		}
 		case nano::process_result::unreceivable:
 		{
-			nlogger.debug (logtag::ledger, "Unreceivable: {}", hash.to_string ());
+			nlogger_process.debug ("Unreceivable: {}", hash.to_string ());
 			break;
 		}
 		case nano::process_result::fork:
 		{
-			nlogger.debug (logtag::ledger, "Fork: {} [root: {}]", hash.to_string (), block->root ().to_string ());
+			nlogger_process.debug ("Fork: {} [root: {}]", hash.to_string (), block->root ().to_string ());
 
 			events_a.events.emplace_back ([this, block] (nano::transaction const &) { this->node.active.publish (block); });
 
@@ -432,27 +432,27 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 		}
 		case nano::process_result::opened_burn_account:
 		{
-			nlogger.debug (logtag::ledger, "Rejecting open block for burn account: {}", hash.to_string ());
+			nlogger_process.debug ("Rejecting open block for burn account: {}", hash.to_string ());
 			break;
 		}
 		case nano::process_result::balance_mismatch:
 		{
-			nlogger.debug (logtag::ledger, "Balance mismatch: {}", hash.to_string ());
+			nlogger_process.debug ("Balance mismatch: {}", hash.to_string ());
 			break;
 		}
 		case nano::process_result::representative_mismatch:
 		{
-			nlogger.debug (logtag::ledger, "Representative mismatch: {}", hash.to_string ());
+			nlogger_process.debug ("Representative mismatch: {}", hash.to_string ());
 			break;
 		}
 		case nano::process_result::block_position:
 		{
-			nlogger.debug (logtag::ledger, "Block: {} cannot follow predecessor {}", hash.to_string (), block->previous ().to_string ());
+			nlogger_process.debug ("Block: {} cannot follow predecessor {}", hash.to_string (), block->previous ().to_string ());
 			break;
 		}
 		case nano::process_result::insufficient_work:
 		{
-			nlogger.debug (logtag::ledger, "Insufficient work for: {} [work: {}, difficulty: {}]", hash.to_string (), nano::to_string_hex (block->block_work ()), nano::to_string_hex (node.network_params.work.difficulty (*block)));
+			nlogger_process.debug ("Insufficient work for: {} [work: {}, difficulty: {}]", hash.to_string (), nano::to_string_hex (block->block_work ()), nano::to_string_hex (node.network_params.work.difficulty (*block)));
 			break;
 		}
 	}

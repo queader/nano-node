@@ -121,6 +121,7 @@ private:
 class network final
 {
 	nano::log::logger nlogger{ "network" };
+	nano::log::logger nlogger_messages{ "network::messages" };
 
 public:
 	network (nano::node &, uint16_t);

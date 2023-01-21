@@ -37,7 +37,7 @@ nano::network::network (nano::node & node_a, uint16_t port_a) :
 	{
 		packet_processing_threads.emplace_back (attrs, [this, i] () {
 			nano::thread_role::set (nano::thread_role::name::packet_processing);
-			nlogger.debug (logtag::lifetime_tracking, "Started UDP packet processing thread [{:2}]", i);
+			nlogger.debug ("Started UDP packet processing thread [{:2}]", i);
 			try
 			{
 				udp_channels.process_packets ();
@@ -62,7 +62,7 @@ nano::network::network (nano::node & node_a, uint16_t port_a) :
 				nlogger.critical ("Unknown error");
 				release_assert (false);
 			}
-			nlogger.debug (logtag::lifetime_tracking, "Exiting UDP packet processing thread [{:2}]", i);
+			nlogger.debug ("Exiting UDP packet processing thread [{:2}]", i);
 		});
 	}
 	// TCP
@@ -70,7 +70,7 @@ nano::network::network (nano::node & node_a, uint16_t port_a) :
 	{
 		packet_processing_threads.emplace_back (attrs, [this, i] () {
 			nano::thread_role::set (nano::thread_role::name::packet_processing);
-			nlogger.debug (logtag::lifetime_tracking, "Started TCP packet processing thread [{:2}]", i);
+			nlogger.debug ("Started TCP packet processing thread [{:2}]", i);
 			try
 			{
 				tcp_channels.process_messages ();
@@ -95,7 +95,7 @@ nano::network::network (nano::node & node_a, uint16_t port_a) :
 				nlogger.critical ("Unknown error");
 				release_assert (false);
 			}
-			nlogger.debug (logtag::lifetime_tracking, "Exiting TCP packet processing thread [{:2}]", i);
+			nlogger.debug ("Exiting TCP packet processing thread [{:2}]", i);
 		});
 	}
 }
@@ -165,7 +165,7 @@ void nano::network::send_node_id_handshake (std::shared_ptr<nano::transport::cha
 	}
 	nano::node_id_handshake message{ node.network_params.network, query, response };
 
-	nlogger.debug (logtag::network_handshake, "Node ID handshake sent with node id: {} to {} [query: {}, respond to: {}, signature: {}]",
+	nlogger.debug ("Node ID handshake sent with node id: {} to {} [query: {}, respond to: {}, signature: {}]",
 	node.node_id.pub.to_node_id (),
 	nano::log::convert_to_str (channel_a->get_endpoint ()),
 	(query ? query->to_string () : std::string{ "<none>" }),
@@ -413,7 +413,7 @@ public:
 
 	void keepalive (nano::keepalive const & message_a) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING, channel->to_string (), "keepalive", "");
+		nlogger.debug (MESSAGE_LOG_STRING, channel->to_string (), "keepalive", "");
 
 		node.network.merge_peers (message_a.peers);
 
@@ -431,7 +431,7 @@ public:
 
 	void publish (nano::publish const & message_a) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING, channel->to_string (), "publish", message_a.block->hash ().to_string ());
+		nlogger.debug (MESSAGE_LOG_STRING, channel->to_string (), "publish", message_a.block->hash ().to_string ());
 
 		if (!node.block_processor.full ())
 		{
@@ -446,7 +446,7 @@ public:
 
 	void confirm_req (nano::confirm_req const & message_a) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING,
+		nlogger.debug (MESSAGE_LOG_STRING,
 		channel->to_string (),
 		"confirm_req",
 		(!message_a.roots_hashes.empty () ? message_a.roots_string () : message_a.block->hash ().to_string ()));
@@ -467,7 +467,7 @@ public:
 
 	void confirm_ack (nano::confirm_ack const & message_a) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING,
+		nlogger.debug (MESSAGE_LOG_STRING,
 		channel->to_string (),
 		"confirm_ack",
 		fmt::format ("hashes: {}, timestamp: {}", message_a.vote->hashes_string (), message_a.vote->timestamp ()));
@@ -505,7 +505,7 @@ public:
 
 	void telemetry_req (nano::telemetry_req const & message_a) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING, channel->to_string (), "telemetry_req", "");
+		nlogger.debug (MESSAGE_LOG_STRING, channel->to_string (), "telemetry_req", "");
 
 		// Send an empty telemetry_ack if we do not want, just to acknowledge that we have received the message to
 		// remove any timeouts on the server side waiting for a message.
@@ -520,7 +520,7 @@ public:
 
 	void telemetry_ack (nano::telemetry_ack const & message_a) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING, channel->to_string (), "telemetry_ack", "");
+		nlogger.debug (MESSAGE_LOG_STRING, channel->to_string (), "telemetry_ack", "");
 
 		if (node.telemetry)
 		{
@@ -530,14 +530,14 @@ public:
 
 	void asc_pull_req (nano::asc_pull_req const & message) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING, channel->to_string (), "asc_pull_req", message.id);
+		nlogger.debug (MESSAGE_LOG_STRING, channel->to_string (), "asc_pull_req", message.id);
 
 		node.bootstrap_server.request (message, channel);
 	}
 
 	void asc_pull_ack (nano::asc_pull_ack const & message) override
 	{
-		nlogger.debug (logtag::network_messages, MESSAGE_LOG_STRING, channel->to_string (), "asc_pull_ack", message.id);
+		nlogger.debug (MESSAGE_LOG_STRING, channel->to_string (), "asc_pull_ack", message.id);
 
 		// TODO: Process in ascending bootstrap client
 	}
@@ -553,7 +553,7 @@ void nano::network::process_message (nano::message const & message, std::shared_
 {
 	node.stats.inc (nano::stat::type::message, nano::to_stat_detail (message.header.type), nano::stat::dir::in);
 
-	network_message_visitor visitor{ node, channel, nlogger };
+	network_message_visitor visitor{ node, channel, nlogger_messages };
 	message.visit (visitor);
 }
 

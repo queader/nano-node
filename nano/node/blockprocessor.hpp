@@ -41,6 +41,7 @@ private:
 class block_processor final
 {
 	nano::log::logger nlogger{ "blockprocessor" };
+	nano::log::logger nlogger_process{ "blockprocessor::process" };
 
 public:
 	explicit block_processor (nano::node &, nano::write_database_queue &);

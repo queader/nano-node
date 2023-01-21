@@ -78,7 +78,7 @@ void nano::daemon::run (boost::filesystem::path const & data_path, nano::node_fl
 {
 	// TODO: Move to system/node_wrapper
 	spdlog::cfg::load_env_levels ();
-	nlogger.debug (logtag::lifetime_tracking, "Daemon started");
+	nlogger.debug ("Daemon started");
 
 	install_abort_signal_handler ();
 
@@ -251,5 +251,5 @@ void nano::daemon::run (boost::filesystem::path const & data_path, nano::node_fl
 		nlogger.critical ("Error deserializing config: {}", error.get_message ());
 	}
 
-	nlogger.debug (logtag::lifetime_tracking, "Daemon exiting");
+	nlogger.debug ("Daemon exiting");
 }

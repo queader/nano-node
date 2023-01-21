@@ -205,7 +205,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
-	nlogger.debug (logtag::lifetime_tracking, "Constructing node");
+	nlogger.debug ("Constructing node");
 
 	unchecked.use_memory = [this] () { return ledger.bootstrap_weight_reached (); };
 	unchecked.satisfied = [this] (nano::unchecked_info const & info) {
@@ -299,7 +299,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 							}
 							else
 							{
-								node_l->nlogger.error (logtag::rpc_callback, "Error resolving callback: {}:{} [{}]", address, port, ec.message ());
+								node_l->nlogger_rpc_callback.error ("Error resolving callback: {}:{} [{}]", address, port, ec.message ());
 								node_l->stats.inc (nano::stat::type::error, nano::stat::detail::http_callback, nano::stat::dir::out);
 							}
 						});
@@ -531,7 +531,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 
 nano::node::~node ()
 {
-	nlogger.debug (logtag::lifetime_tracking, "Destructing node");
+	nlogger.debug ("Destructing node");
 	stop ();
 }
 
@@ -567,27 +567,27 @@ void nano::node::do_rpc_callback (boost::asio::ip::tcp::resolver::iterator i_a, 
 								}
 								else
 								{
-									node_l->nlogger.error (logtag::rpc_callback, "Callback to {}:{} failed [status: {}]", address, port, nano::log::convert_to_str (resp->result ()));
+									node_l->nlogger_rpc_callback.error ("Callback to {}:{} failed [status: {}]", address, port, nano::log::convert_to_str (resp->result ()));
 									node_l->stats.inc (nano::stat::type::error, nano::stat::detail::http_callback, nano::stat::dir::out);
 								}
 							}
 							else
 							{
-								node_l->nlogger.error (logtag::rpc_callback, "Unable to complete callback: {}:{} [{}]", address, port, ec.message ());
+								node_l->nlogger_rpc_callback.error ("Unable to complete callback: {}:{} [{}]", address, port, ec.message ());
 								node_l->stats.inc (nano::stat::type::error, nano::stat::detail::http_callback, nano::stat::dir::out);
 							};
 						});
 					}
 					else
 					{
-						node_l->nlogger.error (logtag::rpc_callback, "Unable to send callback: {}:{} [{}]", address, port, ec.message ());
+						node_l->nlogger_rpc_callback.error ("Unable to send callback: {}:{} [{}]", address, port, ec.message ());
 						node_l->stats.inc (nano::stat::type::error, nano::stat::detail::http_callback, nano::stat::dir::out);
 					}
 				});
 			}
 			else
 			{
-				node_l->nlogger.error (logtag::rpc_callback, "Unable to connect to callback address: {}:{} [{}]", address, port, ec.message ());
+				node_l->nlogger_rpc_callback.error ("Unable to connect to callback address: {}:{} [{}]", address, port, ec.message ());
 				node_l->stats.inc (nano::stat::type::error, nano::stat::detail::http_callback, nano::stat::dir::out);
 				++i_a;
 				node_l->do_rpc_callback (i_a, address, port, target, body, resolver);
