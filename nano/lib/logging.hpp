@@ -9,20 +9,26 @@
 
 #include <spdlog/spdlog.h>
 
-namespace nano
+namespace nano::log
 {
-enum class logtag
+enum class type
 {
-	all = 0,
+	all = 0, // reserved as a mask for all subtypes
+
+	node,
+	blockprocessor,
+	network,
+};
+
+enum class detail
+{
+	all = 0, // reserved as a mask for all subtypes
+
 	generic,
 
-	timing,
-	lifetime_tracking,
-	rpc_callback,
-	ledger,
-	ledger_rollback,
-	network_messages,
-	network_handshake,
+	// common
+	message,
+	process,
 };
 }
 
@@ -78,4 +84,27 @@ std::string convert_to_str (T const & val)
 {
 	return boost::lexical_cast<std::string> (val);
 }
+}
+
+namespace nano
+{
+class node;
+
+class logger
+{
+public:
+	explicit logger (nano::node &);
+
+public:
+	class format_logger
+	{
+	};
+
+	class trace_logger
+	{
+	};
+
+public:
+	format_logger log (log::type, log::detail);
+};
 }
