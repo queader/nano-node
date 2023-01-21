@@ -69,34 +69,6 @@ public:
 		spd_logger->critical (fmt, std::forward<Args> (args)...);
 	}
 
-	/*
-	 * logtag
-	 */
-
-	template <class... Args>
-	void debug (logtag tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
-	{
-		spd_logger->debug (fmt, std::forward<Args> (args)...);
-	}
-
-	template <class... Args>
-	void info (logtag tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
-	{
-		spd_logger->info (fmt, std::forward<Args> (args)...);
-	}
-
-	template <class... Args>
-	void warn (logtag tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
-	{
-		spd_logger->warn (fmt, std::forward<Args> (args)...);
-	}
-
-	template <class... Args>
-	void error (logtag tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
-	{
-		spd_logger->error (fmt, std::forward<Args> (args)...);
-	}
-
 private:
 	std::shared_ptr<spdlog::logger> spd_logger;
 };

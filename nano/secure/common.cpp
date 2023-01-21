@@ -2,6 +2,7 @@
 #include <nano/lib/config.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/timer.hpp>
+#include <nano/lib/utility.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/store.hpp>
 
@@ -516,13 +517,9 @@ nano::vote::vote (nano::account const & account_a, nano::raw_key const & prv_a, 
 
 std::string nano::vote::hashes_string () const
 {
-	std::string result;
-	for (auto const & hash : hashes)
-	{
-		result += hash.to_string ();
-		result += ", ";
-	}
-	return result;
+	return nano::util::join (hashes, ",", [] (auto const & hash) {
+		return hash.to_string ();
+	});
 }
 
 std::string const nano::vote::hash_prefix = "vote ";
