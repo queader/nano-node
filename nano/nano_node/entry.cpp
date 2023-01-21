@@ -137,7 +137,7 @@ int main (int argc, char * const * argv)
 	{
 		if (vm.count ("daemon") > 0)
 		{
-			nano_daemon::daemon daemon;
+			nano::daemon daemon;
 			nano::node_flags flags;
 			auto flags_ec = nano::update_flags (flags, vm);
 			if (flags_ec)
