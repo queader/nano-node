@@ -1,16 +1,32 @@
 #include <nano/node/election_scheduler.hpp>
 #include <nano/node/node.hpp>
 
-nano::election_scheduler::election_scheduler (nano::node & node) :
-	node{ node },
-	stopped{ false },
-	thread{ [this] () { run (); } }
+nano::election_scheduler::election_scheduler (nano::node & node_a, nano::optimistic_scheduler & optimistic_a) :
+	node{ node_a },
+	optimistic{ optimistic_a }
 {
 }
 
 nano::election_scheduler::~election_scheduler ()
 {
-	stop ();
+	// Thread must be stopped before destruction
+	debug_assert (!thread.joinable ());
+}
+
+void nano::election_scheduler::start ()
+{
+	debug_assert (!thread.joinable ());
+
+	thread = std::thread{ [this] () {
+		nano::thread_role::set (nano::thread_role::name::election_scheduler);
+		run ();
+	} };
+}
+
+void nano::election_scheduler::stop ()
+{
+	stopped = true;
+	notify ();
 	thread.join ();
 }
 
@@ -32,6 +48,10 @@ bool nano::election_scheduler::activate (nano::account const & account_a, nano::
 		if (conf_info.height < account_info.block_count)
 		{
 			debug_assert (conf_info.frontier != account_info.head);
+
+			// Notify optimistic scheduler here to avoid fetching account info from database twice
+			optimistic.activate (account_a, account_info, conf_info);
+
 			auto hash = conf_info.height == 0 ? account_info.open_block : node.store.block.successor (transaction, conf_info.frontier);
 			auto block = node.store.block.get (transaction, hash);
 			debug_assert (block != nullptr);
@@ -47,13 +67,6 @@ bool nano::election_scheduler::activate (nano::account const & account_a, nano::
 		}
 	}
 	return false; // Not activated
-}
-
-void nano::election_scheduler::stop ()
-{
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	stopped = true;
-	notify ();
 }
 
 void nano::election_scheduler::flush ()
@@ -113,7 +126,6 @@ bool nano::election_scheduler::overfill_predicate () const
 
 void nano::election_scheduler::run ()
 {
-	nano::thread_role::set (nano::thread_role::name::election_scheduler);
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{

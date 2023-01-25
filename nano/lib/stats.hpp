@@ -250,6 +250,7 @@ public:
 		bootstrap_server,
 		active,
 		backlog,
+		optimistic,
 	};
 
 	/** Optional detail type */
@@ -447,6 +448,7 @@ public:
 
 		// hinting
 		hinted,
+		insert,
 		insert_failed,
 		missing_block,
 
@@ -463,6 +465,10 @@ public:
 
 		// backlog
 		activated,
+
+		// active
+		started_hinted,
+		started_optimistic,
 	};
 
 	/** Direction of the stat. If the direction is irrelevant, use in */
