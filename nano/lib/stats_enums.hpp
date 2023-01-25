@@ -37,6 +37,7 @@ enum class type : uint8_t
 	bootstrap_server,
 	active,
 	backlog,
+	optimistic,
 
 	_last // Must be the last enum
 };
@@ -236,6 +237,7 @@ enum class detail : uint8_t
 
 	// hinting
 	hinted,
+	insert,
 	insert_failed,
 	missing_block,
 
@@ -252,6 +254,10 @@ enum class detail : uint8_t
 
 	// backlog
 	activated,
+	
+	// active
+	started_hinted,
+	started_optimistic,
 
 	_last // Must be the last enum
 };
