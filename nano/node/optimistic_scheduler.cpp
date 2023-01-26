@@ -3,7 +3,7 @@
 #include <nano/node/node.hpp>
 #include <nano/node/optimistic_scheduler.hpp>
 
-nano::optimistic_scheduler::optimistic_scheduler (optimistic_scheduler_config const & config_a, nano::node & node_a, nano::active_transactions & active_a, nano::stat & stats_a) :
+nano::optimistic_scheduler::optimistic_scheduler (optimistic_scheduler_config const & config_a, nano::node & node_a, nano::active_transactions & active_a, nano::stats & stats_a) :
 	config{ config_a },
 	node{ node_a },
 	active{ active_a },

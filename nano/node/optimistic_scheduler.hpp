@@ -36,7 +36,7 @@ public:
 class optimistic_scheduler final
 {
 public:
-	optimistic_scheduler (optimistic_scheduler_config const &, nano::node &, nano::active_transactions &, nano::stat &);
+	optimistic_scheduler (optimistic_scheduler_config const &, nano::node &, nano::active_transactions &, nano::stats &);
 	~optimistic_scheduler ();
 
 	void start ();
@@ -64,7 +64,7 @@ private: // Dependencies
 	optimistic_scheduler_config const & config;
 	nano::node & node;
 	nano::active_transactions & active;
-	nano::stat & stats;
+	nano::stats & stats;
 
 private:
 	/** Accounts eligible for optimistic scheduling */
