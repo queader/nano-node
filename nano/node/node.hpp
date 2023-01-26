@@ -25,6 +25,7 @@
 #include <nano/node/portmapping.hpp>
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/request_aggregator.hpp>
+#include <nano/node/rpc_callbacks.hpp>
 #include <nano/node/signatures.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/transport/tcp_server.hpp>
@@ -187,6 +188,7 @@ public:
 	nano::wallets wallets;
 	nano::backlog_population backlog;
 	nano::websocket_server websocket;
+	nano::rpc_callbacks rpc_callbacks;
 	nano::epoch_upgrader epoch_upgrader;
 
 	std::chrono::steady_clock::time_point const startup_time;

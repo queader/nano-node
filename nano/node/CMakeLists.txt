@@ -153,6 +153,8 @@ add_library(
   repcrawler.cpp
   request_aggregator.hpp
   request_aggregator.cpp
+  rpc_callbacks.hpp
+  rpc_callbacks.cpp
   rocksdb/account_store.hpp
   rocksdb/account_store.cpp
   rocksdb/block_store.hpp

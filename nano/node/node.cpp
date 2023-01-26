@@ -201,6 +201,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	wallets (wallets_store.init_error (), *this),
 	backlog{ nano::backlog_population_config (config), store, stats },
 	websocket{ config.websocket_config, observers, wallets, ledger, io_ctx, logger },
+	rpc_callbacks{ *this, config, observers, block_arrival },
 	epoch_upgrader{ *this, ledger, store, network_params, logger },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
@@ -236,69 +237,6 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 		network.disconnect_observer = [this] () {
 			observers.disconnect.notify ();
 		};
-		if (!config.callback_address.empty ())
-		{
-			observers.blocks.add ([this] (nano::election_status const & status_a, std::vector<nano::vote_with_weight_info> const & votes_a, nano::account const & account_a, nano::amount const & amount_a, bool is_state_send_a, bool is_state_epoch_a) {
-				auto block_a (status_a.winner);
-				if ((status_a.type == nano::election_status_type::active_confirmed_quorum || status_a.type == nano::election_status_type::active_confirmation_height) && this->block_arrival.recent (block_a->hash ()))
-				{
-					auto node_l (shared_from_this ());
-					background ([node_l, block_a, account_a, amount_a, is_state_send_a, is_state_epoch_a] () {
-						boost::property_tree::ptree event;
-						event.add ("account", account_a.to_account ());
-						event.add ("hash", block_a->hash ().to_string ());
-						std::string block_text;
-						block_a->serialize_json (block_text);
-						event.add ("block", block_text);
-						event.add ("amount", amount_a.to_string_dec ());
-						if (is_state_send_a)
-						{
-							event.add ("is_send", is_state_send_a);
-							event.add ("subtype", "send");
-						}
-						// Subtype field
-						else if (block_a->type () == nano::block_type::state)
-						{
-							if (block_a->link ().is_zero ())
-							{
-								event.add ("subtype", "change");
-							}
-							else if (is_state_epoch_a)
-							{
-								debug_assert (amount_a == 0 && node_l->ledger.is_epoch_link (block_a->link ()));
-								event.add ("subtype", "epoch");
-							}
-							else
-							{
-								event.add ("subtype", "receive");
-							}
-						}
-						std::stringstream ostream;
-						boost::property_tree::write_json (ostream, event);
-						ostream.flush ();
-						auto body (std::make_shared<std::string> (ostream.str ()));
-						auto address (node_l->config.callback_address);
-						auto port (node_l->config.callback_port);
-						auto target (std::make_shared<std::string> (node_l->config.callback_target));
-						auto resolver (std::make_shared<boost::asio::ip::tcp::resolver> (node_l->io_ctx));
-						resolver->async_resolve (boost::asio::ip::tcp::resolver::query (address, std::to_string (port)), [node_l, address, port, target, body, resolver] (boost::system::error_code const & ec, boost::asio::ip::tcp::resolver::iterator i_a) {
-							if (!ec)
-							{
-								node_l->do_rpc_callback (i_a, address, port, target, body, resolver);
-							}
-							else
-							{
-								if (node_l->config.logging.callback_logging ())
-								{
-									node_l->logger.always_log (boost::str (boost::format ("Error resolving callback: %1%:%2%: %3%") % address % port % ec.message ()));
-								}
-								node_l->stats.inc (nano::stat::type::error, nano::stat::detail::http_callback, nano::stat::dir::out);
-							}
-						});
-					});
-				}
-			});
-		}
 
 		// Add block confirmation type stats regardless of http-callback and websocket subscriptions
 		observers.blocks.add ([this] (nano::election_status const & status_a, std::vector<nano::vote_with_weight_info> const & votes_a, nano::account const & account_a, nano::amount const & amount_a, bool is_state_send_a, bool is_state_epoch_a) {
