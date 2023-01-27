@@ -57,7 +57,7 @@ private:
 	nano::prioritization priority;
 
 	std::deque<std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior>> manual_queue;
-	std::atomic<bool> stopped{ false };
+	bool stopped{ false };
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;

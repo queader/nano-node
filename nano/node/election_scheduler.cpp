@@ -25,9 +25,12 @@ void nano::election_scheduler::start ()
 
 void nano::election_scheduler::stop ()
 {
-	stopped = true;
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		stopped = true;
+	}
 	notify ();
-	thread.join ();
+	nano::join_or_pass (thread);
 }
 
 void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & block_a, boost::optional<nano::uint128_t> const & previous_balance_a, nano::election_behavior election_behavior_a)
@@ -145,7 +148,7 @@ void nano::election_scheduler::run ()
 				auto const [block, previous_balance, election_behavior] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
-				
+
 				node.active.insert (block, election_behavior);
 			}
 			else if (priority_queue_predicate ())
