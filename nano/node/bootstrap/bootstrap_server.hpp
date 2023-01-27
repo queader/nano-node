@@ -45,9 +45,10 @@ public: // Events
 	nano::observer_set<nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &> on_response;
 
 private:
-	void process_batch (std::deque<request_t> & batch);
+	void process_batch (std::deque<request_t> const & batch);
+
 	nano::asc_pull_ack process (nano::transaction const &, nano::asc_pull_req const & message);
-	void respond (nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &);
+	void respond (nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel>);
 
 	nano::asc_pull_ack process (nano::transaction const &, nano::asc_pull_req::id_t id, nano::empty_payload const & request);
 

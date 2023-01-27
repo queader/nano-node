@@ -139,7 +139,7 @@ private:
 	void reply (nano::unique_lock<nano::mutex> &, request_t &&);
 	void vote (std::vector<nano::block_hash> const &, std::vector<nano::root> const &, std::function<void (std::shared_ptr<nano::vote> const &)> const &);
 	void broadcast_action (std::shared_ptr<nano::vote> const &) const;
-	void process_batch (std::deque<queue_entry_t> & batch);
+	void process_batch (std::deque<queue_entry_t> const & batch);
 	/**
 	 * Check if block is eligible for vote generation, then generates a vote or broadcasts votes already in cache
 	 * @param transaction : needs `tables::final_votes` lock

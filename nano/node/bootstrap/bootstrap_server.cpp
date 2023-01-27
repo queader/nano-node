@@ -11,7 +11,7 @@ nano::bootstrap_server::bootstrap_server (nano::store & store_a, nano::ledger & 
 	stats{ stats_a },
 	request_queue{ stats, nano::stat::type::bootstrap_server, nano::thread_role::name::bootstrap_server, /* threads */ 1, /* max size */ 1024 * 16, /* max batch */ 128 }
 {
-	request_queue.process_batch = [this] (auto & batch) {
+	request_queue.process_batch = [this] (auto const & batch) {
 		process_batch (batch);
 	};
 }
@@ -90,7 +90,7 @@ bool nano::bootstrap_server::request (nano::asc_pull_req const & message, std::s
 	return true;
 }
 
-void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> & channel)
+void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> channel)
 {
 	stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response, nano::stat::dir::out);
 
@@ -131,7 +131,7 @@ void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared
  * Requests
  */
 
-void nano::bootstrap_server::process_batch (std::deque<request_t> & batch)
+void nano::bootstrap_server::process_batch (std::deque<request_t> const & batch)
 {
 	auto transaction = store.tx_begin_read ();
 

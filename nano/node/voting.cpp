@@ -174,7 +174,7 @@ nano::vote_generator::vote_generator (nano::node_config const & config_a, nano::
 	is_final (is_final_a),
 	vote_generation_queue{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 1024 * 4 }
 {
-	vote_generation_queue.process_batch = [this] (auto & batch) {
+	vote_generation_queue.process_batch = [this] (auto const & batch) {
 		process_batch (batch);
 	};
 }
@@ -239,7 +239,7 @@ void nano::vote_generator::add (const root & root, const block_hash & hash)
 	vote_generation_queue.add (std::make_pair (root, hash));
 }
 
-void nano::vote_generator::process_batch (std::deque<queue_entry_t> & batch)
+void nano::vote_generator::process_batch (std::deque<queue_entry_t> const & batch)
 {
 	auto transaction = ledger.store.tx_begin_write ({ tables::final_votes });
 

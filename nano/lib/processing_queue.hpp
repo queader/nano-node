@@ -74,18 +74,20 @@ public:
 	/**
 	 * Queues item for batch processing
 	 */
-	void add (T && item)
+	template <typename V>
+	void add (V && item)
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
 		if (queue.size () < max_queue_size)
 		{
-			queue.emplace_back (std::forward<T> (item));
+			queue.push_back (std::forward<T> (item));
 			lock.unlock ();
 			condition.notify_one ();
 			stats.inc (stat_type, nano::stat::detail::queue);
 		}
 		else
 		{
+			lock.unlock ();
 			stats.inc (stat_type, nano::stat::detail::overfill);
 		}
 	}
@@ -136,7 +138,7 @@ private:
 			for (int n = 0; n < max_batch_size; ++n)
 			{
 				debug_assert (!queue.empty ());
-				queue_l.emplace_back (std::move (queue.front ()));
+				queue_l.push_back (std::move (queue.front ()));
 				queue.pop_front ();
 			}
 			return queue_l;
@@ -160,7 +162,7 @@ private:
 	}
 
 public:
-	std::function<void (std::deque<value_t> &)> process_batch{ [] (auto &) { debug_assert (false, "processing queue callback empty"); } };
+	std::function<void (std::deque<value_t> const &)> process_batch{ [] (auto &) { debug_assert (false, "processing queue callback empty"); } };
 
 private:
 	nano::stats & stats;
