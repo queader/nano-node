@@ -28,7 +28,7 @@ elif [[ ${LCOV:-0} -eq 1 ]]; then
     SANITIZERS="-DCOVERAGE=ON"
 fi
 
-ulimit -S -n 8192
+# ulimit -S -n 8192
 
 if [[ "$OS" == 'Linux' ]]; then
     if clang --version && [ ${LCOV:-0} == 0 ]; then

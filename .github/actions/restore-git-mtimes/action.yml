@@ -1,0 +1,13 @@
+name: "restore-git-mtimes"
+description: "Restore file modification timestamps based on git commits"
+runs:
+  using: "composite"
+  steps:
+    - run: ${{ env.SUDO }} python3 $GITHUB_ACTION_PATH/git-restore-mtime.py
+      shell: bash
+      env:
+        SUDO: ${{ runner.os == 'macOS' && 'sudo' || '' }}
+    - run: git submodule foreach --recursive '${{ env.SUDO }} python3 $GITHUB_ACTION_PATH/git-restore-mtime.py'
+      shell: bash
+      env:
+        SUDO: ${{ runner.os == 'macOS' && 'sudo' || '' }}

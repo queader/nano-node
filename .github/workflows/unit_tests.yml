@@ -7,7 +7,7 @@ env:
   artifact: 0
 
 jobs:
-  osx_test:
+  macos_test:
     name: macOS [${{ matrix.BACKEND }}]
     strategy:
       fail-fast: false
@@ -20,14 +20,24 @@ jobs:
       BACKEND: ${{ matrix.BACKEND }}
       TEST_USE_ROCKSDB: ${{ matrix.BACKEND == 'rocksdb' && '1' || '0' }}
       RELEASE: ${{ matrix.RELEASE }}
-    runs-on: macos-11
+    runs-on: macos-12
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: "recursive"
-          fetch-depth: 0 # needed for git-restore-mtime
+          fetch-depth: 0 # needed for restore-git-mtimes
+
+      - name: Restore Timestamps
+        uses: ./.github/actions/restore-git-mtimes
+
+      - name: Cache Build
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: build
+          key: ${{ runner.os }}-build-cache
 
       - name: Fetch Deps
         run: TEST=1 ci/actions/osx/install_deps.sh
@@ -35,14 +45,10 @@ jobs:
       - name: Build Tests
         run: ci/build-ci.sh "/tmp/qt/lib/cmake/Qt5";
 
-      - name: Run Tests lmdb
-        if: ${{ matrix.TEST_USE_ROCKSDB == 0 }}
+      - name: Run Tests [TEST_USE_ROCKSDB=${{ env.TEST_USE_ROCKSDB }}]
         run: cd build && sudo TEST_USE_ROCKSDB=$TEST_USE_ROCKSDB ../ci/test.sh .
-      - name: Run Tests rocksdb
         env:
-          DEADLINE_SCALE_FACTOR: 2
-        if: ${{ matrix.TEST_USE_ROCKSDB == 1 }}
-        run: cd build && sudo TEST_USE_ROCKSDB=$TEST_USE_ROCKSDB ../ci/test.sh .
+          DEADLINE_SCALE_FACTOR: ${{ env.TEST_USE_ROCKSDB == 1 && '2' || '1' }}
 
   linux_test:
     name: Linux [${{ matrix.BACKEND }}-${{ matrix.COMPILER }}]
@@ -54,7 +60,7 @@ jobs:
         COMPILER: [gcc, clang]
         RELEASE:
           - ${{ startsWith(github.ref, 'refs/tags/') }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       COMPILER: ${{ matrix.COMPILER }}
       BACKEND: ${{ matrix.BACKEND }}
@@ -66,35 +72,31 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: "recursive"
-          fetch-depth: 0 # needed for git-restore-mtime
+          fetch-depth: 0 # needed for restore-git-mtimes
 
       - name: Restore Timestamps
-        run: >
-          sudo apt-get install -y git-restore-mtime && 
-          git restore-mtime &&
-          git submodule foreach --recursive 'git restore-mtime'
+        uses: ./.github/actions/restore-git-mtimes
 
       - name: Fetch Deps
         run: ci/actions/linux/install_deps.sh
 
       - name: Cache Build
         uses: actions/cache@v3
+        continue-on-error: true
         with:
           path: build
-          key: ${{ runner.os }}-${{ env.COMPILER }}-${{ env.BACKEND }}-build-cache
+          key: ${{ runner.os }}-${{ env.COMPILER }}-build-cache
 
       - name: Build Tests
         run: docker run -e TEST_USE_ROCKSDB -e RELEASE -v ${PWD}:/workspace nanocurrency/nano-env:${{ matrix.COMPILER }} /bin/bash -c "cd /workspace && ./ci/build-ci.sh /usr/lib/x86_64-linux-gnu/cmake/Qt5"
 
-      - name: Run Tests lmdb
-        if: ${{ matrix.TEST_USE_ROCKSDB == 0 }}
-        run: docker run -e RELEASE -v ${PWD}:/workspace nanocurrency/nano-env:${{ matrix.COMPILER }} /bin/bash -c "cd /workspace/build && ../ci/test.sh ."
-      - name: Run Tests rocksdb
-        if: ${{ matrix.TEST_USE_ROCKSDB == 1 }}
-        run: docker run -e TEST_USE_ROCKSDB -e DEADLINE_SCALE_FACTOR=2 -e RELEASE -v ${PWD}:/workspace nanocurrency/nano-env:${{ matrix.COMPILER }} /bin/bash -c "cd /workspace/build && ../ci/test.sh ."
+      - name: Run Tests [TEST_USE_ROCKSDB=${{ env.TEST_USE_ROCKSDB }}]
+        run: docker run -e RELEASE -e TEST_USE_ROCKSDB -e DEADLINE_SCALE_FACTOR -v ${PWD}:/workspace nanocurrency/nano-env:${{ matrix.COMPILER }} /bin/bash -c "cd /workspace/build && ../ci/test.sh ."
+        env:
+          DEADLINE_SCALE_FACTOR: ${{ env.TEST_USE_ROCKSDB == 1 && '2' || '1' }}
 
   windows_test:
-    name: Windows [TEST_USE_ROCKSDB=${{ matrix.TEST_USE_ROCKSDB }}]
+    name: Windows [${{ matrix.BACKEND }}]
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -109,10 +111,21 @@ jobs:
       RELEASE: ${{ matrix.RELEASE }}
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: "recursive"
-          fetch-depth: 0 # needed for git-restore-mtime
+          fetch-depth: 0 # needed for restore-git-mtimes
+
+      - name: Restore Timestamps
+        uses: ./.github/actions/restore-git-mtimes
+
+      - name: Cache Build
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: build
+          key: ${{ runner.os }}-build-cache
 
       - name: Windows Defender
         run: ci/actions/windows/disable_windows_defender.ps1
@@ -120,11 +133,21 @@ jobs:
       - name: Fetch Deps
         run: ci/actions/windows/install_deps.ps1
 
-      - name: Run Tests lmdb
-        if: ${{ matrix.TEST_USE_ROCKSDB == 0 }}
-        run: ci/actions/windows/build.ps1
-      - name: Run Tests rocksdb
-        if: ${{ matrix.TEST_USE_ROCKSDB == 1 }}
+      - name: Build Tests
+        run: ci/build-ci.sh
+        shell: bash
+
+      - name: Run Tests [TEST_USE_ROCKSDB=${{ env.TEST_USE_ROCKSDB }}]
+        run: cd build && sudo TEST_USE_ROCKSDB=$TEST_USE_ROCKSDB ../ci/test.sh .
+        shell: bash
         env:
-          DEADLINE_SCALE_FACTOR: 2
-        run: ci/actions/windows/build.ps1
+          DEADLINE_SCALE_FACTOR: ${{ env.TEST_USE_ROCKSDB == 1 && '2' || '1' }}
+
+      # - name: Run Tests lmdb
+      #   if: ${{ env.TEST_USE_ROCKSDB == 0 }}
+      #   run: ci/actions/windows/build.ps1
+      # - name: Run Tests rocksdb
+      #   if: ${{ env.TEST_USE_ROCKSDB == 1 }}
+      #   env:
+      #     DEADLINE_SCALE_FACTOR: 2
+      #   run: ci/actions/windows/build.ps1
