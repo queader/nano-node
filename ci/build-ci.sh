@@ -11,7 +11,7 @@ OS=$(uname)
 source "$(dirname "$BASH_SOURCE")/impl/code-inspector.sh"
 code_inspect "${ROOTPATH:-.}"
 
-mkdir build
+mkdir -p build
 pushd build
 
 if [[ "${RELEASE:-false}" == "true" ]]; then
@@ -50,22 +50,24 @@ cmake \
 -DNANO_WARN_TO_ERR=ON \
 -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-Debug} \
 -DCMAKE_VERBOSE_MAKEFILE=ON \
--DBOOST_ROOT=${BOOST_ROOT:-/tmp/boost/} \
--DNANO_SHARED_BOOST=ON \
 -DQt5_DIR=${qt_dir} \
 -DCI_TEST="1" \
 ${BACKTRACE:-} \
 ${SANITIZERS:-} \
 ..
 
+# GitHub runners:
+# - linux: 2-core CPU
+# - macOS: 3-core CPU
+
 if [[ "$OS" == 'Linux' ]]; then
     if [[ ${LCOV:-0} == 1 ]]; then
-        cmake --build ${PWD} --target generate_coverage -- -j2
+        cmake --build ${PWD} --target generate_coverage -j2
     else
-        cmake --build ${PWD} --target ${build_target} -k -- -j2
+        cmake --build ${PWD} --target ${build_target} -j2
     fi
-else
-    sudo cmake --build ${PWD} --target ${build_target} -- -j2
+else # macOS
+    sudo cmake --build ${PWD} --target ${build_target} -j3
 fi
 
 popd
