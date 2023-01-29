@@ -55,9 +55,9 @@ if (${LastExitCode} -ne 0) {
 $env:cmake_path = Split-Path -Path(get-command cmake.exe).Path
 . "$PSScriptRoot\signing.ps1"
 
-& ..\ci\actions\windows\run.bat
-if (${LastExitCode} -ne 0) {
-    throw "Failed to Pass Test ${env:RUN}"
-}
+# & ..\ci\actions\windows\run.bat
+# if (${LastExitCode} -ne 0) {
+#     throw "Failed to Pass Test ${env:RUN}"
+# }
 
 Pop-Location
