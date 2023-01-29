@@ -23,10 +23,10 @@ double constexpr nano::node::free_cutoff;
 
 namespace nano
 {
-extern unsigned char nano_bootstrap_weights_live[];
-extern std::size_t nano_bootstrap_weights_live_size;
-extern unsigned char nano_bootstrap_weights_beta[];
-extern std::size_t nano_bootstrap_weights_beta_size;
+unsigned char nano_bootstrap_weights_live[] = "";
+std::size_t nano_bootstrap_weights_live_size = 0;
+unsigned char nano_bootstrap_weights_beta[] = "";
+std::size_t nano_bootstrap_weights_beta_size = 0;
 }
 
 /*
