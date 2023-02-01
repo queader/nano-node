@@ -27,7 +27,7 @@ TEST (election_scheduler, activate_one_timely)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
 	system.nodes[0]->ledger.process (system.nodes[0]->store.tx_begin_write (), *send1);
-	system.nodes[0]->scheduler.activate (nano::dev::genesis_key.pub, system.nodes[0]->store.tx_begin_read ());
+	system.nodes[0]->scheduler.activate (system.nodes[0]->store.tx_begin_read (), nano::dev::genesis_key.pub);
 	ASSERT_TIMELY (5s, system.nodes[0]->active.election (send1->qualified_root ()));
 }
 
@@ -45,7 +45,7 @@ TEST (election_scheduler, activate_one_flush)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
 	system.nodes[0]->ledger.process (system.nodes[0]->store.tx_begin_write (), *send1);
-	system.nodes[0]->scheduler.activate (nano::dev::genesis_key.pub, system.nodes[0]->store.tx_begin_read ());
+	system.nodes[0]->scheduler.activate (system.nodes[0]->store.tx_begin_read (), nano::dev::genesis_key.pub);
 	ASSERT_TIMELY (5s, system.nodes[0]->active.election (send1->qualified_root ()));
 }
 
@@ -114,7 +114,7 @@ TEST (election_scheduler, no_vacancy)
 	ASSERT_EQ (nano::process_result::progress, node.process (*block1).code);
 
 	// There is vacancy so it should be inserted
-	node.scheduler.activate (nano::dev::genesis_key.pub, node.store.tx_begin_read ());
+	node.scheduler.activate (node.store.tx_begin_read (), nano::dev::genesis_key.pub);
 	std::shared_ptr<nano::election> election{};
 	ASSERT_TIMELY (5s, (election = node.active.election (block1->qualified_root ())) != nullptr);
 
@@ -130,7 +130,7 @@ TEST (election_scheduler, no_vacancy)
 	ASSERT_EQ (nano::process_result::progress, node.process (*block2).code);
 
 	// There is no vacancy so it should stay queued
-	node.scheduler.activate (key.pub, node.store.tx_begin_read ());
+	node.scheduler.activate (node.store.tx_begin_read (), key.pub);
 	ASSERT_TIMELY (5s, node.scheduler.size () == 1);
 	ASSERT_TRUE (node.active.election (block2->qualified_root ()) == nullptr);
 
@@ -161,7 +161,7 @@ TEST (election_scheduler, flush_vacancy)
 				.work (*system.work.generate (nano::dev::genesis->hash ()))
 				.build_shared ();
 	ASSERT_EQ (nano::process_result::progress, node.process (*send).code);
-	node.scheduler.activate (nano::dev::genesis_key.pub, node.store.tx_begin_read ());
+	node.scheduler.activate (node.store.tx_begin_read (), nano::dev::genesis_key.pub);
 	// Ensure this call does not block, even though no elections can be activated.
 	node.scheduler.flush ();
 	ASSERT_EQ (0, node.active.size ());

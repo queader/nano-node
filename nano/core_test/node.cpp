@@ -1413,7 +1413,7 @@ TEST (node, rep_self_vote)
 	ASSERT_EQ (nano::process_result::progress, node0->process (*block0).code);
 	auto & active = node0->active;
 	auto & scheduler = node0->scheduler;
-	scheduler.activate (nano::dev::genesis_key.pub, node0->store.tx_begin_read ());
+	scheduler.activate (node0->store.tx_begin_read (), nano::dev::genesis_key.pub);
 	ASSERT_TIMELY (5s, active.election (block0->qualified_root ()));
 	auto election1 = active.election (block0->qualified_root ());
 	ASSERT_NE (nullptr, election1);
