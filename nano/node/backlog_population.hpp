@@ -47,7 +47,7 @@ public:
 	 * Callback called for each backlogged account
 	 */
 	using callback_t = nano::observer_set<nano::transaction const &, nano::account const &, nano::account_info const &, nano::confirmation_height_info const &>;
-	callback_t activate_callback;
+	callback_t account_activated;
 
 private: // Dependencies
 	nano::store & store;

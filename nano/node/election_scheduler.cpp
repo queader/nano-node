@@ -39,31 +39,42 @@ void nano::election_scheduler::manual (std::shared_ptr<nano::block> const & bloc
 	notify ();
 }
 
-bool nano::election_scheduler::activate (nano::account const & account_a, nano::transaction const & transaction)
+bool nano::election_scheduler::activate (const nano::transaction & transaction, const nano::account & account)
 {
-	debug_assert (!account_a.is_zero ());
-	auto info = node.ledger.account_info (transaction, account_a);
-	if (info)
+	debug_assert (!account.is_zero ());
+
+	auto account_info = node.ledger.account_info (transaction, account);
+	auto conf_info = node.store.confirmation_height.get (transaction, account);
+
+	if (account_info && conf_info)
 	{
-		nano::confirmation_height_info conf_info;
-		node.store.confirmation_height.get (transaction, account_a, conf_info);
-		if (conf_info.height < info->block_count)
+		return activate (transaction, account, *account_info, *conf_info);
+	}
+	return false;
+}
+
+bool nano::election_scheduler::activate (nano::transaction const & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info)
+{
+	debug_assert (!account.is_zero ());
+
+	if (conf_info.height < account_info.block_count)
+	{
+		debug_assert (conf_info.frontier != account_info.head);
+
+		auto hash = conf_info.height == 0 ? account_info.open_block : node.store.block.successor (transaction, conf_info.frontier);
+		auto block = node.store.block.get (transaction, hash);
+		debug_assert (block != nullptr);
+		if (node.ledger.dependents_confirmed (transaction, *block))
 		{
-			debug_assert (conf_info.frontier != info->head);
-			auto hash = conf_info.height == 0 ? info->open_block : node.store.block.successor (transaction, conf_info.frontier);
-			auto block = node.store.block.get (transaction, hash);
-			debug_assert (block != nullptr);
-			if (node.ledger.dependents_confirmed (transaction, *block))
-			{
-				auto balance = node.ledger.balance (transaction, hash);
-				auto previous_balance = node.ledger.balance (transaction, conf_info.frontier);
-				nano::lock_guard<nano::mutex> lock{ mutex };
-				priority.push (info->modified, block, std::max (balance, previous_balance));
-				notify ();
-				return true; // Activated
-			}
+			auto balance = node.ledger.balance (transaction, hash);
+			auto previous_balance = node.ledger.balance (transaction, conf_info.frontier);
+			nano::lock_guard<nano::mutex> lock{ mutex };
+			priority.push (account_info.modified, block, std::max (balance, previous_balance));
+			notify ();
+			return true; // Activated
 		}
 	}
+
 	return false; // Not activated
 }
 
@@ -143,7 +154,7 @@ void nano::election_scheduler::run ()
 				auto const [block, previous_balance, election_behavior] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
-				
+
 				node.active.insert (block, election_behavior);
 			}
 			else if (priority_queue_predicate ())

@@ -28,11 +28,14 @@ public:
 	// Manualy start an election for a block
 	// Call action with confirmed block, may be different than what we started with
 	void manual (std::shared_ptr<nano::block> const &, boost::optional<nano::uint128_t> const & = boost::none, nano::election_behavior = nano::election_behavior::normal);
+
 	/**
 	 * Activates the first unconfirmed block of \p account_a
 	 * @return true if account was activated
 	 */
-	bool activate (nano::account const &, nano::transaction const &);
+	bool activate (nano::transaction const &, nano::account const &);
+	bool activate (nano::transaction const &, nano::account const &, nano::account_info const &, nano::confirmation_height_info const &);
+
 	// Blocks until no more elections can be activated or there are no more elections to activate
 	void flush ();
 	void notify ();

@@ -109,7 +109,7 @@ void nano::backlog_population::populate_backlog (nano::unique_lock<nano::mutex> 
 
 void nano::backlog_population::activate (nano::transaction const & transaction, nano::account const & account)
 {
-	debug_assert (!activate_callback.empty ());
+	debug_assert (!account_activated.empty ());
 
 	auto const maybe_account_info = store.account.get (transaction, account);
 	if (!maybe_account_info)
@@ -126,6 +126,6 @@ void nano::backlog_population::activate (nano::transaction const & transaction, 
 	{
 		stats.inc (nano::stat::type::backlog, nano::stat::detail::activated);
 
-		activate_callback.notify (transaction, account, account_info, conf_info);
+		account_activated.notify (transaction, account, account_info, conf_info);
 	}
 }
