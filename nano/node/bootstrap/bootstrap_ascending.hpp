@@ -35,7 +35,7 @@ class bootstrap_ascending
 	using id_t = uint64_t;
 
 public:
-	bootstrap_ascending (nano::node &, nano::store &, nano::block_processor &, nano::ledger &, nano::network &, nano::stat &);
+	bootstrap_ascending (nano::node &, nano::store &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &);
 	~bootstrap_ascending ();
 
 	void start ();
@@ -57,7 +57,7 @@ private: // Dependencies
 	nano::block_processor & block_processor;
 	nano::ledger & ledger;
 	nano::network & network;
-	nano::stat & stats;
+	nano::stats & stats;
 
 public: // async_tag
 	struct async_tag
@@ -131,7 +131,7 @@ public: // account_sets
 	class account_sets
 	{
 	public:
-		explicit account_sets (nano::stat &);
+		explicit account_sets (nano::stats &);
 
 		/**
 		 * If an account is not blocked, increase its priority.
@@ -168,7 +168,7 @@ public: // account_sets
 		bool check_timestamp (nano::account const & account) const;
 
 	private: // Dependencies
-		nano::stat & stats;
+		nano::stats & stats;
 
 	private:
 		struct priority_entry

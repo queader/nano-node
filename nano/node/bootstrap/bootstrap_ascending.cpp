@@ -1,3 +1,4 @@
+#include <nano/lib/stats_enums.hpp>
 #include <nano/node/bootstrap/block_deserializer.hpp>
 #include <nano/node/bootstrap/bootstrap_ascending.hpp>
 #include <nano/node/node.hpp>
@@ -118,7 +119,7 @@ void nano::bootstrap_ascending::buffered_iterator::fill ()
  * account_sets
  */
 
-nano::bootstrap_ascending::account_sets::account_sets (nano::stat & stats_a) :
+nano::bootstrap_ascending::account_sets::account_sets (nano::stats & stats_a) :
 	stats{ stats_a }
 {
 }
@@ -367,7 +368,7 @@ nano::bootstrap_ascending::account_sets::priority_entry::priority_entry (nano::a
  * bootstrap_ascending
  */
 
-nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store & store_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stat & stat_a) :
+nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store & store_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stats & stat_a) :
 	node{ node_a },
 	store{ store_a },
 	block_processor{ block_processor_a },

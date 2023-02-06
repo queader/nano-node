@@ -24,7 +24,7 @@ public:
 	{
 	}
 	nano::logger_mt logger;
-	nano::stat stats;
+	nano::stats stats;
 	std::unique_ptr<nano::store> store;
 	nano::unchecked_map unchecked;
 };

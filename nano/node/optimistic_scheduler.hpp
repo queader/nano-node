@@ -30,7 +30,7 @@ public: // Config
 	};
 
 public:
-	optimistic_scheduler (config const &, nano::node &, nano::active_transactions &, nano::stat &);
+	optimistic_scheduler (config const &, nano::node &, nano::active_transactions &, nano::stats &);
 	~optimistic_scheduler ();
 
 	void start ();
@@ -58,7 +58,7 @@ private:
 private: // Dependencies
 	nano::node & node;
 	nano::active_transactions & active;
-	nano::stat & stats;
+	nano::stats & stats;
 
 	config const config_m;
 

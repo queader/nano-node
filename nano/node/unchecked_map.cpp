@@ -1,11 +1,12 @@
 #include <nano/lib/locks.hpp>
 #include <nano/lib/stats.hpp>
+#include <nano/lib/stats_enums.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/lib/timer.hpp>
 #include <nano/node/unchecked_map.hpp>
 #include <nano/secure/store.hpp>
 
-nano::unchecked_map::unchecked_map (nano::store & store, nano::stat & stats, bool const & disable_delete) :
+nano::unchecked_map::unchecked_map (nano::store & store, nano::stats & stats, bool const & disable_delete) :
 	store{ store },
 	stats{ stats },
 	disable_delete{ disable_delete },
