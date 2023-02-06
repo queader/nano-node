@@ -1,6 +1,6 @@
 #pragma once
 
-#include <magic_enum.hpp>
+#include <nano/lib/magic_enum.hpp>
 
 namespace nano::stat
 {
@@ -45,6 +45,8 @@ enum class type : uint8_t
 	bootstrap_ascending_thread,
 	bootstrap_ascending_accounts,
 	optimistic,
+
+	_last // Must be the last enum
 };
 
 /** Optional detail type */
@@ -314,13 +316,17 @@ enum class detail : uint8_t
 	// optimistic
 	pop_gap,
 	pop_leaf,
+
+	_last // Must be the last enum
 };
 
 /** Direction of the stat. If the direction is irrelevant, use in */
 enum class dir : uint8_t
 {
 	in,
-	out
+	out,
+
+	_last // Must be the last enum
 };
 }
 
