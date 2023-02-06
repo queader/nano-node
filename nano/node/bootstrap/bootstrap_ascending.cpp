@@ -787,7 +787,7 @@ nano::bootstrap_ascending::verify_result nano::bootstrap_ascending::verify (cons
 	{
 		return verify_result::nothing_new;
 	}
-	if (blocks.size () == 1 && blocks.front ()->hash () == tag.start)
+	if (blocks.size () == 1 && blocks.front ()->hash () == tag.start.as_block_hash ())
 	{
 		return verify_result::nothing_new;
 	}
@@ -797,7 +797,7 @@ nano::bootstrap_ascending::verify_result nano::bootstrap_ascending::verify (cons
 	{
 		case async_tag::query_type::blocks_by_hash:
 		{
-			if (first->hash () != tag.start)
+			if (first->hash () != tag.start.as_block_hash ())
 			{
 				// TODO: Stat & log
 				return verify_result::invalid;
@@ -807,7 +807,7 @@ nano::bootstrap_ascending::verify_result nano::bootstrap_ascending::verify (cons
 		case async_tag::query_type::blocks_by_account:
 		{
 			// Open & state blocks always contain account field
-			if (first->account () != tag.start)
+			if (first->account () != tag.start.as_account ())
 			{
 				// TODO: Stat & log
 				return verify_result::invalid;
