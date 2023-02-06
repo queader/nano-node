@@ -4,10 +4,9 @@
 #include <nano/node/nodeconfig.hpp>
 #include <nano/secure/store.hpp>
 
-nano::backlog_population::backlog_population (const config & config_a, nano::store & store_a, nano::election_scheduler & scheduler_a, nano::stat & stats_a) :
+nano::backlog_population::backlog_population (const config & config_a, nano::store & store_a, nano::stat & stats_a) :
 	config_m{ config_a },
 	store{ store_a },
-	scheduler{ scheduler_a },
 	stats{ stats_a }
 {
 }
@@ -51,7 +50,7 @@ void nano::backlog_population::notify ()
 
 bool nano::backlog_population::predicate () const
 {
-	return triggered || config_m.ongoing_backlog_population_enabled;
+	return triggered || config_m.enabled;
 }
 
 void nano::backlog_population::run ()
@@ -77,6 +76,9 @@ void nano::backlog_population::run ()
 
 void nano::backlog_population::populate_backlog ()
 {
+	debug_assert (config_m.frequency > 0);
+
+	const auto chunk_size = config_m.batch_size / config_m.frequency;
 	auto done = false;
 	nano::account next = 0;
 	uint64_t total = 0;
@@ -93,34 +95,36 @@ void nano::backlog_population::populate_backlog ()
 				stats.inc (nano::stat::type::backlog, nano::stat::detail::total);
 
 				auto const & account = i->first;
-				bool activated = scheduler.activate (account, transaction);
-				if (activated)
-				{
-					stats.inc (nano::stat::type::backlog, nano::stat::detail::activated);
-				}
-
+				activate (transaction, account);
 				next = account.number () + 1;
 			}
 			done = store.account.begin (transaction, next) == end;
 		}
 
 		// Give the rest of the node time to progress without holding database lock
-		//		std::this_thread::sleep_for (config_m.duty_to_sleep_time ());
-		std::this_thread::sleep_for (std::chrono::milliseconds (100));
+		std::this_thread::sleep_for (std::chrono::milliseconds (1000 / config_m.frequency));
 	}
 }
 
-std::chrono::duration<double> nano::backlog_population::config::duty_to_sleep_time () const
+void nano::backlog_population::activate (nano::transaction const & transaction, nano::account const & account)
 {
-	debug_assert (duty_cycle >= 0);
-	debug_assert (duty_cycle <= 100);
+	debug_assert (!activate_callback.empty ());
 
-	if (duty_cycle == 0)
+	auto const maybe_account_info = store.account.get (transaction, account);
+	if (!maybe_account_info)
 	{
-		return {};
+		return;
 	}
-	else
+	auto const account_info = *maybe_account_info;
+
+	auto const maybe_conf_info = store.confirmation_height.get (transaction, account);
+	auto const conf_info = maybe_conf_info.value_or (nano::confirmation_height_info{});
+
+	// If conf info is empty then it means then it means nothing is confirmed yet
+	if (conf_info.height < account_info.block_count)
 	{
-		return std::chrono::duration<double>{ 1.0 - (duty_cycle / 100.0) };
+		stats.inc (nano::stat::type::backlog, nano::stat::detail::activated);
+
+		activate_callback.notify (transaction, account, account_info, conf_info);
 	}
 }

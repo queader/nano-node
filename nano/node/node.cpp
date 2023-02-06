@@ -35,10 +35,10 @@ extern std::size_t nano_bootstrap_weights_beta_size;
 
 nano::backlog_population::config nano::backlog_population_config (const nano::node_config & config)
 {
-	nano::backlog_population::config cfg;
-	cfg.ongoing_backlog_population_enabled = config.frontiers_confirmation != nano::frontiers_confirmation_mode::disabled;
-	// TODO: Make this configurable
-	cfg.duty_cycle = config.network_params.network.is_dev_network () ? 50u : 10u;
+	nano::backlog_population::config cfg{};
+	cfg.enabled = config.frontiers_confirmation != nano::frontiers_confirmation_mode::disabled;
+	cfg.frequency = config.backlog_scan_frequency;
+	cfg.batch_size = config.backlog_scan_batch_size;
 	return cfg;
 }
 
@@ -208,7 +208,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	hinting{ nano::nodeconfig_to_hinted_scheduler_config (config), *this, inactive_vote_cache, active, online_reps, stats },
 	aggregator (config, stats, generator, final_generator, history, ledger, wallets, active),
 	wallets (wallets_store.init_error (), *this),
-	backlog{ nano::backlog_population_config (config), store, scheduler, stats },
+	backlog{ nano::backlog_population_config (config), store, stats },
 	ascendboot{ *this, store, block_processor, ledger, network, stats },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
@@ -220,6 +220,10 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	inactive_vote_cache.rep_weight_query = [this] (nano::account const & rep) {
 		return ledger.weight (rep);
 	};
+
+	backlog.activate_callback.add ([this] (nano::transaction const & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info) {
+		scheduler.activate (account, transaction);
+	});
 
 	if (!init_error ())
 	{
