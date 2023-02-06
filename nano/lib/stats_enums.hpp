@@ -57,6 +57,11 @@ enum class detail : uint8_t
 	// common
 	loop,
 	total,
+	process,
+	update,
+	insert,
+	request,
+	broadcast,
 
 	// processing queue
 	queue,
@@ -231,10 +236,14 @@ enum class detail : uint8_t
 	invalid_signature,
 	different_genesis_hash,
 	node_id_mismatch,
+	genesis_mismatch,
 	request_within_protection_cache_zone,
 	no_response_received,
 	unsolicited_telemetry_ack,
 	failed_send_telemetry_req,
+	empty_payload,
+	cleanup_outdated,
+	cleanup_dead,
 
 	// vote generator
 	generator_broadcasts,
@@ -244,7 +253,6 @@ enum class detail : uint8_t
 
 	// hinting
 	hinted,
-	insert,
 	insert_failed,
 	missing_block,
 
@@ -270,7 +278,6 @@ enum class detail : uint8_t
 	// bootstrap ascending
 	missing_tag,
 	reply,
-	process,
 	track,
 	timeout,
 	nothing_new,
@@ -283,7 +290,6 @@ enum class detail : uint8_t
 	reuse,
 
 	// bootstrap ascending thread
-	request,
 	read_block,
 	read_block_done,
 	read_block_end,
