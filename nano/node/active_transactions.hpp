@@ -139,7 +139,7 @@ private: // Elections
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> blocks;
 
 public:
-	explicit active_transactions (nano::node &, nano::confirmation_height_processor &);
+	active_transactions (nano::node &, nano::confirmation_height_processor &);
 	~active_transactions ();
 
 	void start ();
@@ -253,7 +253,7 @@ private:
 	std::size_t optimistic_count{ 0 };
 
 	nano::condition_variable condition;
-	std::atomic<bool> stopped{ false };
+	bool stopped{ false };
 	std::thread thread;
 
 	friend class election;
