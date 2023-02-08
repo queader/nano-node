@@ -28,7 +28,7 @@ public:
 	virtual void confirm_req (nano::confirm_req const &) override
 	{
 	}
-	virtual void confirm_ack (nano::confirm_ack const &) override
+	virtual void confirm_ack (nano::message::confirm_ack const &) override
 	{
 	}
 	virtual void bulk_pull (nano::message::bulk_pull const &) override

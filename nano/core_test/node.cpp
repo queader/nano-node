@@ -1102,7 +1102,7 @@ TEST (node, fork_no_vote_quorum)
 	auto transaction (system.wallet (1)->wallets.tx_begin_read ());
 	ASSERT_FALSE (system.wallet (1)->store.fetch (transaction, key1, key3));
 	auto vote = std::make_shared<nano::vote> (key1, key3, 0, 0, std::vector<nano::block_hash>{ send2->hash () });
-	nano::confirm_ack confirm{ nano::dev::network_params.network, vote };
+	nano::message::confirm_ack confirm{ nano::dev::network_params.network, vote };
 	std::vector<uint8_t> buffer;
 	{
 		nano::vectorstream stream (buffer);

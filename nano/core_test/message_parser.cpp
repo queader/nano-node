@@ -20,7 +20,7 @@ public:
 	{
 		++confirm_req_count;
 	}
-	void confirm_ack (nano::confirm_ack const &) override
+	void confirm_ack (nano::message::confirm_ack const &) override
 	{
 		++confirm_ack_count;
 	}
@@ -78,7 +78,7 @@ TEST (message_parser, exact_confirm_ack_size)
 				 .work (*system.work.generate (nano::root (1)))
 				 .build_shared ();
 	auto vote (std::make_shared<nano::vote> (0, nano::keypair ().prv, 0, 0, std::vector<nano::block_hash>{ block->hash () }));
-	nano::confirm_ack message{ nano::dev::network_params.network, vote };
+	nano::message::confirm_ack message{ nano::dev::network_params.network, vote };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);

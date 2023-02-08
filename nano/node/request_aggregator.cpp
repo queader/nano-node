@@ -150,7 +150,7 @@ bool nano::request_aggregator::empty ()
 
 void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const
 {
-	nano::confirm_ack confirm{ config.network_params.network, vote_a };
+	nano::message::confirm_ack confirm{ config.network_params.network, vote_a };
 	channel_a->send (confirm);
 }
 

@@ -110,7 +110,7 @@ private:
 		void keepalive (nano::message::keepalive const &) override;
 		void publish (nano::publish const &) override;
 		void confirm_req (nano::confirm_req const &) override;
-		void confirm_ack (nano::confirm_ack const &) override;
+		void confirm_ack (nano::message::confirm_ack const &) override;
 		void frontier_req (nano::message::frontier_req const &) override;
 		void telemetry_req (nano::telemetry_req const &) override;
 		void telemetry_ack (nano::telemetry_ack const &) override;

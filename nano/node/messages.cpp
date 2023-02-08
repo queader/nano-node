@@ -296,7 +296,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::confirm_ack:
 		{
-			return nano::confirm_ack::size (count_get ());
+			return nano::message::confirm_ack::size (count_get ());
 		}
 		case nano::message::type::confirm_req:
 		{
@@ -608,7 +608,7 @@ void nano::message_parser::deserialize_confirm_req (nano::stream & stream_a, nan
 void nano::message_parser::deserialize_confirm_ack (nano::stream & stream_a, nano::message::header const & header_a)
 {
 	auto error (false);
-	nano::confirm_ack incoming (error, stream_a, header_a, &vote_uniquer);
+	nano::message::confirm_ack incoming (error, stream_a, header_a, &vote_uniquer);
 	if (!error && at_end (stream_a))
 	{
 		visitor.confirm_ack (incoming);
@@ -966,7 +966,7 @@ std::string nano::confirm_req::to_string () const
  * confirm_ack
  */
 
-nano::confirm_ack::confirm_ack (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a, nano::vote_uniquer * uniquer_a) :
+nano::message::confirm_ack::confirm_ack (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a, nano::vote_uniquer * uniquer_a) :
 	message (header_a),
 	vote (nano::make_shared<nano::vote> (error_a, stream_a))
 {
@@ -976,7 +976,7 @@ nano::confirm_ack::confirm_ack (bool & error_a, nano::stream & stream_a, nano::m
 	}
 }
 
-nano::confirm_ack::confirm_ack (nano::network_constants const & constants, std::shared_ptr<nano::vote> const & vote_a) :
+nano::message::confirm_ack::confirm_ack (nano::network_constants const & constants, std::shared_ptr<nano::vote> const & vote_a) :
 	message (constants, nano::message::type::confirm_ack),
 	vote (vote_a)
 {
@@ -985,31 +985,31 @@ nano::confirm_ack::confirm_ack (nano::network_constants const & constants, std::
 	header.count_set (static_cast<uint8_t> (vote_a->hashes.size ()));
 }
 
-void nano::confirm_ack::serialize (nano::stream & stream_a) const
+void nano::message::confirm_ack::serialize (nano::stream & stream_a) const
 {
 	debug_assert (header.block_type () == nano::block_type::not_a_block || header.block_type () == nano::block_type::send || header.block_type () == nano::block_type::receive || header.block_type () == nano::block_type::open || header.block_type () == nano::block_type::change || header.block_type () == nano::block_type::state);
 	header.serialize (stream_a);
 	vote->serialize (stream_a);
 }
 
-bool nano::confirm_ack::operator== (nano::confirm_ack const & other_a) const
+bool nano::message::confirm_ack::operator== (nano::message::confirm_ack const & other_a) const
 {
 	auto result (*vote == *other_a.vote);
 	return result;
 }
 
-void nano::confirm_ack::visit (nano::message_visitor & visitor_a) const
+void nano::message::confirm_ack::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.confirm_ack (*this);
 }
 
-std::size_t nano::confirm_ack::size (std::size_t count)
+std::size_t nano::message::confirm_ack::size (std::size_t count)
 {
 	std::size_t result = sizeof (nano::account) + sizeof (nano::signature) + sizeof (uint64_t) + count * sizeof (nano::block_hash);
 	return result;
 }
 
-std::string nano::confirm_ack::to_string () const
+std::string nano::message::confirm_ack::to_string () const
 {
 	return header.to_string () + "\n" + vote->to_json ();
 }

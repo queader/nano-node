@@ -409,7 +409,7 @@ public:
 	{
 		message (message_a);
 	}
-	void confirm_ack (nano::confirm_ack const & message_a) override
+	void confirm_ack (nano::message::confirm_ack const & message_a) override
 	{
 		message (message_a);
 	}

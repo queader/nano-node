@@ -113,7 +113,7 @@ TEST (message, confirm_ack_hash_serialization)
 	}
 	nano::keypair representative1;
 	auto vote (std::make_shared<nano::vote> (representative1.pub, representative1.prv, 0, 0, hashes));
-	nano::confirm_ack con1{ nano::dev::network_params.network, vote };
+	nano::message::confirm_ack con1{ nano::dev::network_params.network, vote };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream1 (bytes);
@@ -122,7 +122,7 @@ TEST (message, confirm_ack_hash_serialization)
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
 	bool error (false);
 	nano::message::header header (error, stream2);
-	nano::confirm_ack con2 (error, stream2, header);
+	nano::message::confirm_ack con2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (con1, con2);
 	ASSERT_EQ (hashes, con2.vote->hashes);
@@ -266,7 +266,7 @@ TEST (confirm_ack, empty_vote_hashes)
 {
 	nano::keypair key;
 	auto vote = std::make_shared<nano::vote> (key.pub, key.prv, 0, 0, std::vector<nano::block_hash>{} /* empty */);
-	nano::confirm_ack message{ nano::dev::network_params.network, vote };
+	nano::message::confirm_ack message{ nano::dev::network_params.network, vote };
 }
 
 TEST (message, bulk_pull_serialization)

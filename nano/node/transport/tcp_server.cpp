@@ -432,7 +432,7 @@ void nano::transport::tcp_server::realtime_message_visitor::confirm_req (const n
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::confirm_ack (const nano::confirm_ack & message)
+void nano::transport::tcp_server::realtime_message_visitor::confirm_ack (const nano::message::confirm_ack & message)
 {
 	process = true;
 }
