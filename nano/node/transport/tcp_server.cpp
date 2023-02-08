@@ -393,7 +393,7 @@ void nano::transport::tcp_server::handshake_message_visitor::bulk_pull (const na
 	bootstrap = true;
 }
 
-void nano::transport::tcp_server::handshake_message_visitor::bulk_pull_account (const nano::bulk_pull_account & message)
+void nano::transport::tcp_server::handshake_message_visitor::bulk_pull_account (const nano::message::bulk_pull_account & message)
 {
 	bootstrap = true;
 }
@@ -502,7 +502,7 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull (const na
 	processed = true;
 }
 
-void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull_account (const nano::bulk_pull_account & message)
+void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull_account (const nano::message::bulk_pull_account & message)
 {
 	if (server->node->flags.disable_bootstrap_bulk_pull_server)
 	{

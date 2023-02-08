@@ -417,7 +417,7 @@ public:
 	{
 		debug_assert (false);
 	}
-	void bulk_pull_account (nano::bulk_pull_account const &) override
+	void bulk_pull_account (nano::message::bulk_pull_account const &) override
 	{
 		debug_assert (false);
 	}

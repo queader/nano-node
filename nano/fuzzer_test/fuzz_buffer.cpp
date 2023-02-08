@@ -34,7 +34,7 @@ public:
 	virtual void bulk_pull (nano::message::bulk_pull const &) override
 	{
 	}
-	virtual void bulk_pull_account (nano::bulk_pull_account const &) override
+	virtual void bulk_pull_account (nano::message::bulk_pull_account const &) override
 	{
 	}
 	virtual void bulk_push (nano::bulk_push const &) override

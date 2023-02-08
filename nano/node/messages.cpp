@@ -284,7 +284,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::bulk_pull_account:
 		{
-			return nano::bulk_pull_account::size;
+			return nano::message::bulk_pull_account::size;
 		}
 		case nano::message::type::keepalive:
 		{
@@ -1190,12 +1190,12 @@ std::string nano::message::bulk_pull::to_string () const
  * bulk_pull_account
  */
 
-nano::bulk_pull_account::bulk_pull_account (nano::network_constants const & constants) :
+nano::message::bulk_pull_account::bulk_pull_account (nano::network_constants const & constants) :
 	message (constants, nano::message::type::bulk_pull_account)
 {
 }
 
-nano::bulk_pull_account::bulk_pull_account (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
+nano::message::bulk_pull_account::bulk_pull_account (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
 	message (header_a)
 {
 	if (!error_a)
@@ -1204,12 +1204,12 @@ nano::bulk_pull_account::bulk_pull_account (bool & error_a, nano::stream & strea
 	}
 }
 
-void nano::bulk_pull_account::visit (nano::message_visitor & visitor_a) const
+void nano::message::bulk_pull_account::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.bulk_pull_account (*this);
 }
 
-void nano::bulk_pull_account::serialize (nano::stream & stream_a) const
+void nano::message::bulk_pull_account::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 	write (stream_a, account);
@@ -1217,7 +1217,7 @@ void nano::bulk_pull_account::serialize (nano::stream & stream_a) const
 	write (stream_a, flags);
 }
 
-bool nano::bulk_pull_account::deserialize (nano::stream & stream_a)
+bool nano::message::bulk_pull_account::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::bulk_pull_account);
 	auto error (false);
@@ -1235,7 +1235,7 @@ bool nano::bulk_pull_account::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-std::string nano::bulk_pull_account::to_string () const
+std::string nano::message::bulk_pull_account::to_string () const
 {
 	std::string s = header.to_string () + "\n";
 	s += "acc=" + account.to_string ();

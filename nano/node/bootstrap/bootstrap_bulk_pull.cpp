@@ -213,7 +213,7 @@ nano::bulk_pull_account_client::~bulk_pull_account_client ()
 
 void nano::bulk_pull_account_client::request ()
 {
-	nano::bulk_pull_account req{ connection->node->network_params.network };
+	nano::message::bulk_pull_account req{ connection->node->network_params.network };
 	req.account = account;
 	req.minimum_amount = connection->node->config.receive_minimum;
 	req.flags = nano::bulk_pull_account_flags::pending_hash_and_amount;

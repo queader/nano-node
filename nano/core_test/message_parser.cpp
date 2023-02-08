@@ -28,7 +28,7 @@ public:
 	{
 		ASSERT_FALSE (true);
 	}
-	void bulk_pull_account (nano::bulk_pull_account const &) override
+	void bulk_pull_account (nano::message::bulk_pull_account const &) override
 	{
 		ASSERT_FALSE (true);
 	}
