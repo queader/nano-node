@@ -203,13 +203,13 @@ void nano::network::flood_keepalive_self (float const scale_a)
 
 void nano::network::flood_block (std::shared_ptr<nano::block> const & block_a, nano::buffer_drop_policy const drop_policy_a)
 {
-	nano::publish message (node.network_params.network, block_a);
+	nano::message::publish message (node.network_params.network, block_a);
 	flood_message (message, drop_policy_a);
 }
 
 void nano::network::flood_block_initial (std::shared_ptr<nano::block> const & block_a)
 {
-	nano::publish message (node.network_params.network, block_a);
+	nano::message::publish message (node.network_params.network, block_a);
 	for (auto const & i : node.rep_crawler.principal_representatives ())
 	{
 		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
@@ -431,7 +431,7 @@ public:
 		}
 	}
 
-	void publish (nano::publish const & message_a) override
+	void publish (nano::message::publish const & message_a) override
 	{
 		if (node.config.logging.network_message_logging ())
 		{

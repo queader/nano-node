@@ -368,7 +368,7 @@ TEST (node, receive_gap)
 				 .work (0)
 				 .build_shared ();
 	node1.work_generate_blocking (*block);
-	nano::publish message{ nano::dev::network_params.network, block };
+	nano::message::publish message{ nano::dev::network_params.network, block };
 	auto channel1 = std::make_shared<nano::transport::fake::channel> (node1);
 	node1.network.inbound (message, channel1);
 	node1.block_processor.flush ();
@@ -733,7 +733,7 @@ TEST (node, fork_flip)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
-	nano::publish publish1{ nano::dev::network_params.network, send1 };
+	nano::message::publish publish1{ nano::dev::network_params.network, send1 };
 	nano::keypair key2;
 	auto send2 = builder.make_block ()
 				 .previous (nano::dev::genesis->hash ())
@@ -742,7 +742,7 @@ TEST (node, fork_flip)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
-	nano::publish publish2{ nano::dev::network_params.network, send2 };
+	nano::message::publish publish2{ nano::dev::network_params.network, send2 };
 	auto ignored_channel{ std::make_shared<nano::transport::channel_tcp> (node1, std::weak_ptr<nano::socket> ()) };
 
 	node1.network.inbound (publish1, ignored_channel);
@@ -790,7 +790,7 @@ TEST (node, fork_multi_flip)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
-	nano::publish publish1{ nano::dev::network_params.network, send1 };
+	nano::message::publish publish1{ nano::dev::network_params.network, send1 };
 	nano::keypair key2;
 	auto send2 = builder.make_block ()
 				 .previous (nano::dev::genesis->hash ())
@@ -799,7 +799,7 @@ TEST (node, fork_multi_flip)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
-	nano::publish publish2{ nano::dev::network_params.network, send2 };
+	nano::message::publish publish2{ nano::dev::network_params.network, send2 };
 	auto send3 = builder.make_block ()
 				 .previous (publish2.block->hash ())
 				 .destination (key2.pub)
@@ -807,7 +807,7 @@ TEST (node, fork_multi_flip)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (publish2.block->hash ()))
 				 .build_shared ();
-	nano::publish publish3{ nano::dev::network_params.network, send3 };
+	nano::message::publish publish3{ nano::dev::network_params.network, send3 };
 	auto channel1 = std::make_shared<nano::transport::fake::channel> (node1);
 	auto channel2 = std::make_shared<nano::transport::fake::channel> (node2);
 	node1.network.inbound (publish1, channel1);
@@ -906,7 +906,7 @@ TEST (node, fork_open)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build_shared ();
-	nano::publish publish1{ nano::dev::network_params.network, send1 };
+	nano::message::publish publish1{ nano::dev::network_params.network, send1 };
 	auto channel1 = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (publish1, channel1);
 	ASSERT_TIMELY (5s, (election = node.active.election (publish1.block->qualified_root ())) != nullptr);
@@ -926,7 +926,7 @@ TEST (node, fork_open)
 				 .sign (key1.prv, key1.pub)
 				 .work (*system.work.generate (key1.pub))
 				 .build_shared ();
-	nano::publish publish2{ nano::dev::network_params.network, open1 };
+	nano::message::publish publish2{ nano::dev::network_params.network, open1 };
 	node.network.inbound (publish2, channel1);
 	ASSERT_TIMELY (5s, 1 == node.active.size ());
 
@@ -938,7 +938,7 @@ TEST (node, fork_open)
 				 .sign (key1.prv, key1.pub)
 				 .work (*system.work.generate (key1.pub))
 				 .build_shared ();
-	nano::publish publish3{ nano::dev::network_params.network, open2 };
+	nano::message::publish publish3{ nano::dev::network_params.network, open2 };
 	node.network.inbound (publish3, channel1);
 	ASSERT_TIMELY (5s, (election = node.active.election (publish3.block->qualified_root ())) != nullptr);
 

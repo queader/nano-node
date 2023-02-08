@@ -22,7 +22,7 @@ public:
 	virtual void keepalive (nano::message::keepalive const &) override
 	{
 	}
-	virtual void publish (nano::publish const &) override
+	virtual void publish (nano::message::publish const &) override
 	{
 	}
 	virtual void confirm_req (nano::message::confirm_req const &) override

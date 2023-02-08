@@ -64,7 +64,7 @@ TEST (message, keepalive_deserialize)
 TEST (message, publish_serialization)
 {
 	auto block = random_block ();
-	nano::publish publish{ nano::dev::network_params.network, block };
+	nano::message::publish publish{ nano::dev::network_params.network, block };
 	ASSERT_EQ (nano::block_type::send, publish.header.block_type ());
 	std::vector<uint8_t> bytes;
 	{

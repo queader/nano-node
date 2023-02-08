@@ -12,7 +12,7 @@ public:
 	{
 		++keepalive_count;
 	}
-	void publish (nano::publish const &) override
+	void publish (nano::message::publish const &) override
 	{
 		++publish_count;
 	}
@@ -201,7 +201,7 @@ TEST (message_parser, exact_publish_size)
 				 .sign (nano::keypair ().prv, 4)
 				 .work (*system.work.generate (nano::root (1)))
 				 .build_shared ();
-	nano::publish message{ nano::dev::network_params.network, block };
+	nano::message::publish message{ nano::dev::network_params.network, block };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);

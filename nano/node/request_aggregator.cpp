@@ -288,7 +288,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 				// Let the node know about the alternative block
 				if (block->hash () != hash)
 				{
-					nano::publish publish (config.network_params.network, block);
+					nano::message::publish publish (config.network_params.network, block);
 					channel_a->send (publish);
 				}
 			}

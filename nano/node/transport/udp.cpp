@@ -401,7 +401,7 @@ public:
 		}
 		message (message_a);
 	}
-	void publish (nano::publish const & message_a) override
+	void publish (nano::message::publish const & message_a) override
 	{
 		message (message_a);
 	}

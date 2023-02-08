@@ -566,7 +566,7 @@ void nano::message_parser::deserialize_keepalive (nano::stream & stream_a, nano:
 void nano::message_parser::deserialize_publish (nano::stream & stream_a, nano::message::header const & header_a, nano::uint128_t const & digest_a)
 {
 	auto error (false);
-	nano::publish incoming (error, stream_a, header_a, digest_a, &block_uniquer);
+	nano::message::publish incoming (error, stream_a, header_a, digest_a, &block_uniquer);
 	if (!error && at_end (stream_a))
 	{
 		if (!network.work.validate_entry (*incoming.block))
@@ -752,7 +752,7 @@ std::string nano::message::keepalive::to_string () const
  * publish
  */
 
-nano::publish::publish (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a, nano::uint128_t const & digest_a, nano::block_uniquer * uniquer_a) :
+nano::message::publish::publish (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a, nano::uint128_t const & digest_a, nano::block_uniquer * uniquer_a) :
 	message (header_a),
 	digest (digest_a)
 {
@@ -762,21 +762,21 @@ nano::publish::publish (bool & error_a, nano::stream & stream_a, nano::message::
 	}
 }
 
-nano::publish::publish (nano::network_constants const & constants, std::shared_ptr<nano::block> const & block_a) :
+nano::message::publish::publish (nano::network_constants const & constants, std::shared_ptr<nano::block> const & block_a) :
 	message (constants, nano::message::type::publish),
 	block (block_a)
 {
 	header.block_type_set (block->type ());
 }
 
-void nano::publish::serialize (nano::stream & stream_a) const
+void nano::message::publish::serialize (nano::stream & stream_a) const
 {
 	debug_assert (block != nullptr);
 	header.serialize (stream_a);
 	block->serialize (stream_a);
 }
 
-bool nano::publish::deserialize (nano::stream & stream_a, nano::block_uniquer * uniquer_a)
+bool nano::message::publish::deserialize (nano::stream & stream_a, nano::block_uniquer * uniquer_a)
 {
 	debug_assert (header.type == nano::message::type::publish);
 	block = nano::deserialize_block (stream_a, header.block_type (), uniquer_a);
@@ -784,17 +784,17 @@ bool nano::publish::deserialize (nano::stream & stream_a, nano::block_uniquer * 
 	return result;
 }
 
-void nano::publish::visit (nano::message_visitor & visitor_a) const
+void nano::message::publish::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.publish (*this);
 }
 
-bool nano::publish::operator== (nano::publish const & other_a) const
+bool nano::message::publish::operator== (nano::message::publish const & other_a) const
 {
 	return *block == *other_a.block;
 }
 
-std::string nano::publish::to_string () const
+std::string nano::message::publish::to_string () const
 {
 	return header.to_string () + "\n" + block->to_json ();
 }

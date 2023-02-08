@@ -349,7 +349,7 @@ TEST (network, send_insufficient_work)
 				  .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				  .work (0)
 				  .build_shared ();
-	nano::publish publish1{ nano::dev::network_params.network, block1 };
+	nano::message::publish publish1{ nano::dev::network_params.network, block1 };
 	auto tcp_channel (node1.network.tcp_channels.find_node_id (node2.get_node_id ()));
 	ASSERT_NE (nullptr, tcp_channel);
 	tcp_channel->send (publish1, [] (boost::system::error_code const & ec, size_t size) {});
@@ -365,7 +365,7 @@ TEST (network, send_insufficient_work)
 				  .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				  .work (system.work_generate_limited (block1->hash (), node1.network_params.work.epoch_2_receive, node1.network_params.work.epoch_1 - 1))
 				  .build_shared ();
-	nano::publish publish2{ nano::dev::network_params.network, block2 };
+	nano::message::publish publish2{ nano::dev::network_params.network, block2 };
 	tcp_channel->send (publish2, [] (boost::system::error_code const & ec, size_t size) {});
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work) != 1);
 	ASSERT_EQ (2, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
@@ -378,7 +378,7 @@ TEST (network, send_insufficient_work)
 				  .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				  .work (*system.work.generate (block2->hash (), node1.network_params.work.epoch_2))
 				  .build_shared ();
-	nano::publish publish3{ nano::dev::network_params.network, block3 };
+	nano::message::publish publish3{ nano::dev::network_params.network, block3 };
 	tcp_channel->send (publish3, [] (boost::system::error_code const & ec, size_t size) {});
 	ASSERT_EQ (0, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in));
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in) != 0);
@@ -394,7 +394,7 @@ TEST (network, send_insufficient_work)
 				  .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				  .work (system.work_generate_limited (block1->hash (), node1.network_params.work.epoch_2_receive, node1.network_params.work.epoch_1 - 1))
 				  .build_shared ();
-	nano::publish publish4{ nano::dev::network_params.network, block4 };
+	nano::message::publish publish4{ nano::dev::network_params.network, block4 };
 	tcp_channel->send (publish4, [] (boost::system::error_code const & ec, size_t size) {});
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in) != 0);
 	ASSERT_EQ (1, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in));
@@ -994,7 +994,7 @@ TEST (network, duplicate_detection)
 	nano::node_flags node_flags;
 	auto & node0 = *system.add_node (node_flags);
 	auto & node1 = *system.add_node (node_flags);
-	nano::publish publish{ nano::dev::network_params.network, nano::dev::genesis };
+	nano::message::publish publish{ nano::dev::network_params.network, nano::dev::genesis };
 
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish));
 
@@ -1015,7 +1015,7 @@ TEST (network, duplicate_revert_publish)
 	node_flags.block_processor_full_size = 0;
 	auto & node (*system.add_node (node_flags));
 	ASSERT_TRUE (node.block_processor.full ());
-	nano::publish publish{ nano::dev::network_params.network, nano::dev::genesis };
+	nano::message::publish publish{ nano::dev::network_params.network, nano::dev::genesis };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -1044,7 +1044,7 @@ TEST (network, duplicate_revert_publish)
 TEST (network, bandwidth_limiter)
 {
 	nano::test::system system;
-	nano::publish message{ nano::dev::network_params.network, nano::dev::genesis };
+	nano::message::publish message{ nano::dev::network_params.network, nano::dev::genesis };
 	auto message_size = message.to_bytes ()->size ();
 	auto message_limit = 4; // must be multiple of the number of channels
 	nano::node_config node_config (nano::test::get_available_port (), system.logging);

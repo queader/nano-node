@@ -422,7 +422,7 @@ void nano::transport::tcp_server::realtime_message_visitor::keepalive (const nan
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::publish (const nano::publish & message)
+void nano::transport::tcp_server::realtime_message_visitor::publish (const nano::message::publish & message)
 {
 	process = true;
 }

@@ -384,7 +384,7 @@ TEST (block, publish_req_serialization)
 				 .sign (nano::keypair ().prv, 2)
 				 .work (3)
 				 .build_shared ();
-	nano::publish req{ nano::dev::network_params.network, block };
+	nano::message::publish req{ nano::dev::network_params.network, block };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -394,7 +394,7 @@ TEST (block, publish_req_serialization)
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
 	nano::message::header header (error, stream2);
 	ASSERT_FALSE (error);
-	nano::publish req2 (error, stream2, header);
+	nano::message::publish req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
 	ASSERT_EQ (*req.block, *req2.block);
