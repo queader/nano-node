@@ -42,27 +42,27 @@ public:
 	bool request (nano::message::asc_pull_req const & message, std::shared_ptr<nano::transport::channel> channel);
 
 public: // Events
-	nano::observer_set<nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &> on_response;
+	nano::observer_set<nano::message::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &> on_response;
 
 private:
 	void process_batch (std::deque<request_t> & batch);
-	nano::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req const & message);
-	void respond (nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &);
+	nano::message::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req const & message);
+	void respond (nano::message::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &);
 
-	nano::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::empty_payload const & request);
+	nano::message::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::empty_payload const & request);
 
 	/*
 	 * Blocks response
 	 */
-	nano::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::message::asc_pull_req::blocks_payload const & request);
-	nano::asc_pull_ack prepare_response (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::block_hash start_block, std::size_t count);
-	nano::asc_pull_ack prepare_empty_blocks_response (nano::message::asc_pull_req::id_t id);
+	nano::message::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::message::asc_pull_req::blocks_payload const & request);
+	nano::message::asc_pull_ack prepare_response (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::block_hash start_block, std::size_t count);
+	nano::message::asc_pull_ack prepare_empty_blocks_response (nano::message::asc_pull_req::id_t id);
 	std::vector<std::shared_ptr<nano::block>> prepare_blocks (nano::transaction const &, nano::block_hash start_block, std::size_t count) const;
 
 	/*
 	 * Account info response
 	 */
-	nano::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::message::asc_pull_req::account_info_payload const & request);
+	nano::message::asc_pull_ack process (nano::transaction const &, nano::message::asc_pull_req::id_t id, nano::message::asc_pull_req::account_info_payload const & request);
 
 	/*
 	 * Checks if the request should be dropped early on
@@ -81,6 +81,6 @@ private:
 
 public: // Config
 	/** Maximum number of blocks to send in a single response, cannot be higher than capacity of a single `asc_pull_ack` message */
-	constexpr static std::size_t max_blocks = nano::asc_pull_ack::blocks_payload::max_blocks;
+	constexpr static std::size_t max_blocks = nano::message::asc_pull_ack::blocks_payload::max_blocks;
 };
 }

@@ -466,7 +466,7 @@ void nano::transport::tcp_server::realtime_message_visitor::asc_pull_req (const 
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::asc_pull_ack (const nano::asc_pull_ack & message)
+void nano::transport::tcp_server::realtime_message_visitor::asc_pull_ack (const nano::message::asc_pull_ack & message)
 {
 	process = true;
 }

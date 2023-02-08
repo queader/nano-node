@@ -90,7 +90,7 @@ bool nano::bootstrap_server::request (nano::message::asc_pull_req const & messag
 	return true;
 }
 
-void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> & channel)
+void nano::bootstrap_server::respond (nano::message::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> & channel)
 {
 	stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response, nano::stat::dir::out);
 
@@ -103,12 +103,12 @@ void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared
 		{
 			debug_assert (false, "missing payload");
 		}
-		void operator() (nano::asc_pull_ack::blocks_payload const & pld)
+		void operator() (nano::message::asc_pull_ack::blocks_payload const & pld)
 		{
 			stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response_blocks, nano::stat::dir::out);
 			stats.add (nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out, pld.blocks.size ());
 		}
-		void operator() (nano::asc_pull_ack::account_info_payload const & pld)
+		void operator() (nano::message::asc_pull_ack::account_info_payload const & pld)
 		{
 			stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response_account_info, nano::stat::dir::out);
 		}
@@ -149,16 +149,16 @@ void nano::bootstrap_server::process_batch (std::deque<request_t> & batch)
 	}
 }
 
-nano::asc_pull_ack nano::bootstrap_server::process (nano::transaction const & transaction, const nano::message::asc_pull_req & message)
+nano::message::asc_pull_ack nano::bootstrap_server::process (nano::transaction const & transaction, const nano::message::asc_pull_req & message)
 {
 	return std::visit ([this, &transaction, &message] (auto && request) { return process (transaction, message.id, request); }, message.payload);
 }
 
-nano::asc_pull_ack nano::bootstrap_server::process (const nano::transaction &, nano::message::asc_pull_req::id_t id, const nano::empty_payload & request)
+nano::message::asc_pull_ack nano::bootstrap_server::process (const nano::transaction &, nano::message::asc_pull_req::id_t id, const nano::empty_payload & request)
 {
 	// Empty payload should never be possible, but return empty response anyway
 	debug_assert (false, "missing payload");
-	nano::asc_pull_ack response{ network_constants };
+	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
 	response.type = nano::asc_pull_type::invalid;
 	return response;
@@ -168,7 +168,7 @@ nano::asc_pull_ack nano::bootstrap_server::process (const nano::transaction &, n
  * Blocks response
  */
 
-nano::asc_pull_ack nano::bootstrap_server::process (nano::transaction const & transaction, nano::message::asc_pull_req::id_t id, nano::message::asc_pull_req::blocks_payload const & request)
+nano::message::asc_pull_ack nano::bootstrap_server::process (nano::transaction const & transaction, nano::message::asc_pull_req::id_t id, nano::message::asc_pull_req::blocks_payload const & request)
 {
 	const std::size_t count = std::min (static_cast<std::size_t> (request.count), max_blocks);
 
@@ -198,18 +198,18 @@ nano::asc_pull_ack nano::bootstrap_server::process (nano::transaction const & tr
 	return prepare_empty_blocks_response (id);
 }
 
-nano::asc_pull_ack nano::bootstrap_server::prepare_response (nano::transaction const & transaction, nano::message::asc_pull_req::id_t id, nano::block_hash start_block, std::size_t count)
+nano::message::asc_pull_ack nano::bootstrap_server::prepare_response (nano::transaction const & transaction, nano::message::asc_pull_req::id_t id, nano::block_hash start_block, std::size_t count)
 {
 	debug_assert (count <= max_blocks);
 
 	auto blocks = prepare_blocks (transaction, start_block, count);
 	debug_assert (blocks.size () <= count);
 
-	nano::asc_pull_ack response{ network_constants };
+	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
 	response.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_ack::blocks_payload response_payload;
+	nano::message::asc_pull_ack::blocks_payload response_payload;
 	response_payload.blocks = blocks;
 	response.payload = response_payload;
 
@@ -217,13 +217,13 @@ nano::asc_pull_ack nano::bootstrap_server::prepare_response (nano::transaction c
 	return response;
 }
 
-nano::asc_pull_ack nano::bootstrap_server::prepare_empty_blocks_response (nano::message::asc_pull_req::id_t id)
+nano::message::asc_pull_ack nano::bootstrap_server::prepare_empty_blocks_response (nano::message::asc_pull_req::id_t id)
 {
-	nano::asc_pull_ack response{ network_constants };
+	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
 	response.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_ack::blocks_payload empty_payload{};
+	nano::message::asc_pull_ack::blocks_payload empty_payload{};
 	response.payload = empty_payload;
 
 	response.update_header ();
@@ -253,9 +253,9 @@ std::vector<std::shared_ptr<nano::block>> nano::bootstrap_server::prepare_blocks
  * Account info response
  */
 
-nano::asc_pull_ack nano::bootstrap_server::process (const nano::transaction & transaction, nano::message::asc_pull_req::id_t id, const nano::message::asc_pull_req::account_info_payload & request)
+nano::message::asc_pull_ack nano::bootstrap_server::process (const nano::transaction & transaction, nano::message::asc_pull_req::id_t id, const nano::message::asc_pull_req::account_info_payload & request)
 {
-	nano::asc_pull_ack response{ network_constants };
+	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
 	response.type = nano::asc_pull_type::account_info;
 
@@ -275,7 +275,7 @@ nano::asc_pull_ack nano::bootstrap_server::process (const nano::transaction & tr
 		break;
 	}
 
-	nano::asc_pull_ack::account_info_payload response_payload{};
+	nano::message::asc_pull_ack::account_info_payload response_payload{};
 	response_payload.account = target;
 
 	auto account_info = ledger.account_info (transaction, target);

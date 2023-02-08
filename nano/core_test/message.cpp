@@ -369,11 +369,11 @@ TEST (message, asc_pull_req_serialization_account_info)
 
 TEST (message, asc_pull_ack_serialization_blocks)
 {
-	nano::asc_pull_ack original{ nano::dev::network_params.network };
+	nano::message::asc_pull_ack original{ nano::dev::network_params.network };
 	original.id = 11;
 	original.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_ack::blocks_payload original_payload;
+	nano::message::asc_pull_ack::blocks_payload original_payload;
 	// Generate blocks
 	const int num_blocks = 128; // Maximum allowed
 	for (int n = 0; n < num_blocks; ++n)
@@ -399,13 +399,13 @@ TEST (message, asc_pull_ack_serialization_blocks)
 	ASSERT_EQ (nano::message::type::asc_pull_ack, header.type);
 
 	// Message
-	nano::asc_pull_ack message (error, stream, header);
+	nano::message::asc_pull_ack message (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (original.id, message.id);
 	ASSERT_EQ (original.type, message.type);
 
-	nano::asc_pull_ack::blocks_payload message_payload;
-	ASSERT_NO_THROW (message_payload = std::get<nano::asc_pull_ack::blocks_payload> (message.payload));
+	nano::message::asc_pull_ack::blocks_payload message_payload;
+	ASSERT_NO_THROW (message_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (message.payload));
 
 	// Compare blocks
 	ASSERT_EQ (original_payload.blocks.size (), message_payload.blocks.size ());
@@ -418,11 +418,11 @@ TEST (message, asc_pull_ack_serialization_blocks)
 
 TEST (message, asc_pull_ack_serialization_account_info)
 {
-	nano::asc_pull_ack original{ nano::dev::network_params.network };
+	nano::message::asc_pull_ack original{ nano::dev::network_params.network };
 	original.id = 11;
 	original.type = nano::asc_pull_type::account_info;
 
-	nano::asc_pull_ack::account_info_payload original_payload;
+	nano::message::asc_pull_ack::account_info_payload original_payload;
 	original_payload.account = nano::test::random_account ();
 	original_payload.account_open = nano::test::random_hash ();
 	original_payload.account_head = nano::test::random_hash ();
@@ -448,13 +448,13 @@ TEST (message, asc_pull_ack_serialization_account_info)
 	ASSERT_EQ (nano::message::type::asc_pull_ack, header.type);
 
 	// Message
-	nano::asc_pull_ack message (error, stream, header);
+	nano::message::asc_pull_ack message (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (original.id, message.id);
 	ASSERT_EQ (original.type, message.type);
 
-	nano::asc_pull_ack::account_info_payload message_payload;
-	ASSERT_NO_THROW (message_payload = std::get<nano::asc_pull_ack::account_info_payload> (message.payload));
+	nano::message::asc_pull_ack::account_info_payload message_payload;
+	ASSERT_NO_THROW (message_payload = std::get<nano::message::asc_pull_ack::account_info_payload> (message.payload));
 
 	ASSERT_EQ (original_payload.account, message_payload.account);
 	ASSERT_EQ (original_payload.account_open, message_payload.account_open);

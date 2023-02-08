@@ -13,7 +13,7 @@ namespace
 class responses_helper final
 {
 public:
-	void add (nano::asc_pull_ack & ack)
+	void add (nano::message::asc_pull_ack & ack)
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		responses.push_back (ack);
@@ -94,8 +94,8 @@ TEST (bootstrap_server, serve_account_blocks)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::blocks);
 
-	nano::asc_pull_ack::blocks_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+	nano::message::asc_pull_ack::blocks_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (response.payload));
 	ASSERT_EQ (response_payload.blocks.size (), 128);
 	ASSERT_TRUE (compare_blocks (response_payload.blocks, first_blocks));
 
@@ -141,8 +141,8 @@ TEST (bootstrap_server, serve_hash)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::blocks);
 
-	nano::asc_pull_ack::blocks_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+	nano::message::asc_pull_ack::blocks_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (response.payload));
 	ASSERT_EQ (response_payload.blocks.size (), 128);
 	ASSERT_TRUE (compare_blocks (response_payload.blocks, blocks));
 
@@ -188,8 +188,8 @@ TEST (bootstrap_server, serve_hash_one)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::blocks);
 
-	nano::asc_pull_ack::blocks_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+	nano::message::asc_pull_ack::blocks_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (response.payload));
 	ASSERT_EQ (response_payload.blocks.size (), 1);
 	ASSERT_TRUE (response_payload.blocks.front ()->hash () == request_payload.start.as_block_hash ());
 }
@@ -229,8 +229,8 @@ TEST (bootstrap_server, serve_end_of_chain)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::blocks);
 
-	nano::asc_pull_ack::blocks_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+	nano::message::asc_pull_ack::blocks_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (response.payload));
 	// Response should contain only the last block from chain
 	ASSERT_EQ (response_payload.blocks.size (), 1);
 	ASSERT_EQ (*response_payload.blocks.front (), *blocks.back ());
@@ -270,8 +270,8 @@ TEST (bootstrap_server, serve_missing)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::blocks);
 
-	nano::asc_pull_ack::blocks_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+	nano::message::asc_pull_ack::blocks_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (response.payload));
 	// There should be nothing sent
 	ASSERT_EQ (response_payload.blocks.size (), 0);
 }
@@ -326,8 +326,8 @@ TEST (bootstrap_server, serve_multiple)
 			ASSERT_EQ (response.id, next_id);
 			ASSERT_EQ (response.type, nano::asc_pull_type::blocks);
 
-			nano::asc_pull_ack::blocks_payload response_payload;
-			ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::blocks_payload> (response.payload));
+			nano::message::asc_pull_ack::blocks_payload response_payload;
+			ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::blocks_payload> (response.payload));
 			ASSERT_EQ (response_payload.blocks.size (), 17); // 1 open block + 16 random blocks
 			ASSERT_TRUE (compare_blocks (response_payload.blocks, blocks));
 
@@ -373,8 +373,8 @@ TEST (bootstrap_server, serve_account_info)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::account_info);
 
-	nano::asc_pull_ack::account_info_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::account_info_payload> (response.payload));
+	nano::message::asc_pull_ack::account_info_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::account_info_payload> (response.payload));
 
 	ASSERT_EQ (response_payload.account, account);
 	ASSERT_EQ (response_payload.account_open, blocks.front ()->hash ());
@@ -421,8 +421,8 @@ TEST (bootstrap_server, serve_account_info_missing)
 	ASSERT_EQ (response.id, 7);
 	ASSERT_EQ (response.type, nano::asc_pull_type::account_info);
 
-	nano::asc_pull_ack::account_info_payload response_payload;
-	ASSERT_NO_THROW (response_payload = std::get<nano::asc_pull_ack::account_info_payload> (response.payload));
+	nano::message::asc_pull_ack::account_info_payload response_payload;
+	ASSERT_NO_THROW (response_payload = std::get<nano::message::asc_pull_ack::account_info_payload> (response.payload));
 
 	ASSERT_EQ (response_payload.account, request_payload.target.as_account ());
 	ASSERT_EQ (response_payload.account_open, 0);
