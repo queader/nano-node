@@ -304,7 +304,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::node_id_handshake:
 		{
-			return nano::node_id_handshake::size (*this);
+			return nano::message::node_id_handshake::size (*this);
 		}
 		case nano::message::type::telemetry_ack:
 		{
@@ -622,7 +622,7 @@ void nano::message_parser::deserialize_confirm_ack (nano::stream & stream_a, nan
 void nano::message_parser::deserialize_node_id_handshake (nano::stream & stream_a, nano::message::header const & header_a)
 {
 	bool error_l (false);
-	nano::node_id_handshake incoming (error_l, stream_a, header_a);
+	nano::message::node_id_handshake incoming (error_l, stream_a, header_a);
 	if (!error_l && at_end (stream_a))
 	{
 		visitor.node_id_handshake (incoming);
@@ -1611,7 +1611,7 @@ bool nano::telemetry_data::validate_signature () const
  * node_id_handshake
  */
 
-nano::node_id_handshake::node_id_handshake (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
+nano::message::node_id_handshake::node_id_handshake (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
 	message (header_a),
 	query (boost::none),
 	response (boost::none)
@@ -1619,7 +1619,7 @@ nano::node_id_handshake::node_id_handshake (bool & error_a, nano::stream & strea
 	error_a = deserialize (stream_a);
 }
 
-nano::node_id_handshake::node_id_handshake (nano::network_constants const & constants, boost::optional<nano::uint256_union> query, boost::optional<std::pair<nano::account, nano::signature>> response) :
+nano::message::node_id_handshake::node_id_handshake (nano::network_constants const & constants, boost::optional<nano::uint256_union> query, boost::optional<std::pair<nano::account, nano::signature>> response) :
 	message (constants, nano::message::type::node_id_handshake),
 	query (query),
 	response (response)
@@ -1634,7 +1634,7 @@ nano::node_id_handshake::node_id_handshake (nano::network_constants const & cons
 	}
 }
 
-void nano::node_id_handshake::serialize (nano::stream & stream_a) const
+void nano::message::node_id_handshake::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 	if (query)
@@ -1648,7 +1648,7 @@ void nano::node_id_handshake::serialize (nano::stream & stream_a) const
 	}
 }
 
-bool nano::node_id_handshake::deserialize (nano::stream & stream_a)
+bool nano::message::node_id_handshake::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::node_id_handshake);
 	auto error (false);
@@ -1678,23 +1678,23 @@ bool nano::node_id_handshake::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-bool nano::node_id_handshake::operator== (nano::node_id_handshake const & other_a) const
+bool nano::message::node_id_handshake::operator== (nano::message::node_id_handshake const & other_a) const
 {
 	auto result (*query == *other_a.query && *response == *other_a.response);
 	return result;
 }
 
-void nano::node_id_handshake::visit (nano::message_visitor & visitor_a) const
+void nano::message::node_id_handshake::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.node_id_handshake (*this);
 }
 
-std::size_t nano::node_id_handshake::size () const
+std::size_t nano::message::node_id_handshake::size () const
 {
 	return size (header);
 }
 
-std::size_t nano::node_id_handshake::size (nano::message::header const & header_a)
+std::size_t nano::message::node_id_handshake::size (nano::message::header const & header_a)
 {
 	std::size_t result (0);
 	if (header_a.node_id_handshake_is_query ())
@@ -1708,7 +1708,7 @@ std::size_t nano::node_id_handshake::size (nano::message::header const & header_
 	return result;
 }
 
-std::string nano::node_id_handshake::to_string () const
+std::string nano::message::node_id_handshake::to_string () const
 {
 	std::string s = header.to_string ();
 

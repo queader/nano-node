@@ -40,7 +40,7 @@ public:
 	{
 		ASSERT_FALSE (true);
 	}
-	void node_id_handshake (nano::node_id_handshake const &) override
+	void node_id_handshake (nano::message::node_id_handshake const &) override
 	{
 		ASSERT_FALSE (true);
 	}

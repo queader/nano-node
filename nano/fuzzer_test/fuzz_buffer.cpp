@@ -43,7 +43,7 @@ public:
 	virtual void frontier_req (nano::message::frontier_req const &) override
 	{
 	}
-	virtual void node_id_handshake (nano::node_id_handshake const &) override
+	virtual void node_id_handshake (nano::message::node_id_handshake const &) override
 	{
 	}
 	virtual void telemetry_req (nano::telemetry_req const &) override

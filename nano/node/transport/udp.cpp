@@ -455,7 +455,7 @@ public:
 	{
 		message (message_a);
 	}
-	void node_id_handshake (nano::node_id_handshake const & message_a) override
+	void node_id_handshake (nano::message::node_id_handshake const & message_a) override
 	{
 		if (node.config.logging.network_node_id_handshake_logging ())
 		{

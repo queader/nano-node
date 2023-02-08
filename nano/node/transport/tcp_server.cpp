@@ -312,7 +312,7 @@ nano::transport::tcp_server::handshake_message_visitor::handshake_message_visito
 {
 }
 
-void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (nano::node_id_handshake const & message)
+void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (nano::message::node_id_handshake const & message)
 {
 	if (server->node->flags.disable_tcp_realtime)
 	{
@@ -368,7 +368,7 @@ void nano::transport::tcp_server::send_handshake_response (nano::uint256_union q
 	debug_assert (!nano::validate_message (response->first, query, response->second));
 
 	auto cookie (node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (remote_endpoint)));
-	nano::node_id_handshake response_message (node->network_params.network, cookie, response);
+	nano::message::node_id_handshake response_message (node->network_params.network, cookie, response);
 
 	auto shared_const_buffer = response_message.to_shared_const_buffer ();
 	socket->async_write (shared_const_buffer, [this_l = shared_from_this ()] (boost::system::error_code const & ec, std::size_t size_a) {

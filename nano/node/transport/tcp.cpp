@@ -564,7 +564,7 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 			{
 				// TCP node ID handshake
 				auto cookie (node_l->network.syn_cookies.assign (endpoint_a));
-				nano::node_id_handshake message (node_l->network_params.network, cookie, boost::none);
+				nano::message::node_id_handshake message (node_l->network_params.network, cookie, boost::none);
 				if (node_l->config.logging.network_node_id_handshake_logging ())
 				{
 					node_l->logger.try_log (boost::str (boost::format ("Node ID handshake request sent with node ID %1% to %2%: query %3%") % node_l->node_id.pub.to_node_id () % endpoint_a % (cookie.has_value () ? cookie->to_string () : "not set")));
@@ -678,7 +678,7 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 			}
 			return;
 		}
-		nano::node_id_handshake message (error, stream, header);
+		nano::message::node_id_handshake message (error, stream, header);
 		if (error || !message.response || !message.query)
 		{
 			if (node_l->config.logging.network_node_id_handshake_logging ())
@@ -705,7 +705,7 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		channel_a->set_node_id (node_id);
 		channel_a->set_last_packet_received (std::chrono::steady_clock::now ());
 		boost::optional<std::pair<nano::account, nano::signature>> response (std::make_pair (node_l->node_id.pub, nano::sign_message (node_l->node_id.prv, node_l->node_id.pub, *message.query)));
-		nano::node_id_handshake response_message (node_l->network_params.network, boost::none, response);
+		nano::message::node_id_handshake response_message (node_l->network_params.network, boost::none, response);
 		if (node_l->config.logging.network_node_id_handshake_logging ())
 		{
 			node_l->logger.try_log (boost::str (boost::format ("Node ID handshake response sent with node ID %1% to %2%: query %3%") % node_l->node_id.pub.to_node_id () % endpoint_a % (*message.query).to_string ()));

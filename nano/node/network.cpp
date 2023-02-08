@@ -171,7 +171,7 @@ void nano::network::send_node_id_handshake (std::shared_ptr<nano::transport::cha
 		response = std::make_pair (node.node_id.pub, nano::sign_message (node.node_id.prv, node.node_id.pub, *respond_to));
 		debug_assert (!nano::validate_message (response->first, *respond_to, response->second));
 	}
-	nano::node_id_handshake message{ node.network_params.network, query, response };
+	nano::message::node_id_handshake message{ node.network_params.network, query, response };
 	if (node.config.logging.network_node_id_handshake_logging ())
 	{
 		node.logger.try_log (boost::str (boost::format ("Node ID handshake sent with node ID %1% to %2%: query %3%, respond_to %4% (signature %5%)") % node.node_id.pub.to_node_id () % channel_a->get_endpoint () % (query ? query->to_string () : std::string ("[none]")) % (respond_to ? respond_to->to_string () : std::string ("[none]")) % (response ? response->second.to_string () : std::string ("[none]"))));
@@ -510,7 +510,7 @@ public:
 		debug_assert (false);
 	}
 
-	void node_id_handshake (nano::node_id_handshake const & message_a) override
+	void node_id_handshake (nano::message::node_id_handshake const & message_a) override
 	{
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
 	}
