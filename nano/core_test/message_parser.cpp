@@ -36,7 +36,7 @@ public:
 	{
 		ASSERT_FALSE (true);
 	}
-	void frontier_req (nano::frontier_req const &) override
+	void frontier_req (nano::message::frontier_req const &) override
 	{
 		ASSERT_FALSE (true);
 	}

@@ -425,7 +425,7 @@ public:
 	{
 		debug_assert (false);
 	}
-	void frontier_req (nano::frontier_req const &) override
+	void frontier_req (nano::message::frontier_req const &) override
 	{
 		debug_assert (false);
 	}

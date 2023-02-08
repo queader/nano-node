@@ -403,7 +403,7 @@ void nano::transport::tcp_server::handshake_message_visitor::bulk_push (const na
 	bootstrap = true;
 }
 
-void nano::transport::tcp_server::handshake_message_visitor::frontier_req (const nano::frontier_req & message)
+void nano::transport::tcp_server::handshake_message_visitor::frontier_req (const nano::message::frontier_req & message)
 {
 	bootstrap = true;
 }
@@ -437,7 +437,7 @@ void nano::transport::tcp_server::realtime_message_visitor::confirm_ack (const n
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::frontier_req (const nano::frontier_req & message)
+void nano::transport::tcp_server::realtime_message_visitor::frontier_req (const nano::message::frontier_req & message)
 {
 	process = true;
 }
@@ -535,7 +535,7 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_push (const na
 	processed = true;
 }
 
-void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const nano::frontier_req & message)
+void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const nano::message::frontier_req & message)
 {
 	if (server->node->config.logging.bulk_pull_logging ())
 	{

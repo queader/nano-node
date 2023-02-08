@@ -94,7 +94,7 @@ private:
 		void bulk_pull (nano::message::bulk_pull const &) override;
 		void bulk_pull_account (nano::bulk_pull_account const &) override;
 		void bulk_push (nano::bulk_push const &) override;
-		void frontier_req (nano::frontier_req const &) override;
+		void frontier_req (nano::message::frontier_req const &) override;
 
 	private:
 		std::shared_ptr<tcp_server> server;
@@ -111,7 +111,7 @@ private:
 		void publish (nano::publish const &) override;
 		void confirm_req (nano::confirm_req const &) override;
 		void confirm_ack (nano::confirm_ack const &) override;
-		void frontier_req (nano::frontier_req const &) override;
+		void frontier_req (nano::message::frontier_req const &) override;
 		void telemetry_req (nano::telemetry_req const &) override;
 		void telemetry_ack (nano::telemetry_ack const &) override;
 		void asc_pull_req (nano::asc_pull_req const &) override;
@@ -131,7 +131,7 @@ private:
 		void bulk_pull (nano::message::bulk_pull const &) override;
 		void bulk_pull_account (nano::bulk_pull_account const &) override;
 		void bulk_push (nano::bulk_push const &) override;
-		void frontier_req (nano::frontier_req const &) override;
+		void frontier_req (nano::message::frontier_req const &) override;
 
 	private:
 		std::shared_ptr<tcp_server> server;

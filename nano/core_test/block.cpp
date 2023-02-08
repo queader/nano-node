@@ -353,7 +353,7 @@ TEST (change_block, deserialize)
 
 TEST (frontier_req, serialization)
 {
-	nano::frontier_req request1{ nano::dev::network_params.network };
+	nano::message::frontier_req request1{ nano::dev::network_params.network };
 	request1.start = 1;
 	request1.age = 2;
 	request1.count = 3;
@@ -366,7 +366,7 @@ TEST (frontier_req, serialization)
 	nano::bufferstream stream (bytes.data (), bytes.size ());
 	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	nano::frontier_req request2 (error, stream, header);
+	nano::message::frontier_req request2 (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (request1, request2);
 }

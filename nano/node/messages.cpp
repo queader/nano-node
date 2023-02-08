@@ -280,7 +280,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::frontier_req:
 		{
-			return nano::frontier_req::size;
+			return nano::message::frontier_req::size;
 		}
 		case nano::message::type::bulk_pull_account:
 		{
@@ -1018,12 +1018,12 @@ std::string nano::confirm_ack::to_string () const
  * frontier_req
  */
 
-nano::frontier_req::frontier_req (nano::network_constants const & constants) :
+nano::message::frontier_req::frontier_req (nano::network_constants const & constants) :
 	message (constants, nano::message::type::frontier_req)
 {
 }
 
-nano::frontier_req::frontier_req (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
+nano::message::frontier_req::frontier_req (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
 	message (header_a)
 {
 	if (!error_a)
@@ -1032,7 +1032,7 @@ nano::frontier_req::frontier_req (bool & error_a, nano::stream & stream_a, nano:
 	}
 }
 
-void nano::frontier_req::serialize (nano::stream & stream_a) const
+void nano::message::frontier_req::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 	write (stream_a, start.bytes);
@@ -1040,7 +1040,7 @@ void nano::frontier_req::serialize (nano::stream & stream_a) const
 	write (stream_a, count);
 }
 
-bool nano::frontier_req::deserialize (nano::stream & stream_a)
+bool nano::message::frontier_req::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::frontier_req);
 	auto error (false);
@@ -1058,17 +1058,17 @@ bool nano::frontier_req::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-void nano::frontier_req::visit (nano::message_visitor & visitor_a) const
+void nano::message::frontier_req::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.frontier_req (*this);
 }
 
-bool nano::frontier_req::operator== (nano::frontier_req const & other_a) const
+bool nano::message::frontier_req::operator== (nano::message::frontier_req const & other_a) const
 {
 	return start == other_a.start && age == other_a.age && count == other_a.count;
 }
 
-std::string nano::frontier_req::to_string () const
+std::string nano::message::frontier_req::to_string () const
 {
 	std::string s = header.to_string ();
 	s += "\nstart=" + start.to_string ();
