@@ -107,7 +107,7 @@ private:
 
 		explicit realtime_message_visitor (tcp_server &);
 
-		void keepalive (nano::keepalive const &) override;
+		void keepalive (nano::message::keepalive const &) override;
 		void publish (nano::publish const &) override;
 		void confirm_req (nano::confirm_req const &) override;
 		void confirm_ack (nano::confirm_ack const &) override;

@@ -27,7 +27,7 @@ std::shared_ptr<nano::block> random_block ()
 
 TEST (message, keepalive_serialization)
 {
-	nano::keepalive request1{ nano::dev::network_params.network };
+	nano::message::keepalive request1{ nano::dev::network_params.network };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -37,14 +37,14 @@ TEST (message, keepalive_serialization)
 	nano::bufferstream stream (bytes.data (), bytes.size ());
 	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	nano::keepalive request2 (error, stream, header);
+	nano::message::keepalive request2 (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (request1, request2);
 }
 
 TEST (message, keepalive_deserialize)
 {
-	nano::keepalive message1{ nano::dev::network_params.network };
+	nano::message::keepalive message1{ nano::dev::network_params.network };
 	message1.peers[0] = nano::endpoint (boost::asio::ip::address_v6::loopback (), 10000);
 	std::vector<uint8_t> bytes;
 	{
@@ -56,7 +56,7 @@ TEST (message, keepalive_deserialize)
 	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (nano::message::type::keepalive, header.type);
-	nano::keepalive message2 (error, stream, header);
+	nano::message::keepalive message2 (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (message1.peers, message2.peers);
 }
@@ -254,7 +254,7 @@ TEST (message, message::header_to_string)
 	auto expected_str = ss.str ();
 
 	// check expected vs real
-	nano::keepalive keepalive_msg{ nano::dev::network_params.network };
+	nano::message::keepalive keepalive_msg{ nano::dev::network_params.network };
 	std::string header_string = keepalive_msg.header.to_string ();
 	ASSERT_EQ (expected_str, header_string);
 }

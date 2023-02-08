@@ -19,7 +19,7 @@ std::shared_ptr<nano::node> node0;
 class fuzz_visitor : public nano::message_visitor
 {
 public:
-	virtual void keepalive (nano::keepalive const &) override
+	virtual void keepalive (nano::message::keepalive const &) override
 	{
 	}
 	virtual void publish (nano::publish const &) override

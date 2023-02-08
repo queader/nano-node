@@ -288,7 +288,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::keepalive:
 		{
-			return nano::keepalive::size;
+			return nano::message::keepalive::size;
 		}
 		case nano::message::type::publish:
 		{
@@ -552,7 +552,7 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, std::si
 void nano::message_parser::deserialize_keepalive (nano::stream & stream_a, nano::message::header const & header_a)
 {
 	auto error (false);
-	nano::keepalive incoming (error, stream_a, header_a);
+	nano::message::keepalive incoming (error, stream_a, header_a);
 	if (!error && at_end (stream_a))
 	{
 		visitor.keepalive (incoming);
@@ -672,7 +672,7 @@ bool nano::message_parser::at_end (nano::stream & stream_a)
  * keepalive
  */
 
-nano::keepalive::keepalive (nano::network_constants const & constants) :
+nano::message::keepalive::keepalive (nano::network_constants const & constants) :
 	message (constants, nano::message::type::keepalive)
 {
 	nano::endpoint endpoint (boost::asio::ip::address_v6{}, 0);
@@ -682,7 +682,7 @@ nano::keepalive::keepalive (nano::network_constants const & constants) :
 	}
 }
 
-nano::keepalive::keepalive (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
+nano::message::keepalive::keepalive (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
 	message (header_a)
 {
 	if (!error_a)
@@ -691,12 +691,12 @@ nano::keepalive::keepalive (bool & error_a, nano::stream & stream_a, nano::messa
 	}
 }
 
-void nano::keepalive::visit (nano::message_visitor & visitor_a) const
+void nano::message::keepalive::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.keepalive (*this);
 }
 
-void nano::keepalive::serialize (nano::stream & stream_a) const
+void nano::message::keepalive::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 	for (auto i (peers.begin ()), j (peers.end ()); i != j; ++i)
@@ -708,7 +708,7 @@ void nano::keepalive::serialize (nano::stream & stream_a) const
 	}
 }
 
-bool nano::keepalive::deserialize (nano::stream & stream_a)
+bool nano::message::keepalive::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::keepalive);
 	auto error (false);
@@ -728,12 +728,12 @@ bool nano::keepalive::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-bool nano::keepalive::operator== (nano::keepalive const & other_a) const
+bool nano::message::keepalive::operator== (nano::message::keepalive const & other_a) const
 {
 	return peers == other_a.peers;
 }
 
-std::string nano::keepalive::to_string () const
+std::string nano::message::keepalive::to_string () const
 {
 	std::stringstream stream;
 

@@ -1290,7 +1290,7 @@ TEST (network, filter_invalid_network_bytes)
 	ASSERT_NE (nullptr, channel);
 
 	// send a keepalive, from node2 to node1, with the wrong network bytes
-	nano::keepalive keepalive{ nano::dev::network_params.network };
+	nano::message::keepalive keepalive{ nano::dev::network_params.network };
 	const_cast<nano::networks &> (keepalive.header.network) = nano::networks::invalid;
 	channel->send (keepalive);
 
@@ -1309,7 +1309,7 @@ TEST (network, filter_invalid_version_using)
 	ASSERT_NE (nullptr, channel);
 
 	// send a keepalive, from node2 to node1, with the wrong version_using
-	nano::keepalive keepalive{ nano::dev::network_params.network };
+	nano::message::keepalive keepalive{ nano::dev::network_params.network };
 	const_cast<uint8_t &> (keepalive.header.version_using) = nano::dev::network_params.network.protocol_version_min - 1;
 	channel->send (keepalive);
 

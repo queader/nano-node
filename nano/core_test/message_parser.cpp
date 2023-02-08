@@ -8,7 +8,7 @@ namespace
 class dev_visitor : public nano::message_visitor
 {
 public:
-	void keepalive (nano::keepalive const &) override
+	void keepalive (nano::message::keepalive const &) override
 	{
 		++keepalive_count;
 	}
@@ -233,7 +233,7 @@ TEST (message_parser, exact_keepalive_size)
 	nano::block_uniquer block_uniquer;
 	nano::vote_uniquer vote_uniquer (block_uniquer);
 	nano::message_parser parser (filter, block_uniquer, vote_uniquer, visitor, system.work, nano::dev::network_params.network);
-	nano::keepalive message{ nano::dev::network_params.network };
+	nano::message::keepalive message{ nano::dev::network_params.network };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);

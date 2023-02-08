@@ -475,7 +475,7 @@ void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point
 
 void nano::transport::tcp_channels::ongoing_keepalive ()
 {
-	nano::keepalive message{ node.network_params.network };
+	nano::message::keepalive message{ node.network_params.network };
 	node.network.random_fill (message.peers);
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	// Wake up channels

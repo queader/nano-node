@@ -417,7 +417,7 @@ nano::transport::tcp_server::realtime_message_visitor::realtime_message_visitor 
 {
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::keepalive (const nano::keepalive & message)
+void nano::transport::tcp_server::realtime_message_visitor::keepalive (const nano::message::keepalive & message)
 {
 	process = true;
 }

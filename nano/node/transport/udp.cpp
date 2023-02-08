@@ -370,7 +370,7 @@ public:
 		sink{ std::move (sink) }
 	{
 	}
-	void keepalive (nano::keepalive const & message_a) override
+	void keepalive (nano::message::keepalive const & message_a) override
 	{
 		if (!node.network.udp_channels.max_ip_or_subnetwork_connections (endpoint))
 		{
@@ -709,7 +709,7 @@ void nano::transport::udp_channels::purge (std::chrono::steady_clock::time_point
 
 void nano::transport::udp_channels::ongoing_keepalive ()
 {
-	nano::keepalive message{ node.network_params.network };
+	nano::message::keepalive message{ node.network_params.network };
 	node.network.random_fill (message.peers);
 	std::vector<std::shared_ptr<nano::transport::channel_udp>> send_list;
 	nano::unique_lock<nano::mutex> lock{ mutex };

@@ -151,14 +151,14 @@ void nano::network::stop ()
 
 void nano::network::send_keepalive (std::shared_ptr<nano::transport::channel> const & channel_a)
 {
-	nano::keepalive message{ node.network_params.network };
+	nano::message::keepalive message{ node.network_params.network };
 	random_fill (message.peers);
 	channel_a->send (message);
 }
 
 void nano::network::send_keepalive_self (std::shared_ptr<nano::transport::channel> const & channel_a)
 {
-	nano::keepalive message{ node.network_params.network };
+	nano::message::keepalive message{ node.network_params.network };
 	fill_keepalive_self (message.peers);
 	channel_a->send (message);
 }
@@ -189,14 +189,14 @@ void nano::network::flood_message (nano::message & message_a, nano::buffer_drop_
 
 void nano::network::flood_keepalive (float const scale_a)
 {
-	nano::keepalive message{ node.network_params.network };
+	nano::message::keepalive message{ node.network_params.network };
 	random_fill (message.peers);
 	flood_message (message, nano::buffer_drop_policy::limiter, scale_a);
 }
 
 void nano::network::flood_keepalive_self (float const scale_a)
 {
-	nano::keepalive message{ node.network_params.network };
+	nano::message::keepalive message{ node.network_params.network };
 	fill_keepalive_self (message.peers);
 	flood_message (message, nano::buffer_drop_policy::limiter, scale_a);
 }
@@ -410,7 +410,7 @@ public:
 	{
 	}
 
-	void keepalive (nano::keepalive const & message_a) override
+	void keepalive (nano::message::keepalive const & message_a) override
 	{
 		if (node.config.logging.network_keepalive_logging ())
 		{
