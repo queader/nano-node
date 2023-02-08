@@ -431,7 +431,7 @@ TEST (telemetry, max_possible_size)
 	nano::telemetry_data data;
 	data.unknown_data.resize (nano::message::header::telemetry_size_mask.to_ulong () - nano::telemetry_data::latest_size);
 
-	nano::telemetry_ack message{ nano::dev::network_params.network, data };
+	nano::message::telemetry_ack message{ nano::dev::network_params.network, data };
 	nano::test::wait_peer_connections (system);
 
 	auto channel = node_client->network.tcp_channels.find_node_id (node_server->get_node_id ());

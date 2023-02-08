@@ -48,7 +48,7 @@ public:
 	{
 		ASSERT_FALSE (true);
 	}
-	void telemetry_ack (nano::telemetry_ack const &) override
+	void telemetry_ack (nano::message::telemetry_ack const &) override
 	{
 		ASSERT_FALSE (true);
 	}

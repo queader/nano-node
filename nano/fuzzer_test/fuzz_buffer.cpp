@@ -49,7 +49,7 @@ public:
 	virtual void telemetry_req (nano::telemetry_req const &) override
 	{
 	}
-	virtual void telemetry_ack (nano::telemetry_ack const &) override
+	virtual void telemetry_ack (nano::message::telemetry_ack const &) override
 	{
 	}
 };

@@ -456,7 +456,7 @@ void nano::transport::tcp_server::realtime_message_visitor::telemetry_req (const
 	}
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::telemetry_ack (const nano::telemetry_ack & message)
+void nano::transport::tcp_server::realtime_message_visitor::telemetry_ack (const nano::message::telemetry_ack & message)
 {
 	process = true;
 }

@@ -113,7 +113,7 @@ private:
 		void confirm_ack (nano::message::confirm_ack const &) override;
 		void frontier_req (nano::message::frontier_req const &) override;
 		void telemetry_req (nano::telemetry_req const &) override;
-		void telemetry_ack (nano::telemetry_ack const &) override;
+		void telemetry_ack (nano::message::telemetry_ack const &) override;
 		void asc_pull_req (nano::asc_pull_req const &) override;
 		void asc_pull_ack (nano::asc_pull_ack const &) override;
 

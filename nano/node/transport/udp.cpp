@@ -451,7 +451,7 @@ public:
 			}
 		}
 	}
-	void telemetry_ack (nano::telemetry_ack const & message_a) override
+	void telemetry_ack (nano::message::telemetry_ack const & message_a) override
 	{
 		message (message_a);
 	}

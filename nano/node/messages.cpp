@@ -308,7 +308,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::telemetry_ack:
 		{
-			return nano::telemetry_ack::size (*this);
+			return nano::message::telemetry_ack::size (*this);
 		}
 		case nano::message::type::asc_pull_req:
 		{
@@ -649,7 +649,7 @@ void nano::message_parser::deserialize_telemetry_req (nano::stream & stream_a, n
 void nano::message_parser::deserialize_telemetry_ack (nano::stream & stream_a, nano::message::header const & header_a)
 {
 	bool error_l (false);
-	nano::telemetry_ack incoming (error_l, stream_a, header_a);
+	nano::message::telemetry_ack incoming (error_l, stream_a, header_a);
 	// Intentionally not checking if at the end of stream, because these messages support backwards/forwards compatibility
 	if (!error_l)
 	{
@@ -1327,12 +1327,12 @@ std::string nano::telemetry_req::to_string () const
  * telemetry_ack
  */
 
-nano::telemetry_ack::telemetry_ack (nano::network_constants const & constants) :
+nano::message::telemetry_ack::telemetry_ack (nano::network_constants const & constants) :
 	message (constants, nano::message::type::telemetry_ack)
 {
 }
 
-nano::telemetry_ack::telemetry_ack (bool & error_a, nano::stream & stream_a, nano::message::header const & message::header) :
+nano::message::telemetry_ack::telemetry_ack (bool & error_a, nano::stream & stream_a, nano::message::header const & message::header) :
 	message (message::header)
 {
 	if (!error_a)
@@ -1341,7 +1341,7 @@ nano::telemetry_ack::telemetry_ack (bool & error_a, nano::stream & stream_a, nan
 	}
 }
 
-nano::telemetry_ack::telemetry_ack (nano::network_constants const & constants, nano::telemetry_data const & telemetry_data_a) :
+nano::message::telemetry_ack::telemetry_ack (nano::network_constants const & constants, nano::telemetry_data const & telemetry_data_a) :
 	message (constants, nano::message::type::telemetry_ack),
 	data (telemetry_data_a)
 {
@@ -1350,7 +1350,7 @@ nano::telemetry_ack::telemetry_ack (nano::network_constants const & constants, n
 	header.extensions |= std::bitset<16> (static_cast<unsigned long long> (telemetry_data::size) + telemetry_data_a.unknown_data.size ());
 }
 
-void nano::telemetry_ack::serialize (nano::stream & stream_a) const
+void nano::message::telemetry_ack::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 	if (!is_empty_payload ())
@@ -1359,7 +1359,7 @@ void nano::telemetry_ack::serialize (nano::stream & stream_a) const
 	}
 }
 
-bool nano::telemetry_ack::deserialize (nano::stream & stream_a)
+bool nano::message::telemetry_ack::deserialize (nano::stream & stream_a)
 {
 	auto error (false);
 	debug_assert (header.type == nano::message::type::telemetry_ack);
@@ -1378,27 +1378,27 @@ bool nano::telemetry_ack::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-void nano::telemetry_ack::visit (nano::message_visitor & visitor_a) const
+void nano::message::telemetry_ack::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.telemetry_ack (*this);
 }
 
-uint16_t nano::telemetry_ack::size () const
+uint16_t nano::message::telemetry_ack::size () const
 {
 	return size (header);
 }
 
-uint16_t nano::telemetry_ack::size (nano::message::header const & message::header_a)
+uint16_t nano::message::telemetry_ack::size (nano::message::header const & message::header_a)
 {
 	return static_cast<uint16_t> ((message::header_a.extensions & message::header::telemetry_size_mask).to_ullong ());
 }
 
-bool nano::telemetry_ack::is_empty_payload () const
+bool nano::message::telemetry_ack::is_empty_payload () const
 {
 	return size () == 0;
 }
 
-std::string nano::telemetry_ack::to_string () const
+std::string nano::message::telemetry_ack::to_string () const
 {
 	std::string s = header.to_string () + "\n";
 	if (is_empty_payload ())
