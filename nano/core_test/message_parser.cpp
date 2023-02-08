@@ -24,7 +24,7 @@ public:
 	{
 		++confirm_ack_count;
 	}
-	void bulk_pull (nano::bulk_pull const &) override
+	void bulk_pull (nano::message::bulk_pull const &) override
 	{
 		ASSERT_FALSE (true);
 	}

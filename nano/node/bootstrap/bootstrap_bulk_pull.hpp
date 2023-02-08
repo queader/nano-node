@@ -20,7 +20,7 @@ namespace bootstrap
 class pull_info
 {
 public:
-	using count_t = nano::bulk_pull::count_t;
+	using count_t = nano::message::bulk_pull::count_t;
 	pull_info () = default;
 	pull_info (nano::hash_or_account const &, nano::block_hash const &, nano::block_hash const &, uint64_t, count_t = 0, unsigned = 16);
 	nano::hash_or_account account_or_head{ 0 };
@@ -113,8 +113,8 @@ public:
 	std::unique_ptr<nano::bulk_pull> request;
 	nano::block_hash current;
 	bool include_start;
-	nano::bulk_pull::count_t max_count;
-	nano::bulk_pull::count_t sent_count;
+	nano::message::bulk_pull::count_t max_count;
+	nano::message::bulk_pull::count_t sent_count;
 };
 class bulk_pull_account;
 class bulk_pull_account_server final : public std::enable_shared_from_this<nano::bulk_pull_account_server>

@@ -57,7 +57,7 @@ void nano::bulk_pull_client::request ()
 {
 	debug_assert (!pull.head.is_zero () || pull.retry_limit <= connection->node->network_params.bootstrap.lazy_retry_limit);
 	expected = pull.head;
-	nano::bulk_pull req{ connection->node->network_params.network };
+	nano::message::bulk_pull req{ connection->node->network_params.network };
 	if (pull.head == pull.head_original && pull.attempts % 4 < 3)
 	{
 		// Account for new pulls

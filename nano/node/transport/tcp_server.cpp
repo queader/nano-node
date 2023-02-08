@@ -388,7 +388,7 @@ void nano::transport::tcp_server::send_handshake_response (nano::uint256_union q
 	});
 }
 
-void nano::transport::tcp_server::handshake_message_visitor::bulk_pull (const nano::bulk_pull & message)
+void nano::transport::tcp_server::handshake_message_visitor::bulk_pull (const nano::message::bulk_pull & message)
 {
 	bootstrap = true;
 }
@@ -480,7 +480,7 @@ nano::transport::tcp_server::bootstrap_message_visitor::bootstrap_message_visito
 {
 }
 
-void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull (const nano::bulk_pull & message)
+void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull (const nano::message::bulk_pull & message)
 {
 	if (server->node->flags.disable_bootstrap_bulk_pull_server)
 	{

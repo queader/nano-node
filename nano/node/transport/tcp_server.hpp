@@ -91,7 +91,7 @@ private:
 		explicit handshake_message_visitor (std::shared_ptr<tcp_server>);
 
 		void node_id_handshake (nano::node_id_handshake const &) override;
-		void bulk_pull (nano::bulk_pull const &) override;
+		void bulk_pull (nano::message::bulk_pull const &) override;
 		void bulk_pull_account (nano::bulk_pull_account const &) override;
 		void bulk_push (nano::bulk_push const &) override;
 		void frontier_req (nano::frontier_req const &) override;
@@ -128,7 +128,7 @@ private:
 
 		explicit bootstrap_message_visitor (std::shared_ptr<tcp_server>);
 
-		void bulk_pull (nano::bulk_pull const &) override;
+		void bulk_pull (nano::message::bulk_pull const &) override;
 		void bulk_pull_account (nano::bulk_pull_account const &) override;
 		void bulk_push (nano::bulk_push const &) override;
 		void frontier_req (nano::frontier_req const &) override;

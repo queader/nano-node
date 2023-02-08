@@ -27,7 +27,7 @@ public:
 	void pull_finished ();
 	bool should_log ();
 	char const * mode_text ();
-	virtual bool process_block (std::shared_ptr<nano::block> const &, nano::account const &, uint64_t, nano::bulk_pull::count_t, bool, unsigned);
+	virtual bool process_block (std::shared_ptr<nano::block> const &, nano::account const &, uint64_t, nano::message::bulk_pull::count_t, bool, unsigned);
 	virtual void get_information (boost::property_tree::ptree &) = 0;
 	virtual void block_processed (nano::transaction const & tx, nano::process_return const & result, nano::block const & block);
 	nano::mutex next_log_mutex;

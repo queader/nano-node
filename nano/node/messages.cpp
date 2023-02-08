@@ -270,7 +270,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 	{
 		case nano::message::type::bulk_pull:
 		{
-			return nano::bulk_pull::size + (bulk_pull_is_count_present () ? nano::bulk_pull::extended_parameters_size : 0);
+			return nano::message::bulk_pull::size + (bulk_pull_is_count_present () ? nano::message::bulk_pull::extended_parameters_size : 0);
 		}
 		case nano::message::type::bulk_push:
 		case nano::message::type::telemetry_req:
@@ -1081,12 +1081,12 @@ std::string nano::frontier_req::to_string () const
  * bulk_pull
  */
 
-nano::bulk_pull::bulk_pull (nano::network_constants const & constants) :
+nano::message::bulk_pull::bulk_pull (nano::network_constants const & constants) :
 	message (constants, nano::message::type::bulk_pull)
 {
 }
 
-nano::bulk_pull::bulk_pull (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
+nano::message::bulk_pull::bulk_pull (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
 	message (header_a)
 {
 	if (!error_a)
@@ -1095,12 +1095,12 @@ nano::bulk_pull::bulk_pull (bool & error_a, nano::stream & stream_a, nano::messa
 	}
 }
 
-void nano::bulk_pull::visit (nano::message_visitor & visitor_a) const
+void nano::message::bulk_pull::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.bulk_pull (*this);
 }
 
-void nano::bulk_pull::serialize (nano::stream & stream_a) const
+void nano::message::bulk_pull::serialize (nano::stream & stream_a) const
 {
 	/*
 	 * Ensure the "count_present" flag is set if there
@@ -1129,7 +1129,7 @@ void nano::bulk_pull::serialize (nano::stream & stream_a) const
 	}
 }
 
-bool nano::bulk_pull::deserialize (nano::stream & stream_a)
+bool nano::message::bulk_pull::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::bulk_pull);
 	auto error (false);
@@ -1167,17 +1167,17 @@ bool nano::bulk_pull::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-bool nano::bulk_pull::is_count_present () const
+bool nano::message::bulk_pull::is_count_present () const
 {
 	return header.extensions.test (count_present_flag);
 }
 
-void nano::bulk_pull::set_count_present (bool value_a)
+void nano::message::bulk_pull::set_count_present (bool value_a)
 {
 	header.extensions.set (count_present_flag, value_a);
 }
 
-std::string nano::bulk_pull::to_string () const
+std::string nano::message::bulk_pull::to_string () const
 {
 	std::string s = header.to_string ();
 	s += "\nstart=" + start.to_string ();

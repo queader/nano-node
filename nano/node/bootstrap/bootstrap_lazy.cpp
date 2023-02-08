@@ -221,7 +221,7 @@ void nano::bootstrap_attempt_lazy::run ()
 	condition.notify_all ();
 }
 
-bool nano::bootstrap_attempt_lazy::process_block (std::shared_ptr<nano::block> const & block_a, nano::account const & known_account_a, uint64_t pull_blocks_processed, nano::bulk_pull::count_t max_blocks, bool block_expected, unsigned retry_limit)
+bool nano::bootstrap_attempt_lazy::process_block (std::shared_ptr<nano::block> const & block_a, nano::account const & known_account_a, uint64_t pull_blocks_processed, nano::message::bulk_pull::count_t max_blocks, bool block_expected, unsigned retry_limit)
 {
 	bool stop_pull (false);
 	if (block_expected)
@@ -236,7 +236,7 @@ bool nano::bootstrap_attempt_lazy::process_block (std::shared_ptr<nano::block> c
 	return stop_pull;
 }
 
-bool nano::bootstrap_attempt_lazy::process_block_lazy (std::shared_ptr<nano::block> const & block_a, nano::account const & known_account_a, uint64_t pull_blocks_processed, nano::bulk_pull::count_t max_blocks, unsigned retry_limit)
+bool nano::bootstrap_attempt_lazy::process_block_lazy (std::shared_ptr<nano::block> const & block_a, nano::account const & known_account_a, uint64_t pull_blocks_processed, nano::message::bulk_pull::count_t max_blocks, unsigned retry_limit)
 {
 	bool stop_pull (false);
 	auto hash (block_a->hash ());

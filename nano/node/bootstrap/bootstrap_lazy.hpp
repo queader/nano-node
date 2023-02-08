@@ -29,7 +29,7 @@ class bootstrap_attempt_lazy final : public bootstrap_attempt
 public:
 	explicit bootstrap_attempt_lazy (std::shared_ptr<nano::node> const & node_a, uint64_t incremental_id_a, std::string const & id_a = "");
 	~bootstrap_attempt_lazy ();
-	bool process_block (std::shared_ptr<nano::block> const &, nano::account const &, uint64_t, nano::bulk_pull::count_t, bool, unsigned) override;
+	bool process_block (std::shared_ptr<nano::block> const &, nano::account const &, uint64_t, nano::message::bulk_pull::count_t, bool, unsigned) override;
 	void run () override;
 	bool lazy_start (nano::hash_or_account const &);
 	void lazy_add (nano::hash_or_account const &, unsigned);
@@ -39,7 +39,7 @@ public:
 	bool lazy_has_expired () const;
 	uint32_t lazy_batch_size ();
 	void lazy_pull_flush (nano::unique_lock<nano::mutex> & lock_a);
-	bool process_block_lazy (std::shared_ptr<nano::block> const &, nano::account const &, uint64_t, nano::bulk_pull::count_t, unsigned);
+	bool process_block_lazy (std::shared_ptr<nano::block> const &, nano::account const &, uint64_t, nano::message::bulk_pull::count_t, unsigned);
 	void lazy_block_state (std::shared_ptr<nano::block> const &, unsigned);
 	void lazy_block_state_backlog_check (std::shared_ptr<nano::block> const &, nano::block_hash const &);
 	void lazy_backlog_cleanup ();

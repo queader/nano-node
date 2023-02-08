@@ -271,7 +271,7 @@ TEST (confirm_ack, empty_vote_hashes)
 
 TEST (message, bulk_pull_serialization)
 {
-	nano::bulk_pull message_in{ nano::dev::network_params.network };
+	nano::message::bulk_pull message_in{ nano::dev::network_params.network };
 	message_in.header.flag_set (nano::message::header::bulk_pull_ascending_flag);
 	std::vector<uint8_t> bytes;
 	{
@@ -282,7 +282,7 @@ TEST (message, bulk_pull_serialization)
 	bool error = false;
 	nano::message::header header{ error, stream };
 	ASSERT_FALSE (error);
-	nano::bulk_pull message_out{ error, stream, header };
+	nano::message::bulk_pull message_out{ error, stream, header };
 	ASSERT_FALSE (error);
 	ASSERT_TRUE (header.bulk_pull_ascending ());
 }

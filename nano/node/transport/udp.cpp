@@ -413,7 +413,7 @@ public:
 	{
 		message (message_a);
 	}
-	void bulk_pull (nano::bulk_pull const &) override
+	void bulk_pull (nano::message::bulk_pull const &) override
 	{
 		debug_assert (false);
 	}

@@ -31,7 +31,7 @@ public:
 	virtual void confirm_ack (nano::confirm_ack const &) override
 	{
 	}
-	virtual void bulk_pull (nano::bulk_pull const &) override
+	virtual void bulk_pull (nano::message::bulk_pull const &) override
 	{
 	}
 	virtual void bulk_pull_account (nano::bulk_pull_account const &) override
