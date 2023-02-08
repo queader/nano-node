@@ -330,7 +330,7 @@ void nano::transport::tcp_channels::process_message (nano::message const & messa
 				else
 				{
 					// Initial node_id_handshake request without node ID
-					debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
+					debug_assert (message_a.header.type == nano::message::type::node_id_handshake);
 					node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
 				}
 			}
@@ -647,9 +647,9 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		node_l->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
 		auto error (false);
 		nano::bufferstream stream (receive_buffer_a->data (), size_a);
-		nano::message_header header (error, stream);
+		nano::message::header header (error, stream);
 		// the header type should in principle be checked after checking the network bytes and the version numbers, I will not change it here since the benefits do not outweight the difficulties
-		if (error || header.type != nano::message_type::node_id_handshake)
+		if (error || header.type != nano::message::type::node_id_handshake)
 		{
 			if (node_l->config.logging.network_node_id_handshake_logging ())
 			{

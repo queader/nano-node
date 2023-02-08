@@ -364,7 +364,7 @@ TEST (frontier_req, serialization)
 	}
 	auto error (false);
 	nano::bufferstream stream (bytes.data (), bytes.size ());
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
 	nano::frontier_req request2 (error, stream, header);
 	ASSERT_FALSE (error);
@@ -392,7 +392,7 @@ TEST (block, publish_req_serialization)
 	}
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
-	nano::message_header header (error, stream2);
+	nano::message::header header (error, stream2);
 	ASSERT_FALSE (error);
 	nano::publish req2 (error, stream2, header);
 	ASSERT_FALSE (error);

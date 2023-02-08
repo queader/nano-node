@@ -16,10 +16,10 @@ TEST (network_filter, unit)
 
 		// First read the header
 		bool error{ false };
-		nano::message_header header (error, stream);
+		nano::message::header header (error, stream);
 		ASSERT_FALSE (error);
 
-		// This validates nano::message_header::size
+		// This validates nano::message::header::size
 		ASSERT_EQ (bytes->size (), block_a->size (block_a->type ()) + header.size);
 
 		// Now filter the rest of the stream
@@ -82,10 +82,10 @@ TEST (network_filter, many)
 
 		// First read the header
 		bool error{ false };
-		nano::message_header header (error, stream);
+		nano::message::header header (error, stream);
 		ASSERT_FALSE (error);
 
-		// This validates nano::message_header::size
+		// This validates nano::message::header::size
 		ASSERT_EQ (bytes->size (), block->size + header.size);
 
 		// Now filter the rest of the stream

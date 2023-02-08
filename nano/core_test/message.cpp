@@ -35,7 +35,7 @@ TEST (message, keepalive_serialization)
 	}
 	auto error (false);
 	nano::bufferstream stream (bytes.data (), bytes.size ());
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
 	nano::keepalive request2 (error, stream, header);
 	ASSERT_FALSE (error);
@@ -53,9 +53,9 @@ TEST (message, keepalive_deserialize)
 	}
 	nano::bufferstream stream (bytes.data (), bytes.size ());
 	auto error (false);
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	ASSERT_EQ (nano::message_type::keepalive, header.type);
+	ASSERT_EQ (nano::message::type::keepalive, header.type);
 	nano::keepalive message2 (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (message1.peers, message2.peers);
@@ -77,17 +77,17 @@ TEST (message, publish_serialization)
 	ASSERT_EQ (nano::dev::network_params.network.protocol_version, bytes[2]);
 	ASSERT_EQ (nano::dev::network_params.network.protocol_version, bytes[3]);
 	ASSERT_EQ (nano::dev::network_params.network.protocol_version_min, bytes[4]);
-	ASSERT_EQ (static_cast<uint8_t> (nano::message_type::publish), bytes[5]);
+	ASSERT_EQ (static_cast<uint8_t> (nano::message::type::publish), bytes[5]);
 	ASSERT_EQ (0x00, bytes[6]); // extensions
 	ASSERT_EQ (static_cast<uint8_t> (nano::block_type::send), bytes[7]);
 	nano::bufferstream stream (bytes.data (), bytes.size ());
 	auto error (false);
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (nano::dev::network_params.network.protocol_version_min, header.version_min);
 	ASSERT_EQ (nano::dev::network_params.network.protocol_version, header.version_using);
 	ASSERT_EQ (nano::dev::network_params.network.protocol_version, header.version_max);
-	ASSERT_EQ (nano::message_type::publish, header.type);
+	ASSERT_EQ (nano::message::type::publish, header.type);
 }
 
 TEST (message, confirm_ack_hash_serialization)
@@ -121,7 +121,7 @@ TEST (message, confirm_ack_hash_serialization)
 	}
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
 	bool error (false);
-	nano::message_header header (error, stream2);
+	nano::message::header header (error, stream2);
 	nano::confirm_ack con2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (con1, con2);
@@ -152,7 +152,7 @@ TEST (message, confirm_req_serialization)
 	}
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
-	nano::message_header header (error, stream2);
+	nano::message::header header (error, stream2);
 	nano::confirm_req req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
@@ -180,7 +180,7 @@ TEST (message, confirm_req_hash_serialization)
 	}
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
-	nano::message_header header (error, stream2);
+	nano::message::header header (error, stream2);
 	nano::confirm_req req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
@@ -232,7 +232,7 @@ TEST (message, confirm_req_hash_batch_serialization)
 	}
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
-	nano::message_header header (error, stream2);
+	nano::message::header header (error, stream2);
 	nano::confirm_req req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
@@ -243,8 +243,8 @@ TEST (message, confirm_req_hash_batch_serialization)
 	ASSERT_EQ (header.count_get (), req.roots_hashes.size ());
 }
 
-// this unit test checks that conversion of message_header to string works as expected
-TEST (message, message_header_to_string)
+// this unit test checks that conversion of message::header to string works as expected
+TEST (message, message::header_to_string)
 {
 	// calculate expected string
 	int maxver = nano::dev::network_params.network.protocol_version;
@@ -272,7 +272,7 @@ TEST (confirm_ack, empty_vote_hashes)
 TEST (message, bulk_pull_serialization)
 {
 	nano::bulk_pull message_in{ nano::dev::network_params.network };
-	message_in.header.flag_set (nano::message_header::bulk_pull_ascending_flag);
+	message_in.header.flag_set (nano::message::header::bulk_pull_ascending_flag);
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream{ bytes };
@@ -280,7 +280,7 @@ TEST (message, bulk_pull_serialization)
 	}
 	nano::bufferstream stream{ bytes.data (), bytes.size () };
 	bool error = false;
-	nano::message_header header{ error, stream };
+	nano::message::header header{ error, stream };
 	ASSERT_FALSE (error);
 	nano::bulk_pull message_out{ error, stream, header };
 	ASSERT_FALSE (error);
@@ -310,9 +310,9 @@ TEST (message, asc_pull_req_serialization_blocks)
 
 	// Header
 	bool error = false;
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	ASSERT_EQ (nano::message_type::asc_pull_req, header.type);
+	ASSERT_EQ (nano::message::type::asc_pull_req, header.type);
 
 	// Message
 	nano::asc_pull_req message (error, stream, header);
@@ -350,9 +350,9 @@ TEST (message, asc_pull_req_serialization_account_info)
 
 	// Header
 	bool error = false;
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	ASSERT_EQ (nano::message_type::asc_pull_req, header.type);
+	ASSERT_EQ (nano::message::type::asc_pull_req, header.type);
 
 	// Message
 	nano::asc_pull_req message (error, stream, header);
@@ -394,9 +394,9 @@ TEST (message, asc_pull_ack_serialization_blocks)
 
 	// Header
 	bool error = false;
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	ASSERT_EQ (nano::message_type::asc_pull_ack, header.type);
+	ASSERT_EQ (nano::message::type::asc_pull_ack, header.type);
 
 	// Message
 	nano::asc_pull_ack message (error, stream, header);
@@ -443,9 +443,9 @@ TEST (message, asc_pull_ack_serialization_account_info)
 
 	// Header
 	bool error = false;
-	nano::message_header header (error, stream);
+	nano::message::header header (error, stream);
 	ASSERT_FALSE (error);
-	ASSERT_EQ (nano::message_type::asc_pull_ack, header.type);
+	ASSERT_EQ (nano::message::type::asc_pull_ack, header.type);
 
 	// Message
 	nano::asc_pull_ack message (error, stream, header);

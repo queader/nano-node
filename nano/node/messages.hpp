@@ -92,7 +92,7 @@ public:
 
 	/** Size of the payload in bytes. For some messages, the payload size is based on header flags. */
 	std::size_t payload_length_bytes () const;
-	bool is_valid_message::type () const;
+	bool is_valid_message_type () const;
 
 	static std::bitset<16> constexpr block_type_mask{ 0x0f00 };
 	static std::bitset<16> constexpr count_mask{ 0xf000 };
@@ -594,7 +594,7 @@ public:
 		success,
 		insufficient_work,
 		invalid_header,
-		invalid_message::type,
+		invalid_message_type,
 		invalid_keepalive_message,
 		invalid_publish_message,
 		invalid_confirm_req_message,

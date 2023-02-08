@@ -24,7 +24,7 @@ auto handler_map = nano::ipc::action_handler::handler_map ();
 std::string make_error_response (std::string const & error_message)
 {
 	std::ostringstream json;
-	json << R"json({"message_type": "Error", "message": {"code": 1, "message": ")json"
+	json << R"json({"message::type": "Error", "message": {"code": 1, "message": ")json"
 		 << error_message
 		 << R"json("}})json";
 	return json.str ();
@@ -161,7 +161,7 @@ std::function<void (std::shared_ptr<flatbuffers::FlatBufferBuilder> const &)> co
 			return;
 		}
 
-		auto handler_method = handler_map.find (incoming->message_type ());
+		auto handler_method = handler_map.find (incoming->message::type ());
 		if (handler_method != handler_map.end ())
 		{
 			if (incoming->correlation_id ())

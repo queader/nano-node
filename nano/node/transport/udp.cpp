@@ -563,8 +563,8 @@ void nano::transport::udp_channels::receive_action (nano::message_buffer * data_
 				case nano::message_parser::parse_status::invalid_header:
 					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_header);
 					break;
-				case nano::message_parser::parse_status::invalid_message_type:
-					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_message_type);
+				case nano::message_parser::parse_status::invalid_message::type:
+					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_message::type);
 					break;
 				case nano::message_parser::parse_status::invalid_keepalive_message:
 					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_keepalive_message);
