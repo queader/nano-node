@@ -427,7 +427,7 @@ void nano::transport::tcp_server::realtime_message_visitor::publish (const nano:
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::confirm_req (const nano::confirm_req & message)
+void nano::transport::tcp_server::realtime_message_visitor::confirm_req (const nano::message::confirm_req & message)
 {
 	process = true;
 }

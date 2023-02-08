@@ -265,7 +265,7 @@ void nano::network::flood_block_many (std::deque<std::shared_ptr<nano::block>> b
 void nano::network::send_confirm_req (std::shared_ptr<nano::transport::channel> const & channel_a, std::pair<nano::block_hash, nano::block_hash> const & hash_root_a)
 {
 	// Confirmation request with hash + root
-	nano::confirm_req req (node.network_params.network, hash_root_a.first, hash_root_a.second);
+	nano::message::confirm_req req (node.network_params.network, hash_root_a.first, hash_root_a.second);
 	channel_a->send (req);
 }
 
@@ -343,7 +343,7 @@ void nano::network::broadcast_confirm_req_batched_many (std::unordered_map<std::
 			roots_hashes_l.push_back (i->second.front ());
 			i->second.pop_front ();
 		}
-		nano::confirm_req req{ node.network_params.network, roots_hashes_l };
+		nano::message::confirm_req req{ node.network_params.network, roots_hashes_l };
 		i->first->send (req);
 		if (i->second.empty ())
 		{
@@ -449,7 +449,7 @@ public:
 		}
 	}
 
-	void confirm_req (nano::confirm_req const & message_a) override
+	void confirm_req (nano::message::confirm_req const & message_a) override
 	{
 		if (node.config.logging.network_message_logging ())
 		{

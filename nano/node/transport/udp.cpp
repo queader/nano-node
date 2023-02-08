@@ -405,7 +405,7 @@ public:
 	{
 		message (message_a);
 	}
-	void confirm_req (nano::confirm_req const & message_a) override
+	void confirm_req (nano::message::confirm_req const & message_a) override
 	{
 		message (message_a);
 	}

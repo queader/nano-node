@@ -25,7 +25,7 @@ public:
 	virtual void publish (nano::publish const &) override
 	{
 	}
-	virtual void confirm_req (nano::confirm_req const &) override
+	virtual void confirm_req (nano::message::confirm_req const &) override
 	{
 	}
 	virtual void confirm_ack (nano::message::confirm_ack const &) override

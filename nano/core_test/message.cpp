@@ -144,7 +144,7 @@ TEST (message, confirm_req_serialization)
 				 .sign (nano::keypair ().prv, 2)
 				 .work (3)
 				 .build_shared ();
-	nano::confirm_req req{ nano::dev::network_params.network, block };
+	nano::message::confirm_req req{ nano::dev::network_params.network, block };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -153,7 +153,7 @@ TEST (message, confirm_req_serialization)
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
 	nano::message::header header (error, stream2);
-	nano::confirm_req req2 (error, stream2, header);
+	nano::message::confirm_req req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
 	ASSERT_EQ (*req.block, *req2.block);
@@ -172,7 +172,7 @@ TEST (message, confirm_req_hash_serialization)
 				 .sign (nano::keypair ().prv, 2)
 				 .work (3)
 				 .build ();
-	nano::confirm_req req{ nano::dev::network_params.network, block->hash (), block->root () };
+	nano::message::confirm_req req{ nano::dev::network_params.network, block->hash (), block->root () };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -181,7 +181,7 @@ TEST (message, confirm_req_hash_serialization)
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
 	nano::message::header header (error, stream2);
-	nano::confirm_req req2 (error, stream2, header);
+	nano::message::confirm_req req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
 	ASSERT_EQ (req.roots_hashes, req2.roots_hashes);
@@ -224,7 +224,7 @@ TEST (message, confirm_req_hash_batch_serialization)
 		roots_hashes.push_back (std::make_pair (block->hash (), block->root ()));
 	}
 	roots_hashes.push_back (std::make_pair (open->hash (), open->root ()));
-	nano::confirm_req req{ nano::dev::network_params.network, roots_hashes };
+	nano::message::confirm_req req{ nano::dev::network_params.network, roots_hashes };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -233,7 +233,7 @@ TEST (message, confirm_req_hash_batch_serialization)
 	auto error (false);
 	nano::bufferstream stream2 (bytes.data (), bytes.size ());
 	nano::message::header header (error, stream2);
-	nano::confirm_req req2 (error, stream2, header);
+	nano::message::confirm_req req2 (error, stream2, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (req, req2);
 	ASSERT_EQ (req.roots_hashes, req2.roots_hashes);

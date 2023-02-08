@@ -16,7 +16,7 @@ public:
 	{
 		++publish_count;
 	}
-	void confirm_req (nano::confirm_req const &) override
+	void confirm_req (nano::message::confirm_req const &) override
 	{
 		++confirm_req_count;
 	}
@@ -119,7 +119,7 @@ TEST (message_parser, exact_confirm_req_size)
 				 .sign (nano::keypair ().prv, 4)
 				 .work (*system.work.generate (nano::root (1)))
 				 .build_shared ();
-	nano::confirm_req message{ nano::dev::network_params.network, block };
+	nano::message::confirm_req message{ nano::dev::network_params.network, block };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
@@ -160,7 +160,7 @@ TEST (message_parser, exact_confirm_req_hash_size)
 				 .sign (nano::keypair ().prv, 4)
 				 .work (*system.work.generate (nano::root (1)))
 				 .build ();
-	nano::confirm_req message{ nano::dev::network_params.network, block->hash (), block->root () };
+	nano::message::confirm_req message{ nano::dev::network_params.network, block->hash (), block->root () };
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);

@@ -2283,8 +2283,8 @@ TEST (node, local_votes_cache)
 	election->force_confirm ();
 	ASSERT_TIMELY (3s, node.ledger.cache.cemented_count == 3);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
-	nano::confirm_req message1{ nano::dev::network_params.network, send1 };
-	nano::confirm_req message2{ nano::dev::network_params.network, send2 };
+	nano::message::confirm_req message1{ nano::dev::network_params.network, send1 };
+	nano::message::confirm_req message2{ nano::dev::network_params.network, send2 };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (message1, channel);
 	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 1);
@@ -2306,7 +2306,7 @@ TEST (node, local_votes_cache)
 		auto transaction (node.store.tx_begin_write ());
 		ASSERT_EQ (nano::process_result::progress, node.ledger.process (transaction, *send3).code);
 	}
-	nano::confirm_req message3{ nano::dev::network_params.network, send3 };
+	nano::message::confirm_req message3{ nano::dev::network_params.network, send3 };
 	for (auto i (0); i < 100; ++i)
 	{
 		node.network.inbound (message3, channel);
@@ -2366,7 +2366,7 @@ TEST (node, DISABLED_local_votes_cache_batch)
 					.build_shared ();
 	ASSERT_EQ (nano::process_result::progress, node.ledger.process (node.store.tx_begin_write (), *receive1).code);
 	std::vector<std::pair<nano::block_hash, nano::root>> batch{ { send2->hash (), send2->root () }, { receive1->hash (), receive1->root () } };
-	nano::confirm_req message{ nano::dev::network_params.network, batch };
+	nano::message::confirm_req message{ nano::dev::network_params.network, batch };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	// Generates and sends one vote for both hashes which is then cached
 	node.network.inbound (message, channel);
@@ -2406,7 +2406,7 @@ TEST (node, local_votes_cache_generate_new_vote)
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
 	// Send a confirm req for genesis block to node
-	nano::confirm_req message1{ nano::dev::network_params.network, nano::dev::genesis };
+	nano::message::confirm_req message1{ nano::dev::network_params.network, nano::dev::genesis };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (message1, channel);
 
@@ -2430,7 +2430,7 @@ TEST (node, local_votes_cache_generate_new_vote)
 	ASSERT_EQ (nano::process_result::progress, node.process (*send1).code);
 	// One of the hashes is cached
 	std::vector<std::pair<nano::block_hash, nano::root>> roots_hashes{ std::make_pair (nano::dev::genesis->hash (), nano::dev::genesis->root ()), std::make_pair (send1->hash (), send1->root ()) };
-	nano::confirm_req message2{ nano::dev::network_params.network, roots_hashes };
+	nano::message::confirm_req message2{ nano::dev::network_params.network, roots_hashes };
 	node.network.inbound (message2, channel);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
 	auto votes2 (node.history.votes (send1->root (), send1->hash ()));

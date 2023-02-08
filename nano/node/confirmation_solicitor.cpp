@@ -97,14 +97,14 @@ void nano::confirmation_solicitor::flush ()
 			roots_hashes_l.push_back (root_hash);
 			if (roots_hashes_l.size () == nano::network::confirm_req_hashes_max)
 			{
-				nano::confirm_req req{ config.network_params.network, roots_hashes_l };
+				nano::message::confirm_req req{ config.network_params.network, roots_hashes_l };
 				channel->send (req);
 				roots_hashes_l.clear ();
 			}
 		}
 		if (!roots_hashes_l.empty ())
 		{
-			nano::confirm_req req{ config.network_params.network, roots_hashes_l };
+			nano::message::confirm_req req{ config.network_params.network, roots_hashes_l };
 			channel->send (req);
 		}
 	}

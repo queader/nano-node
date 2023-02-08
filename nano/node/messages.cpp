@@ -300,7 +300,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::confirm_req:
 		{
-			return nano::confirm_req::size (block_type (), count_get ());
+			return nano::message::confirm_req::size (block_type (), count_get ());
 		}
 		case nano::message::type::node_id_handshake:
 		{
@@ -587,7 +587,7 @@ void nano::message_parser::deserialize_publish (nano::stream & stream_a, nano::m
 void nano::message_parser::deserialize_confirm_req (nano::stream & stream_a, nano::message::header const & header_a)
 {
 	auto error (false);
-	nano::confirm_req incoming (error, stream_a, header_a, &block_uniquer);
+	nano::message::confirm_req incoming (error, stream_a, header_a, &block_uniquer);
 	if (!error && at_end (stream_a))
 	{
 		if (incoming.block == nullptr || !network.work.validate_entry (*incoming.block))
@@ -803,7 +803,7 @@ std::string nano::publish::to_string () const
  * confirm_req
  */
 
-nano::confirm_req::confirm_req (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a, nano::block_uniquer * uniquer_a) :
+nano::message::confirm_req::confirm_req (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a, nano::block_uniquer * uniquer_a) :
 	message (header_a)
 {
 	if (!error_a)
@@ -812,14 +812,14 @@ nano::confirm_req::confirm_req (bool & error_a, nano::stream & stream_a, nano::m
 	}
 }
 
-nano::confirm_req::confirm_req (nano::network_constants const & constants, std::shared_ptr<nano::block> const & block_a) :
+nano::message::confirm_req::confirm_req (nano::network_constants const & constants, std::shared_ptr<nano::block> const & block_a) :
 	message (constants, nano::message::type::confirm_req),
 	block (block_a)
 {
 	header.block_type_set (block->type ());
 }
 
-nano::confirm_req::confirm_req (nano::network_constants const & constants, std::vector<std::pair<nano::block_hash, nano::root>> const & roots_hashes_a) :
+nano::message::confirm_req::confirm_req (nano::network_constants const & constants, std::vector<std::pair<nano::block_hash, nano::root>> const & roots_hashes_a) :
 	message (constants, nano::message::type::confirm_req),
 	roots_hashes (roots_hashes_a)
 {
@@ -829,7 +829,7 @@ nano::confirm_req::confirm_req (nano::network_constants const & constants, std::
 	header.count_set (static_cast<uint8_t> (roots_hashes.size ()));
 }
 
-nano::confirm_req::confirm_req (nano::network_constants const & constants, nano::block_hash const & hash_a, nano::root const & root_a) :
+nano::message::confirm_req::confirm_req (nano::network_constants const & constants, nano::block_hash const & hash_a, nano::root const & root_a) :
 	message (constants, nano::message::type::confirm_req),
 	roots_hashes (std::vector<std::pair<nano::block_hash, nano::root>> (1, std::make_pair (hash_a, root_a)))
 {
@@ -840,12 +840,12 @@ nano::confirm_req::confirm_req (nano::network_constants const & constants, nano:
 	header.count_set (static_cast<uint8_t> (roots_hashes.size ()));
 }
 
-void nano::confirm_req::visit (nano::message_visitor & visitor_a) const
+void nano::message::confirm_req::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.confirm_req (*this);
 }
 
-void nano::confirm_req::serialize (nano::stream & stream_a) const
+void nano::message::confirm_req::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 	if (header.block_type () == nano::block_type::not_a_block)
@@ -865,7 +865,7 @@ void nano::confirm_req::serialize (nano::stream & stream_a) const
 	}
 }
 
-bool nano::confirm_req::deserialize (nano::stream & stream_a, nano::block_uniquer * uniquer_a)
+bool nano::message::confirm_req::deserialize (nano::stream & stream_a, nano::block_uniquer * uniquer_a)
 {
 	bool result (false);
 	debug_assert (header.type == nano::message::type::confirm_req);
@@ -902,7 +902,7 @@ bool nano::confirm_req::deserialize (nano::stream & stream_a, nano::block_unique
 	return result;
 }
 
-bool nano::confirm_req::operator== (nano::confirm_req const & other_a) const
+bool nano::message::confirm_req::operator== (nano::message::confirm_req const & other_a) const
 {
 	bool equal (false);
 	if (block != nullptr && other_a.block != nullptr)
@@ -916,7 +916,7 @@ bool nano::confirm_req::operator== (nano::confirm_req const & other_a) const
 	return equal;
 }
 
-std::string nano::confirm_req::roots_string () const
+std::string nano::message::confirm_req::roots_string () const
 {
 	std::string result;
 	for (auto & root_hash : roots_hashes)
@@ -929,7 +929,7 @@ std::string nano::confirm_req::roots_string () const
 	return result;
 }
 
-std::size_t nano::confirm_req::size (nano::block_type type_a, std::size_t count)
+std::size_t nano::message::confirm_req::size (nano::block_type type_a, std::size_t count)
 {
 	std::size_t result (0);
 	if (type_a != nano::block_type::invalid && type_a != nano::block_type::not_a_block)
@@ -943,7 +943,7 @@ std::size_t nano::confirm_req::size (nano::block_type type_a, std::size_t count)
 	return result;
 }
 
-std::string nano::confirm_req::to_string () const
+std::string nano::message::confirm_req::to_string () const
 {
 	std::string s = header.to_string ();
 
