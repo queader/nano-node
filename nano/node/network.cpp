@@ -543,7 +543,7 @@ public:
 		node.telemetry.process (message_a, channel);
 	}
 
-	void asc_pull_req (nano::asc_pull_req const & message) override
+	void asc_pull_req (nano::message::asc_pull_req const & message) override
 	{
 		node.bootstrap_server.request (message, channel);
 	}

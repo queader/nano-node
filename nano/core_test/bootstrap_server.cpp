@@ -73,14 +73,14 @@ TEST (bootstrap_server, serve_account_blocks)
 	auto [first_account, first_blocks] = chains.front ();
 
 	// Request blocks from account root
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload request_payload;
+	nano::message::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = first_account;
 	request_payload.count = nano::bootstrap_server::max_blocks;
-	request_payload.start_type = nano::asc_pull_req::hash_type::account;
+	request_payload.start_type = nano::message::asc_pull_req::hash_type::account;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -120,14 +120,14 @@ TEST (bootstrap_server, serve_hash)
 	blocks = nano::block_list_t{ std::next (blocks.begin (), 9), blocks.end () };
 
 	// Request blocks from the middle of the chain
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload request_payload;
+	nano::message::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = blocks.front ()->hash ();
 	request_payload.count = nano::bootstrap_server::max_blocks;
-	request_payload.start_type = nano::asc_pull_req::hash_type::block;
+	request_payload.start_type = nano::message::asc_pull_req::hash_type::block;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -167,14 +167,14 @@ TEST (bootstrap_server, serve_hash_one)
 	blocks = nano::block_list_t{ std::next (blocks.begin (), 9), blocks.end () };
 
 	// Request blocks from the middle of the chain
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload request_payload;
+	nano::message::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = blocks.front ()->hash ();
 	request_payload.count = 1;
-	request_payload.start_type = nano::asc_pull_req::hash_type::block;
+	request_payload.start_type = nano::message::asc_pull_req::hash_type::block;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -208,14 +208,14 @@ TEST (bootstrap_server, serve_end_of_chain)
 	auto [account, blocks] = chains.front ();
 
 	// Request blocks from account frontier
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload request_payload;
+	nano::message::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = blocks.back ()->hash ();
 	request_payload.count = nano::bootstrap_server::max_blocks;
-	request_payload.start_type = nano::asc_pull_req::hash_type::block;
+	request_payload.start_type = nano::message::asc_pull_req::hash_type::block;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -249,14 +249,14 @@ TEST (bootstrap_server, serve_missing)
 	auto chains = nano::test::setup_chains (system, node, 1, 128);
 
 	// Request blocks from account frontier
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload request_payload;
+	nano::message::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = nano::test::random_hash ();
 	request_payload.count = nano::bootstrap_server::max_blocks;
-	request_payload.start_type = nano::asc_pull_req::hash_type::block;
+	request_payload.start_type = nano::message::asc_pull_req::hash_type::block;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -294,14 +294,14 @@ TEST (bootstrap_server, serve_multiple)
 		for (auto & [account, blocks] : chains)
 		{
 			// Request blocks from account root
-			nano::asc_pull_req request{ node.network_params.network };
+			nano::message::asc_pull_req request{ node.network_params.network };
 			request.id = next_id++;
 			request.type = nano::asc_pull_type::blocks;
 
-			nano::asc_pull_req::blocks_payload request_payload;
+			nano::message::asc_pull_req::blocks_payload request_payload;
 			request_payload.start = account;
 			request_payload.count = nano::bootstrap_server::max_blocks;
-			request_payload.start_type = nano::asc_pull_req::hash_type::account;
+			request_payload.start_type = nano::message::asc_pull_req::hash_type::account;
 
 			request.payload = request_payload;
 			request.update_header ();
@@ -353,13 +353,13 @@ TEST (bootstrap_server, serve_account_info)
 	auto [account, blocks] = chains.front ();
 
 	// Request blocks from account root
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::account_info;
 
-	nano::asc_pull_req::account_info_payload request_payload;
+	nano::message::asc_pull_req::account_info_payload request_payload;
 	request_payload.target = account;
-	request_payload.target_type = nano::asc_pull_req::hash_type::account;
+	request_payload.target_type = nano::message::asc_pull_req::hash_type::account;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -401,13 +401,13 @@ TEST (bootstrap_server, serve_account_info_missing)
 	auto [account, blocks] = chains.front ();
 
 	// Request blocks from account root
-	nano::asc_pull_req request{ node.network_params.network };
+	nano::message::asc_pull_req request{ node.network_params.network };
 	request.id = 7;
 	request.type = nano::asc_pull_type::account_info;
 
-	nano::asc_pull_req::account_info_payload request_payload;
+	nano::message::asc_pull_req::account_info_payload request_payload;
 	request_payload.target = nano::test::random_account ();
-	request_payload.target_type = nano::asc_pull_req::hash_type::account;
+	request_payload.target_type = nano::message::asc_pull_req::hash_type::account;
 
 	request.payload = request_payload;
 	request.update_header ();

@@ -312,7 +312,7 @@ std::size_t nano::message::header::payload_length_bytes () const
 		}
 		case nano::message::type::asc_pull_req:
 		{
-			return nano::asc_pull_req::size (*this);
+			return nano::message::asc_pull_req::size (*this);
 		}
 		case nano::message::type::asc_pull_ack:
 		{
@@ -1730,23 +1730,23 @@ std::string nano::message::node_id_handshake::to_string () const
  * asc_pull_req
  */
 
-nano::asc_pull_req::asc_pull_req (const nano::network_constants & constants) :
+nano::message::asc_pull_req::asc_pull_req (const nano::network_constants & constants) :
 	message (constants, nano::message::type::asc_pull_req)
 {
 }
 
-nano::asc_pull_req::asc_pull_req (bool & error, nano::stream & stream, const nano::message::header & header) :
+nano::message::asc_pull_req::asc_pull_req (bool & error, nano::stream & stream, const nano::message::header & header) :
 	message (header)
 {
 	error = deserialize (stream);
 }
 
-void nano::asc_pull_req::visit (nano::message_visitor & visitor) const
+void nano::message::asc_pull_req::visit (nano::message_visitor & visitor) const
 {
 	visitor.asc_pull_req (*this);
 }
 
-void nano::asc_pull_req::serialize (nano::stream & stream) const
+void nano::message::asc_pull_req::serialize (nano::stream & stream) const
 {
 	header.serialize (stream);
 	nano::write (stream, type);
@@ -1755,7 +1755,7 @@ void nano::asc_pull_req::serialize (nano::stream & stream) const
 	serialize_payload (stream);
 }
 
-bool nano::asc_pull_req::deserialize (nano::stream & stream)
+bool nano::message::asc_pull_req::deserialize (nano::stream & stream)
 {
 	debug_assert (header.type == nano::message::type::asc_pull_req);
 	bool error = false;
@@ -1773,14 +1773,14 @@ bool nano::asc_pull_req::deserialize (nano::stream & stream)
 	return error;
 }
 
-void nano::asc_pull_req::serialize_payload (nano::stream & stream) const
+void nano::message::asc_pull_req::serialize_payload (nano::stream & stream) const
 {
 	debug_assert (verify_consistency ());
 
 	std::visit ([&stream] (auto && pld) { pld.serialize (stream); }, payload);
 }
 
-void nano::asc_pull_req::deserialize_payload (nano::stream & stream)
+void nano::message::asc_pull_req::deserialize_payload (nano::stream & stream)
 {
 	switch (type)
 	{
@@ -1803,7 +1803,7 @@ void nano::asc_pull_req::deserialize_payload (nano::stream & stream)
 	}
 }
 
-void nano::asc_pull_req::update_header ()
+void nano::message::asc_pull_req::update_header ()
 {
 	std::vector<uint8_t> bytes;
 	{
@@ -1815,13 +1815,13 @@ void nano::asc_pull_req::update_header ()
 	header.extensions = std::bitset<16> (bytes.size ());
 }
 
-std::size_t nano::asc_pull_req::size (const nano::message::header & header)
+std::size_t nano::message::asc_pull_req::size (const nano::message::header & header)
 {
 	uint16_t payload_length = nano::narrow_cast<uint16_t> (header.extensions.to_ulong ());
 	return partial_size + payload_length;
 }
 
-bool nano::asc_pull_req::verify_consistency () const
+bool nano::message::asc_pull_req::verify_consistency () const
 {
 	struct consistency_visitor
 	{
@@ -1848,14 +1848,14 @@ bool nano::asc_pull_req::verify_consistency () const
  * asc_pull_req::blocks_payload
  */
 
-void nano::asc_pull_req::blocks_payload::serialize (nano::stream & stream) const
+void nano::message::asc_pull_req::blocks_payload::serialize (nano::stream & stream) const
 {
 	nano::write (stream, start);
 	nano::write (stream, count);
 	nano::write (stream, start_type);
 }
 
-void nano::asc_pull_req::blocks_payload::deserialize (nano::stream & stream)
+void nano::message::asc_pull_req::blocks_payload::deserialize (nano::stream & stream)
 {
 	nano::read (stream, start);
 	nano::read (stream, count);
@@ -1866,13 +1866,13 @@ void nano::asc_pull_req::blocks_payload::deserialize (nano::stream & stream)
  * asc_pull_req::account_info_payload
  */
 
-void nano::asc_pull_req::account_info_payload::serialize (stream & stream) const
+void nano::message::asc_pull_req::account_info_payload::serialize (stream & stream) const
 {
 	nano::write (stream, target);
 	nano::write (stream, target_type);
 }
 
-void nano::asc_pull_req::account_info_payload::deserialize (stream & stream)
+void nano::message::asc_pull_req::account_info_payload::deserialize (stream & stream)
 {
 	nano::read (stream, target);
 	nano::read (stream, target_type);

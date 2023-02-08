@@ -289,11 +289,11 @@ TEST (message, bulk_pull_serialization)
 
 TEST (message, asc_pull_req_serialization_blocks)
 {
-	nano::asc_pull_req original{ nano::dev::network_params.network };
+	nano::message::asc_pull_req original{ nano::dev::network_params.network };
 	original.id = 7;
 	original.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload original_payload;
+	nano::message::asc_pull_req::blocks_payload original_payload;
 	original_payload.start = nano::test::random_hash ();
 	original_payload.count = 111;
 
@@ -315,13 +315,13 @@ TEST (message, asc_pull_req_serialization_blocks)
 	ASSERT_EQ (nano::message::type::asc_pull_req, header.type);
 
 	// Message
-	nano::asc_pull_req message (error, stream, header);
+	nano::message::asc_pull_req message (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (original.id, message.id);
 	ASSERT_EQ (original.type, message.type);
 
-	nano::asc_pull_req::blocks_payload message_payload;
-	ASSERT_NO_THROW (message_payload = std::get<nano::asc_pull_req::blocks_payload> (message.payload));
+	nano::message::asc_pull_req::blocks_payload message_payload;
+	ASSERT_NO_THROW (message_payload = std::get<nano::message::asc_pull_req::blocks_payload> (message.payload));
 	ASSERT_EQ (original_payload.start, message_payload.start);
 	ASSERT_EQ (original_payload.count, message_payload.count);
 
@@ -330,11 +330,11 @@ TEST (message, asc_pull_req_serialization_blocks)
 
 TEST (message, asc_pull_req_serialization_account_info)
 {
-	nano::asc_pull_req original{ nano::dev::network_params.network };
+	nano::message::asc_pull_req original{ nano::dev::network_params.network };
 	original.id = 7;
 	original.type = nano::asc_pull_type::account_info;
 
-	nano::asc_pull_req::account_info_payload original_payload;
+	nano::message::asc_pull_req::account_info_payload original_payload;
 	original_payload.target = nano::test::random_hash ();
 
 	original.payload = original_payload;
@@ -355,13 +355,13 @@ TEST (message, asc_pull_req_serialization_account_info)
 	ASSERT_EQ (nano::message::type::asc_pull_req, header.type);
 
 	// Message
-	nano::asc_pull_req message (error, stream, header);
+	nano::message::asc_pull_req message (error, stream, header);
 	ASSERT_FALSE (error);
 	ASSERT_EQ (original.id, message.id);
 	ASSERT_EQ (original.type, message.type);
 
-	nano::asc_pull_req::account_info_payload message_payload;
-	ASSERT_NO_THROW (message_payload = std::get<nano::asc_pull_req::account_info_payload> (message.payload));
+	nano::message::asc_pull_req::account_info_payload message_payload;
+	ASSERT_NO_THROW (message_payload = std::get<nano::message::asc_pull_req::account_info_payload> (message.payload));
 	ASSERT_EQ (original_payload.target, message_payload.target);
 
 	ASSERT_TRUE (nano::at_end (stream));

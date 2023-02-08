@@ -461,7 +461,7 @@ void nano::transport::tcp_server::realtime_message_visitor::telemetry_ack (const
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::asc_pull_req (const nano::asc_pull_req & message)
+void nano::transport::tcp_server::realtime_message_visitor::asc_pull_req (const nano::message::asc_pull_req & message)
 {
 	process = true;
 }
