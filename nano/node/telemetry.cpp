@@ -259,7 +259,7 @@ bool nano::telemetry::check_timeout (const entry & entry) const
 	return entry.last_updated + network_params.network.telemetry_cache_cutoff >= std::chrono::steady_clock::now ();
 }
 
-std::optional<nano::telemetry_data> nano::telemetry::get_telemetry (const nano::endpoint & endpoint) const
+std::optional<nano::message::telemetry_data> nano::telemetry::get_telemetry (const nano::endpoint & endpoint) const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
@@ -273,11 +273,11 @@ std::optional<nano::telemetry_data> nano::telemetry::get_telemetry (const nano::
 	return {};
 }
 
-std::unordered_map<nano::endpoint, nano::telemetry_data> nano::telemetry::get_all_telemetries () const
+std::unordered_map<nano::endpoint, nano::message::telemetry_data> nano::telemetry::get_all_telemetries () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
-	std::unordered_map<nano::endpoint, nano::telemetry_data> result;
+	std::unordered_map<nano::endpoint, nano::message::telemetry_data> result;
 	for (auto const & entry : telemetries)
 	{
 		if (check_timeout (entry))
@@ -297,7 +297,7 @@ std::unique_ptr<nano::container_info_component> nano::telemetry::collect_contain
 	return composite;
 }
 
-nano::message::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemetry_data> const & telemetry_datas)
+nano::message::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::message::telemetry_data> const & telemetry_datas)
 {
 	if (telemetry_datas.empty ())
 	{

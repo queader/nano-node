@@ -78,12 +78,12 @@ public:
 	/**
 	 * Returns telemetry for selected endpoint
 	 */
-	std::optional<nano::telemetry_data> get_telemetry (nano::endpoint const &) const;
+	std::optional<nano::message::telemetry_data> get_telemetry (nano::endpoint const &) const;
 
 	/**
 	 * Returns all available telemetry
 	 */
-	std::unordered_map<nano::endpoint, nano::telemetry_data> get_all_telemetries () const;
+	std::unordered_map<nano::endpoint, nano::message::telemetry_data> get_all_telemetries () const;
 
 public: // Container info
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
@@ -149,5 +149,5 @@ private:
 	static std::size_t constexpr max_size = 1024;
 };
 
-nano::message::telemetry_data consolidate_telemetry_data (std::vector<telemetry_data> const & telemetry_data);
+nano::message::telemetry_data consolidate_telemetry_data (std::vector<nano::message::telemetry_data> const & telemetry_data);
 }
