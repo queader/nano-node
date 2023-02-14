@@ -455,7 +455,7 @@ std::string nano::message_parser::status_string ()
 	return "[unknown parse_status]";
 }
 
-nano::message_parser::message_parser (nano::network_filter & publish_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a, nano::message_visitor & visitor_a, nano::work_pool & pool_a, nano::network_constants const & network) :
+nano::message_parser::message_parser (nano::network_filter & publish_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a, nano::message::visitor & visitor_a, nano::work_pool & pool_a, nano::network_constants const & network) :
 	publish_filter (publish_filter_a),
 	block_uniquer (block_uniquer_a),
 	vote_uniquer (vote_uniquer_a),
@@ -691,7 +691,7 @@ nano::message::keepalive::keepalive (bool & error_a, nano::stream & stream_a, na
 	}
 }
 
-void nano::message::keepalive::visit (nano::message_visitor & visitor_a) const
+void nano::message::keepalive::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.keepalive (*this);
 }
@@ -784,7 +784,7 @@ bool nano::message::publish::deserialize (nano::stream & stream_a, nano::block_u
 	return result;
 }
 
-void nano::message::publish::visit (nano::message_visitor & visitor_a) const
+void nano::message::publish::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.publish (*this);
 }
@@ -840,7 +840,7 @@ nano::message::confirm_req::confirm_req (nano::network_constants const & constan
 	header.count_set (static_cast<uint8_t> (roots_hashes.size ()));
 }
 
-void nano::message::confirm_req::visit (nano::message_visitor & visitor_a) const
+void nano::message::confirm_req::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.confirm_req (*this);
 }
@@ -998,7 +998,7 @@ bool nano::message::confirm_ack::operator== (nano::message::confirm_ack const & 
 	return result;
 }
 
-void nano::message::confirm_ack::visit (nano::message_visitor & visitor_a) const
+void nano::message::confirm_ack::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.confirm_ack (*this);
 }
@@ -1058,7 +1058,7 @@ bool nano::message::frontier_req::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-void nano::message::frontier_req::visit (nano::message_visitor & visitor_a) const
+void nano::message::frontier_req::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.frontier_req (*this);
 }
@@ -1095,7 +1095,7 @@ nano::message::bulk_pull::bulk_pull (bool & error_a, nano::stream & stream_a, na
 	}
 }
 
-void nano::message::bulk_pull::visit (nano::message_visitor & visitor_a) const
+void nano::message::bulk_pull::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.bulk_pull (*this);
 }
@@ -1204,7 +1204,7 @@ nano::message::bulk_pull_account::bulk_pull_account (bool & error_a, nano::strea
 	}
 }
 
-void nano::message::bulk_pull_account::visit (nano::message_visitor & visitor_a) const
+void nano::message::bulk_pull_account::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.bulk_pull_account (*this);
 }
@@ -1283,7 +1283,7 @@ void nano::message::bulk_push::serialize (nano::stream & stream_a) const
 	header.serialize (stream_a);
 }
 
-void nano::message::bulk_push::visit (nano::message_visitor & visitor_a) const
+void nano::message::bulk_push::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.bulk_push (*this);
 }
@@ -1313,7 +1313,7 @@ void nano::message::telemetry_req::serialize (nano::stream & stream_a) const
 	header.serialize (stream_a);
 }
 
-void nano::message::telemetry_req::visit (nano::message_visitor & visitor_a) const
+void nano::message::telemetry_req::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.telemetry_req (*this);
 }
@@ -1378,7 +1378,7 @@ bool nano::message::telemetry_ack::deserialize (nano::stream & stream_a)
 	return error;
 }
 
-void nano::message::telemetry_ack::visit (nano::message_visitor & visitor_a) const
+void nano::message::telemetry_ack::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.telemetry_ack (*this);
 }
@@ -1684,7 +1684,7 @@ bool nano::message::node_id_handshake::operator== (nano::message::node_id_handsh
 	return result;
 }
 
-void nano::message::node_id_handshake::visit (nano::message_visitor & visitor_a) const
+void nano::message::node_id_handshake::visit (nano::message::visitor & visitor_a) const
 {
 	visitor_a.node_id_handshake (*this);
 }
@@ -1741,7 +1741,7 @@ nano::message::asc_pull_req::asc_pull_req (bool & error, nano::stream & stream, 
 	error = deserialize (stream);
 }
 
-void nano::message::asc_pull_req::visit (nano::message_visitor & visitor) const
+void nano::message::asc_pull_req::visit (nano::message::visitor & visitor) const
 {
 	visitor.asc_pull_req (*this);
 }
@@ -1825,7 +1825,7 @@ bool nano::message::asc_pull_req::verify_consistency () const
 {
 	struct consistency_visitor
 	{
-		nano::asc_pull_type type;
+		nano::message::asc_pull_type type;
 
 		void operator() (empty_payload) const
 		{
@@ -1893,7 +1893,7 @@ nano::message::asc_pull_ack::asc_pull_ack (bool & error, nano::stream & stream, 
 	error = deserialize (stream);
 }
 
-void nano::message::asc_pull_ack::visit (nano::message_visitor & visitor) const
+void nano::message::asc_pull_ack::visit (nano::message::visitor & visitor) const
 {
 	visitor.asc_pull_ack (*this);
 }
@@ -1978,7 +1978,7 @@ bool nano::message::asc_pull_ack::verify_consistency () const
 {
 	struct consistency_visitor
 	{
-		nano::asc_pull_type type;
+		nano::message::asc_pull_type type;
 
 		void operator() (empty_payload) const
 		{
