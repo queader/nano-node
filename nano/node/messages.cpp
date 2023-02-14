@@ -1332,8 +1332,8 @@ nano::message::telemetry_ack::telemetry_ack (nano::network_constants const & con
 {
 }
 
-nano::message::telemetry_ack::telemetry_ack (bool & error_a, nano::stream & stream_a, nano::message::header const & message::header) :
-	message (message::header)
+nano::message::telemetry_ack::telemetry_ack (bool & error_a, nano::stream & stream_a, nano::message::header const & header_a) :
+	message (header_a)
 {
 	if (!error_a)
 	{
@@ -1345,8 +1345,8 @@ nano::message::telemetry_ack::telemetry_ack (nano::network_constants const & con
 	message (constants, nano::message::type::telemetry_ack),
 	data (telemetry_data_a)
 {
-	debug_assert (telemetry_data::size + telemetry_data_a.unknown_data.size () <= message::header::telemetry_size_mask.to_ulong ()); // Maximum size the mask allows
-	header.extensions &= ~message::header::telemetry_size_mask;
+	debug_assert (telemetry_data::size + telemetry_data_a.unknown_data.size () <= nano::message::header::telemetry_size_mask.to_ulong ()); // Maximum size the mask allows
+	header.extensions &= ~nano::message::header::telemetry_size_mask;
 	header.extensions |= std::bitset<16> (static_cast<unsigned long long> (telemetry_data::size) + telemetry_data_a.unknown_data.size ());
 }
 
@@ -1388,9 +1388,9 @@ uint16_t nano::message::telemetry_ack::size () const
 	return size (header);
 }
 
-uint16_t nano::message::telemetry_ack::size (nano::message::header const & message::header_a)
+uint16_t nano::message::telemetry_ack::size (nano::message::header const & header_a)
 {
-	return static_cast<uint16_t> ((message::header_a.extensions & message::header::telemetry_size_mask).to_ullong ());
+	return static_cast<uint16_t> ((header_a.extensions & nano::message::header::telemetry_size_mask).to_ullong ());
 }
 
 bool nano::message::telemetry_ack::is_empty_payload () const
