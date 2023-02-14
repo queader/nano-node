@@ -361,7 +361,7 @@ TEST (telemetry, dos_tcp)
 
 	nano::test::wait_peer_connections (system);
 
-	nano::telemetry_req message{ nano::dev::network_params.network };
+	nano::message::telemetry_req message{ nano::dev::network_params.network };
 	auto channel = node_client->network.tcp_channels.find_node_id (node_server->get_node_id ());
 	ASSERT_NE (nullptr, channel);
 	channel->send (message, [] (boost::system::error_code const & ec, size_t size_a) {

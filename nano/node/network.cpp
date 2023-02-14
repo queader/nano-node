@@ -515,7 +515,7 @@ public:
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
 	}
 
-	void telemetry_req (nano::telemetry_req const & message_a) override
+	void telemetry_req (nano::message::telemetry_req const & message_a) override
 	{
 		if (node.config.logging.network_telemetry_logging ())
 		{

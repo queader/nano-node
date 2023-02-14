@@ -215,7 +215,7 @@ void nano::telemetry::request (std::shared_ptr<nano::transport::channel> & chann
 {
 	stats.inc (nano::stat::type::telemetry, nano::stat::detail::request);
 
-	nano::telemetry_req message{ network_params.network };
+	nano::message::telemetry_req message{ network_params.network };
 	channel->send (message);
 }
 

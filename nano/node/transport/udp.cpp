@@ -429,7 +429,7 @@ public:
 	{
 		debug_assert (false);
 	}
-	void telemetry_req (nano::telemetry_req const & message_a) override
+	void telemetry_req (nano::message::telemetry_req const & message_a) override
 	{
 		auto find_channel (node.network.udp_channels.channel (endpoint));
 		if (find_channel)

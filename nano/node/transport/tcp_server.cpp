@@ -442,7 +442,7 @@ void nano::transport::tcp_server::realtime_message_visitor::frontier_req (const 
 	process = true;
 }
 
-void nano::transport::tcp_server::realtime_message_visitor::telemetry_req (const nano::telemetry_req & message)
+void nano::transport::tcp_server::realtime_message_visitor::telemetry_req (const nano::message::telemetry_req & message)
 {
 	// Only handle telemetry requests if they are outside the cooldown period
 	if (server.last_telemetry_req + server.node->network_params.network.telemetry_request_cooldown < std::chrono::steady_clock::now ())

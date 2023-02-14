@@ -635,7 +635,7 @@ void nano::message_parser::deserialize_node_id_handshake (nano::stream & stream_
 
 void nano::message_parser::deserialize_telemetry_req (nano::stream & stream_a, nano::message::header const & header_a)
 {
-	nano::telemetry_req incoming (header_a);
+	nano::message::telemetry_req incoming (header_a);
 	if (at_end (stream_a))
 	{
 		visitor.telemetry_req (incoming);
@@ -1292,33 +1292,33 @@ void nano::bulk_push::visit (nano::message_visitor & visitor_a) const
  * telemetry_req
  */
 
-nano::telemetry_req::telemetry_req (nano::network_constants const & constants) :
+nano::message::telemetry_req::telemetry_req (nano::network_constants const & constants) :
 	message (constants, nano::message::type::telemetry_req)
 {
 }
 
-nano::telemetry_req::telemetry_req (nano::message::header const & header_a) :
+nano::message::telemetry_req::telemetry_req (nano::message::header const & header_a) :
 	message (header_a)
 {
 }
 
-bool nano::telemetry_req::deserialize (nano::stream & stream_a)
+bool nano::message::telemetry_req::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::telemetry_req);
 	return false;
 }
 
-void nano::telemetry_req::serialize (nano::stream & stream_a) const
+void nano::message::telemetry_req::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 }
 
-void nano::telemetry_req::visit (nano::message_visitor & visitor_a) const
+void nano::message::telemetry_req::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.telemetry_req (*this);
 }
 
-std::string nano::telemetry_req::to_string () const
+std::string nano::message::telemetry_req::to_string () const
 {
 	return header.to_string ();
 }

@@ -44,7 +44,7 @@ public:
 	{
 		ASSERT_FALSE (true);
 	}
-	void telemetry_req (nano::telemetry_req const &) override
+	void telemetry_req (nano::message::telemetry_req const &) override
 	{
 		ASSERT_FALSE (true);
 	}
