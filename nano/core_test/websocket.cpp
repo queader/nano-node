@@ -1017,7 +1017,7 @@ TEST (websocket, telemetry)
 
 	auto & contents = event.get_child ("message");
 	nano::jsonconfig telemetry_contents (contents);
-	nano::telemetry_data telemetry_data;
+	nano::message::telemetry_data telemetry_data;
 	telemetry_data.deserialize_json (telemetry_contents, false);
 
 	ASSERT_TRUE (nano::test::compare_telemetry (telemetry_data, *node2));

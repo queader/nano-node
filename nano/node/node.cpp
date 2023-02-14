@@ -1487,9 +1487,9 @@ nano::account nano::node::get_node_id () const
 	return node_id.pub;
 };
 
-nano::telemetry_data nano::node::local_telemetry () const
+nano::message::telemetry_data nano::node::local_telemetry () const
 {
-	nano::telemetry_data telemetry_data;
+	nano::message::telemetry_data telemetry_data;
 	telemetry_data.node_id = node_id.pub;
 	telemetry_data.block_count = ledger.cache.block_count;
 	telemetry_data.cemented_count = ledger.cache.cemented_count;

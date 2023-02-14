@@ -7391,7 +7391,7 @@ TEST (rpc, telemetry_single)
 		auto response (wait_response (system, rpc_ctx, request, 10s));
 
 		nano::jsonconfig config (response);
-		nano::telemetry_data telemetry_data;
+		nano::message::telemetry_data telemetry_data;
 		auto const should_ignore_identification_metrics = false;
 		ASSERT_FALSE (telemetry_data.deserialize_json (config, should_ignore_identification_metrics));
 		ASSERT_TRUE (nano::test::compare_telemetry (telemetry_data, *node));
@@ -7419,7 +7419,7 @@ TEST (rpc, telemetry_all)
 	{
 		auto response (wait_response (system, rpc_ctx, request, 10s));
 		nano::jsonconfig config (response);
-		nano::telemetry_data telemetry_data;
+		nano::message::telemetry_data telemetry_data;
 		auto const should_ignore_identification_metrics = true;
 		ASSERT_FALSE (telemetry_data.deserialize_json (config, should_ignore_identification_metrics));
 		ASSERT_TRUE (nano::test::compare_telemetry_data (telemetry_data, node->local_telemetry ()));
@@ -7436,7 +7436,7 @@ TEST (rpc, telemetry_all)
 	ASSERT_EQ (1, all_metrics.size ());
 
 	nano::jsonconfig config (metrics);
-	nano::telemetry_data data;
+	nano::message::telemetry_data data;
 	auto const should_ignore_identification_metrics = false;
 	ASSERT_FALSE (data.deserialize_json (config, should_ignore_identification_metrics));
 	ASSERT_TRUE (nano::test::compare_telemetry (data, *node));
@@ -7463,7 +7463,7 @@ TEST (rpc, telemetry_self)
 	auto const should_ignore_identification_metrics = false;
 	{
 		auto response (wait_response (system, rpc_ctx, request, 10s));
-		nano::telemetry_data data;
+		nano::message::telemetry_data data;
 		nano::jsonconfig config (response);
 		ASSERT_FALSE (data.deserialize_json (config, should_ignore_identification_metrics));
 		ASSERT_TRUE (nano::test::compare_telemetry (data, *node1));
@@ -7472,7 +7472,7 @@ TEST (rpc, telemetry_self)
 	request.put ("address", "[::1]");
 	{
 		auto response (wait_response (system, rpc_ctx, request, 10s));
-		nano::telemetry_data data;
+		nano::message::telemetry_data data;
 		nano::jsonconfig config (response);
 		ASSERT_FALSE (data.deserialize_json (config, should_ignore_identification_metrics));
 		ASSERT_TRUE (nano::test::compare_telemetry (data, *node1));
@@ -7481,7 +7481,7 @@ TEST (rpc, telemetry_self)
 	request.put ("address", "127.0.0.1");
 	{
 		auto response (wait_response (system, rpc_ctx, request, 10s));
-		nano::telemetry_data data;
+		nano::message::telemetry_data data;
 		nano::jsonconfig config (response);
 		ASSERT_FALSE (data.deserialize_json (config, should_ignore_identification_metrics));
 		ASSERT_TRUE (nano::test::compare_telemetry (data, *node1));

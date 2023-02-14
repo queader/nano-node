@@ -919,7 +919,7 @@ nano::websocket::message nano::websocket::message_builder::bootstrap_exited (std
 	return message_l;
 }
 
-nano::websocket::message nano::websocket::message_builder::telemetry_received (nano::telemetry_data const & telemetry_data_a, nano::endpoint const & endpoint_a)
+nano::websocket::message nano::websocket::message_builder::telemetry_received (nano::message::telemetry_data const & telemetry_data_a, nano::endpoint const & endpoint_a)
 {
 	nano::websocket::message message_l (nano::websocket::topic::telemetry);
 	set_common_fields (message_l);
@@ -1031,7 +1031,7 @@ nano::websocket_server::websocket_server (nano::websocket::config & config_a, na
 		}
 	});
 
-	observers.telemetry.add ([this] (nano::telemetry_data const & telemetry_data, std::shared_ptr<nano::transport::channel> const & channel) {
+	observers.telemetry.add ([this] (nano::message::telemetry_data const & telemetry_data, std::shared_ptr<nano::transport::channel> const & channel) {
 		if (server->any_subscriber (nano::websocket::topic::telemetry))
 		{
 			nano::websocket::message_builder builder;

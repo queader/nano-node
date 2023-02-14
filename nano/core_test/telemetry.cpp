@@ -15,7 +15,7 @@ TEST (telemetry, consolidate_data)
 	auto time = 1582117035109;
 
 	// Pick specific values so that we can check both mode and average are working correctly
-	nano::telemetry_data data;
+	nano::message::telemetry_data data;
 	data.account_count = 2;
 	data.block_count = 1;
 	data.cemented_count = 1;
@@ -33,7 +33,7 @@ TEST (telemetry, consolidate_data)
 	data.timestamp = std::chrono::system_clock::time_point (std::chrono::milliseconds (time));
 	data.active_difficulty = 2;
 
-	nano::telemetry_data data1;
+	nano::message::telemetry_data data1;
 	data1.account_count = 5;
 	data1.block_count = 7;
 	data1.cemented_count = 4;
@@ -51,7 +51,7 @@ TEST (telemetry, consolidate_data)
 	data1.timestamp = std::chrono::system_clock::time_point (std::chrono::milliseconds (time + 1));
 	data1.active_difficulty = 3;
 
-	nano::telemetry_data data2;
+	nano::message::telemetry_data data2;
 	data2.account_count = 3;
 	data2.block_count = 3;
 	data2.cemented_count = 2;
@@ -116,7 +116,7 @@ TEST (telemetry, consolidate_data)
 
 TEST (telemetry, consolidate_data_remove_outliers)
 {
-	nano::telemetry_data data;
+	nano::message::telemetry_data data;
 	data.account_count = 2;
 	data.block_count = 1;
 	data.cemented_count = 1;
@@ -138,7 +138,7 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	std::vector<nano::telemetry_data> all_data (20, data);
 
 	// Insert some outliers
-	nano::telemetry_data lower_bound_outlier_data;
+	nano::message::telemetry_data lower_bound_outlier_data;
 	lower_bound_outlier_data.account_count = 1;
 	lower_bound_outlier_data.block_count = 0;
 	lower_bound_outlier_data.cemented_count = 0;
@@ -158,7 +158,7 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	all_data.push_back (lower_bound_outlier_data);
 	all_data.push_back (lower_bound_outlier_data);
 
-	nano::telemetry_data upper_bound_outlier_data;
+	nano::message::telemetry_data upper_bound_outlier_data;
 	upper_bound_outlier_data.account_count = 99;
 	upper_bound_outlier_data.block_count = 99;
 	upper_bound_outlier_data.cemented_count = 99;
@@ -184,7 +184,7 @@ TEST (telemetry, consolidate_data_remove_outliers)
 
 TEST (telemetry, consolidate_data_remove_outliers_with_zero_bandwidth)
 {
-	nano::telemetry_data data1;
+	nano::message::telemetry_data data1;
 	data1.account_count = 2;
 	data1.block_count = 1;
 	data1.cemented_count = 1;
@@ -205,7 +205,7 @@ TEST (telemetry, consolidate_data_remove_outliers_with_zero_bandwidth)
 	// Add a majority of nodes with bandwidth set to 0
 	std::vector<nano::telemetry_data> all_data (100, data1);
 
-	nano::telemetry_data data2;
+	nano::message::telemetry_data data2;
 	data2.account_count = 2;
 	data2.block_count = 1;
 	data2.cemented_count = 1;
@@ -237,7 +237,7 @@ TEST (telemetry, consolidate_data_remove_outliers_with_zero_bandwidth)
 TEST (telemetry, signatures)
 {
 	nano::keypair node_id;
-	nano::telemetry_data data;
+	nano::message::telemetry_data data;
 	data.node_id = node_id.pub;
 	data.major_version = 20;
 	data.minor_version = 1;
@@ -257,7 +257,7 @@ TEST (telemetry, signatures)
 TEST (telemetry, unknown_data)
 {
 	nano::keypair node_id;
-	nano::telemetry_data data;
+	nano::message::telemetry_data data;
 	data.node_id = node_id.pub;
 	data.major_version = 20;
 	data.minor_version = 1;
@@ -428,8 +428,8 @@ TEST (telemetry, max_possible_size)
 	auto node_client = system.add_node (node_flags);
 	auto node_server = system.add_node (node_flags);
 
-	nano::telemetry_data data;
-	data.unknown_data.resize (nano::message::header::telemetry_size_mask.to_ulong () - nano::telemetry_data::latest_size);
+	nano::message::telemetry_data data;
+	data.unknown_data.resize (nano::message::header::telemetry_size_mask.to_ulong () - nano::message::telemetry_data::latest_size);
 
 	nano::message::telemetry_ack message{ nano::dev::network_params.network, data };
 	nano::test::wait_peer_connections (system);

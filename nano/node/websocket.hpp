@@ -93,7 +93,7 @@ namespace websocket
 		message work_failed (nano::work_version const version_a, nano::block_hash const & root_a, uint64_t const difficulty_a, uint64_t const publish_threshold_a, std::chrono::milliseconds const & duration_a, std::vector<std::string> const & bad_peers_a);
 		message bootstrap_started (std::string const & id_a, std::string const & mode_a);
 		message bootstrap_exited (std::string const & id_a, std::string const & mode_a, std::chrono::steady_clock::time_point const start_time_a, uint64_t const total_blocks_a);
-		message telemetry_received (nano::telemetry_data const &, nano::endpoint const &);
+		message telemetry_received (nano::message::telemetry_data const &, nano::endpoint const &);
 		message new_block_arrived (nano::block const & block_a);
 
 	private:

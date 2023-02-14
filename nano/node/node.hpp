@@ -134,7 +134,7 @@ public:
 	 */
 	void bootstrap_block (nano::block_hash const &);
 	nano::account get_node_id () const;
-	nano::telemetry_data local_telemetry () const;
+	nano::message::telemetry_data local_telemetry () const;
 
 public:
 	nano::write_database_queue write_database_queue;

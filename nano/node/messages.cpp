@@ -1341,7 +1341,7 @@ nano::message::telemetry_ack::telemetry_ack (bool & error_a, nano::stream & stre
 	}
 }
 
-nano::message::telemetry_ack::telemetry_ack (nano::network_constants const & constants, nano::telemetry_data const & telemetry_data_a) :
+nano::message::telemetry_ack::telemetry_ack (nano::network_constants const & constants, nano::message::telemetry_data const & telemetry_data_a) :
 	message (constants, nano::message::type::telemetry_ack),
 	data (telemetry_data_a)
 {
@@ -1416,7 +1416,7 @@ std::string nano::message::telemetry_ack::to_string () const
  * telemetry_data
  */
 
-void nano::telemetry_data::deserialize (nano::stream & stream_a, uint16_t payload_length_a)
+void nano::message::telemetry_data::deserialize (nano::stream & stream_a, uint16_t payload_length_a)
 {
 	read (stream_a, signature);
 	read (stream_a, node_id);
@@ -1454,7 +1454,7 @@ void nano::telemetry_data::deserialize (nano::stream & stream_a, uint16_t payloa
 	}
 }
 
-void nano::telemetry_data::serialize_without_signature (nano::stream & stream_a) const
+void nano::message::telemetry_data::serialize_without_signature (nano::stream & stream_a) const
 {
 	// All values should be serialized in big endian
 	write (stream_a, node_id);
@@ -1477,13 +1477,13 @@ void nano::telemetry_data::serialize_without_signature (nano::stream & stream_a)
 	write (stream_a, unknown_data);
 }
 
-void nano::telemetry_data::serialize (nano::stream & stream_a) const
+void nano::message::telemetry_data::serialize (nano::stream & stream_a) const
 {
 	write (stream_a, signature);
 	serialize_without_signature (stream_a);
 }
 
-nano::error nano::telemetry_data::serialize_json (nano::jsonconfig & json, bool ignore_identification_metrics_a) const
+nano::error nano::message::telemetry_data::serialize_json (nano::jsonconfig & json, bool ignore_identification_metrics_a) const
 {
 	json.put ("block_count", block_count);
 	json.put ("cemented_count", cemented_count);
@@ -1510,7 +1510,7 @@ nano::error nano::telemetry_data::serialize_json (nano::jsonconfig & json, bool 
 	return json.get_error ();
 }
 
-nano::error nano::telemetry_data::deserialize_json (nano::jsonconfig & json, bool ignore_identification_metrics_a)
+nano::error nano::message::telemetry_data::deserialize_json (nano::jsonconfig & json, bool ignore_identification_metrics_a)
 {
 	if (!ignore_identification_metrics_a)
 	{
@@ -1565,7 +1565,7 @@ nano::error nano::telemetry_data::deserialize_json (nano::jsonconfig & json, boo
 	return json.get_error ();
 }
 
-std::string nano::telemetry_data::to_string () const
+std::string nano::message::telemetry_data::to_string () const
 {
 	nano::jsonconfig jc;
 	serialize_json (jc, true);
@@ -1574,17 +1574,17 @@ std::string nano::telemetry_data::to_string () const
 	return ss.str ();
 }
 
-bool nano::telemetry_data::operator== (nano::telemetry_data const & data_a) const
+bool nano::message::telemetry_data::operator== (nano::message::telemetry_data const & data_a) const
 {
 	return (signature == data_a.signature && node_id == data_a.node_id && block_count == data_a.block_count && cemented_count == data_a.cemented_count && unchecked_count == data_a.unchecked_count && account_count == data_a.account_count && bandwidth_cap == data_a.bandwidth_cap && uptime == data_a.uptime && peer_count == data_a.peer_count && protocol_version == data_a.protocol_version && genesis_block == data_a.genesis_block && major_version == data_a.major_version && minor_version == data_a.minor_version && patch_version == data_a.patch_version && pre_release_version == data_a.pre_release_version && maker == data_a.maker && timestamp == data_a.timestamp && active_difficulty == data_a.active_difficulty && unknown_data == data_a.unknown_data);
 }
 
-bool nano::telemetry_data::operator!= (nano::telemetry_data const & data_a) const
+bool nano::message::telemetry_data::operator!= (nano::message::telemetry_data const & data_a) const
 {
 	return !(*this == data_a);
 }
 
-void nano::telemetry_data::sign (nano::keypair const & node_id_a)
+void nano::message::telemetry_data::sign (nano::keypair const & node_id_a)
 {
 	debug_assert (node_id == node_id_a.pub);
 	std::vector<uint8_t> bytes;
@@ -1596,7 +1596,7 @@ void nano::telemetry_data::sign (nano::keypair const & node_id_a)
 	signature = nano::sign_message (node_id_a.prv, node_id_a.pub, bytes.data (), bytes.size ());
 }
 
-bool nano::telemetry_data::validate_signature () const
+bool nano::message::telemetry_data::validate_signature () const
 {
 	std::vector<uint8_t> bytes;
 	{

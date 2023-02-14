@@ -101,7 +101,7 @@ private:
 	struct entry
 	{
 		nano::endpoint endpoint;
-		nano::telemetry_data data;
+		nano::message::telemetry_data data;
 		std::chrono::steady_clock::time_point last_updated;
 		std::shared_ptr<nano::transport::channel> channel;
 	};
@@ -116,7 +116,7 @@ private:
 	void cleanup ();
 
 	void request (std::shared_ptr<nano::transport::channel> &);
-	void broadcast (std::shared_ptr<nano::transport::channel> &, nano::telemetry_data const &);
+	void broadcast (std::shared_ptr<nano::transport::channel> &, nano::message::telemetry_data const &);
 
 	bool verify (nano::message::telemetry_ack const &, std::shared_ptr<nano::transport::channel> const &) const;
 	bool check_timeout (entry const &) const;
@@ -149,5 +149,5 @@ private:
 	static std::size_t constexpr max_size = 1024;
 };
 
-nano::telemetry_data consolidate_telemetry_data (std::vector<telemetry_data> const & telemetry_data);
+nano::message::telemetry_data consolidate_telemetry_data (std::vector<telemetry_data> const & telemetry_data);
 }

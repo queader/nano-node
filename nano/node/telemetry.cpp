@@ -230,7 +230,7 @@ void nano::telemetry::run_broadcasts ()
 	}
 }
 
-void nano::telemetry::broadcast (std::shared_ptr<nano::transport::channel> & channel, const nano::telemetry_data & telemetry)
+void nano::telemetry::broadcast (std::shared_ptr<nano::transport::channel> & channel, const nano::message::telemetry_data & telemetry)
 {
 	stats.inc (nano::stat::type::telemetry, nano::stat::detail::broadcast);
 
@@ -297,7 +297,7 @@ std::unique_ptr<nano::container_info_component> nano::telemetry::collect_contain
 	return composite;
 }
 
-nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemetry_data> const & telemetry_datas)
+nano::message::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemetry_data> const & telemetry_datas)
 {
 	if (telemetry_datas.empty ())
 	{
@@ -374,7 +374,7 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 	auto bandwidth_sum = strip_outliers_and_sum (bandwidths);
 	auto active_difficulty_sum = strip_outliers_and_sum (active_difficulties);
 
-	nano::telemetry_data consolidated_data;
+	nano::message::telemetry_data consolidated_data;
 	auto size = telemetry_datas.size () - num_either_side_to_remove * 2;
 	consolidated_data.account_count = boost::numeric_cast<decltype (consolidated_data.account_count)> (account_sum / size);
 	consolidated_data.block_count = boost::numeric_cast<decltype (consolidated_data.block_count)> (block_sum / size);
