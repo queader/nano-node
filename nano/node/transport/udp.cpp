@@ -421,7 +421,7 @@ public:
 	{
 		debug_assert (false);
 	}
-	void bulk_push (nano::bulk_push const &) override
+	void bulk_push (nano::message::bulk_push const &) override
 	{
 		debug_assert (false);
 	}

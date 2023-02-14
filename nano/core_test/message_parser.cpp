@@ -32,7 +32,7 @@ public:
 	{
 		ASSERT_FALSE (true);
 	}
-	void bulk_push (nano::bulk_push const &) override
+	void bulk_push (nano::message::bulk_push const &) override
 	{
 		ASSERT_FALSE (true);
 	}

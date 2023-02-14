@@ -93,7 +93,7 @@ private:
 		void node_id_handshake (nano::message::node_id_handshake const &) override;
 		void bulk_pull (nano::message::bulk_pull const &) override;
 		void bulk_pull_account (nano::message::bulk_pull_account const &) override;
-		void bulk_push (nano::bulk_push const &) override;
+		void bulk_push (nano::message::bulk_push const &) override;
 		void frontier_req (nano::message::frontier_req const &) override;
 
 	private:
@@ -130,7 +130,7 @@ private:
 
 		void bulk_pull (nano::message::bulk_pull const &) override;
 		void bulk_pull_account (nano::message::bulk_pull_account const &) override;
-		void bulk_push (nano::bulk_push const &) override;
+		void bulk_push (nano::message::bulk_push const &) override;
 		void frontier_req (nano::message::frontier_req const &) override;
 
 	private:

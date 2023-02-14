@@ -398,7 +398,7 @@ void nano::transport::tcp_server::handshake_message_visitor::bulk_pull_account (
 	bootstrap = true;
 }
 
-void nano::transport::tcp_server::handshake_message_visitor::bulk_push (const nano::bulk_push & message)
+void nano::transport::tcp_server::handshake_message_visitor::bulk_push (const nano::message::bulk_push & message)
 {
 	bootstrap = true;
 }
@@ -524,7 +524,7 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull_account (
 	processed = true;
 }
 
-void nano::transport::tcp_server::bootstrap_message_visitor::bulk_push (const nano::bulk_push &)
+void nano::transport::tcp_server::bootstrap_message_visitor::bulk_push (const nano::message::bulk_push &)
 {
 	server->node->bootstrap_workers.push_task ([server = server] () {
 		// TODO: Add completion callback to bulk pull server

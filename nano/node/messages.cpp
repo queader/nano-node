@@ -1262,28 +1262,28 @@ std::string nano::message::bulk_pull_account::to_string () const
  * bulk_push
  */
 
-nano::bulk_push::bulk_push (nano::network_constants const & constants) :
+nano::message::bulk_push::bulk_push (nano::network_constants const & constants) :
 	message (constants, nano::message::type::bulk_push)
 {
 }
 
-nano::bulk_push::bulk_push (nano::message::header const & header_a) :
+nano::message::bulk_push::bulk_push (nano::message::header const & header_a) :
 	message (header_a)
 {
 }
 
-bool nano::bulk_push::deserialize (nano::stream & stream_a)
+bool nano::message::bulk_push::deserialize (nano::stream & stream_a)
 {
 	debug_assert (header.type == nano::message::type::bulk_push);
 	return false;
 }
 
-void nano::bulk_push::serialize (nano::stream & stream_a) const
+void nano::message::bulk_push::serialize (nano::stream & stream_a) const
 {
 	header.serialize (stream_a);
 }
 
-void nano::bulk_push::visit (nano::message_visitor & visitor_a) const
+void nano::message::bulk_push::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.bulk_push (*this);
 }
