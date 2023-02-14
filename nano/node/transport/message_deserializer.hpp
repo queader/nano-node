@@ -41,7 +41,7 @@ namespace transport
 			message_size_too_big,
 		};
 
-		using callback_type = std::function<void (boost::system::error_code, std::unique_ptr<nano::message>)>;
+		using callback_type = std::function<void (boost::system::error_code, std::unique_ptr<nano::message::message>)>;
 
 		parse_status status;
 
@@ -64,7 +64,7 @@ namespace transport
 		 * Deserializes message using data in `read_buffer`.
 		 * @return If successful returns non-null message, otherwise sets `status` to error appropriate code and returns nullptr
 		 */
-		std::unique_ptr<nano::message> deserialize (nano::message::header header, std::size_t payload_size);
+		std::unique_ptr<nano::message::message> deserialize (nano::message::header header, std::size_t payload_size);
 		std::unique_ptr<nano::keepalive> deserialize_keepalive (nano::stream &, nano::message::header const &);
 		std::unique_ptr<nano::publish> deserialize_publish (nano::stream &, nano::message::header const &, nano::uint128_t const & = 0);
 		std::unique_ptr<nano::confirm_req> deserialize_confirm_req (nano::stream &, nano::message::header const &);

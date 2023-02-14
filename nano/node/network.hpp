@@ -126,7 +126,7 @@ public:
 	nano::networks id;
 	void start ();
 	void stop ();
-	void flood_message (nano::message &, nano::buffer_drop_policy const = nano::buffer_drop_policy::limiter, float const = 1.0f);
+	void flood_message (nano::message::message &, nano::buffer_drop_policy const = nano::buffer_drop_policy::limiter, float const = 1.0f);
 	void flood_keepalive (float const scale_a = 1.0f);
 	void flood_keepalive_self (float const scale_a = 0.5f);
 	void flood_vote (std::shared_ptr<nano::vote> const &, float scale);
@@ -178,10 +178,10 @@ public:
 	static std::string to_string (nano::networks);
 
 private:
-	void process_message (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
+	void process_message (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &);
 
 public:
-	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> inbound;
+	std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> inbound;
 	nano::message_buffer_manager buffer_container;
 	boost::asio::ip::udp::resolver resolver;
 	std::vector<boost::thread> packet_processing_threads;

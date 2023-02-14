@@ -14,7 +14,7 @@
 nano::network::network (nano::node & node_a, uint16_t port_a) :
 	id (nano::network_constants::active_network),
 	syn_cookies (node_a.network_params.network.max_peers_per_ip),
-	inbound{ [this] (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel) {
+	inbound{ [this] (nano::message::message const & message, std::shared_ptr<nano::transport::channel> const & channel) {
 		debug_assert (message.header.network == node.network_params.network.current_network);
 		debug_assert (message.header.version_using >= node.network_params.network.protocol_version_min);
 		process_message (message, channel);
@@ -179,7 +179,7 @@ void nano::network::send_node_id_handshake (std::shared_ptr<nano::transport::cha
 	channel_a->send (message);
 }
 
-void nano::network::flood_message (nano::message & message_a, nano::buffer_drop_policy const drop_policy_a, float const scale_a)
+void nano::network::flood_message (nano::message::message & message_a, nano::buffer_drop_policy const drop_policy_a, float const scale_a)
 {
 	for (auto & i : list (fanout (scale_a)))
 	{
@@ -559,7 +559,7 @@ private:
 };
 }
 
-void nano::network::process_message (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel)
+void nano::network::process_message (nano::message::message const & message, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	node.stats.inc (nano::stat::type::message, nano::to_stat_detail (message.header.type), nano::stat::dir::in);
 

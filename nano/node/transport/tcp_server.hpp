@@ -66,10 +66,10 @@ public:
 
 private:
 	void receive_message ();
-	void received_message (std::unique_ptr<nano::message> message);
-	bool process_message (std::unique_ptr<nano::message> message);
+	void received_message (std::unique_ptr<nano::message::message> message);
+	bool process_message (std::unique_ptr<nano::message::message> message);
 
-	void queue_realtime (std::unique_ptr<nano::message> message);
+	void queue_realtime (std::unique_ptr<nano::message::message> message);
 
 	bool to_bootstrap_connection ();
 	bool to_realtime_connection (nano::account const & node_id);

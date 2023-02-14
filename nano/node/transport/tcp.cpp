@@ -113,7 +113,7 @@ void nano::transport::channel_tcp::set_endpoint ()
  * tcp_channels
  */
 
-nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
+nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
 	node{ node },
 	sink{ std::move (sink) }
 {
@@ -291,7 +291,7 @@ void nano::transport::tcp_channels::process_messages ()
 	}
 }
 
-void nano::transport::tcp_channels::process_message (nano::message const & message_a, nano::tcp_endpoint const & endpoint_a, nano::account const & node_id_a, std::shared_ptr<nano::socket> const & socket_a)
+void nano::transport::tcp_channels::process_message (nano::message::message const & message_a, nano::tcp_endpoint const & endpoint_a, nano::account const & node_id_a, std::shared_ptr<nano::socket> const & socket_a)
 {
 	auto type_a = socket_a->type ();
 	if (!stopped && message_a.header.version_using >= node.network_params.network.protocol_version_min)

@@ -199,7 +199,7 @@ void nano::transport::tcp_server::receive_message ()
 		return;
 	}
 
-	message_deserializer->read (socket, [this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
+	message_deserializer->read (socket, [this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message::message> message) {
 		if (ec)
 		{
 			// IO error or critical error when deserializing message
@@ -213,7 +213,7 @@ void nano::transport::tcp_server::receive_message ()
 	});
 }
 
-void nano::transport::tcp_server::received_message (std::unique_ptr<nano::message> message)
+void nano::transport::tcp_server::received_message (std::unique_ptr<nano::message::message> message)
 {
 	bool should_continue = true;
 	if (message)
@@ -237,7 +237,7 @@ void nano::transport::tcp_server::received_message (std::unique_ptr<nano::messag
 	}
 }
 
-bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message> message)
+bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message::message> message)
 {
 	node->stats.inc (nano::stat::type::tcp_server, nano::to_stat_detail (message->header.type), nano::stat::dir::in);
 
@@ -298,7 +298,7 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 	return true; // Continue receiving new messages
 }
 
-void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message> message)
+void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message::message> message)
 {
 	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
 }

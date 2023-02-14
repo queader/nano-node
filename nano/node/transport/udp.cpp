@@ -60,7 +60,7 @@ std::string nano::transport::channel_udp::to_string () const
 	return boost::str (boost::format ("%1%") % endpoint);
 }
 
-nano::transport::udp_channels::udp_channels (nano::node & node_a, uint16_t port_a, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
+nano::transport::udp_channels::udp_channels (nano::node & node_a, uint16_t port_a, std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
 	node{ node_a },
 	strand{ node_a.io_ctx.get_executor () },
 	sink{ std::move (sink) }
@@ -364,7 +364,7 @@ namespace
 class udp_message_visitor : public nano::message_visitor
 {
 public:
-	udp_message_visitor (nano::node & node_a, nano::endpoint endpoint_a, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
+	udp_message_visitor (nano::node & node_a, nano::endpoint endpoint_a, std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
 		node{ node_a },
 		endpoint{ std::move (endpoint_a) },
 		sink{ std::move (sink) }
@@ -505,7 +505,7 @@ public:
 		}
 		message (message_a);
 	}
-	void message (nano::message const & message_a)
+	void message (nano::message::message const & message_a)
 	{
 		auto find_channel (node.network.udp_channels.channel (endpoint));
 		if (find_channel)
@@ -518,7 +518,7 @@ public:
 	}
 	nano::node & node;
 	nano::endpoint endpoint;
-	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
+	std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
 };
 }
 

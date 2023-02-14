@@ -19,7 +19,7 @@ namespace nano
 class tcp_message_item final
 {
 public:
-	std::shared_ptr<nano::message> message;
+	std::shared_ptr<nano::message::message> message;
 	nano::tcp_endpoint endpoint;
 	nano::account node_id;
 	std::shared_ptr<nano::socket> socket;
@@ -97,7 +97,7 @@ namespace transport
 		friend class telemetry_simultaneous_requests_Test;
 
 	public:
-		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
+		explicit tcp_channels (nano::node &, std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
 		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
@@ -112,7 +112,7 @@ namespace transport
 		void start ();
 		void stop ();
 		void process_messages ();
-		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::socket> const &);
+		void process_message (nano::message::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
@@ -130,7 +130,7 @@ namespace transport
 		nano::node & node;
 
 	private:
-		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
+		std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
 		class endpoint_tag
 		{
 		};

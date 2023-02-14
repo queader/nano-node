@@ -118,7 +118,7 @@ void nano::transport::message_deserializer::received_message (nano::message::hea
 	}
 }
 
-std::unique_ptr<nano::message> nano::transport::message_deserializer::deserialize (nano::message::header header, std::size_t payload_size)
+std::unique_ptr<nano::message::message> nano::transport::message_deserializer::deserialize (nano::message::header header, std::size_t payload_size)
 {
 	release_assert (payload_size <= MAX_MESSAGE_SIZE);
 	nano::bufferstream stream{ read_buffer->data (), payload_size };
