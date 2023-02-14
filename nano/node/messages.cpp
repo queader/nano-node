@@ -410,7 +410,7 @@ std::string nano::message_parser::status_string ()
 		}
 		case nano::message_parser::parse_status::invalid_message_type:
 		{
-			return "invalid_message::type";
+			return "invalid_message_type";
 		}
 		case nano::message_parser::parse_status::invalid_keepalive_message:
 		{

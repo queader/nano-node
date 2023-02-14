@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/node/common.hpp>
+#include <nano/node/messages.hpp>
 
 #include <deque>
 #include <future>
@@ -43,15 +44,13 @@ public:
 	static std::size_t constexpr size_frontier = sizeof (nano::account) + sizeof (nano::block_hash);
 };
 
-class frontier_req;
-
 /**
  * Server side of a frontier request. Created when a tcp_server receives a frontier_req message and exited when end-of-list is reached.
  */
 class frontier_req_server final : public std::enable_shared_from_this<nano::frontier_req_server>
 {
 public:
-	frontier_req_server (std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::frontier_req>);
+	frontier_req_server (std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::message::frontier_req>);
 	void send_next ();
 	void sent_action (boost::system::error_code const &, std::size_t);
 	void send_finished ();
@@ -61,7 +60,7 @@ public:
 	std::shared_ptr<nano::transport::tcp_server> connection;
 	nano::account current;
 	nano::block_hash frontier;
-	std::unique_ptr<nano::frontier_req> request;
+	std::unique_ptr<nano::message::frontier_req> request;
 	std::size_t count;
 	std::deque<std::pair<nano::account, nano::block_hash>> accounts;
 };

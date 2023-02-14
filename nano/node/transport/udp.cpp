@@ -361,7 +361,7 @@ nano::endpoint nano::transport::udp_channels::get_local_endpoint () const
 
 namespace
 {
-class udp_message_visitor : public nano::message_visitor
+class udp_message_visitor : public nano::message::visitor
 {
 public:
 	udp_message_visitor (nano::node & node_a, nano::endpoint endpoint_a, std::function<void (nano::message::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
@@ -563,8 +563,8 @@ void nano::transport::udp_channels::receive_action (nano::message_buffer * data_
 				case nano::message_parser::parse_status::invalid_header:
 					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_header);
 					break;
-				case nano::message_parser::parse_status::invalid_message::type:
-					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_message::type);
+				case nano::message_parser::parse_status::invalid_message_type:
+					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_message_type);
 					break;
 				case nano::message_parser::parse_status::invalid_keepalive_message:
 					node.stats.inc (nano::stat::type::udp, nano::stat::detail::invalid_keepalive_message);

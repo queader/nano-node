@@ -4071,7 +4071,7 @@ void nano::json_handler::telemetry ()
 		else
 		{
 			nano::jsonconfig config_l;
-			std::vector<nano::telemetry_data> telemetry_datas;
+			std::vector<nano::message::telemetry_data> telemetry_datas;
 			telemetry_datas.reserve (telemetry_responses.size ());
 			std::transform (telemetry_responses.begin (), telemetry_responses.end (), std::back_inserter (telemetry_datas), [] (auto const & endpoint_telemetry_data) {
 				return endpoint_telemetry_data.second;

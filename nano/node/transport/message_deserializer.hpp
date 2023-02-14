@@ -22,7 +22,7 @@ namespace transport
 			success,
 			insufficient_work,
 			invalid_header,
-			invalid_message::type,
+			invalid_message_type,
 			invalid_keepalive_message,
 			invalid_publish_message,
 			invalid_confirm_req_message,
@@ -65,19 +65,19 @@ namespace transport
 		 * @return If successful returns non-null message, otherwise sets `status` to error appropriate code and returns nullptr
 		 */
 		std::unique_ptr<nano::message::message> deserialize (nano::message::header header, std::size_t payload_size);
-		std::unique_ptr<nano::keepalive> deserialize_keepalive (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::publish> deserialize_publish (nano::stream &, nano::message::header const &, nano::uint128_t const & = 0);
-		std::unique_ptr<nano::confirm_req> deserialize_confirm_req (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::confirm_ack> deserialize_confirm_ack (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::node_id_handshake> deserialize_node_id_handshake (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::telemetry_req> deserialize_telemetry_req (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::telemetry_ack> deserialize_telemetry_ack (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::bulk_pull> deserialize_bulk_pull (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::bulk_pull_account> deserialize_bulk_pull_account (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::bulk_push> deserialize_bulk_push (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::frontier_req> deserialize_frontier_req (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::asc_pull_req> deserialize_asc_pull_req (nano::stream &, nano::message::header const &);
-		std::unique_ptr<nano::asc_pull_ack> deserialize_asc_pull_ack (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::keepalive> deserialize_keepalive (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::publish> deserialize_publish (nano::stream &, nano::message::header const &, nano::uint128_t const & = 0);
+		std::unique_ptr<nano::message::confirm_req> deserialize_confirm_req (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::confirm_ack> deserialize_confirm_ack (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::node_id_handshake> deserialize_node_id_handshake (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::telemetry_req> deserialize_telemetry_req (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::telemetry_ack> deserialize_telemetry_ack (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::bulk_pull> deserialize_bulk_pull (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::bulk_pull_account> deserialize_bulk_pull_account (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::bulk_push> deserialize_bulk_push (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::frontier_req> deserialize_frontier_req (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::asc_pull_req> deserialize_asc_pull_req (nano::stream &, nano::message::header const &);
+		std::unique_ptr<nano::message::asc_pull_ack> deserialize_asc_pull_ack (nano::stream &, nano::message::header const &);
 
 		std::shared_ptr<std::vector<uint8_t>> read_buffer;
 

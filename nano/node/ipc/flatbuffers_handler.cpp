@@ -161,7 +161,7 @@ std::function<void (std::shared_ptr<flatbuffers::FlatBufferBuilder> const &)> co
 			return;
 		}
 
-		auto handler_method = handler_map.find (incoming->message::type ());
+		auto handler_method = handler_map.find (incoming->message_type ());
 		if (handler_method != handler_map.end ())
 		{
 			if (incoming->correlation_id ())

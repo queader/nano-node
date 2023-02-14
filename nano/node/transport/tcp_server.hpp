@@ -6,11 +6,6 @@
 
 #include <atomic>
 
-namespace nano
-{
-class message;
-}
-
 namespace nano::transport
 {
 class message_deserializer;
@@ -82,7 +77,7 @@ private:
 	bool allow_bootstrap;
 
 private:
-	class handshake_message_visitor : public nano::message_visitor
+	class handshake_message_visitor : public nano::message::visitor
 	{
 	public:
 		bool process{ false };
@@ -100,7 +95,7 @@ private:
 		std::shared_ptr<tcp_server> server;
 	};
 
-	class realtime_message_visitor : public nano::message_visitor
+	class realtime_message_visitor : public nano::message::visitor
 	{
 	public:
 		bool process{ false };
@@ -121,7 +116,7 @@ private:
 		tcp_server & server;
 	};
 
-	class bootstrap_message_visitor : public nano::message_visitor
+	class bootstrap_message_visitor : public nano::message::visitor
 	{
 	public:
 		bool processed{ false };

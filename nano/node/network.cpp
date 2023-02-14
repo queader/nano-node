@@ -401,7 +401,7 @@ void nano::network::broadcast_confirm_req_many (std::deque<std::pair<std::shared
 
 namespace
 {
-class network_message_visitor : public nano::message_visitor
+class network_message_visitor : public nano::message::visitor
 {
 public:
 	network_message_visitor (nano::node & node_a, std::shared_ptr<nano::transport::channel> const & channel_a) :
@@ -528,7 +528,7 @@ public:
 		if (!node.flags.disable_providing_telemetry_metrics)
 		{
 			auto telemetry_data = node.local_telemetry ();
-			telemetry_ack = nano::telemetry_ack{ node.network_params.network, telemetry_data };
+			telemetry_ack = nano::message::telemetry_ack{ node.network_params.network, telemetry_data };
 		}
 		channel->send (telemetry_ack, nullptr, nano::buffer_drop_policy::no_socket_drop);
 	}

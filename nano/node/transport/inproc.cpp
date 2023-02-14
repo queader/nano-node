@@ -27,7 +27,7 @@ bool nano::transport::inproc::channel::operator== (nano::transport::channel cons
  *  This function is called for every message received by the inproc channel.
  *  Note that it is called from inside the context of nano::transport::inproc::channel::send_buffer
  */
-class message_visitor_inbound : public nano::message_visitor
+class message_visitor_inbound : public nano::message::visitor
 {
 public:
 	message_visitor_inbound (decltype (nano::network::inbound) & inbound, std::shared_ptr<nano::transport::inproc::channel> channel) :
