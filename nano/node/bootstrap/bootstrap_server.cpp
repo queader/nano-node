@@ -31,14 +31,14 @@ void nano::bootstrap_server::stop ()
 	request_queue.stop ();
 }
 
-bool nano::bootstrap_server::verify_request_type (nano::asc_pull_type type) const
+bool nano::bootstrap_server::verify_request_type (nano::message::asc_pull_type type) const
 {
 	switch (type)
 	{
-		case asc_pull_type::invalid:
+		case nano::message::asc_pull_type::invalid:
 			return false;
-		case asc_pull_type::blocks:
-		case asc_pull_type::account_info:
+		case nano::message::asc_pull_type::blocks:
+		case nano::message::asc_pull_type::account_info:
 			return true;
 	}
 	return false;
@@ -53,7 +53,7 @@ bool nano::bootstrap_server::verify (const nano::message::asc_pull_req & message
 
 	struct verify_visitor
 	{
-		bool operator() (nano::empty_payload const &) const
+		bool operator() (nano::message::empty_payload const &) const
 		{
 			return false;
 		}
@@ -99,7 +99,7 @@ void nano::bootstrap_server::respond (nano::message::asc_pull_ack & response, st
 	{
 		nano::stats & stats;
 
-		void operator() (nano::empty_payload const &)
+		void operator() (nano::message::empty_payload const &)
 		{
 			debug_assert (false, "missing payload");
 		}
@@ -154,13 +154,13 @@ nano::message::asc_pull_ack nano::bootstrap_server::process (nano::transaction c
 	return std::visit ([this, &transaction, &message] (auto && request) { return process (transaction, message.id, request); }, message.payload);
 }
 
-nano::message::asc_pull_ack nano::bootstrap_server::process (const nano::transaction &, nano::message::asc_pull_req::id_t id, const nano::empty_payload & request)
+nano::message::asc_pull_ack nano::bootstrap_server::process (const nano::transaction &, nano::message::asc_pull_req::id_t id, const nano::message::empty_payload & request)
 {
 	// Empty payload should never be possible, but return empty response anyway
 	debug_assert (false, "missing payload");
 	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
-	response.type = nano::asc_pull_type::invalid;
+	response.type = nano::message::asc_pull_type::invalid;
 	return response;
 }
 
@@ -174,7 +174,7 @@ nano::message::asc_pull_ack nano::bootstrap_server::process (nano::transaction c
 
 	switch (request.start_type)
 	{
-		case asc_pull_req::hash_type::block:
+		case nano::message::asc_pull_req::hash_type::block:
 		{
 			if (store.block.exists (transaction, request.start.as_block_hash ()))
 			{
@@ -182,7 +182,7 @@ nano::message::asc_pull_ack nano::bootstrap_server::process (nano::transaction c
 			}
 		}
 		break;
-		case asc_pull_req::hash_type::account:
+		case nano::message::asc_pull_req::hash_type::account:
 		{
 			auto info = ledger.account_info (transaction, request.start.as_account ());
 			if (info)
@@ -207,7 +207,7 @@ nano::message::asc_pull_ack nano::bootstrap_server::prepare_response (nano::tran
 
 	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
-	response.type = nano::asc_pull_type::blocks;
+	response.type = nano::message::asc_pull_type::blocks;
 
 	nano::message::asc_pull_ack::blocks_payload response_payload;
 	response_payload.blocks = blocks;
@@ -221,7 +221,7 @@ nano::message::asc_pull_ack nano::bootstrap_server::prepare_empty_blocks_respons
 {
 	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
-	response.type = nano::asc_pull_type::blocks;
+	response.type = nano::message::asc_pull_type::blocks;
 
 	nano::message::asc_pull_ack::blocks_payload empty_payload{};
 	response.payload = empty_payload;
@@ -257,17 +257,17 @@ nano::message::asc_pull_ack nano::bootstrap_server::process (const nano::transac
 {
 	nano::message::asc_pull_ack response{ network_constants };
 	response.id = id;
-	response.type = nano::asc_pull_type::account_info;
+	response.type = nano::message::asc_pull_type::account_info;
 
 	nano::account target{ 0 };
 	switch (request.target_type)
 	{
-		case asc_pull_req::hash_type::account:
+		case nano::message::asc_pull_req::hash_type::account:
 		{
 			target = request.target.as_account ();
 		}
 		break;
-		case asc_pull_req::hash_type::block:
+		case nano::message::asc_pull_req::hash_type::block:
 		{
 			// Try to lookup account assuming target is block hash
 			target = ledger.account_safe (transaction, request.target.as_block_hash ());
