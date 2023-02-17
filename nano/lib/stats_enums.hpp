@@ -42,6 +42,7 @@ enum class type : uint8_t
 	active_dropped,
 	backlog,
 	optimistic,
+	scheduler,
 
 	_last // Must be the last enum
 };
@@ -272,6 +273,13 @@ enum class detail : uint8_t
 	// active
 	insert,
 	insert_failed,
+
+	// election scheduler
+	insert_manual,
+	insert_priority,
+	insert_priority_failed,
+	insert_priority_exists,
+	erase_oldest,
 
 	_last // Must be the last enum
 };

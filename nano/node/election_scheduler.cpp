@@ -1,8 +1,9 @@
 #include <nano/node/election_scheduler.hpp>
 #include <nano/node/node.hpp>
 
-nano::election_scheduler::election_scheduler (nano::node & node) :
-	node{ node }
+nano::election_scheduler::election_scheduler (nano::node & node_a, nano::stats & stats_a) :
+	node{ node_a },
+	stats{ stats_a }
 {
 }
 
@@ -55,6 +56,8 @@ bool nano::election_scheduler::activate (nano::account const & account_a, nano::
 			debug_assert (block != nullptr);
 			if (node.ledger.dependents_confirmed (transaction, *block))
 			{
+				stats.inc (nano::stat::type::scheduler, nano::stat::detail::activated);
+
 				auto balance = node.ledger.balance (transaction, hash);
 				auto previous_balance = node.ledger.balance (transaction, conf_info.frontier);
 				nano::lock_guard<nano::mutex> lock{ mutex };
@@ -133,9 +136,12 @@ void nano::election_scheduler::run ()
 		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
 		if (!stopped)
 		{
+			stats.inc (nano::stat::type::scheduler, nano::stat::detail::loop);
+
 			if (overfill_predicate ())
 			{
 				lock.unlock ();
+				stats.inc (nano::stat::type::scheduler, nano::stat::detail::erase_oldest);
 				node.active.erase_oldest ();
 			}
 			else if (manual_queue_predicate ())
@@ -144,7 +150,8 @@ void nano::election_scheduler::run ()
 				manual_queue.pop_front ();
 				lock.unlock ();
 
-				node.active.insert (block, election_behavior);
+				stats.inc (nano::stat::type::scheduler, nano::stat::detail::insert_manual);
+				auto result = node.active.insert (block, election_behavior);
 			}
 			else if (priority_queue_predicate ())
 			{
@@ -152,9 +159,15 @@ void nano::election_scheduler::run ()
 				priority.pop ();
 				lock.unlock ();
 
+				stats.inc (nano::stat::type::scheduler, nano::stat::detail::insert_priority);
 				auto result = node.active.insert (block);
+				if (!result.inserted)
+				{
+					stats.inc (nano::stat::type::scheduler, nano::stat::detail::insert_priority_failed);
+				}
 				if (result.election != nullptr)
 				{
+					stats.inc (nano::stat::type::scheduler, nano::stat::detail::insert_priority_exists);
 					result.election->transition_active ();
 				}
 			}
