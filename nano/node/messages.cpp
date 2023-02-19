@@ -238,32 +238,6 @@ bool nano::message_header::frontier_req_is_only_confirmed_present () const
 	return result;
 }
 
-bool nano::message_header::node_id_handshake_is_query () const
-{
-	auto result (false);
-	if (type == nano::message_type::node_id_handshake)
-	{
-		if (extensions.test (node_id_handshake_query_flag))
-		{
-			result = true;
-		}
-	}
-	return result;
-}
-
-bool nano::message_header::node_id_handshake_is_response () const
-{
-	auto result (false);
-	if (type == nano::message_type::node_id_handshake)
-	{
-		if (extensions.test (node_id_handshake_response_flag))
-		{
-			result = true;
-		}
-	}
-	return result;
-}
-
 std::size_t nano::message_header::payload_length_bytes () const
 {
 	switch (type)
@@ -1623,6 +1597,25 @@ nano::node_id_handshake::node_id_handshake (nano::network_constants const & cons
 	message (constants, nano::message_type::node_id_handshake),
 	query (query),
 	response (response)
+bool nano::node_id_handshake::is_query (nano::message_header const & header)
+{
+	debug_assert (header.type == nano::message_type::node_id_handshake);
+	if (header.extensions.test (query_flag))
+	{
+		return true;
+	}
+	return false;
+}
+
+bool nano::node_id_handshake::is_response (nano::message_header const & header)
+{
+	debug_assert (header.type == nano::message_type::node_id_handshake);
+	if (header.extensions.test (response_flag))
+	{
+		return true;
+	}
+	return false;
+}
 {
 	if (query)
 	{
@@ -1654,14 +1647,14 @@ bool nano::node_id_handshake::deserialize (nano::stream & stream_a)
 	auto error (false);
 	try
 	{
-		if (header.node_id_handshake_is_query ())
+		if (is_query (header))
 		{
 			nano::uint256_union query_hash;
 			read (stream_a, query_hash);
 			query = query_hash;
 		}
 
-		if (header.node_id_handshake_is_response ())
+		if (is_response (header))
 		{
 			nano::account response_account;
 			read (stream_a, response_account);
@@ -1694,14 +1687,14 @@ std::size_t nano::node_id_handshake::size () const
 	return size (header);
 }
 
-std::size_t nano::node_id_handshake::size (nano::message_header const & header_a)
+std::size_t nano::node_id_handshake::size (nano::message_header const & header)
 {
-	std::size_t result (0);
-	if (header_a.node_id_handshake_is_query ())
+	std::size_t result = 0;
+	if (is_query (header))
 	{
 		result = sizeof (nano::uint256_union);
 	}
-	if (header_a.node_id_handshake_is_response ())
+	if (is_response (header))
 	{
 		result += sizeof (nano::account) + sizeof (nano::signature);
 	}
