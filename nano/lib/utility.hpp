@@ -203,4 +203,35 @@ constexpr TARGET_TYPE narrow_cast (SOURCE_TYPE const & val)
 
 // Issue #3748
 void sort_options_description (const boost::program_options::options_description & source, boost::program_options::options_description & target);
+
+using clock = std::chrono::steady_clock;
+
+template <typename Duration>
+bool elapsed (nano::clock::time_point const & last, Duration duration, nano::clock::time_point const & now)
+{
+	return last + duration < now;
+}
+
+template <typename Duration>
+bool elapsed (nano::clock::time_point const & last, Duration duration)
+{
+	return elapsed (last, duration, nano::clock::now ());
+}
+
+template <typename Duration>
+bool countdown (nano::clock::time_point & last, Duration duration, nano::clock::time_point const & now)
+{
+	bool result = last + duration < now;
+	if (result)
+	{
+		last = now;
+	}
+	return result;
+}
+
+template <typename Duration>
+bool countdown (nano::clock::time_point & last, Duration duration)
+{
+	return countdown (last, duration, nano::clock::now ());
+}
 }
