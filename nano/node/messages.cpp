@@ -1586,95 +1586,97 @@ bool nano::telemetry_data::validate_signature () const
  */
 
 nano::node_id_handshake::node_id_handshake (bool & error_a, nano::stream & stream_a, nano::message_header const & header_a) :
-	message (header_a),
-	query (boost::none),
-	response (boost::none)
+	message (header_a)
 {
 	error_a = deserialize (stream_a);
 }
 
-nano::node_id_handshake::node_id_handshake (nano::network_constants const & constants, boost::optional<nano::uint256_union> query, boost::optional<std::pair<nano::account, nano::signature>> response) :
-	message (constants, nano::message_type::node_id_handshake),
-	query (query),
-	response (response)
+nano::node_id_handshake::node_id_handshake (nano::network_constants const & constants) :
+	message (constants, nano::message_type::node_id_handshake)
+{
+}
+
 bool nano::node_id_handshake::is_query (nano::message_header const & header)
 {
 	debug_assert (header.type == nano::message_type::node_id_handshake);
-	if (header.extensions.test (query_flag))
-	{
-		return true;
-	}
-	return false;
+	return header.extensions.test (query_flag);
 }
 
 bool nano::node_id_handshake::is_response (nano::message_header const & header)
 {
 	debug_assert (header.type == nano::message_type::node_id_handshake);
-	if (header.extensions.test (response_flag))
-	{
-		return true;
-	}
-	return false;
-}
-{
-	if (query)
-	{
-		header.flag_set (nano::message_header::node_id_handshake_query_flag);
-	}
-	if (response)
-	{
-		header.flag_set (nano::message_header::node_id_handshake_response_flag);
-	}
+	return header.extensions.test (response_flag);
 }
 
-void nano::node_id_handshake::serialize (nano::stream & stream_a) const
-{
-	header.serialize (stream_a);
-	if (query)
-	{
-		write (stream_a, *query);
-	}
-	if (response)
-	{
-		write (stream_a, response->first);
-		write (stream_a, response->second);
-	}
-}
-
-bool nano::node_id_handshake::deserialize (nano::stream & stream_a)
+bool nano::node_id_handshake::is_v2 (nano::message_header const & header)
 {
 	debug_assert (header.type == nano::message_type::node_id_handshake);
-	auto error (false);
+	return header.extensions.test (v2_flag);
+}
+
+void nano::node_id_handshake::update_header ()
+{
+	if (query)
+	{
+		header.flag_set (query_flag);
+	}
+	if (response)
+	{
+		std::visit ([this] (auto && resp) { resp.update_header (header); }, *response);
+	}
+}
+
+void nano::node_id_handshake::serialize (nano::stream & stream) const
+{
+	header.serialize (stream);
+	if (query)
+	{
+		write (stream, *query);
+	}
+	if (response)
+	{
+		std::visit ([&stream] (auto && resp) { resp.serialize (stream); }, *response);
+	}
+}
+
+bool nano::node_id_handshake::deserialize (nano::stream & stream)
+{
+	debug_assert (header.type == nano::message_type::node_id_handshake);
+	bool error = false;
 	try
 	{
 		if (is_query (header))
 		{
-			nano::uint256_union query_hash;
-			read (stream_a, query_hash);
+			nano::uint256_union query_hash{};
+			read (stream, query_hash);
 			query = query_hash;
 		}
-
 		if (is_response (header))
 		{
-			nano::account response_account;
-			read (stream_a, response_account);
-			nano::signature response_signature;
-			read (stream_a, response_signature);
-			response = std::make_pair (response_account, response_signature);
+			auto resp = make_response (header);
+			std::visit ([&stream] (auto && resp) { resp.deserialize (stream); }, resp);
+			response = resp;
 		}
 	}
 	catch (std::runtime_error const &)
 	{
 		error = true;
 	}
-
 	return error;
 }
 
-bool nano::node_id_handshake::operator== (nano::node_id_handshake const & other_a) const
+nano::node_id_handshake::response_variant nano::node_id_handshake::make_response (const nano::message_header & header)
 {
-	auto result (*query == *other_a.query && *response == *other_a.response);
-	return result;
+	debug_assert (is_response (header));
+	if (is_v2 (header))
+	{
+		return response_v2{};
+	}
+	else
+	{
+		return response_v1{};
+	}
+	return empty_response{};
 }
 
 void nano::node_id_handshake::visit (nano::message_visitor & visitor_a) const
@@ -1696,7 +1698,8 @@ std::size_t nano::node_id_handshake::size (nano::message_header const & header)
 	}
 	if (is_response (header))
 	{
-		result += sizeof (nano::account) + sizeof (nano::signature);
+		auto resp = make_response (header);
+		result += std::visit ([] (auto && resp) { return sizeof (decltype (resp)); }, resp);
 	}
 	return result;
 }
@@ -1704,19 +1707,103 @@ std::size_t nano::node_id_handshake::size (nano::message_header const & header)
 std::string nano::node_id_handshake::to_string () const
 {
 	std::string s = header.to_string ();
-
-	if (query.has_value ())
+	if (query)
 	{
 		s += "\ncookie=" + query->to_string ();
 	}
-
-	if (response.has_value ())
+	if (response)
 	{
-		s += "\nresp_node_id=" + response->first.to_string ();
-		s += "\nresp_sig=" + response->second.to_string ();
+		s += std::visit ([] (auto && resp) { return resp.to_string (); }, *response);
 	}
-
 	return s;
+}
+
+/*
+ * node_id_handshake::response_v1
+ */
+
+void nano::node_id_handshake::response_v1::serialize (nano::stream & stream) const
+{
+	write (stream, node_id);
+	write (stream, signature);
+}
+
+void nano::node_id_handshake::response_v1::deserialize (nano::stream & stream)
+{
+	read (stream, node_id);
+	read (stream, signature);
+}
+
+void nano::node_id_handshake::response_v1::update_header (nano::message_header & header)
+{
+	header.flag_set (response_flag);
+}
+
+std::string nano::node_id_handshake::response_v1::to_string () const
+{
+	std::string s;
+	s += "\nresp_node_id=" + node_id.to_string ();
+	s += "\nresp_sig=" + signature.to_string ();
+	return s;
+}
+
+/*
+ * node_id_handshake::response_v2
+ */
+
+void nano::node_id_handshake::response_v2::serialize (nano::stream & stream) const
+{
+	write (stream, node_id);
+	write (stream, salt);
+	write (stream, genesis);
+	write (stream, signature);
+}
+
+void nano::node_id_handshake::response_v2::deserialize (nano::stream & stream)
+{
+	read (stream, node_id);
+	read (stream, salt);
+	read (stream, genesis);
+	read (stream, signature);
+}
+
+void nano::node_id_handshake::response_v2::update_header (nano::message_header & header)
+{
+	header.flag_set (response_flag);
+	header.flag_set (v2_flag);
+}
+
+std::string nano::node_id_handshake::response_v2::to_string () const
+{
+	std::string s;
+	s += "\nresp_node_id=" + node_id.to_string ();
+	s += "\nresp_sig=" + signature.to_string ();
+	return s;
+}
+
+/*
+ * node_id_handshake::empty_response
+ */
+
+void nano::node_id_handshake::empty_response::serialize (nano::stream & stream) const
+{
+	debug_assert (false, "empty_response");
+}
+
+void nano::node_id_handshake::empty_response::deserialize (nano::stream & stream)
+{
+	debug_assert (false, "empty_response");
+}
+
+void nano::node_id_handshake::empty_response::update_header (nano::message_header & header)
+{
+	debug_assert (false, "empty_response");
+}
+
+std::string nano::node_id_handshake::empty_response::to_string () const
+{
+	debug_assert (false, "empty_response");
+	return std::string{};
 }
 
 /*

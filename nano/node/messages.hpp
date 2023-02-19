@@ -349,13 +349,20 @@ class node_id_handshake final : public message
 {
 public:
 	node_id_handshake (bool &, nano::stream &, nano::message_header const &);
-	node_id_handshake (nano::network_constants const & constants, boost::optional<nano::uint256_union>, boost::optional<std::pair<nano::account, nano::signature>>);
+	node_id_handshake (nano::network_constants const & constants);
+
+	/**
+	 * Updates header flags depending on payload
+	 * IMPORTANT: Must be called after any update to the payload
+	 * TODO: Make it possible to update header during serialization
+	 */
+	void update_header ();
+
 	void serialize (nano::stream &) const override;
 	bool deserialize (nano::stream &);
+
 	void visit (nano::message_visitor &) const override;
-	bool operator== (nano::node_id_handshake const &) const;
-	boost::optional<nano::uint256_union> query;
-	boost::optional<std::pair<nano::account, nano::signature>> response;
+//	bool operator== (nano::node_id_handshake const &) const;
 	std::size_t size () const;
 	static std::size_t size (nano::message_header const &);
 	std::string to_string () const;
@@ -363,10 +370,59 @@ public:
 public: // Header
 	static uint8_t constexpr query_flag = 0;
 	static uint8_t constexpr response_flag = 1;
+	static uint8_t constexpr v2_flag = 2;
 
 	static bool is_query (nano::message_header const &);
 	static bool is_response (nano::message_header const &);
+	static bool is_v2 (nano::message_header const &);
 
+public: // Payload definitions
+	class response_v1
+	{
+	public:
+		void serialize (nano::stream &) const;
+		void deserialize (nano::stream &);
+		void update_header (nano::message_header &);
+		std::string to_string () const;
+
+	public: // Payload
+		nano::account node_id;
+		nano::signature signature;
+	};
+
+	class response_v2
+	{
+	public:
+		void serialize (nano::stream &) const;
+		void deserialize (nano::stream &);
+		void update_header (nano::message_header &);
+		std::string to_string () const;
+
+	public: // Payload
+		nano::account node_id;
+		nano::uint256_union salt;
+		nano::account genesis;
+		nano::signature signature;
+	};
+
+	class empty_response
+	{
+	public:
+		void serialize (nano::stream &) const;
+		void deserialize (nano::stream &);
+		void update_header (nano::message_header &);
+		std::string to_string () const;
+	};
+
+public: // Payload
+	using response_variant = std::variant<empty_response, response_v1, response_v2>;
+
+	std::optional<nano::uint256_union> query;
+	std::optional<response_variant> response;
+
+private:
+	/** Creates appropriate response version based on header flags */
+	static response_variant make_response (nano::message_header const &);
 };
 
 /**
