@@ -272,7 +272,7 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	if (!election->confirmed ())
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_drop_all);
-		if (election->behavior == election_behavior::hinted)
+		if (election->behavior () == election_behavior::hinted)
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::election_hinted_drop);
 		}
@@ -280,13 +280,13 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	else
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::election_confirmed_all);
-		if (election->behavior == election_behavior::hinted)
+		if (election->behavior () == election_behavior::hinted)
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::election_hinted_confirmed);
 		}
 	}
 
-	switch (election->behavior)
+	switch (election->behavior ())
 	{
 		case election_behavior::hinted:
 			debug_assert (hinted_count > 0);
@@ -402,7 +402,7 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 				blocks.emplace (hash, result.election);
 
 				// Increase election counters while still holding lock
-				switch (result.election->behavior)
+				switch (result.election->behavior ())
 				{
 					case election_behavior::hinted:
 						++hinted_count;

@@ -1,3 +1,4 @@
+#include <nano/lib/config.hpp>
 #include <nano/lib/stats.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/transport/tcp.hpp>
@@ -141,10 +142,6 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 			error = false;
 			lock.unlock ();
 			node.network.channel_observer (channel_a);
-			// Remove UDP channel to same IP:port if exists
-			node.network.udp_channels.erase (udp_endpoint);
-			// Remove UDP channels with same node ID
-			node.network.udp_channels.clean_node_id (node_id);
 		}
 	}
 	return error;
@@ -262,13 +259,13 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::fin
 	return result;
 }
 
-nano::tcp_endpoint nano::transport::tcp_channels::next_bootstrap_peer (uint8_t protocol_version_min)
+nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
 {
 	nano::tcp_endpoint result (boost::asio::ip::address_v6::any (), 0);
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	for (auto i (channels.get<last_bootstrap_attempt_tag> ().begin ()), n (channels.get<last_bootstrap_attempt_tag> ().end ()); i != n;)
 	{
-		if (i->channel->get_network_version () >= protocol_version_min)
+		if (i->channel->get_network_version () >= node.network_params.network.protocol_version_min)
 		{
 			result = nano::transport::map_endpoint_to_tcp (i->channel->get_peering_endpoint ());
 			channels.get<last_bootstrap_attempt_tag> ().modify (i, [] (channel_tcp_wrapper & wrapper_a) {
@@ -494,20 +491,6 @@ void nano::transport::tcp_channels::ongoing_keepalive ()
 	for (auto & channel : send_list)
 	{
 		channel->send (message);
-	}
-	// Attempt to start TCP connections to known UDP peers
-	nano::tcp_endpoint invalid_endpoint (boost::asio::ip::address_v6::any (), 0);
-	if (!node.network_params.network.is_dev_network () && !node.flags.disable_udp)
-	{
-		std::size_t random_count (std::min (static_cast<std::size_t> (6), static_cast<std::size_t> (std::ceil (std::sqrt (node.network.udp_channels.size ())))));
-		for (auto i (0); i <= random_count; ++i)
-		{
-			auto tcp_endpoint (node.network.udp_channels.bootstrap_peer (node.network_params.network.protocol_version_min));
-			if (tcp_endpoint != invalid_endpoint && find_channel (tcp_endpoint) == nullptr && !node.network.excluded_peers.check (tcp_endpoint))
-			{
-				start_tcp (nano::transport::map_tcp_to_endpoint (tcp_endpoint));
-			}
-		}
 	}
 	std::weak_ptr<nano::node> node_w (node.shared ());
 	node.workers.add_timed_task (std::chrono::steady_clock::now () + node.network_params.network.keepalive_period, [node_w] () {

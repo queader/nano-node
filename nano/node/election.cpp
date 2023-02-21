@@ -22,7 +22,7 @@ nano::election::election (nano::node & node_a, std::shared_ptr<nano::block> cons
 	confirmation_action (confirmation_action_a),
 	live_vote_action (live_vote_action_a),
 	node (node_a),
-	behavior (election_behavior_a),
+	behavior_m (election_behavior_a),
 	status ({ block_a, 0, 0, std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ()), std::chrono::duration_values<std::chrono::milliseconds>::zero (), 0, 1, 0, nano::election_status_type::ongoing }),
 	height (block_a->sideband ().height),
 	root (block_a->root ()),
@@ -126,7 +126,7 @@ bool nano::election::state_change (nano::election::state_t expected_a, nano::ele
 
 std::chrono::milliseconds nano::election::confirm_req_time () const
 {
-	switch (behavior)
+	switch (behavior ())
 	{
 		case election_behavior::normal:
 		case election_behavior::hinted:
@@ -234,7 +234,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 
 std::chrono::milliseconds nano::election::time_to_live () const
 {
-	switch (behavior)
+	switch (behavior ())
 	{
 		case election_behavior::normal:
 			return std::chrono::milliseconds (5 * 60 * 1000);
@@ -388,57 +388,54 @@ std::shared_ptr<nano::block> nano::election::find (nano::block_hash const & hash
 
 nano::election_vote_result nano::election::vote (nano::account const & rep, uint64_t timestamp_a, nano::block_hash const & block_hash_a, vote_source vote_source_a)
 {
-	auto replay = false;
 	auto weight = node.ledger.weight (rep);
-	auto should_process = false;
-	if (node.network_params.network.is_dev_network () || weight > node.minimum_principal_weight ())
+	if (!node.network_params.network.is_dev_network () && weight <= node.minimum_principal_weight ())
 	{
-		nano::unique_lock<nano::mutex> lock{ mutex };
+		return nano::election_vote_result (false, false);
+	}
+	nano::unique_lock<nano::mutex> lock{ mutex };
 
-		auto last_vote_it (last_votes.find (rep));
-		if (last_vote_it == last_votes.end ())
+	auto last_vote_it (last_votes.find (rep));
+	if (last_vote_it != last_votes.end ())
+	{
+		auto last_vote_l (last_vote_it->second);
+		if (last_vote_l.timestamp > timestamp_a)
 		{
-			should_process = true;
+			return nano::election_vote_result (true, false);
 		}
-		else
+		if (last_vote_l.timestamp == timestamp_a && !(last_vote_l.hash < block_hash_a))
 		{
-			auto last_vote_l (last_vote_it->second);
-			if (last_vote_l.timestamp < timestamp_a || (last_vote_l.timestamp == timestamp_a && last_vote_l.hash < block_hash_a))
-			{
-				auto max_vote = timestamp_a == std::numeric_limits<uint64_t>::max () && last_vote_l.timestamp < timestamp_a;
-
-				bool past_cooldown = true;
-				// Only cooldown live votes
-				if (vote_source_a == vote_source::live)
-				{
-					const auto cooldown = cooldown_time (weight);
-					past_cooldown = last_vote_l.time <= std::chrono::steady_clock::now () - cooldown;
-				}
-
-				should_process = max_vote || past_cooldown;
-			}
-			else
-			{
-				replay = true;
-			}
+			return nano::election_vote_result (true, false);
 		}
-		if (should_process)
+
+		auto max_vote = timestamp_a == std::numeric_limits<uint64_t>::max () && last_vote_l.timestamp < timestamp_a;
+
+		bool past_cooldown = true;
+		// Only cooldown live votes
+		if (vote_source_a == vote_source::live)
 		{
-			last_votes[rep] = { std::chrono::steady_clock::now (), timestamp_a, block_hash_a };
-			if (vote_source_a == vote_source::live)
-			{
-				live_vote_action (rep);
-			}
+			const auto cooldown = cooldown_time (weight);
+			past_cooldown = last_vote_l.time <= std::chrono::steady_clock::now () - cooldown;
+		}
 
-			node.stats.inc (nano::stat::type::election, vote_source_a == vote_source::live ? nano::stat::detail::vote_new : nano::stat::detail::vote_cached);
-
-			if (!confirmed ())
-			{
-				confirm_if_quorum (lock);
-			}
+		if (!max_vote && !past_cooldown)
+		{
+			return nano::election_vote_result (false, false);
 		}
 	}
-	return nano::election_vote_result (replay, should_process);
+	last_votes[rep] = { std::chrono::steady_clock::now (), timestamp_a, block_hash_a };
+	if (vote_source_a == vote_source::live)
+	{
+		live_vote_action (rep);
+	}
+
+	node.stats.inc (nano::stat::type::election, vote_source_a == vote_source::live ? nano::stat::detail::vote_new : nano::stat::detail::vote_cached);
+
+	if (!confirmed ())
+	{
+		confirm_if_quorum (lock);
+	}
+	return nano::election_vote_result (false, true);
 }
 
 bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
@@ -651,4 +648,9 @@ std::vector<nano::vote_with_weight_info> nano::election::votes_with_weight () co
 	result.reserve (sorted_votes.size ());
 	std::transform (sorted_votes.begin (), sorted_votes.end (), std::back_inserter (result), [] (auto const & entry) { return entry.second; });
 	return result;
+}
+
+nano::election_behavior nano::election::behavior () const
+{
+	return behavior_m;
 }

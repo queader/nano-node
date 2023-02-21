@@ -1101,7 +1101,7 @@ TEST (votes, DISABLED_add_old_different_account)
 	node1.work_generate_blocking (*send2);
 	ASSERT_EQ (nano::process_result::progress, node1.process (*send1).code);
 	ASSERT_EQ (nano::process_result::progress, node1.process (*send2).code);
-	nano::test::blocks_confirm (node1, { send1, send2 });
+	nano::test::start_elections (system, node1, { send1, send2 });
 	auto election1 = node1.active.election (send1->qualified_root ());
 	ASSERT_NE (nullptr, election1);
 	auto election2 = node1.active.election (send2->qualified_root ());
@@ -4090,7 +4090,7 @@ TEST (ledger, block_hash_account_conflict)
 	ASSERT_EQ (nano::process_result::progress, node1.process (*receive1).code);
 	ASSERT_EQ (nano::process_result::progress, node1.process (*send2).code);
 	ASSERT_EQ (nano::process_result::progress, node1.process (*open_epoch1).code);
-	nano::test::blocks_confirm (node1, { send1, receive1, send2, open_epoch1 });
+	nano::test::start_elections (system, node1, { send1, receive1, send2, open_epoch1 });
 	auto election1 = node1.active.election (send1->qualified_root ());
 	ASSERT_NE (nullptr, election1);
 	auto election2 = node1.active.election (receive1->qualified_root ());
@@ -4431,17 +4431,18 @@ TEST (ledger, unchecked_open)
 				 .build_shared ();
 	node1.work_generate_blocking (*open2);
 	open2->signature.bytes[0] ^= 1;
+	node1.block_processor.add (open2); // Insert open2 in to the queue before open1
 	node1.block_processor.add (open1);
-	node1.block_processor.add (open2);
 	{
 		// Waits for the last blocks to pass through block_processor and unchecked.put queues
 		ASSERT_TIMELY (10s, 1 == node1.unchecked.count ());
+		// Get the next peer for attempting a tcp bootstrap connection
 		auto blocks = node1.unchecked.get (open1->source ());
 		ASSERT_EQ (blocks.size (), 1);
 	}
 	node1.block_processor.add (send1);
 	// Waits for the send1 block to pass through block_processor and unchecked.put queues
-	ASSERT_TIMELY (10s, node1.store.block.exists (node1.store.tx_begin_read (), open1->hash ()));
+	ASSERT_TIMELY (5s, node1.store.block.exists (node1.store.tx_begin_read (), open1->hash ()));
 	ASSERT_EQ (0, node1.unchecked.count ());
 }
 
@@ -5672,4 +5673,13 @@ TEST (ledger, is_send_legacy)
 	auto tx = store.tx_begin_read ();
 	ASSERT_TRUE (ledger.is_send (tx, *ctx.blocks ()[0]));
 	ASSERT_FALSE (ledger.is_send (tx, *ctx.blocks ()[1]));
+}
+
+TEST (ledger, head_block)
+{
+	auto ctx = nano::test::context::ledger_empty ();
+	auto & ledger = ctx.ledger ();
+	auto & store = ctx.store ();
+	auto tx = store.tx_begin_read ();
+	ASSERT_EQ (*nano::dev::genesis, *ledger.head_block (tx, nano::dev::genesis->account ()));
 }
