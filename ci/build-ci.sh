@@ -1,4 +1,5 @@
 #!/bin/bash
+set +x # echo off
 
 qt_dir=${1}
 build_target=${2:-all}
@@ -11,7 +12,7 @@ OS=$(uname)
 source "$(dirname "$BASH_SOURCE")/impl/code-inspector.sh"
 code_inspect "${ROOTPATH:-.}"
 
-mkdir build
+mkdir -p build
 pushd build
 
 if [[ "${RELEASE:-false}" == "true" ]]; then
