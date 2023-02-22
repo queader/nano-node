@@ -107,6 +107,7 @@ void nano::unchecked_map::trigger (nano::hash_or_account const & dependency)
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	buffer.emplace_back (dependency);
 	lock.unlock ();
+	stats.inc (nano::stat::type::unchecked, nano::stat::detail::trigger);
 	condition.notify_all (); // Notify run ()
 	stats.inc (nano::stat::type::unchecked, nano::stat::detail::trigger);
 }
