@@ -28,16 +28,16 @@ jobs:
           submodules: "recursive"
           fetch-depth: 0 # full history needed for restoring file timestamps
 
-      - name: Restore Timestamps
-        uses: ./.github/actions/restore-git-mtimes
-        continue-on-error: true
+      # - name: Restore Timestamps
+      #   uses: ./.github/actions/restore-git-mtimes
+      #   continue-on-error: true
 
-      - name: Restore Build Cache
-        uses: actions/cache/restore@v3
-        continue-on-error: true
-        with:
-          path: build
-          key: ${{ runner.os }}-build-cache
+      # - name: Restore Build Cache
+      #   uses: actions/cache/restore@v3
+      #   continue-on-error: true
+      #   with:
+      #     path: build
+      #     key: ${{ runner.os }}-build-cache
 
       - name: Fetch Deps
         run: TEST=1 ci/actions/osx/install_deps.sh
@@ -83,16 +83,16 @@ jobs:
           submodules: "recursive"
           fetch-depth: 0 # full history needed for restoring file timestamps
 
-      - name: Restore Timestamps
-        uses: ./.github/actions/restore-git-mtimes
-        continue-on-error: true
+      # - name: Restore Timestamps
+      #   uses: ./.github/actions/restore-git-mtimes
+      #   continue-on-error: true
 
-      - name: Restore Build Cache
-        uses: actions/cache/restore@v3
-        continue-on-error: true
-        with:
-          path: build
-          key: ${{ runner.os }}-${{ env.COMPILER }}-build-cache
+      # - name: Restore Build Cache
+      #   uses: actions/cache/restore@v3
+      #   continue-on-error: true
+      #   with:
+      #     path: build
+      #     key: ${{ runner.os }}-${{ env.COMPILER }}-build-cache
 
       - name: Fetch Deps
         run: ci/actions/linux/install_deps.sh
@@ -136,16 +136,16 @@ jobs:
           submodules: "recursive"
           fetch-depth: 0 # full history needed for restoring file timestamps
 
-      - name: Restore Timestamps
-        uses: ./.github/actions/restore-git-mtimes
-        continue-on-error: true
+      # - name: Restore Timestamps
+      #   uses: ./.github/actions/restore-git-mtimes
+      #   continue-on-error: true
 
-      - name: Restore Build Cache
-        uses: actions/cache/restore@v3
-        continue-on-error: true
-        with:
-          path: build
-          key: ${{ runner.os }}-build-cache
+      # - name: Restore Build Cache
+      #   uses: actions/cache/restore@v3
+      #   continue-on-error: true
+      #   with:
+      #     path: build
+      #     key: ${{ runner.os }}-build-cache
 
       - name: Windows Defender
         run: ci/actions/windows/disable_windows_defender.ps1
