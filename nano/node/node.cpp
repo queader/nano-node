@@ -66,14 +66,6 @@ nano::outbound_bandwidth_limiter::config nano::outbound_bandwidth_limiter_config
 	return cfg;
 }
 
-nano::optimistic_scheduler::config nano::optimistic_scheduler_config (const nano::node_config & config)
-{
-	nano::optimistic_scheduler::config cfg;
-	// TODO: Use node configuration
-	cfg.optimistic_gap_threshold = 32;
-	return cfg;
-}
-
 /*
  * node
  */
@@ -203,8 +195,8 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 	generator{ config, ledger, wallets, vote_processor, history, network, stats, /* non-final */ false },
 	final_generator{ config, ledger, wallets, vote_processor, history, network, stats, /* final */ true },
 	active (*this, confirmation_height_processor),
-	optimistic{ nano::optimistic_scheduler_config (config), *this, active, stats },
-	scheduler{ *this, optimistic },
+	optimistic{ config.optimistic_scheduler, *this, ledger, active, network_params.network, stats },
+	scheduler{ *this, stats },
 	hinting{ nano::nodeconfig_to_hinted_scheduler_config (config), *this, inactive_vote_cache, active, online_reps, stats },
 	aggregator (config, stats, generator, final_generator, history, ledger, wallets, active),
 	wallets (wallets_store.init_error (), *this),
@@ -225,6 +217,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 
 	backlog.activate_callback.add ([this] (nano::transaction const & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info) {
 		scheduler.activate (account, transaction);
+		optimistic.activate (account, account_info, conf_info);
 	});
 
 	if (!init_error ())

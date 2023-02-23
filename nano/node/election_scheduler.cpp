@@ -1,9 +1,9 @@
 #include <nano/node/election_scheduler.hpp>
 #include <nano/node/node.hpp>
 
-nano::election_scheduler::election_scheduler (nano::node & node_a, nano::optimistic_scheduler & optimistic_a) :
+nano::election_scheduler::election_scheduler (nano::node & node_a, nano::stats & stats_a) :
 	node{ node_a },
-	optimistic{ optimistic_a }
+	stats{ stats_a }
 {
 }
 
@@ -51,15 +51,12 @@ bool nano::election_scheduler::activate (nano::account const & account_a, nano::
 		if (conf_info.height < info->block_count)
 		{
 			debug_assert (conf_info.frontier != info->head);
-
-			// Notify optimistic scheduler here to avoid fetching account info from database twice
-			optimistic.activate (account_a, *info, conf_info);
-
 			auto hash = conf_info.height == 0 ? info->open_block : node.store.block.successor (transaction, conf_info.frontier);
 			auto block = node.store.block.get (transaction, hash);
 			debug_assert (block != nullptr);
 			if (node.ledger.dependents_confirmed (transaction, *block))
 			{
+				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::activated);
 				auto balance = node.ledger.balance (transaction, hash);
 				auto previous_balance = node.ledger.balance (transaction, conf_info.frontier);
 				nano::lock_guard<nano::mutex> lock{ mutex };
@@ -138,9 +135,12 @@ void nano::election_scheduler::run ()
 		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
 		if (!stopped)
 		{
+			stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
+
 			if (overfill_predicate ())
 			{
 				lock.unlock ();
+				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::erase_oldest);
 				node.active.erase_oldest ();
 			}
 			else if (manual_queue_predicate ())
@@ -148,20 +148,23 @@ void nano::election_scheduler::run ()
 				auto const [block, previous_balance, election_behavior] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
-				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
-				node.active.insert_impl (lock2, block, election_behavior);
+				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_manual);
+				node.active.insert (block, election_behavior);
 			}
 			else if (priority_queue_predicate ())
 			{
 				auto block = priority.top ();
 				priority.pop ();
 				lock.unlock ();
-				std::shared_ptr<nano::election> election;
-				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
-				election = node.active.insert_impl (lock2, block).election;
-				if (election != nullptr)
+				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
+				auto result = node.active.insert (block);
+				if (result.inserted)
 				{
-					election->transition_active ();
+					stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority_success);
+				}
+				if (result.election != nullptr)
+				{
+					result.election->transition_active ();
 				}
 			}
 			else

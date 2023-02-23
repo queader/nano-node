@@ -428,6 +428,7 @@ TEST (active_transactions, inactive_votes_cache_election_start)
 	nano::test::system system;
 	nano::node_config node_config (nano::test::get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
+	node_config.optimistic_scheduler.enabled = false;
 	auto & node = *system.add_node (node_config);
 	nano::block_hash latest (node.latest (nano::dev::genesis_key.pub));
 	nano::keypair key1, key2;
@@ -646,7 +647,7 @@ TEST (active_transactions, dropped_cleanup)
 	ASSERT_FALSE (node.network.publish_filter.apply (block_bytes.data (), block_bytes.size ()));
 
 	// An election was recently dropped
-	ASSERT_EQ (1, node.stats.count (nano::stat::type::election, nano::stat::detail::election_drop_all));
+	ASSERT_EQ (1, node.stats.count (nano::stat::type::active_dropped, nano::stat::detail::normal));
 
 	// Block cleared from active
 	ASSERT_FALSE (node.active.active (nano::dev::genesis->hash ()));
@@ -664,7 +665,7 @@ TEST (active_transactions, dropped_cleanup)
 	ASSERT_TRUE (node.network.publish_filter.apply (block_bytes.data (), block_bytes.size ()));
 
 	// Not dropped
-	ASSERT_EQ (1, node.stats.count (nano::stat::type::election, nano::stat::detail::election_drop_all));
+	ASSERT_EQ (1, node.stats.count (nano::stat::type::active_dropped, nano::stat::detail::normal));
 
 	// Block cleared from active
 	ASSERT_FALSE (node.active.active (nano::dev::genesis->hash ()));
@@ -1403,7 +1404,7 @@ TEST (active_transactions, fifo)
 	ASSERT_TIMELY (5s, node.active.size () == 1);
 
 	// Ensure overflow stats have been incremented
-	ASSERT_EQ (1, node.stats.count (nano::stat::type::election, nano::stat::detail::election_drop_overflow));
+	ASSERT_EQ (1, node.stats.count (nano::stat::type::active_dropped, nano::stat::detail::normal));
 
 	// Ensure the surviving transaction is the least recently inserted
 	ASSERT_TIMELY (1s, node.active.election (receive2->qualified_root ()) != nullptr);
@@ -1418,6 +1419,7 @@ TEST (active_transactions, limit_vote_hinted_elections)
 	nano::node_config config = system.default_config ();
 	const int aec_limit = 10;
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
+	config.optimistic_scheduler.enabled = false;
 	config.active_elections_size = aec_limit;
 	config.active_elections_hinted_limit_percentage = 10; // Should give us a limit of 1 hinted election
 	auto & node = *system.add_node (config);
@@ -1471,7 +1473,7 @@ TEST (active_transactions, limit_vote_hinted_elections)
 	ASSERT_TIMELY (5s, nano::test::active (node, { open1 }));
 
 	// Ensure there was no overflow of elections
-	ASSERT_EQ (0, node.stats.count (nano::stat::type::election, nano::stat::detail::election_drop_overflow));
+	ASSERT_EQ (0, node.stats.count (nano::stat::type::active_dropped, nano::stat::detail::normal));
 }
 
 /*
@@ -1518,9 +1520,9 @@ TEST (active_transactions, allow_limited_overflow)
 	}
 
 	// Ensure active elections overfill AEC only up to normal + hinted limit
-	ASSERT_TIMELY_EQ (5s, node.active.size (), node.active.limit () + node.active.hinted_limit ());
+	ASSERT_TIMELY_EQ (5s, node.active.size (), node.active.limit () + node.active.limit (nano::election_behavior::hinted));
 	// And it stays that way without increasing
-	ASSERT_ALWAYS (1s, node.active.size () == node.active.limit () + node.active.hinted_limit ());
+	ASSERT_ALWAYS (1s, node.active.size () == node.active.limit () + node.active.limit (nano::election_behavior::hinted));
 }
 
 /*
@@ -1556,9 +1558,9 @@ TEST (active_transactions, allow_limited_overflow_adapt)
 	}
 
 	// Ensure hinted election amount is bounded by hinted limit
-	ASSERT_TIMELY_EQ (5s, node.active.size (), node.active.hinted_limit ());
+	ASSERT_TIMELY_EQ (5s, node.active.size (), node.active.limit (nano::election_behavior::hinted));
 	// And it stays that way without increasing
-	ASSERT_ALWAYS (1s, node.active.size () == node.active.hinted_limit ());
+	ASSERT_ALWAYS (1s, node.active.size () == node.active.limit (nano::election_behavior::hinted));
 
 	// Insert the first part of the blocks into normal election scheduler
 	for (auto const & block : blocks1)

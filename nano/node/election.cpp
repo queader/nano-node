@@ -650,6 +650,28 @@ std::vector<nano::vote_with_weight_info> nano::election::votes_with_weight () co
 	return result;
 }
 
+nano::stat::detail nano::to_stat_detail (nano::election_behavior behavior)
+{
+	switch (behavior)
+	{
+		case nano::election_behavior::normal:
+		{
+			return nano::stat::detail::normal;
+		}
+		case nano::election_behavior::hinted:
+		{
+			return nano::stat::detail::hinted;
+		}
+		case nano::election_behavior::optimistic:
+		{
+			return nano::stat::detail::optimistic;
+		}
+	}
+
+	debug_assert (false, "unknown election behavior");
+	return {};
+}
+
 nano::election_behavior nano::election::behavior () const
 {
 	return behavior_m;

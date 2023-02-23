@@ -20,7 +20,7 @@ class optimistic_scheduler;
 class election_scheduler final
 {
 public:
-	election_scheduler (nano::node &, nano::optimistic_scheduler &);
+	election_scheduler (nano::node &, nano::stats &);
 	~election_scheduler ();
 
 	void start ();
@@ -42,16 +42,16 @@ public:
 	std::size_t priority_queue_size () const;
 	std::unique_ptr<container_info_component> collect_container_info (std::string const &);
 
+private: // Dependencies
+	nano::node & node;
+	nano::stats & stats;
+
 private:
 	void run ();
 	bool empty_locked () const;
 	bool priority_queue_predicate () const;
 	bool manual_queue_predicate () const;
 	bool overfill_predicate () const;
-
-private: // Dependencies
-	nano::node & node;
-	nano::optimistic_scheduler & optimistic;
 
 private:
 	nano::prioritization priority;

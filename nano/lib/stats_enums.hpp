@@ -35,15 +35,21 @@ enum class type : uint8_t
 	blockprocessor,
 	bootstrap_server,
 	active,
-	bootstrap_server_requests,
-	bootstrap_server_responses,
+	active_started,
+	active_confirmed,
+	active_dropped,
+	active_timeout,
 	backlog,
 	unchecked,
+	election_scheduler,
+	optimistic_scheduler,
+
+	bootstrap_server_requests,
+	bootstrap_server_responses,
 	bootstrap_ascending,
 	bootstrap_ascending_connections,
 	bootstrap_ascending_thread,
 	bootstrap_ascending_accounts,
-	optimistic,
 
 	_last // Must be the last enum
 };
@@ -58,7 +64,6 @@ enum class detail : uint8_t
 	total,
 	process,
 	update,
-	insert,
 	request,
 	broadcast,
 
@@ -149,23 +154,20 @@ enum class detail : uint8_t
 	vote_cached,
 	late_block,
 	late_block_seconds,
-	election_start,
-	election_confirmed_all,
 	election_block_conflict,
-	election_difficulty_update,
-	election_drop_expired,
-	election_drop_overflow,
-	election_drop_all,
 	election_restart,
-	election_confirmed,
 	election_not_confirmed,
 	election_hinted_overflow,
-	election_hinted_started,
 	election_hinted_confirmed,
 	election_hinted_drop,
 	generate_vote,
 	generate_vote_normal,
 	generate_vote_final,
+
+	// election types
+	normal,
+	hinted,
+	optimistic,
 
 	// received messages
 	invalid_header,
@@ -247,8 +249,6 @@ enum class detail : uint8_t
 	generator_spacing,
 
 	// hinting
-	hinted,
-	insert_failed,
 	missing_block,
 
 	// bootstrap server
@@ -265,10 +265,20 @@ enum class detail : uint8_t
 	// backlog
 	activated,
 
+	// active
+	insert,
+	insert_failed,
+
 	// unchecked
 	put,
 	satisfied,
 	trigger,
+
+	// election scheduler
+	insert_manual,
+	insert_priority,
+	insert_priority_success,
+	erase_oldest,
 
 	// bootstrap ascending
 	missing_tag,
