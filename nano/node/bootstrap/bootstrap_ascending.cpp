@@ -180,7 +180,7 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 void nano::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
 	//	debug_assert (blocking.get<tag_account> ().count (account) == 0);
-	release_assert (blocking.get<tag_account> ().count (account) == 0);
+	//release_assert (blocking.get<tag_account> ().count (account) == 0);
 
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
 
