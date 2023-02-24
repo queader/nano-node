@@ -44,6 +44,8 @@ add_library(
   bootstrap/bootstrap.cpp
   bootstrap/bootstrap_server.hpp
   bootstrap/bootstrap_server.cpp
+        channel.hpp
+        channel.cpp
   cli.hpp
   cli.cpp
   common.hpp
