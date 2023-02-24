@@ -1660,12 +1660,6 @@ bool nano::node_id_handshake::is_response (nano::message_header const & header)
 	return result;
 }
 
-bool nano::node_id_handshake::operator== (nano::node_id_handshake const & other_a) const
-{
-	bool result = (*query == *other_a.query && *response == *other_a.response);
-	return result;
-}
-
 void nano::node_id_handshake::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.node_id_handshake (*this);

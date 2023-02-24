@@ -381,7 +381,6 @@ public:
 	bool deserialize (nano::stream &);
 
 	void visit (nano::message_visitor &) const override;
-	bool operator== (nano::node_id_handshake const &) const;
 	std::size_t size () const;
 	static std::size_t size (nano::message_header const &);
 	std::string to_string () const;
