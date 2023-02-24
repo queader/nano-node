@@ -1708,7 +1708,7 @@ void nano::node_id_handshake::query_payload::serialize (nano::stream & stream) c
 	nano::write (stream, cookie);
 }
 
-bool nano::node_id_handshake::query_payload::deserialize (nano::stream & stream)
+void nano::node_id_handshake::query_payload::deserialize (nano::stream & stream)
 {
 	nano::read (stream, cookie);
 }
@@ -1723,7 +1723,7 @@ void nano::node_id_handshake::response_payload::serialize (nano::stream & stream
 	nano::write (stream, signature);
 }
 
-bool nano::node_id_handshake::response_payload::deserialize (nano::stream & stream)
+void nano::node_id_handshake::response_payload::deserialize (nano::stream & stream)
 {
 	nano::read (stream, node_id);
 	nano::read (stream, signature);

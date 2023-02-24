@@ -347,12 +347,12 @@ public:
 
 class node_id_handshake final : public message
 {
-public:
+public: // Payload definitions
 	class query_payload
 	{
 	public:
 		void serialize (nano::stream &) const;
-		bool deserialize (nano::stream &);
+		void deserialize (nano::stream &);
 
 		static std::size_t constexpr size = sizeof (nano::uint256_union);
 
@@ -364,7 +364,7 @@ public:
 	{
 	public:
 		void serialize (nano::stream &) const;
-		bool deserialize (nano::stream &);
+		void deserialize (nano::stream &);
 
 		static std::size_t constexpr size = sizeof (nano::account) + sizeof (nano::signature);
 
@@ -374,8 +374,8 @@ public:
 	};
 
 public:
+	explicit node_id_handshake (nano::network_constants const &, std::optional<query_payload> query = std::nullopt, std::optional<response_payload> response = std::nullopt);
 	node_id_handshake (bool &, nano::stream &, nano::message_header const &);
-	node_id_handshake (nano::network_constants const &, std::optional<query_payload> query = std::nullopt, std::optional<response_payload> response = std::nullopt);
 
 	void serialize (nano::stream &) const override;
 	bool deserialize (nano::stream &);
