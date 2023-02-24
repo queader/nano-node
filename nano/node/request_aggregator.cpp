@@ -24,17 +24,17 @@ nano::request_aggregator::request_aggregator (nano::node_config const & config_a
 	final_generator (final_generator_a),
 	thread ([this] () { run (); })
 {
-	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
+	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::channel> const & channel_a) {
 		this->reply_action (vote_a, channel_a);
 	});
-	final_generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
+	final_generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::channel> const & channel_a) {
 		this->reply_action (vote_a, channel_a);
 	});
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	condition.wait (lock, [&started = started] { return started; });
 }
 
-void nano::request_aggregator::add (std::shared_ptr<nano::transport::channel> const & channel_a, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots_a)
+void nano::request_aggregator::add (std::shared_ptr<nano::channel> const & channel_a, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots_a)
 {
 	debug_assert (wallets.reps ().voting > 0);
 	bool error = true;
@@ -148,7 +148,7 @@ bool nano::request_aggregator::empty ()
 	return size () == 0;
 }
 
-void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const
+void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::channel> const & channel_a) const
 {
 	nano::confirm_ack confirm{ config.network_params.network, vote_a };
 	channel_a->send (confirm);
@@ -165,7 +165,7 @@ void nano::request_aggregator::erase_duplicates (std::vector<std::pair<nano::blo
 	requests_a.end ());
 }
 
-std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> & channel_a) const
+std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr<nano::block>>> nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::channel> & channel_a) const
 {
 	auto transaction (ledger.store.tx_begin_read ());
 	std::vector<std::shared_ptr<nano::block>> to_generate;

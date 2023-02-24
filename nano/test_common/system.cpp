@@ -28,13 +28,13 @@ nano::node & nano::test::system::node (std::size_t index) const
 	return *nodes[index];
 }
 
-std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_flags node_flags_a, nano::transport::transport_type type_a)
+std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_flags node_flags_a, nano::transport_type type_a)
 {
 	return add_node (default_config (), node_flags_a, type_a);
 }
 
 /** Returns the node added. */
-std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config const & node_config_a, nano::node_flags node_flags_a, nano::transport::transport_type type_a, std::optional<nano::keypair> const & rep)
+std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config const & node_config_a, nano::node_flags node_flags_a, nano::transport_type type_a, std::optional<nano::keypair> const & rep)
 {
 	auto node (std::make_shared<nano::node> (io_ctx, nano::unique_path (), node_config_a, work, node_flags_a, node_sequence++));
 	for (auto i : initialization_blocks)
@@ -70,7 +70,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 			auto starting_keepalives_2 = node2->stats.count (stat::type::message, stat::detail::keepalive, stat::dir::in);
 
 			// TCP is the only transport layer available.
-			debug_assert (type_a == nano::transport::transport_type::tcp);
+			debug_assert (type_a == nano::transport_type::tcp);
 			(*j)->network.merge_peer ((*i)->network.endpoint ());
 
 			{
@@ -82,7 +82,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 				debug_assert (!ec);
 			}
 
-			if (type_a == nano::transport::transport_type::tcp && node_config_a.tcp_incoming_connections_max != 0 && !node_flags_a.disable_tcp_realtime)
+			if (type_a == nano::transport_type::tcp && node_config_a.tcp_incoming_connections_max != 0 && !node_flags_a.disable_tcp_realtime)
 			{
 				{
 					// Wait for initial connection finish
@@ -134,7 +134,7 @@ nano::test::system::system ()
 	logging.init (nano::unique_path ());
 }
 
-nano::test::system::system (uint16_t count_a, nano::transport::transport_type type_a, nano::node_flags flags_a) :
+nano::test::system::system (uint16_t count_a, nano::transport_type type_a, nano::node_flags flags_a) :
 	system ()
 {
 	nodes.reserve (count_a);

@@ -53,7 +53,7 @@ void nano::telemetry::stop ()
 	nano::join_or_pass (thread);
 }
 
-bool nano::telemetry::verify (const nano::telemetry_ack & telemetry, const std::shared_ptr<nano::transport::channel> & channel) const
+bool nano::telemetry::verify (const nano::telemetry_ack & telemetry, const std::shared_ptr<nano::channel> & channel) const
 {
 	if (telemetry.is_empty_payload ())
 	{
@@ -86,7 +86,7 @@ bool nano::telemetry::verify (const nano::telemetry_ack & telemetry, const std::
 	return true; // Telemetry is OK
 }
 
-void nano::telemetry::process (const nano::telemetry_ack & telemetry, const std::shared_ptr<nano::transport::channel> & channel)
+void nano::telemetry::process (const nano::telemetry_ack & telemetry, const std::shared_ptr<nano::channel> & channel)
 {
 	if (!verify (telemetry, channel))
 	{
@@ -211,7 +211,7 @@ void nano::telemetry::run_requests ()
 	}
 }
 
-void nano::telemetry::request (std::shared_ptr<nano::transport::channel> & channel)
+void nano::telemetry::request (std::shared_ptr<nano::channel> & channel)
 {
 	stats.inc (nano::stat::type::telemetry, nano::stat::detail::request);
 
@@ -230,7 +230,7 @@ void nano::telemetry::run_broadcasts ()
 	}
 }
 
-void nano::telemetry::broadcast (std::shared_ptr<nano::transport::channel> & channel, const nano::telemetry_data & telemetry)
+void nano::telemetry::broadcast (std::shared_ptr<nano::channel> & channel, const nano::telemetry_data & telemetry)
 {
 	stats.inc (nano::stat::type::telemetry, nano::stat::detail::broadcast);
 

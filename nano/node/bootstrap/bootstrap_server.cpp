@@ -2,6 +2,7 @@
 #include <nano/node/transport/transport.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
+#include <nano/node/channel.hpp>
 
 // TODO: Make threads configurable
 nano::bootstrap_server::bootstrap_server (nano::store & store_a, nano::ledger & ledger_a, nano::network_constants const & network_constants_a, nano::stats & stats_a) :
@@ -70,7 +71,7 @@ bool nano::bootstrap_server::verify (const nano::asc_pull_req & message) const
 	return std::visit (verify_visitor{}, message.payload);
 }
 
-bool nano::bootstrap_server::request (nano::asc_pull_req const & message, std::shared_ptr<nano::transport::channel> channel)
+bool nano::bootstrap_server::request (nano::asc_pull_req const & message, std::shared_ptr<nano::channel> channel)
 {
 	if (!verify (message))
 	{
@@ -90,7 +91,7 @@ bool nano::bootstrap_server::request (nano::asc_pull_req const & message, std::s
 	return true;
 }
 
-void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> & channel)
+void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::channel> & channel)
 {
 	stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response, nano::stat::dir::out);
 

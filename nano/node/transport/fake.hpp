@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/node/channel.hpp>
 #include <nano/node/transport/transport.hpp>
 
 namespace nano
@@ -11,7 +12,7 @@ namespace transport
 	 **/
 	namespace fake
 	{
-		class channel final : public nano::transport::channel
+		class channel final : public nano::channel
 		{
 		public:
 			explicit channel (nano::node &);
@@ -27,7 +28,7 @@ namespace transport
 			) override;
 			// clang-format on
 
-			bool operator== (nano::transport::channel const &) const override;
+			bool operator== (nano::channel const &) const override;
 			bool operator== (nano::transport::fake::channel const & other_a) const;
 
 			void set_endpoint (nano::endpoint const & endpoint_a)
@@ -45,9 +46,9 @@ namespace transport
 				return nano::transport::map_endpoint_to_tcp (endpoint);
 			}
 
-			nano::transport::transport_type get_type () const override
+			nano::transport_type get_type () const override
 			{
-				return nano::transport::transport_type::fake;
+				return nano::transport_type::fake;
 			}
 
 			void close ()

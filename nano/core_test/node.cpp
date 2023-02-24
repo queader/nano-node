@@ -772,7 +772,7 @@ TEST (node, fork_flip)
 
 TEST (node, fork_multi_flip)
 {
-	auto type = nano::transport::transport_type::tcp;
+	auto type = nano::transport_type::tcp;
 	nano::test::system system;
 	nano::node_flags node_flags;
 	nano::node_config node_config (nano::test::get_available_port (), system.logging);
@@ -1256,7 +1256,7 @@ TEST (node, DISABLED_fork_stale)
 // Issue for investigating it: https://github.com/nanocurrency/nano-node/issues/3516
 TEST (node, DISABLED_broadcast_elected)
 {
-	auto type = nano::transport::transport_type::tcp;
+	auto type = nano::transport_type::tcp;
 	nano::node_flags node_flags;
 	nano::test::system system;
 	nano::node_config node_config (nano::test::get_available_port (), system.logging);
@@ -1757,11 +1757,11 @@ TEST (node, rep_weight)
 		ASSERT_EQ (nano::process_result::progress, node.ledger.process (transaction, *block4).code);
 	}
 	ASSERT_TRUE (node.rep_crawler.representatives (1).empty ());
-	std::shared_ptr<nano::transport::channel> channel1 = nano::test::establish_tcp (system, node, node1.network.endpoint ());
+	std::shared_ptr<nano::channel> channel1 = nano::test::establish_tcp (system, node, node1.network.endpoint ());
 	ASSERT_NE (nullptr, channel1);
-	std::shared_ptr<nano::transport::channel> channel2 = nano::test::establish_tcp (system, node, node2.network.endpoint ());
+	std::shared_ptr<nano::channel> channel2 = nano::test::establish_tcp (system, node, node2.network.endpoint ());
 	ASSERT_NE (nullptr, channel2);
-	std::shared_ptr<nano::transport::channel> channel3 = nano::test::establish_tcp (system, node, node3.network.endpoint ());
+	std::shared_ptr<nano::channel> channel3 = nano::test::establish_tcp (system, node, node3.network.endpoint ());
 	ASSERT_NE (nullptr, channel3);
 	auto vote0 = std::make_shared<nano::vote> (nano::dev::genesis_key.pub, nano::dev::genesis_key.prv, 0, 0, std::vector<nano::block_hash>{ nano::dev::genesis->hash () });
 	auto vote1 = std::make_shared<nano::vote> (keypair1.pub, keypair1.prv, 0, 0, std::vector<nano::block_hash>{ nano::dev::genesis->hash () });
@@ -1879,7 +1879,7 @@ TEST (node, rep_remove)
 	auto node_rep2 (std::make_shared<nano::node> (system.io_ctx, nano::unique_path (), nano::node_config (nano::test::get_available_port (), system.logging), system.work));
 	node_rep2->start ();
 	searching_node.network.tcp_channels.start_tcp (node_rep2->network.endpoint ());
-	std::shared_ptr<nano::transport::channel> channel_rep2;
+	std::shared_ptr<nano::channel> channel_rep2;
 	ASSERT_TIMELY (10s, (channel_rep2 = searching_node.network.tcp_channels.find_node_id (node_rep2->get_node_id ())) != nullptr);
 
 	// Rep2 should be found as a principal representative after receiving a vote from it
@@ -2130,7 +2130,7 @@ TEST (node, online_reps_election)
 
 TEST (node, block_confirm)
 {
-	auto type = nano::transport::transport_type::tcp;
+	auto type = nano::transport_type::tcp;
 	nano::node_flags node_flags;
 	nano::test::system system (2, type, node_flags);
 	auto & node1 (*system.nodes[0]);
@@ -2590,7 +2590,7 @@ TEST (node, vote_by_hash_bundle)
 	nano::keypair key1;
 	system.wallet (0)->insert_adhoc (key1.prv);
 
-	system.nodes[0]->observers.vote.add ([&max_hashes] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const &, nano::vote_code) {
+	system.nodes[0]->observers.vote.add ([&max_hashes] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::channel> const &, nano::vote_code) {
 		if (vote_a->hashes.size () > max_hashes)
 		{
 			max_hashes = vote_a->hashes.size ();
@@ -3195,11 +3195,11 @@ TEST (node, peers)
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node1->network.list (2));
 	ASSERT_EQ (node2->get_node_id (), list1[0]->get_node_id ());
-	ASSERT_EQ (nano::transport::transport_type::tcp, list1[0]->get_type ());
+	ASSERT_EQ (nano::transport_type::tcp, list1[0]->get_type ());
 	ASSERT_EQ (1, node2->network.size ());
 	auto list2 (node2->network.list (2));
 	ASSERT_EQ (node1->get_node_id (), list2[0]->get_node_id ());
-	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
+	ASSERT_EQ (nano::transport_type::tcp, list2[0]->get_type ());
 
 	// Uncontactable peer should not be stored
 	ASSERT_TIMELY_EQ (5s, store.peer.count (store.tx_begin_read ()), 1);
@@ -3357,11 +3357,11 @@ TEST (node, bidirectional_tcp)
 	ASSERT_EQ (1, node1->network.size ());
 	ASSERT_EQ (1, node2->network.size ());
 	auto list1 (node1->network.list (1));
-	ASSERT_EQ (nano::transport::transport_type::tcp, list1[0]->get_type ());
+	ASSERT_EQ (nano::transport_type::tcp, list1[0]->get_type ());
 	ASSERT_NE (node2->network.endpoint (), list1[0]->get_endpoint ()); // Ephemeral port
 	ASSERT_EQ (node2->node_id.pub, list1[0]->get_node_id ());
 	auto list2 (node2->network.list (1));
-	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
+	ASSERT_EQ (nano::transport_type::tcp, list2[0]->get_type ());
 	ASSERT_EQ (node1->network.endpoint (), list2[0]->get_endpoint ());
 	ASSERT_EQ (node1->node_id.pub, list2[0]->get_node_id ());
 	// Test block propagation from node 1

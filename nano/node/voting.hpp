@@ -117,7 +117,7 @@ class vote_generator final
 {
 private:
 	using candidate_t = std::pair<nano::root, nano::block_hash>;
-	using request_t = std::pair<std::vector<candidate_t>, std::shared_ptr<nano::transport::channel>>;
+	using request_t = std::pair<std::vector<candidate_t>, std::shared_ptr<nano::channel>>;
 	using queue_entry_t = std::pair<nano::root, nano::block_hash>;
 
 public:
@@ -127,8 +127,8 @@ public:
 	/** Queue items for vote generation, or broadcast votes already in cache */
 	void add (nano::root const &, nano::block_hash const &);
 	/** Queue blocks for vote generation, returning the number of successful candidates.*/
-	std::size_t generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::transport::channel> const & channel_a);
-	void set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)>);
+	std::size_t generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::channel> const & channel_a);
+	void set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::channel> const &)>);
 
 	void start ();
 	void stop ();
@@ -147,7 +147,7 @@ private:
 	void process (nano::write_transaction const &, nano::root const &, nano::block_hash const &);
 
 private:
-	std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> &)> reply_action; // must be set only during initialization by using set_reply_action
+	std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::channel> &)> reply_action; // must be set only during initialization by using set_reply_action
 
 private: // Dependencies
 	nano::node_config const & config;

@@ -30,7 +30,7 @@ TEST (request_aggregator, one)
 	std::vector<std::pair<nano::block_hash, nano::root>> request;
 	request.emplace_back (send1->hash (), send1->root ());
 	auto client = std::make_shared<nano::client_socket> (node);
-	std::shared_ptr<nano::transport::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
+	std::shared_ptr<nano::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
 	node.aggregator.add (dummy_channel, request);
 	ASSERT_EQ (1, node.aggregator.size ());
 	ASSERT_TIMELY (3s, node.aggregator.empty ());
@@ -99,7 +99,7 @@ TEST (request_aggregator, one_update)
 	std::vector<std::pair<nano::block_hash, nano::root>> request;
 	request.emplace_back (send2->hash (), send2->root ());
 	auto client = std::make_shared<nano::client_socket> (node);
-	std::shared_ptr<nano::transport::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
+	std::shared_ptr<nano::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
 	node.aggregator.add (dummy_channel, request);
 	request.clear ();
 	request.emplace_back (receive1->hash (), receive1->root ());
@@ -166,7 +166,7 @@ TEST (request_aggregator, two)
 	request.emplace_back (send2->hash (), send2->root ());
 	request.emplace_back (receive1->hash (), receive1->root ());
 	auto client = std::make_shared<nano::client_socket> (node);
-	std::shared_ptr<nano::transport::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
+	std::shared_ptr<nano::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
 	// Process both blocks
 	node.aggregator.add (dummy_channel, request);
 	ASSERT_EQ (1, node.aggregator.size ());
@@ -290,7 +290,7 @@ TEST (request_aggregator, split)
 	ASSERT_TIMELY (5s, max_vbh + 2 == node.ledger.cache.cemented_count);
 	ASSERT_EQ (max_vbh + 1, request.size ());
 	auto client = std::make_shared<nano::client_socket> (node);
-	std::shared_ptr<nano::transport::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
+	std::shared_ptr<nano::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
 	node.aggregator.add (dummy_channel, request);
 	ASSERT_EQ (1, node.aggregator.size ());
 	// In the ledger but no vote generated yet
@@ -331,7 +331,7 @@ TEST (request_aggregator, channel_lifetime)
 	{
 		// The aggregator should extend the lifetime of the channel
 		auto client = std::make_shared<nano::client_socket> (node);
-		std::shared_ptr<nano::transport::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
+		std::shared_ptr<nano::channel> dummy_channel = std::make_shared<nano::transport::channel_tcp> (node, client);
 		node.aggregator.add (dummy_channel, request);
 	}
 	ASSERT_EQ (1, node.aggregator.size ());
@@ -359,14 +359,14 @@ TEST (request_aggregator, channel_update)
 	ASSERT_EQ (nano::process_result::progress, node.ledger.process (node.store.tx_begin_write (), *send1).code);
 	std::vector<std::pair<nano::block_hash, nano::root>> request;
 	request.emplace_back (send1->hash (), send1->root ());
-	std::weak_ptr<nano::transport::channel> channel1_w;
+	std::weak_ptr<nano::channel> channel1_w;
 	{
 		auto client1 = std::make_shared<nano::client_socket> (node);
-		std::shared_ptr<nano::transport::channel> dummy_channel1 = std::make_shared<nano::transport::channel_tcp> (node, client1);
+		std::shared_ptr<nano::channel> dummy_channel1 = std::make_shared<nano::transport::channel_tcp> (node, client1);
 		channel1_w = dummy_channel1;
 		node.aggregator.add (dummy_channel1, request);
 		auto client2 = std::make_shared<nano::client_socket> (node);
-		std::shared_ptr<nano::transport::channel> dummy_channel2 = std::make_shared<nano::transport::channel_tcp> (node, client2);
+		std::shared_ptr<nano::channel> dummy_channel2 = std::make_shared<nano::transport::channel_tcp> (node, client2);
 		// The aggregator then hold channel2 and drop channel1
 		node.aggregator.add (dummy_channel2, request);
 	}

@@ -33,7 +33,7 @@ std::size_t nano::transport::channel_tcp::hash_code () const
 	return hash (get_tcp_endpoint ());
 }
 
-bool nano::transport::channel_tcp::operator== (nano::transport::channel const & other_a) const
+bool nano::transport::channel_tcp::operator== (nano::channel const & other_a) const
 {
 	bool result (false);
 	auto other_l (dynamic_cast<nano::transport::channel_tcp const *> (&other_a));
@@ -113,7 +113,7 @@ void nano::transport::channel_tcp::set_endpoint ()
  * tcp_channels
  */
 
-nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink) :
+nano::transport::tcp_channels::tcp_channels (nano::node & node, std::function<void (nano::message const &, std::shared_ptr<nano::channel> const &)> sink) :
 	node{ node },
 	sink{ std::move (sink) }
 {
@@ -170,9 +170,9 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::fin
 	return result;
 }
 
-std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::transport::tcp_channels::random_set (std::size_t count_a, uint8_t min_version, bool include_temporary_channels_a) const
+std::unordered_set<std::shared_ptr<nano::channel>> nano::transport::tcp_channels::random_set (std::size_t count_a, uint8_t min_version, bool include_temporary_channels_a) const
 {
-	std::unordered_set<std::shared_ptr<nano::transport::channel>> result;
+	std::unordered_set<std::shared_ptr<nano::channel>> result;
 	result.reserve (count_a);
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	// Stop trying to fill result with random samples after this many attempts
@@ -498,7 +498,7 @@ void nano::transport::tcp_channels::ongoing_keepalive ()
 	});
 }
 
-void nano::transport::tcp_channels::list (std::deque<std::shared_ptr<nano::transport::channel>> & deque_a, uint8_t minimum_version_a, bool include_temporary_channels_a)
+void nano::transport::tcp_channels::list (std::deque<std::shared_ptr<nano::channel>> & deque_a, uint8_t minimum_version_a, bool include_temporary_channels_a)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	// clang-format off

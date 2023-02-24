@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/node/channel.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/transport/transport.hpp>
 
@@ -29,15 +30,16 @@ namespace transport
 	class tcp_server;
 	class tcp_channels;
 
-	class channel_tcp : public nano::transport::channel
+	class channel_tcp : public nano::channel
 	{
 		friend class nano::transport::tcp_channels;
 
 	public:
 		channel_tcp (nano::node &, std::weak_ptr<nano::socket>);
 		~channel_tcp () override;
+
 		std::size_t hash_code () const override;
-		bool operator== (nano::transport::channel const &) const override;
+		bool operator== (nano::channel const &) const override;
 		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
 		//
 		void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter) override;
@@ -64,9 +66,9 @@ namespace transport
 			return endpoint;
 		}
 
-		nano::transport::transport_type get_type () const override
+		nano::transport_type get_type () const override
 		{
-			return nano::transport::transport_type::tcp;
+			return nano::transport_type::tcp;
 		}
 
 		virtual bool max () override
@@ -97,13 +99,13 @@ namespace transport
 		friend class telemetry_simultaneous_requests_Test;
 
 	public:
-		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
+		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::channel> const &)> = nullptr);
 		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
 		std::shared_ptr<nano::transport::channel_tcp> find_channel (nano::tcp_endpoint const &) const;
 		void random_fill (std::array<nano::endpoint, 8> &) const;
-		std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
+		std::unordered_set<std::shared_ptr<nano::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
 		bool store_all (bool = true);
 		std::shared_ptr<nano::transport::channel_tcp> find_node_id (nano::account const &);
 		// Get the next peer for attempting a tcp connection
@@ -121,7 +123,7 @@ namespace transport
 		std::unique_ptr<container_info_component> collect_container_info (std::string const &);
 		void purge (std::chrono::steady_clock::time_point const &);
 		void ongoing_keepalive ();
-		void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
+		void list (std::deque<std::shared_ptr<nano::channel>> &, uint8_t = 0, bool = true);
 		void modify (std::shared_ptr<nano::transport::channel_tcp> const &, std::function<void (std::shared_ptr<nano::transport::channel_tcp> const &)>);
 		void update (nano::tcp_endpoint const &);
 		// Connection start
@@ -130,7 +132,7 @@ namespace transport
 		nano::node & node;
 
 	private:
-		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
+		std::function<void (nano::message const &, std::shared_ptr<nano::channel> const &)> sink;
 		class endpoint_tag
 		{
 		};

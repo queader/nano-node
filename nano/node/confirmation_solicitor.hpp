@@ -38,7 +38,7 @@ private:
 	std::vector<nano::representative> representatives_requests;
 	std::vector<nano::representative> representatives_broadcasts;
 	using vector_root_hashes = std::vector<std::pair<nano::block_hash, nano::root>>;
-	std::unordered_map<std::shared_ptr<nano::transport::channel>, vector_root_hashes> requests;
+	std::unordered_map<std::shared_ptr<nano::channel>, vector_root_hashes> requests;
 	bool prepared{ false };
 };
 }

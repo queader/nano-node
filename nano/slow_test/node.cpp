@@ -251,7 +251,7 @@ TEST (node, fork_storm)
 
 	nano::node_flags flags;
 	flags.disable_max_peers_per_ip = true;
-	nano::test::system system (node_count, nano::transport::transport_type::tcp, flags);
+	nano::test::system system (node_count, nano::transport_type::tcp, flags);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	auto previous (system.nodes[0]->latest (nano::dev::genesis_key.pub));
 	auto balance (system.nodes[0]->balance (nano::dev::genesis_key.pub));
@@ -2141,7 +2141,7 @@ TEST (system, block_sequence)
 	{
 		system.wallet (0);
 		config.peering_port = nano::test::get_available_port ();
-		auto pr = system.add_node (config, flags, nano::transport::transport_type::tcp, rep);
+		auto pr = system.add_node (config, flags, nano::transport_type::tcp, rep);
 		for (auto j = 0; j < listeners_per_pr; ++j)
 		{
 			config.peering_port = nano::test::get_available_port ();

@@ -27,12 +27,12 @@ class representative
 {
 public:
 	representative () = default;
-	representative (nano::account account_a, nano::amount weight_a, std::shared_ptr<nano::transport::channel> const & channel_a) :
+	representative (nano::account account_a, nano::amount weight_a, std::shared_ptr<nano::channel> const & channel_a) :
 		account (account_a), weight (weight_a), channel (channel_a)
 	{
 		debug_assert (channel != nullptr);
 	}
-	std::reference_wrapper<nano::transport::channel const> channel_ref () const
+	std::reference_wrapper<nano::channel const> channel_ref () const
 	{
 		return *channel;
 	};
@@ -42,7 +42,7 @@ public:
 	}
 	nano::account account{};
 	nano::amount weight{ 0 };
-	std::shared_ptr<nano::transport::channel> channel;
+	std::shared_ptr<nano::channel> channel;
 	std::chrono::steady_clock::time_point last_request{ std::chrono::steady_clock::time_point () };
 	std::chrono::steady_clock::time_point last_response{ std::chrono::steady_clock::time_point () };
 };
@@ -70,7 +70,7 @@ class rep_crawler final
 		mi::ordered_non_unique<mi::tag<tag_weight>,
 			mi::member<representative, nano::amount, &representative::weight>, std::greater<nano::amount>>,
 		mi::hashed_non_unique<mi::tag<tag_channel_ref>,
-			mi::const_mem_fun<representative, std::reference_wrapper<nano::transport::channel const>, &representative::channel_ref>>>>;
+			mi::const_mem_fun<representative, std::reference_wrapper<nano::channel const>, &representative::channel_ref>>>>;
 	// clang-format on
 
 public:
@@ -86,13 +86,13 @@ public:
 	void throttled_remove (nano::block_hash const &, uint64_t const);
 
 	/** Attempt to determine if the peer manages one or more representative accounts */
-	void query (std::vector<std::shared_ptr<nano::transport::channel>> const & channels_a);
+	void query (std::vector<std::shared_ptr<nano::channel>> const & channels_a);
 
 	/** Attempt to determine if the peer manages one or more representative accounts */
-	void query (std::shared_ptr<nano::transport::channel> const & channel_a);
+	void query (std::shared_ptr<nano::channel> const & channel_a);
 
 	/** Query if a peer manages a principle representative */
-	bool is_pr (nano::transport::channel const &) const;
+	bool is_pr (nano::channel const &) const;
 
 	/**
 	 * Called when a non-replay vote on a block previously sent by query() is received. This indicates
@@ -100,7 +100,7 @@ public:
 	 * The force flag can be set to skip the active check in unit testing when we want to force a vote in the rep crawler.
 	 * @return false if any vote passed the checks and was added to the response queue of the rep crawler
 	 */
-	bool response (std::shared_ptr<nano::transport::channel> const &, std::shared_ptr<nano::vote> const &, bool force = false);
+	bool response (std::shared_ptr<nano::channel> const &, std::shared_ptr<nano::vote> const &, bool force = false);
 
 	/** Get total available weight from representatives */
 	nano::uint128_t total_weight () const;
@@ -112,7 +112,7 @@ public:
 	std::vector<representative> principal_representatives (std::size_t count_a = std::numeric_limits<std::size_t>::max (), boost::optional<decltype (nano::network_constants::protocol_version)> const & opt_version_min_a = boost::none);
 
 	/** Request a list of the top \p count_a known representative endpoints. */
-	std::vector<std::shared_ptr<nano::transport::channel>> representative_endpoints (std::size_t count_a);
+	std::vector<std::shared_ptr<nano::channel>> representative_endpoints (std::size_t count_a);
 
 	/** Total number of representatives */
 	std::size_t representative_count ();
@@ -133,10 +133,10 @@ private:
 	void ongoing_crawl ();
 
 	/** Returns a list of endpoints to crawl. The total weight is passed in to avoid computing it twice. */
-	std::vector<std::shared_ptr<nano::transport::channel>> get_crawl_targets (nano::uint128_t total_weight_a);
+	std::vector<std::shared_ptr<nano::channel>> get_crawl_targets (nano::uint128_t total_weight_a);
 
 	/** When a rep request is made, this is called to update the last-request timestamp. */
-	void on_rep_request (std::shared_ptr<nano::transport::channel> const & channel_a);
+	void on_rep_request (std::shared_ptr<nano::channel> const & channel_a);
 
 	/** Clean representatives with inactive channels */
 	void cleanup_reps ();
@@ -155,6 +155,6 @@ private:
 	friend class rep_crawler_local_Test;
 	friend class node_online_reps_rep_crawler_Test;
 
-	std::deque<std::pair<std::shared_ptr<nano::transport::channel>, std::shared_ptr<nano::vote>>> responses;
+	std::deque<std::pair<std::shared_ptr<nano::channel>, std::shared_ptr<nano::vote>>> responses;
 };
 }

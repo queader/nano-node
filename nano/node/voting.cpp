@@ -249,7 +249,7 @@ void nano::vote_generator::process_batch (std::deque<queue_entry_t> & batch)
 	}
 }
 
-std::size_t nano::vote_generator::generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::transport::channel> const & channel_a)
+std::size_t nano::vote_generator::generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::channel> const & channel_a)
 {
 	request_t::first_type req_candidates;
 	{
@@ -274,7 +274,7 @@ std::size_t nano::vote_generator::generate (std::vector<std::shared_ptr<nano::bl
 	return result;
 }
 
-void nano::vote_generator::set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)> action_a)
+void nano::vote_generator::set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::channel> const &)> action_a)
 {
 	release_assert (!reply_action);
 	reply_action = action_a;

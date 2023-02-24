@@ -10,10 +10,7 @@
 namespace nano
 {
 class ledger;
-namespace transport
-{
-	class channel;
-}
+class channel;
 
 /**
  * Processes bootstrap requests (`asc_pull_req` messages) and replies with bootstrap responses (`asc_pull_ack`)
@@ -26,7 +23,7 @@ class bootstrap_server final
 {
 public:
 	// `asc_pull_req` message is small, store by value
-	using request_t = std::pair<nano::asc_pull_req, std::shared_ptr<nano::transport::channel>>; // <request, response channel>
+	using request_t = std::pair<nano::asc_pull_req, std::shared_ptr<nano::channel>>; // <request, response channel>
 
 public:
 	bootstrap_server (nano::store &, nano::ledger &, nano::network_constants const &, nano::stats &);
@@ -39,15 +36,15 @@ public:
 	 * Process `asc_pull_req` message coming from network.
 	 * Reply will be sent back over passed in `channel`
 	 */
-	bool request (nano::asc_pull_req const & message, std::shared_ptr<nano::transport::channel> channel);
+	bool request (nano::asc_pull_req const & message, std::shared_ptr<nano::channel> channel);
 
 public: // Events
-	nano::observer_set<nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &> on_response;
+	nano::observer_set<nano::asc_pull_ack &, std::shared_ptr<nano::channel> &> on_response;
 
 private:
 	void process_batch (std::deque<request_t> & batch);
 	nano::asc_pull_ack process (nano::transaction const &, nano::asc_pull_req const & message);
-	void respond (nano::asc_pull_ack &, std::shared_ptr<nano::transport::channel> &);
+	void respond (nano::asc_pull_ack &, std::shared_ptr<nano::channel> &);
 
 	nano::asc_pull_ack process (nano::transaction const &, nano::asc_pull_req::id_t id, nano::empty_payload const & request);
 

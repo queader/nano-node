@@ -85,27 +85,27 @@ public:
 	void flood_block_many (std::deque<std::shared_ptr<nano::block>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
 	void merge_peers (std::array<nano::endpoint, 8> const &);
 	void merge_peer (nano::endpoint const &);
-	void send_keepalive (std::shared_ptr<nano::transport::channel> const &);
-	void send_keepalive_self (std::shared_ptr<nano::transport::channel> const &);
-	void send_node_id_handshake (std::shared_ptr<nano::transport::channel> const &, std::optional<nano::uint256_union> const & cookie, std::optional<nano::uint256_union> const & respond_to);
-	void send_confirm_req (std::shared_ptr<nano::transport::channel> const & channel_a, std::pair<nano::block_hash, nano::block_hash> const & hash_root_a);
+	void send_keepalive (std::shared_ptr<nano::channel> const &);
+	void send_keepalive_self (std::shared_ptr<nano::channel> const &);
+	void send_node_id_handshake (std::shared_ptr<nano::channel> const &, std::optional<nano::uint256_union> const & cookie, std::optional<nano::uint256_union> const & respond_to);
+	void send_confirm_req (std::shared_ptr<nano::channel> const & channel_a, std::pair<nano::block_hash, nano::block_hash> const & hash_root_a);
 	void broadcast_confirm_req (std::shared_ptr<nano::block> const &);
-	void broadcast_confirm_req_base (std::shared_ptr<nano::block> const &, std::shared_ptr<std::vector<std::shared_ptr<nano::transport::channel>>> const &, unsigned, bool = false);
-	void broadcast_confirm_req_batched_many (std::unordered_map<std::shared_ptr<nano::transport::channel>, std::deque<std::pair<nano::block_hash, nano::root>>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms, bool = false);
-	void broadcast_confirm_req_many (std::deque<std::pair<std::shared_ptr<nano::block>, std::shared_ptr<std::vector<std::shared_ptr<nano::transport::channel>>>>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
-	std::shared_ptr<nano::transport::channel> find_node_id (nano::account const &);
-	std::shared_ptr<nano::transport::channel> find_channel (nano::endpoint const &);
+	void broadcast_confirm_req_base (std::shared_ptr<nano::block> const &, std::shared_ptr<std::vector<std::shared_ptr<nano::channel>>> const &, unsigned, bool = false);
+	void broadcast_confirm_req_batched_many (std::unordered_map<std::shared_ptr<nano::channel>, std::deque<std::pair<nano::block_hash, nano::root>>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms, bool = false);
+	void broadcast_confirm_req_many (std::deque<std::pair<std::shared_ptr<nano::block>, std::shared_ptr<std::vector<std::shared_ptr<nano::channel>>>>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
+	std::shared_ptr<nano::channel> find_node_id (nano::account const &);
+	std::shared_ptr<nano::channel> find_channel (nano::endpoint const &);
 	bool not_a_peer (nano::endpoint const &, bool);
 	// Should we reach out to this endpoint with a keepalive message
 	bool reachout (nano::endpoint const &, bool = false);
-	std::deque<std::shared_ptr<nano::transport::channel>> list (std::size_t max_count = 0, uint8_t = 0, bool = true);
-	std::deque<std::shared_ptr<nano::transport::channel>> list_non_pr (std::size_t);
+	std::deque<std::shared_ptr<nano::channel>> list (std::size_t max_count = 0, uint8_t = 0, bool = true);
+	std::deque<std::shared_ptr<nano::channel>> list_non_pr (std::size_t);
 	// Desired fanout for a given scale
 	std::size_t fanout (float scale = 1.0f) const;
 	void random_fill (std::array<nano::endpoint, 8> &) const;
 	void fill_keepalive_self (std::array<nano::endpoint, 8> &) const;
 	// Note: The minimum protocol version is used after the random selection, so number of peers can be less than expected.
-	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
+	std::unordered_set<std::shared_ptr<nano::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
 	// Get the next peer for attempting a tcp bootstrap connection
 	nano::tcp_endpoint bootstrap_peer ();
 	nano::endpoint endpoint () const;
@@ -118,17 +118,17 @@ public:
 	std::size_t size () const;
 	float size_sqrt () const;
 	bool empty () const;
-	void erase (nano::transport::channel const &);
+	void erase (nano::channel const &);
 	/** Disconnects and adds peer to exclusion list */
-	void exclude (std::shared_ptr<nano::transport::channel> const & channel);
+	void exclude (std::shared_ptr<nano::channel> const & channel);
 
 	static std::string to_string (nano::networks);
 
 private:
-	void process_message (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
+	void process_message (nano::message const &, std::shared_ptr<nano::channel> const &);
 
 public:
-	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> inbound;
+	std::function<void (nano::message const &, std::shared_ptr<nano::channel> const &)> inbound;
 	boost::asio::ip::udp::resolver resolver;
 	std::vector<boost::thread> packet_processing_threads;
 	nano::peer_exclusion excluded_peers;
@@ -139,7 +139,7 @@ public:
 	std::atomic<uint16_t> port{ 0 };
 	std::function<void ()> disconnect_observer;
 	// Called when a new channel is observed
-	std::function<void (std::shared_ptr<nano::transport::channel>)> channel_observer;
+	std::function<void (std::shared_ptr<nano::channel>)> channel_observer;
 	std::atomic<bool> stopped{ false };
 	static unsigned const broadcast_interval_ms = 10;
 	static std::size_t const buffer_size = 512;

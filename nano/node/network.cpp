@@ -13,7 +13,7 @@
 nano::network::network (nano::node & node_a, uint16_t port_a) :
 	id (nano::network_constants::active_network),
 	syn_cookies (node_a.network_params.network.max_peers_per_ip),
-	inbound{ [this] (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel) {
+	inbound{ [this] (nano::message const & message, std::shared_ptr<nano::channel> const & channel) {
 		debug_assert (message.header.network == node.network_params.network.current_network);
 		debug_assert (message.header.version_using >= node.network_params.network.protocol_version_min);
 		process_message (message, channel);
@@ -99,21 +99,21 @@ void nano::network::stop ()
 	}
 }
 
-void nano::network::send_keepalive (std::shared_ptr<nano::transport::channel> const & channel_a)
+void nano::network::send_keepalive (std::shared_ptr<nano::channel> const & channel_a)
 {
 	nano::keepalive message{ node.network_params.network };
 	random_fill (message.peers);
 	channel_a->send (message);
 }
 
-void nano::network::send_keepalive_self (std::shared_ptr<nano::transport::channel> const & channel_a)
+void nano::network::send_keepalive_self (std::shared_ptr<nano::channel> const & channel_a)
 {
 	nano::keepalive message{ node.network_params.network };
 	fill_keepalive_self (message.peers);
 	channel_a->send (message);
 }
 
-void nano::network::send_node_id_handshake (std::shared_ptr<nano::transport::channel> const & channel_a, std::optional<nano::uint256_union> const & cookie, std::optional<nano::uint256_union> const & respond_to)
+void nano::network::send_node_id_handshake (std::shared_ptr<nano::channel> const & channel_a, std::optional<nano::uint256_union> const & cookie, std::optional<nano::uint256_union> const & respond_to)
 {
 	std::optional<nano::node_id_handshake::response_payload> response;
 	if (respond_to)
@@ -223,7 +223,7 @@ void nano::network::flood_block_many (std::deque<std::shared_ptr<nano::block>> b
 	}
 }
 
-void nano::network::send_confirm_req (std::shared_ptr<nano::transport::channel> const & channel_a, std::pair<nano::block_hash, nano::block_hash> const & hash_root_a)
+void nano::network::send_confirm_req (std::shared_ptr<nano::channel> const & channel_a, std::pair<nano::block_hash, nano::block_hash> const & hash_root_a)
 {
 	// Confirmation request with hash + root
 	nano::confirm_req req (node.network_params.network, hash_root_a.first, hash_root_a.second);
@@ -232,7 +232,7 @@ void nano::network::send_confirm_req (std::shared_ptr<nano::transport::channel> 
 
 void nano::network::broadcast_confirm_req (std::shared_ptr<nano::block> const & block_a)
 {
-	auto list (std::make_shared<std::vector<std::shared_ptr<nano::transport::channel>>> (node.rep_crawler.representative_endpoints (std::numeric_limits<std::size_t>::max ())));
+	auto list (std::make_shared<std::vector<std::shared_ptr<nano::channel>>> (node.rep_crawler.representative_endpoints (std::numeric_limits<std::size_t>::max ())));
 	if (list->empty () || node.rep_crawler.total_weight () < node.online_reps.delta ())
 	{
 		// broadcast request to all peers (with max limit 2 * sqrt (peers count))
@@ -258,7 +258,7 @@ void nano::network::broadcast_confirm_req (std::shared_ptr<nano::block> const & 
 	broadcast_confirm_req_base (block_a, list, 0);
 }
 
-void nano::network::broadcast_confirm_req_base (std::shared_ptr<nano::block> const & block_a, std::shared_ptr<std::vector<std::shared_ptr<nano::transport::channel>>> const & endpoints_a, unsigned delay_a, bool resumption)
+void nano::network::broadcast_confirm_req_base (std::shared_ptr<nano::block> const & block_a, std::shared_ptr<std::vector<std::shared_ptr<nano::channel>>> const & endpoints_a, unsigned delay_a, bool resumption)
 {
 	std::size_t const max_reps = 10;
 	if (!resumption && node.config.logging.network_logging ())
@@ -287,7 +287,7 @@ void nano::network::broadcast_confirm_req_base (std::shared_ptr<nano::block> con
 	}
 }
 
-void nano::network::broadcast_confirm_req_batched_many (std::unordered_map<std::shared_ptr<nano::transport::channel>, std::deque<std::pair<nano::block_hash, nano::root>>> request_bundle_a, std::function<void ()> callback_a, unsigned delay_a, bool resumption_a)
+void nano::network::broadcast_confirm_req_batched_many (std::unordered_map<std::shared_ptr<nano::channel>, std::deque<std::pair<nano::block_hash, nano::root>>> request_bundle_a, std::function<void ()> callback_a, unsigned delay_a, bool resumption_a)
 {
 	if (!resumption_a && node.config.logging.network_logging ())
 	{
@@ -331,7 +331,7 @@ void nano::network::broadcast_confirm_req_batched_many (std::unordered_map<std::
 	}
 }
 
-void nano::network::broadcast_confirm_req_many (std::deque<std::pair<std::shared_ptr<nano::block>, std::shared_ptr<std::vector<std::shared_ptr<nano::transport::channel>>>>> requests_a, std::function<void ()> callback_a, unsigned delay_a)
+void nano::network::broadcast_confirm_req_many (std::deque<std::pair<std::shared_ptr<nano::block>, std::shared_ptr<std::vector<std::shared_ptr<nano::channel>>>>> requests_a, std::function<void ()> callback_a, unsigned delay_a)
 {
 	auto pair_l (requests_a.front ());
 	requests_a.pop_front ();
@@ -365,7 +365,7 @@ namespace
 class network_message_visitor : public nano::message_visitor
 {
 public:
-	network_message_visitor (nano::node & node_a, std::shared_ptr<nano::transport::channel> const & channel_a) :
+	network_message_visitor (nano::node & node_a, std::shared_ptr<nano::channel> const & channel_a) :
 		node (node_a),
 		channel (channel_a)
 	{
@@ -516,11 +516,11 @@ public:
 
 private:
 	nano::node & node;
-	std::shared_ptr<nano::transport::channel> channel;
+	std::shared_ptr<nano::channel> channel;
 };
 }
 
-void nano::network::process_message (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel)
+void nano::network::process_message (nano::message const & message, std::shared_ptr<nano::channel> const & channel)
 {
 	node.stats.inc (nano::stat::type::message, nano::to_stat_detail (message.header.type), nano::stat::dir::in);
 
@@ -575,9 +575,9 @@ bool nano::network::reachout (nano::endpoint const & endpoint_a, bool allow_loca
 	return error;
 }
 
-std::deque<std::shared_ptr<nano::transport::channel>> nano::network::list (std::size_t count_a, uint8_t minimum_version_a, bool include_tcp_temporary_channels_a)
+std::deque<std::shared_ptr<nano::channel>> nano::network::list (std::size_t count_a, uint8_t minimum_version_a, bool include_tcp_temporary_channels_a)
 {
-	std::deque<std::shared_ptr<nano::transport::channel>> result;
+	std::deque<std::shared_ptr<nano::channel>> result;
 	tcp_channels.list (result, minimum_version_a, include_tcp_temporary_channels_a);
 	nano::random_pool_shuffle (result.begin (), result.end ());
 	if (count_a > 0 && result.size () > count_a)
@@ -587,12 +587,12 @@ std::deque<std::shared_ptr<nano::transport::channel>> nano::network::list (std::
 	return result;
 }
 
-std::deque<std::shared_ptr<nano::transport::channel>> nano::network::list_non_pr (std::size_t count_a)
+std::deque<std::shared_ptr<nano::channel>> nano::network::list_non_pr (std::size_t count_a)
 {
-	std::deque<std::shared_ptr<nano::transport::channel>> result;
+	std::deque<std::shared_ptr<nano::channel>> result;
 	tcp_channels.list (result);
 	nano::random_pool_shuffle (result.begin (), result.end ());
-	result.erase (std::remove_if (result.begin (), result.end (), [this] (std::shared_ptr<nano::transport::channel> const & channel) {
+	result.erase (std::remove_if (result.begin (), result.end (), [this] (std::shared_ptr<nano::channel> const & channel) {
 		return this->node.rep_crawler.is_pr (*channel);
 	}),
 	result.end ());
@@ -609,7 +609,7 @@ std::size_t nano::network::fanout (float scale) const
 	return static_cast<std::size_t> (std::ceil (scale * size_sqrt ()));
 }
 
-std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::network::random_set (std::size_t count_a, uint8_t min_version_a, bool include_temporary_channels_a) const
+std::unordered_set<std::shared_ptr<nano::channel>> nano::network::random_set (std::size_t count_a, uint8_t min_version_a, bool include_temporary_channels_a) const
 {
 	return tcp_channels.random_set (count_a, min_version_a, include_temporary_channels_a);
 }
@@ -665,12 +665,12 @@ nano::tcp_endpoint nano::network::bootstrap_peer ()
 	return tcp_channels.bootstrap_peer (node.network_params.network.protocol_version_min);
 }
 
-std::shared_ptr<nano::transport::channel> nano::network::find_channel (nano::endpoint const & endpoint_a)
+std::shared_ptr<nano::channel> nano::network::find_channel (nano::endpoint const & endpoint_a)
 {
 	return tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (endpoint_a));
 }
 
-std::shared_ptr<nano::transport::channel> nano::network::find_node_id (nano::account const & node_id_a)
+std::shared_ptr<nano::channel> nano::network::find_node_id (nano::account const & node_id_a)
 {
 	return tcp_channels.find_node_id (node_id_a);
 }
@@ -741,16 +741,16 @@ bool nano::network::empty () const
 	return size () == 0;
 }
 
-void nano::network::erase (nano::transport::channel const & channel_a)
+void nano::network::erase (nano::channel const & channel_a)
 {
 	auto const channel_type = channel_a.get_type ();
-	if (channel_type == nano::transport::transport_type::tcp)
+	if (channel_type == nano::transport_type::tcp)
 	{
 		tcp_channels.erase (channel_a.get_tcp_endpoint ());
 	}
 }
 
-void nano::network::exclude (std::shared_ptr<nano::transport::channel> const & channel)
+void nano::network::exclude (std::shared_ptr<nano::channel> const & channel)
 {
 	// Add to peer exclusion list
 	excluded_peers.add (channel->get_tcp_endpoint ());

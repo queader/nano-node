@@ -21,7 +21,7 @@ namespace test
 	{
 	public:
 		system ();
-		system (uint16_t, nano::transport::transport_type = nano::transport::transport_type::tcp, nano::node_flags = nano::node_flags ());
+		system (uint16_t, nano::transport_type = nano::transport_type::tcp, nano::node_flags = nano::node_flags ());
 		~system ();
 
 		void ledger_initialization_set (std::vector<nano::keypair> const & reps, nano::amount const & reserve = 0);
@@ -55,8 +55,8 @@ namespace test
 		 * Convenience function to get a reference to a node at given index. Does bound checking.
 		 */
 		nano::node & node (std::size_t index) const;
-		std::shared_ptr<nano::node> add_node (nano::node_flags = nano::node_flags (), nano::transport::transport_type = nano::transport::transport_type::tcp);
-		std::shared_ptr<nano::node> add_node (nano::node_config const &, nano::node_flags = nano::node_flags (), nano::transport::transport_type = nano::transport::transport_type::tcp, std::optional<nano::keypair> const & rep = std::nullopt);
+		std::shared_ptr<nano::node> add_node (nano::node_flags = nano::node_flags (), nano::transport_type = nano::transport_type::tcp);
+		std::shared_ptr<nano::node> add_node (nano::node_config const &, nano::node_flags = nano::node_flags (), nano::transport_type = nano::transport_type::tcp, std::optional<nano::keypair> const & rep = std::nullopt);
 		/*
 		 * Returns default config for node running in test environment
 		 */

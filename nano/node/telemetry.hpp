@@ -66,7 +66,7 @@ public:
 	/**
 	 * Process telemetry message from network
 	 */
-	void process (nano::telemetry_ack const &, std::shared_ptr<nano::transport::channel> const &);
+	void process (nano::telemetry_ack const &, std::shared_ptr<nano::channel> const &);
 
 	/**
 	 * Trigger manual telemetry request to all peers
@@ -103,7 +103,7 @@ private:
 		nano::endpoint endpoint;
 		nano::telemetry_data data;
 		std::chrono::steady_clock::time_point last_updated;
-		std::shared_ptr<nano::transport::channel> channel;
+		std::shared_ptr<nano::channel> channel;
 	};
 
 private:
@@ -115,10 +115,10 @@ private:
 	void run_broadcasts ();
 	void cleanup ();
 
-	void request (std::shared_ptr<nano::transport::channel> &);
-	void broadcast (std::shared_ptr<nano::transport::channel> &, nano::telemetry_data const &);
+	void request (std::shared_ptr<nano::channel> &);
+	void broadcast (std::shared_ptr<nano::channel> &, nano::telemetry_data const &);
 
-	bool verify (nano::telemetry_ack const &, std::shared_ptr<nano::transport::channel> const &) const;
+	bool verify (nano::telemetry_ack const &, std::shared_ptr<nano::channel> const &) const;
 	bool check_timeout (entry const &) const;
 
 private:

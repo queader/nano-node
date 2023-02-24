@@ -229,7 +229,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 		wallets.observer = [this] (bool active) {
 			observers.wallet.notify (active);
 		};
-		network.channel_observer = [this] (std::shared_ptr<nano::transport::channel> const & channel_a) {
+		network.channel_observer = [this] (std::shared_ptr<nano::channel> const & channel_a) {
 			debug_assert (channel_a != nullptr);
 			observers.endpoint.notify (channel_a);
 		};
@@ -318,10 +318,10 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 					break;
 			}
 		});
-		observers.endpoint.add ([this] (std::shared_ptr<nano::transport::channel> const & channel_a) {
+		observers.endpoint.add ([this] (std::shared_ptr<nano::channel> const & channel_a) {
 			this->network.send_keepalive_self (channel_a);
 		});
-		observers.vote.add ([this] (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, nano::vote_code code_a) {
+		observers.vote.add ([this] (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::channel> const & channel_a, nano::vote_code code_a) {
 			debug_assert (code_a != nano::vote_code::invalid);
 			// The vote_code::vote is handled inside the election
 			if (code_a == nano::vote_code::indeterminate)

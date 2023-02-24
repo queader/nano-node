@@ -146,10 +146,10 @@ TEST (network, send_node_id_handshake_tcp)
 	ASSERT_EQ (1, node0->network.size ());
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node0->network.list (1));
-	ASSERT_EQ (nano::transport::transport_type::tcp, list1[0]->get_type ());
+	ASSERT_EQ (nano::transport_type::tcp, list1[0]->get_type ());
 	ASSERT_EQ (node1->get_node_id (), list1[0]->get_node_id ());
 	auto list2 (node1->network.list (1));
-	ASSERT_EQ (nano::transport::transport_type::tcp, list2[0]->get_type ());
+	ASSERT_EQ (nano::transport_type::tcp, list2[0]->get_type ());
 	ASSERT_EQ (node0->get_node_id (), list2[0]->get_node_id ());
 	node1->stop ();
 }
@@ -277,7 +277,7 @@ TEST (network, send_invalid_publish)
 
 TEST (network, send_valid_confirm_ack)
 {
-	auto type = nano::transport::transport_type::tcp;
+	auto type = nano::transport_type::tcp;
 	nano::node_flags node_flags;
 	nano::test::system system (2, type, node_flags);
 	auto & node1 (*system.nodes[0]);
@@ -305,7 +305,7 @@ TEST (network, send_valid_confirm_ack)
 
 TEST (network, send_valid_publish)
 {
-	auto type = nano::transport::transport_type::tcp;
+	auto type = nano::transport_type::tcp;
 	nano::node_flags node_flags;
 	nano::test::system system (2, type, node_flags);
 	auto & node1 (*system.nodes[0]);
@@ -448,7 +448,7 @@ TEST (receivable_processor, confirm_sufficient_pos)
 
 TEST (receivable_processor, send_with_receive)
 {
-	auto type = nano::transport::transport_type::tcp;
+	auto type = nano::transport_type::tcp;
 	nano::node_flags node_flags;
 	nano::test::system system (2, type, node_flags);
 	auto & node1 (*system.nodes[0]);
@@ -1121,7 +1121,7 @@ TEST (network, loopback_channel)
 	auto & node1 = *system.nodes[0];
 	auto & node2 = *system.nodes[1];
 	nano::transport::inproc::channel channel1 (node1, node1);
-	ASSERT_EQ (channel1.get_type (), nano::transport::transport_type::loopback);
+	ASSERT_EQ (channel1.get_type (), nano::transport_type::loopback);
 	ASSERT_EQ (channel1.get_endpoint (), node1.network.endpoint ());
 	ASSERT_EQ (channel1.get_tcp_endpoint (), nano::transport::map_endpoint_to_tcp (node1.network.endpoint ()));
 	ASSERT_EQ (channel1.get_network_version (), node1.network_params.network.protocol_version);

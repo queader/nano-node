@@ -4,7 +4,7 @@
 #include <boost/format.hpp>
 
 nano::transport::fake::channel::channel (nano::node & node) :
-	transport::channel{ node },
+	nano::channel{ node },
 	endpoint{ node.network.endpoint () }
 {
 	set_node_id (node.node_id.pub);
@@ -13,10 +13,10 @@ nano::transport::fake::channel::channel (nano::node & node) :
 
 /**
  * The send function behaves like a null device, it throws the data away and returns success.
-*/
+ */
 void nano::transport::fake::channel::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a)
 {
-	//auto bytes = buffer_a.to_bytes ();
+	// auto bytes = buffer_a.to_bytes ();
 	auto size = buffer_a.size ();
 	if (callback_a)
 	{
@@ -32,7 +32,7 @@ std::size_t nano::transport::fake::channel::hash_code () const
 	return hash (endpoint);
 }
 
-bool nano::transport::fake::channel::operator== (nano::transport::channel const & other_a) const
+bool nano::transport::fake::channel::operator== (nano::channel const & other_a) const
 {
 	return endpoint == other_a.get_endpoint ();
 }

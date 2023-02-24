@@ -3,6 +3,7 @@
 #include <nano/boost/asio/strand.hpp>
 #include <nano/lib/tlsconfig.hpp>
 #include <nano/lib/work.hpp>
+#include <nano/node/channel.hpp>
 #include <nano/node/node_observers.hpp>
 #include <nano/node/transport/transport.hpp>
 #include <nano/node/wallet.hpp>
@@ -1031,7 +1032,7 @@ nano::websocket_server::websocket_server (nano::websocket::config & config_a, na
 		}
 	});
 
-	observers.telemetry.add ([this] (nano::telemetry_data const & telemetry_data, std::shared_ptr<nano::transport::channel> const & channel) {
+	observers.telemetry.add ([this] (nano::telemetry_data const & telemetry_data, std::shared_ptr<nano::channel> const & channel) {
 		if (server->any_subscriber (nano::websocket::topic::telemetry))
 		{
 			nano::websocket::message_builder builder;
@@ -1039,7 +1040,7 @@ nano::websocket_server::websocket_server (nano::websocket::config & config_a, na
 		}
 	});
 
-	observers.vote.add ([this] (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, nano::vote_code code_a) {
+	observers.vote.add ([this] (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::channel> const & channel_a, nano::vote_code code_a) {
 		if (server->any_subscriber (nano::websocket::topic::vote))
 		{
 			nano::websocket::message_builder builder;

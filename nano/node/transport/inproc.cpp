@@ -4,7 +4,7 @@
 #include <boost/format.hpp>
 
 nano::transport::inproc::channel::channel (nano::node & node, nano::node & destination) :
-	transport::channel{ node },
+	nano::channel{ node },
 	destination{ destination },
 	endpoint{ node.network.endpoint () }
 {
@@ -18,7 +18,7 @@ std::size_t nano::transport::inproc::channel::hash_code () const
 	return hash (endpoint);
 }
 
-bool nano::transport::inproc::channel::operator== (nano::transport::channel const & other_a) const
+bool nano::transport::inproc::channel::operator== (nano::channel const & other_a) const
 {
 	return endpoint == other_a.get_endpoint ();
 }

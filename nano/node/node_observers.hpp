@@ -14,14 +14,14 @@ public:
 	using blocks_t = nano::observer_set<nano::election_status const &, std::vector<nano::vote_with_weight_info> const &, nano::account const &, nano::uint128_t const &, bool, bool>;
 	blocks_t blocks;
 	nano::observer_set<bool> wallet;
-	nano::observer_set<std::shared_ptr<nano::vote>, std::shared_ptr<nano::transport::channel>, nano::vote_code> vote;
+	nano::observer_set<std::shared_ptr<nano::vote>, std::shared_ptr<nano::channel>, nano::vote_code> vote;
 	nano::observer_set<nano::block_hash const &> active_started;
 	nano::observer_set<nano::block_hash const &> active_stopped;
 	nano::observer_set<nano::account const &, bool> account_balance;
-	nano::observer_set<std::shared_ptr<nano::transport::channel>> endpoint;
+	nano::observer_set<std::shared_ptr<nano::channel>> endpoint;
 	nano::observer_set<> disconnect;
 	nano::observer_set<nano::root const &> work_cancel;
-	nano::observer_set<nano::telemetry_data const &, std::shared_ptr<nano::transport::channel> const &> telemetry;
+	nano::observer_set<nano::telemetry_data const &, std::shared_ptr<nano::channel> const &> telemetry;
 
 	nano::observer_set<nano::socket &> socket_connected;
 	nano::observer_set<nano::socket &> socket_accepted;
