@@ -1693,18 +1693,15 @@ std::size_t nano::node_id_handshake::size (nano::message_header const & header)
 std::string nano::node_id_handshake::to_string () const
 {
 	std::string s = header.to_string ();
-
-	if (query.has_value ())
+	if (query)
 	{
-		s += "\ncookie=" + query->to_string ();
+		s += "\ncookie=" + query->cookie.to_string ();
 	}
-
-	if (response.has_value ())
+	if (response)
 	{
-		s += "\nresp_node_id=" + response->first.to_string ();
-		s += "\nresp_sig=" + response->second.to_string ();
+		s += "\nresp_node_id=" + response->node_id.to_string ();
+		s += "\nresp_sig=" + response->signature.to_string ();
 	}
-
 	return s;
 }
 
