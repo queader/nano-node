@@ -204,8 +204,6 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::unblock);
 
-		blocking.get<tag_account> ().erase (account);
-
 		debug_assert (priorities.get<tag_account> ().count (account) == 0);
 		if (!existing->original_entry.account.is_zero ())
 		{
@@ -216,6 +214,7 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 		{
 			priorities.get<tag_account> ().insert ({ account, account_sets::priority_initial });
 		}
+		blocking.get<tag_account> ().erase (account);
 
 		trim_overflow ();
 	}
