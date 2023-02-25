@@ -1,4 +1,5 @@
 #include <nano/node/bootstrap/bootstrap_server.hpp>
+#include <nano/node/transport/channel.hpp>
 #include <nano/node/transport/transport.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/store.hpp>
@@ -124,7 +125,7 @@ void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared
 			stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::write_error, nano::stat::dir::out);
 		}
 	},
-	nano::buffer_drop_policy::limiter, nano::bandwidth_limit_type::bootstrap);
+	nano::transport::buffer_drop_policy::limiter, nano::bandwidth_limit_type::bootstrap);
 }
 
 /*

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/node/transport/channel.hpp>
 #include <nano/node/transport/transport.hpp>
 
 namespace nano
@@ -8,7 +9,7 @@ namespace transport
 {
 	/**
 	 * In-process transport channel. Mostly useful for unit tests
-	**/
+	 **/
 	namespace inproc
 	{
 		class channel final : public nano::transport::channel
@@ -19,7 +20,7 @@ namespace transport
 			bool operator== (nano::transport::channel const &) const override;
 			// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
 			//
-			void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::buffer_drop_policy = nano::buffer_drop_policy::limiter) override;
+			void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter) override;
 			std::string to_string () const override;
 			bool operator== (nano::transport::inproc::channel const & other_a) const
 			{

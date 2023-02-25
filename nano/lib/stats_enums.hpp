@@ -41,6 +41,8 @@ enum class type : uint8_t
 	active_timeout,
 	backlog,
 	unchecked,
+	election_scheduler,
+	optimistic_scheduler,
 
 	_last // Must be the last enum
 };
@@ -55,7 +57,6 @@ enum class detail : uint8_t
 	total,
 	process,
 	update,
-	insert,
 	request,
 	broadcast,
 
@@ -159,6 +160,7 @@ enum class detail : uint8_t
 	// election types
 	normal,
 	hinted,
+	optimistic,
 
 	// received messages
 	invalid_header,
@@ -240,7 +242,6 @@ enum class detail : uint8_t
 	generator_spacing,
 
 	// hinting
-	insert_failed,
 	missing_block,
 
 	// bootstrap server
@@ -257,10 +258,20 @@ enum class detail : uint8_t
 	// backlog
 	activated,
 
+	// active
+	insert,
+	insert_failed,
+
 	// unchecked
 	put,
 	satisfied,
 	trigger,
+
+	// election scheduler
+	insert_manual,
+	insert_priority,
+	insert_priority_success,
+	erase_oldest,
 
 	_last // Must be the last enum
 };
