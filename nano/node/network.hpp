@@ -71,6 +71,7 @@ public:
 	~network ();
 
 	nano::networks id;
+
 	void start ();
 	void stop ();
 	void flood_message (nano::message &, nano::transport::buffer_drop_policy const = nano::transport::buffer_drop_policy::limiter, float const = 1.0f);

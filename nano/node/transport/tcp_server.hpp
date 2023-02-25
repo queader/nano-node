@@ -44,26 +44,33 @@ std::unique_ptr<container_info_component> collect_container_info (tcp_listener &
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
-	tcp_server (std::shared_ptr<nano::transport::socket>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
+	tcp_server (std::shared_ptr<nano::transport::socket>, std::shared_ptr<nano::transport::channel>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
 	~tcp_server ();
 
 	void start ();
 	void stop ();
-
 	void timeout ();
 
+	void send_handshake_query ();
+
+public:
+	std::shared_ptr<nano::transport::channel> const channel;
 	std::shared_ptr<nano::transport::socket> const socket;
 	std::shared_ptr<nano::node> const node;
+
 	nano::mutex mutex;
 	std::atomic<bool> stopped{ false };
 	std::atomic<bool> handshake_query_received{ false };
+	std::atomic<bool> handshake_query_sent{ false };
+
 	// Remote enpoint used to remove response channel even after socket closing
 	nano::tcp_endpoint remote_endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	nano::account remote_node_id{};
 	std::chrono::steady_clock::time_point last_telemetry_req{};
 
 private:
-	void send_handshake_response (nano::node_id_handshake::query_payload const & query);
+	bool verify_handshake_response (nano::node_id_handshake::response_payload const & response);
+	void send_handshake_response (nano::node_id_handshake::query_payload const & query, bool send_own_query);
 
 	void receive_message ();
 	void received_message (std::unique_ptr<nano::message> message);

@@ -759,6 +759,10 @@ void nano::network::exclude (std::shared_ptr<nano::transport::channel> const & c
 	erase (*channel);
 }
 
+/*
+ * tcp_message_manager
+ */
+
 nano::tcp_message_manager::tcp_message_manager (unsigned incoming_connections_max_a) :
 	max_entries (incoming_connections_max_a * nano::tcp_message_manager::max_entries_per_connection + 1)
 {
@@ -809,6 +813,10 @@ void nano::tcp_message_manager::stop ()
 	consumer_condition.notify_all ();
 	producer_condition.notify_all ();
 }
+
+/*
+ * syn_cookies
+ */
 
 nano::syn_cookies::syn_cookies (std::size_t max_cookies_per_ip_a) :
 	max_cookies_per_ip (max_cookies_per_ip_a)

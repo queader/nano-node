@@ -8,6 +8,10 @@
 
 #include <boost/format.hpp>
 
+/*
+ * tcp_listener
+ */
+
 nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_a) :
 	node (node_a),
 	port (port_a)
@@ -81,23 +85,19 @@ std::size_t nano::transport::tcp_listener::connection_count ()
 	return connections.size ();
 }
 
-void nano::transport::tcp_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::transport::socket> const & socket_a)
+void nano::transport::tcp_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::transport::socket> const & socket)
 {
-	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
+	auto channel = node.network.tcp_channels.create_channel (socket, /* temporary */ true);
+	if (!channel)
 	{
-		auto server = std::make_shared<nano::transport::tcp_server> (socket_a, node.shared (), true);
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		connections[server.get ()] = server;
-		server->start ();
+		// TODO: stat & log
+		return;
 	}
-	else
-	{
-		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_excluded);
-		if (node.config.logging.network_rejected_logging ())
-		{
-			node.logger.try_log ("Rejected connection from excluded peer ", socket_a->remote_endpoint ());
-		}
-	}
+
+	auto server = std::make_shared<nano::transport::tcp_server> (socket, channel, node.shared (), /* allow bootstrap */ true);
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	connections[server.get ()] = server;
+	server->start ();
 }
 
 boost::asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint ()
@@ -121,8 +121,13 @@ std::unique_ptr<nano::container_info_component> nano::transport::collect_contain
 	return composite;
 }
 
-nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
+/*
+ * tcp_server
+ */
+
+nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::channel> channel_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ std::move (socket_a) },
+	channel{ std::move (channel_a) },
 	node{ std::move (node_a) },
 	allow_bootstrap{ allow_bootstrap_a },
 	message_deserializer{ std::make_shared<nano::transport::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer) }
@@ -305,63 +310,147 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 	{
 		if (server->node->config.logging.network_node_id_handshake_logging ())
 		{
-			server->node->logger.try_log (boost::str (boost::format ("Disabled realtime TCP for handshake %1%") % server->remote_endpoint));
+			server->node->logger.always_log (boost::str (boost::format ("Disabled realtime TCP for handshake %1%") % server->remote_endpoint));
 		}
+		// Stop invalid handshake
 		server->stop ();
 		return;
 	}
-
-	if (message.query && server->handshake_query_received)
-	{
-		if (server->node->config.logging.network_node_id_handshake_logging ())
-		{
-			server->node->logger.try_log (boost::str (boost::format ("Detected multiple node_id_handshake query from %1%") % server->remote_endpoint));
-		}
-		server->stop ();
-		return;
-	}
-
-	server->handshake_query_received = true;
 
 	if (server->node->config.logging.network_node_id_handshake_logging ())
 	{
-		server->node->logger.try_log (boost::str (boost::format ("Received node_id_handshake message from %1%") % server->remote_endpoint));
+		server->node->logger.always_log (boost::str (boost::format ("Received node_id_handshake message from %1% | query: %2% | response: %3%") % server->remote_endpoint % message.query.has_value () % message.response.has_value ()));
 	}
 
-	if (message.query)
-	{
-		server->send_handshake_response (*message.query);
-	}
 	if (message.response)
 	{
-		nano::account const & node_id = message.response->node_id;
-		if (!server->node->network.syn_cookies.validate (nano::transport::map_tcp_to_endpoint (server->remote_endpoint), node_id, message.response->signature) && node_id != server->node->node_id.pub)
+		if (!server->verify_handshake_response (*message.response))
 		{
-			server->to_realtime_connection (node_id);
+			if (server->node->config.logging.network_node_id_handshake_logging ())
+			{
+				server->node->logger.always_log (boost::str (boost::format ("Invalid node_id_handshake response from %1%") % server->remote_endpoint));
+			}
+			// Stop invalid handshake
+			server->stop ();
+			return;
 		}
 		else
 		{
+			if (server->node->config.logging.network_node_id_handshake_logging ())
+			{
+				server->node->logger.always_log (boost::str (boost::format ("OK node_id_handshake response from %1%, upgrading to realtime") % server->remote_endpoint));
+			}
+			server->to_realtime_connection (message.response->node_id);
+		}
+	}
+	if (message.query)
+	{
+		if (server->handshake_query_received)
+		{
+			if (server->node->config.logging.network_node_id_handshake_logging ())
+			{
+				server->node->logger.always_log (boost::str (boost::format ("Detected multiple node_id_handshake query from %1%") % server->remote_endpoint));
+			}
 			// Stop invalid handshake
 			server->stop ();
+			return;
+		}
+		else
+		{
+			server->handshake_query_received = true;
+			server->send_handshake_response (*message.query, /* send own query with response only if we haven't sent our query already */ !server->handshake_query_sent);
 		}
 	}
 
-	process = true;
+	process = true; // Keep processing new messages
 }
 
-void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query)
+void nano::transport::tcp_server::send_handshake_query ()
+{
+	handshake_query_sent = true;
+
+	std::optional<nano::node_id_handshake::query_payload> query;
+	if (auto cookie = node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (remote_endpoint)); cookie)
+	{
+		nano::node_id_handshake::query_payload pld{ *cookie };
+		query = pld;
+	}
+	else
+	{
+		// Error assigning cookie (too many connections per IP?)
+		// TODO: Stat & log
+		stop ();
+		return;
+	}
+
+	nano::node_id_handshake handshake_request{ node->network_params.network, query };
+
+	if (node->config.logging.network_node_id_handshake_logging ())
+	{
+		node->logger.always_log (boost::str (boost::format ("Node ID handshake request sent with node ID %1% to %2%: query %3%") % node->node_id.pub.to_node_id () % remote_endpoint % (query ? query->cookie.to_string () : "not set")));
+	}
+
+	// TODO: Use channel
+	auto shared_const_buffer = handshake_request.to_shared_const_buffer ();
+	socket->async_write (shared_const_buffer, [this_l = shared_from_this ()] (boost::system::error_code const & ec, std::size_t size_a) {
+		if (ec)
+		{
+			if (this_l->node->config.logging.network_node_id_handshake_logging ())
+			{
+				this_l->node->logger.always_log (boost::str (boost::format ("Error sending node_id_handshake query to %1%: %2%") % this_l->remote_endpoint % ec.message ()));
+			}
+			// Stop invalid handshake
+			this_l->stop ();
+		}
+		else
+		{
+			this_l->node->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::out);
+		}
+	});
+}
+
+bool nano::transport::tcp_server::verify_handshake_response (const nano::node_id_handshake::response_payload & response)
+{
+	// Check if signature OK
+	if (node->network.syn_cookies.validate (nano::transport::map_tcp_to_endpoint (remote_endpoint), response.node_id, response.signature))
+	{
+		return false; // Fail
+	}
+	// Prevent connection with ourselves
+	if (response.node_id == node->node_id.pub)
+	{
+		return false; // Fail
+	}
+	return true; // Success
+}
+
+void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query, bool send_own_query)
 {
 	nano::node_id_handshake::response_payload response{ node->node_id.pub, nano::sign_message (node->node_id.prv, node->node_id.pub, query.cookie) };
 	debug_assert (!nano::validate_message (response.node_id, query.cookie, response.signature));
 
 	std::optional<nano::node_id_handshake::query_payload> own_query;
-	if (auto own_cookie = node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (remote_endpoint)); own_cookie)
+	if (send_own_query)
 	{
-		nano::node_id_handshake::query_payload pld{ *own_cookie };
-		own_query = pld;
+		if (auto own_cookie = node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (remote_endpoint)); own_cookie)
+		{
+			nano::node_id_handshake::query_payload pld{ *own_cookie };
+			own_query = pld;
+		}
+		else
+		{
+			// Error assigning cookie (too many connections per IP?)
+			// Not critical, the other side will still receive our query response
+			// TODO: Stat & log
+		}
 	}
 
 	nano::node_id_handshake handshake_response{ node->network_params.network, own_query, response };
+
+	if (node->config.logging.network_node_id_handshake_logging ())
+	{
+		node->logger.always_log (boost::str (boost::format ("Node ID handshake response sent with node ID %1% to %2%: query %3% | own_query: %4%") % node->node_id.pub.to_node_id () % remote_endpoint % query.cookie.to_string () % (own_query ? own_query->cookie.to_string () : "not set")));
+	}
 
 	// TODO: Use channel
 	auto shared_const_buffer = handshake_response.to_shared_const_buffer ();
@@ -370,7 +459,7 @@ void nano::transport::tcp_server::send_handshake_response (nano::node_id_handsha
 		{
 			if (this_l->node->config.logging.network_node_id_handshake_logging ())
 			{
-				this_l->node->logger.try_log (boost::str (boost::format ("Error sending node_id_handshake to %1%: %2%") % this_l->remote_endpoint % ec.message ()));
+				this_l->node->logger.always_log (boost::str (boost::format ("Error sending node_id_handshake response to %1%: %2%") % this_l->remote_endpoint % ec.message ()));
 			}
 			// Stop invalid handshake
 			this_l->stop ();

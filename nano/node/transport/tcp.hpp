@@ -25,6 +25,7 @@ public:
 	nano::account node_id;
 	std::shared_ptr<nano::transport::socket> socket;
 };
+
 namespace transport
 {
 	class tcp_server;
@@ -37,6 +38,7 @@ namespace transport
 	public:
 		channel_tcp (nano::node &, std::weak_ptr<nano::transport::socket>);
 		~channel_tcp () override;
+
 		std::size_t hash_code () const override;
 		bool operator== (nano::transport::channel const &) const override;
 		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
@@ -92,6 +94,7 @@ namespace transport
 	private:
 		nano::tcp_endpoint endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	};
+
 	class tcp_channels final
 	{
 		friend class nano::transport::channel_tcp;
@@ -99,6 +102,11 @@ namespace transport
 
 	public:
 		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
+
+		void start ();
+		void stop ();
+
+		std::shared_ptr<nano::transport::channel_tcp> create_channel (std::shared_ptr<nano::transport::socket> const &, bool temporary);
 		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
@@ -110,8 +118,6 @@ namespace transport
 		// Get the next peer for attempting a tcp connection
 		nano::tcp_endpoint bootstrap_peer (uint8_t connection_protocol_version_min);
 		void receive ();
-		void start ();
-		void stop ();
 		void process_messages ();
 		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::transport::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
@@ -125,13 +131,16 @@ namespace transport
 		void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
 		void modify (std::shared_ptr<nano::transport::channel_tcp> const &, std::function<void (std::shared_ptr<nano::transport::channel_tcp> const &)>);
 		void update (nano::tcp_endpoint const &);
+
 		// Connection start
 		void start_tcp (nano::endpoint const &);
-		void start_tcp_receive_node_id (std::shared_ptr<nano::transport::channel_tcp> const &, nano::endpoint const &, std::shared_ptr<std::vector<uint8_t>> const &);
+
+	private: // Dependencies
 		nano::node & node;
 
 	private:
 		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
+
 		class endpoint_tag
 		{
 		};
