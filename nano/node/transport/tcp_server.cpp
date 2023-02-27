@@ -125,7 +125,7 @@ std::unique_ptr<nano::container_info_component> nano::transport::collect_contain
  * tcp_server
  */
 
-nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::channel> channel_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
+nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ std::move (socket_a) },
 	channel{ std::move (channel_a) },
 	node{ std::move (node_a) },
@@ -250,12 +250,7 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 	{
 		handshake_message_visitor handshake_visitor{ shared_from_this () };
 		message->visit (handshake_visitor);
-		if (handshake_visitor.process)
-		{
-			queue_realtime (std::move (message));
-			return true;
-		}
-		else if (handshake_visitor.bootstrap)
+		if (handshake_visitor.bootstrap)
 		{
 			if (!to_bootstrap_connection ())
 			{
@@ -279,7 +274,7 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 		}
 		return true;
 	}
-	// the server will switch to bootstrap mode immediately after processing the first bootstrap message, thus no `else if`
+	// The server will switch to bootstrap mode immediately after processing the first bootstrap message, thus no `else if`
 	if (is_bootstrap_connection ())
 	{
 		bootstrap_message_visitor bootstrap_visitor{ shared_from_this () };
@@ -292,7 +287,8 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 
 void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
-	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
+	debug_assert (!channel->get_node_id ().is_zero ()); // Handshake should be completed prior to switching to realtime mode
+	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket, channel });
 }
 
 /*
@@ -340,7 +336,7 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 			{
 				server->node->logger.always_log (boost::str (boost::format ("OK node_id_handshake response from %1%, upgrading to realtime") % server->remote_endpoint));
 			}
-			server->to_realtime_connection (message.response->node_id);
+			server->to_realtime_connection (message.response->node_id, message.header.version_using);
 		}
 	}
 	if (message.query)
@@ -676,11 +672,19 @@ bool nano::transport::tcp_server::to_bootstrap_connection ()
 	return true;
 }
 
-bool nano::transport::tcp_server::to_realtime_connection (nano::account const & node_id)
+bool nano::transport::tcp_server::to_realtime_connection (nano::account const & node_id, uint8_t network_version)
 {
 	if (socket->type () == nano::transport::socket::type_t::undefined && !node->flags.disable_tcp_realtime)
 	{
 		remote_node_id = node_id;
+
+		// Setup channel with remote node info
+		channel->set_node_id (remote_node_id);
+		channel->set_network_version (network_version);
+
+		// Insert channel into tcp channels container, so network knows about it
+		node->network.tcp_channels.insert (channel, socket, shared_from_this ());
+
 		++node->tcp_listener.realtime_count;
 		socket->type_set (nano::transport::socket::type_t::realtime);
 		return true;

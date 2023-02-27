@@ -17,6 +17,11 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
+namespace transport
+{
+	class channel_tcp;
+}
+
 class tcp_message_item final
 {
 public:
@@ -24,6 +29,7 @@ public:
 	nano::tcp_endpoint endpoint;
 	nano::account node_id;
 	std::shared_ptr<nano::transport::socket> socket;
+	std::shared_ptr<nano::transport::channel_tcp> channel;
 };
 
 namespace transport
@@ -119,7 +125,7 @@ namespace transport
 		nano::tcp_endpoint bootstrap_peer (uint8_t connection_protocol_version_min);
 		void receive ();
 		void process_messages ();
-		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::transport::socket> const &);
+		void process_message (nano::message const &, nano::tcp_endpoint const &, std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);

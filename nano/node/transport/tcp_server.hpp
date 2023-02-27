@@ -44,7 +44,7 @@ std::unique_ptr<container_info_component> collect_container_info (tcp_listener &
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
-	tcp_server (std::shared_ptr<nano::transport::socket>, std::shared_ptr<nano::transport::channel>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
+	tcp_server (std::shared_ptr<nano::transport::socket>, std::shared_ptr<nano::transport::channel_tcp>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
 	~tcp_server ();
 
 	void start ();
@@ -54,7 +54,7 @@ public:
 	void send_handshake_query ();
 
 public:
-	std::shared_ptr<nano::transport::channel> const channel;
+	std::shared_ptr<nano::transport::channel_tcp> const channel;
 	std::shared_ptr<nano::transport::socket> const socket;
 	std::shared_ptr<nano::node> const node;
 
@@ -79,7 +79,7 @@ private:
 	void queue_realtime (std::unique_ptr<nano::message> message);
 
 	bool to_bootstrap_connection ();
-	bool to_realtime_connection (nano::account const & node_id);
+	bool to_realtime_connection (nano::account const & node_id, uint8_t network_version);
 	bool is_undefined_connection () const;
 	bool is_bootstrap_connection () const;
 	bool is_realtime_connection () const;

@@ -133,8 +133,6 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::cre
 
 	auto channel = std::make_shared<nano::transport::channel_tcp> (node, socket);
 	channel->set_endpoint ();
-//	channel->set_node_id (node_id_a);
-//	channel->set_network_version (message_a.header.version_using);
 	channel->temporary = temporary;
 	return channel;
 }
@@ -299,62 +297,23 @@ void nano::transport::tcp_channels::process_messages ()
 {
 	while (!stopped)
 	{
-		auto item (node.network.tcp_message_manager.get_message ());
+		auto item = node.network.tcp_message_manager.get_message ();
 		if (item.message != nullptr)
 		{
-			process_message (*item.message, item.endpoint, item.node_id, item.socket);
+			process_message (*item.message, item.endpoint, item.channel, item.socket);
 		}
 	}
 }
 
-void nano::transport::tcp_channels::process_message (nano::message const & message_a, nano::tcp_endpoint const & endpoint_a, nano::account const & node_id_a, std::shared_ptr<nano::transport::socket> const & socket_a)
+void nano::transport::tcp_channels::process_message (nano::message const & message_a, nano::tcp_endpoint const & endpoint_a, std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::transport::socket> const & socket_a)
 {
-	auto type_a = socket_a->type ();
+	debug_assert (channel_a);
+	debug_assert (socket_a->type () == nano::transport::socket::type_t::realtime || socket_a->type () == nano::transport::socket::type_t::realtime_response_server);
+
 	if (!stopped && message_a.header.version_using >= node.network_params.network.protocol_version_min)
 	{
-		auto channel (node.network.find_channel (nano::transport::map_tcp_to_endpoint (endpoint_a)));
-		if (channel)
-		{
-			sink (message_a, channel);
-		}
-		else
-		{
-			channel = node.network.find_node_id (node_id_a);
-			if (channel)
-			{
-				sink (message_a, channel);
-			}
-			else if (!node.network.excluded_peers.check (endpoint_a))
-			{
-				if (!node_id_a.is_zero ())
-				{
-					// Add temporary channel
-					auto temporary_channel (std::make_shared<nano::transport::channel_tcp> (node, socket_a));
-					temporary_channel->set_endpoint ();
-					debug_assert (endpoint_a == temporary_channel->get_tcp_endpoint ());
-					temporary_channel->set_node_id (node_id_a);
-					temporary_channel->set_network_version (message_a.header.version_using);
-					temporary_channel->temporary = true;
-					debug_assert (type_a == nano::transport::socket::type_t::realtime || type_a == nano::transport::socket::type_t::realtime_response_server);
-					// Don't insert temporary channels for response_server
-					if (type_a == nano::transport::socket::type_t::realtime)
-					{
-						insert (temporary_channel, socket_a, nullptr);
-					}
-					sink (message_a, temporary_channel);
-				}
-				else
-				{
-					// Initial node_id_handshake request without node ID
-					debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
-					node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
-				}
-			}
-		}
-		if (channel)
-		{
-			channel->set_last_packet_received (std::chrono::steady_clock::now ());
-		}
+		sink (message_a, channel_a);
+		channel_a->set_last_packet_received (std::chrono::steady_clock::now ());
 	}
 }
 
