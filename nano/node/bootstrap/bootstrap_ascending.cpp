@@ -376,8 +376,8 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	stats{ stat_a },
 	accounts{ stats },
 	iterator{ store },
-	limiter{ requests_limit },
-	database_limiter{ database_requests_limit }
+	limiter{ requests_limit, 1.0 },
+	database_limiter{ database_requests_limit, 1.0 }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
 	block_processor.batch_processed.add ([this] (auto const & batch) {
@@ -549,7 +549,7 @@ void nano::bootstrap_ascending::wait_blockprocessor ()
 
 void nano::bootstrap_ascending::wait_available_request ()
 {
-	while (!stopped && !limiter.should_pass ())
+	while (!stopped && !limiter.should_pass (1))
 	{
 		std::this_thread::sleep_for (50ms); // Give it at least some time to cooldown to avoid hitting the limit too frequently
 	}
@@ -589,7 +589,7 @@ nano::account nano::bootstrap_ascending::available_account ()
 		}
 	}
 
-	if (database_limiter.should_pass ())
+	if (database_limiter.should_pass (1))
 	{
 		auto account = iterator.next ();
 		if (!account.is_zero ())

@@ -315,10 +315,10 @@ private:
 	// clang-format on
 	ordered_tags tags;
 
-	nano::rate_limiter limiter;
+	nano::bandwidth_limiter limiter;
 	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
 	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
-	nano::rate_limiter database_limiter;
+	nano::bandwidth_limiter database_limiter;
 
 	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;
