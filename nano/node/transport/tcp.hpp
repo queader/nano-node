@@ -180,9 +180,10 @@ namespace transport
 		public:
 			std::shared_ptr<nano::transport::channel_tcp> channel;
 			std::shared_ptr<nano::transport::socket> socket;
-			std::shared_ptr<nano::transport::tcp_server> response_server;
-			channel_tcp_wrapper (std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
-				channel (std::move (channel_a)), socket (std::move (socket_a)), response_server (std::move (server_a))
+
+			channel_tcp_wrapper (std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::transport::socket> socket_a) :
+				channel{ std::move (channel_a) },
+				socket{ std::move (socket_a) }
 			{
 			}
 			nano::tcp_endpoint endpoint () const

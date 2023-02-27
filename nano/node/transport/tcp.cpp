@@ -154,7 +154,7 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 			{
 				channels.get<node_id_tag> ().erase (node_id);
 			}
-			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, server_a);
+			channels.get<endpoint_tag> ().emplace (channel_a, socket_a);
 			attempts.get<endpoint_tag> ().erase (endpoint);
 			error = false;
 			lock.unlock ();
@@ -332,11 +332,6 @@ void nano::transport::tcp_channels::stop ()
 		if (channel.socket)
 		{
 			channel.socket->close ();
-		}
-		// Remove response server
-		if (channel.response_server)
-		{
-			channel.response_server->stop ();
 		}
 	}
 	channels.clear ();

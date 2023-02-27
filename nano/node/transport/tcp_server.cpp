@@ -82,6 +82,7 @@ void nano::transport::tcp_listener::stop ()
 std::size_t nano::transport::tcp_listener::connection_count ()
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
+	cleanup ();
 	return connections.size ();
 }
 
@@ -95,8 +96,11 @@ void nano::transport::tcp_listener::accept_action (boost::system::error_code con
 	}
 
 	auto server = std::make_shared<nano::transport::tcp_server> (socket, channel, node.shared (), /* allow bootstrap */ true);
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	connections[server.get ()] = server;
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		cleanup ();
+		connections.push_back (server);
+	}
 	server->start ();
 }
 
@@ -113,11 +117,18 @@ boost::asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint ()
 	}
 }
 
-std::unique_ptr<nano::container_info_component> nano::transport::collect_container_info (nano::transport::tcp_listener & bootstrap_listener, std::string const & name)
+void nano::transport::tcp_listener::cleanup ()
 {
-	auto sizeof_element = sizeof (decltype (bootstrap_listener.connections)::value_type);
+	debug_assert (!mutex.try_lock ());
+	std::erase_if (connections, [] (std::weak_ptr<nano::transport::tcp_server> const & conn) {
+		return conn.expired ();
+	});
+}
+
+std::unique_ptr<nano::container_info_component> nano::transport::tcp_listener::collect_container_info (std::string const & name)
+{
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", bootstrap_listener.connection_count (), sizeof_element }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", connection_count (), sizeof (decltype (connections)::value_type) }));
 	return composite;
 }
 
@@ -139,7 +150,7 @@ nano::transport::tcp_server::~tcp_server ()
 {
 	if (node->config.logging.bulk_pull_logging ())
 	{
-		node->logger.try_log ("Exiting incoming TCP/bootstrap server");
+		node->logger.try_log ("Exiting TCP server");
 	}
 
 	if (socket->type () == nano::transport::socket::type_t::bootstrap)
@@ -149,20 +160,9 @@ nano::transport::tcp_server::~tcp_server ()
 	else if (socket->type () == nano::transport::socket::type_t::realtime)
 	{
 		--node->tcp_listener.realtime_count;
-
-		// Clear temporary channel
-		auto exisiting_response_channel (node->network.tcp_channels.find_channel (remote_endpoint));
-		if (exisiting_response_channel != nullptr)
-		{
-			exisiting_response_channel->temporary = false;
-			node->network.tcp_channels.erase (remote_endpoint);
-		}
 	}
 
 	stop ();
-
-	nano::lock_guard<nano::mutex> lock{ node->tcp_listener.mutex };
-	node->tcp_listener.connections.erase (this);
 }
 
 void nano::transport::tcp_server::start ()
@@ -639,10 +639,6 @@ void nano::transport::tcp_server::timeout ()
 		if (node->config.logging.bulk_pull_logging ())
 		{
 			node->logger.try_log ("Closing incoming tcp / bootstrap server by timeout");
-		}
-		{
-			nano::lock_guard<nano::mutex> lock{ node->tcp_listener.mutex };
-			node->tcp_listener.connections.erase (this);
 		}
 		socket->close ();
 	}

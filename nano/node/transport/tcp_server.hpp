@@ -5,6 +5,7 @@
 #include <nano/node/transport/socket.hpp>
 
 #include <atomic>
+#include <vector>
 
 namespace nano
 {
@@ -23,24 +24,38 @@ class tcp_listener final
 {
 public:
 	tcp_listener (uint16_t, nano::node &);
+
 	void start ();
 	void stop ();
+
 	void accept_action (boost::system::error_code const &, std::shared_ptr<nano::transport::socket> const &);
 	std::size_t connection_count ();
 
-	nano::mutex mutex;
-	std::unordered_map<nano::transport::tcp_server *, std::weak_ptr<nano::transport::tcp_server>> connections;
+	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+
+public:
+	//	std::unordered_map<nano::transport::tcp_server *, std::weak_ptr<nano::transport::tcp_server>> connections;
 	nano::tcp_endpoint endpoint ();
-	nano::node & node;
 	std::shared_ptr<nano::transport::server_socket> listening_socket;
 	bool on{ false };
 	std::atomic<std::size_t> bootstrap_count{ 0 };
 	std::atomic<std::size_t> realtime_count{ 0 };
 	uint16_t port;
+
+private:
+	void cleanup ();
+
+private: // Dependencies
+	nano::node & node;
+
+private:
+	std::vector<std::weak_ptr<nano::transport::tcp_server>> connections;
+	nano::mutex mutex;
 };
 
-std::unique_ptr<container_info_component> collect_container_info (tcp_listener & bootstrap_listener, std::string const & name);
-
+/**
+ * Will be alive as long as the underlying socket is alive
+ */
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
