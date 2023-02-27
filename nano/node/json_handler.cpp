@@ -5212,40 +5212,6 @@ void nano::json_handler::populate_backlog ()
 	response_errors ();
 }
 
-void nano::json_handler::backoff_info ()
-{
-	if (!ec)
-	{
-		auto [blocking, priorities] = node.ascendboot.info ();
-
-		// priorities
-		{
-			boost::property_tree::ptree response_priorities;
-			for (auto const & entry : priorities)
-			{
-				const auto account = entry.account;
-				const auto priority = entry.priority;
-
-				response_priorities.put (account.to_account (), priority);
-			}
-			response_l.add_child ("priorities", response_priorities);
-		}
-		// blocking
-		{
-			boost::property_tree::ptree response_blocking;
-			for (auto const & entry : blocking)
-			{
-				const auto account = entry.account;
-				const auto dependency = entry.dependency;
-
-				response_blocking.put (account.to_account (), dependency.to_string ());
-			}
-			response_l.add_child ("blocking", response_blocking);
-		}
-	}
-	response_errors ();
-}
-
 void nano::inprocess_rpc_handler::process_request (std::string const &, std::string const & body_a, std::function<void (std::string const &)> response_a)
 {
 	// Note that if the rpc action is async, the shared_ptr<json_handler> lifetime will be extended by the action handler
@@ -5411,7 +5377,6 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("work_peers", &nano::json_handler::work_peers);
 	no_arg_funcs.emplace ("work_peers_clear", &nano::json_handler::work_peers_clear);
 	no_arg_funcs.emplace ("populate_backlog", &nano::json_handler::populate_backlog);
-	no_arg_funcs.emplace ("backoff_info", &nano::json_handler::backoff_info);
 	return no_arg_funcs;
 }
 
