@@ -344,7 +344,7 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 	}
 	if (message.response)
 	{
-		if (server->node->network.verify_handshake (*message.response, nano::transport::map_tcp_to_endpoint (server->remote_endpoint)))
+		if (server->node->network.verify_handshake_response (*message.response, nano::transport::map_tcp_to_endpoint (server->remote_endpoint)))
 		{
 			server->to_realtime_connection (message.response->node_id);
 		}
@@ -361,16 +361,12 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 
 void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query)
 {
+	// Response
 	nano::node_id_handshake::response_payload response{ node->node_id.pub, nano::sign_message (node->node_id.prv, node->node_id.pub, query.cookie) };
 	debug_assert (!nano::validate_message (response.node_id, query.cookie, response.signature));
-
-	std::optional<nano::node_id_handshake::query_payload> own_query;
-	if (auto own_cookie = node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (remote_endpoint)); own_cookie)
-	{
-		nano::node_id_handshake::query_payload pld{ *own_cookie };
-		own_query = pld;
-	}
-
+	// Query
+	auto own_query = node->network.prepare_handshake_query (nano::transport::map_tcp_to_endpoint (remote_endpoint));
+	// Full message (query + response)
 	nano::node_id_handshake handshake_response{ node->network_params.network, own_query, response };
 
 	// TODO: Use channel

@@ -759,7 +759,7 @@ void nano::network::exclude (std::shared_ptr<nano::transport::channel> const & c
 	erase (*channel);
 }
 
-bool nano::network::verify_handshake (const nano::node_id_handshake::response_payload & response, const nano::endpoint & remote_endpoint)
+bool nano::network::verify_handshake_response (const nano::node_id_handshake::response_payload & response, const nano::endpoint & remote_endpoint)
 {
 	// Prevent connection with ourselves
 	if (response.node_id == node.node_id.pub)
@@ -775,6 +775,16 @@ bool nano::network::verify_handshake (const nano::node_id_handshake::response_pa
 	}
 	node.stats.inc (nano::stat::type::handshake, nano::stat::detail::ok);
 	return true; // OK
+}
+
+std::optional<nano::node_id_handshake::query_payload> nano::network::prepare_handshake_query (const nano::endpoint & remote_endpoint)
+{
+	if (auto cookie = syn_cookies.assign (remote_endpoint); cookie)
+	{
+		nano::node_id_handshake::query_payload query{ *cookie };
+		return query;
+	}
+	return std::nullopt;
 }
 
 /*

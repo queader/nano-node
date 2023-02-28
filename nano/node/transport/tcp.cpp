@@ -545,14 +545,7 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 			if (!ec && channel)
 			{
 				// TCP node ID handshake
-
-				std::optional<nano::node_id_handshake::query_payload> query;
-				if (auto cookie = node_l->network.syn_cookies.assign (endpoint_a); cookie)
-				{
-					nano::node_id_handshake::query_payload pld{ *cookie };
-					query = pld;
-				}
-
+				auto query = node_l->network.prepare_handshake_query (endpoint_a);
 				nano::node_id_handshake message{ node_l->network_params.network, query };
 
 				if (node_l->config.logging.network_node_id_handshake_logging ())
@@ -686,7 +679,7 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 
 		auto const node_id = message.response->node_id;
 
-		if (!node_l->network.verify_handshake (*message.response, endpoint_a))
+		if (!node_l->network.verify_handshake_response (*message.response, endpoint_a))
 		{
 			cleanup_node_id_handshake_socket (endpoint_a);
 			return;
