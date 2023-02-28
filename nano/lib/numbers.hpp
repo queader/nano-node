@@ -255,9 +255,23 @@ public:
 
 nano::signature sign_message (nano::raw_key const &, nano::public_key const &, nano::uint256_union const &);
 nano::signature sign_message (nano::raw_key const &, nano::public_key const &, uint8_t const *, size_t);
+
+template <class T>
+nano::signature sign_message (nano::raw_key const & private_key, nano::public_key const & public_key, T const & data)
+{
+	return nano::sign_message (private_key, public_key, reinterpret_cast<uint8_t const *> (&data), sizeof (T));
+}
+
 bool validate_message (nano::public_key const &, nano::uint256_union const &, nano::signature const &);
 bool validate_message (nano::public_key const &, uint8_t const *, size_t, nano::signature const &);
 bool validate_message_batch (unsigned char const **, size_t *, unsigned char const **, unsigned char const **, size_t, int *);
+
+template <class T>
+bool validate_message (nano::public_key const & public_key, T const & data, nano::signature const & signature)
+{
+	return nano::validate_message (public_key, reinterpret_cast<uint8_t const *> (&data), sizeof (T), signature);
+}
+
 nano::raw_key deterministic_key (nano::raw_key const &, uint32_t);
 nano::public_key pub_key (nano::raw_key const &);
 
