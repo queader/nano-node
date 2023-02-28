@@ -125,6 +125,7 @@ public:
 	/** Verifies that handshake response matches our query. @returns true if OK */
 	bool verify_handshake_response (nano::node_id_handshake::response_payload const & response, nano::endpoint const & remote_endpoint);
 	std::optional<nano::node_id_handshake::query_payload> prepare_handshake_query (nano::endpoint const & remote_endpoint);
+	nano::node_id_handshake::response_payload prepare_handshake_response (nano::node_id_handshake::query_payload const & query);
 
 	static std::string to_string (nano::networks);
 

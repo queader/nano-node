@@ -361,12 +361,8 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 
 void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query)
 {
-	// Response
-	nano::node_id_handshake::response_payload response{ node->node_id.pub, nano::sign_message (node->node_id.prv, node->node_id.pub, query.cookie) };
-	debug_assert (!nano::validate_message (response.node_id, query.cookie, response.signature));
-	// Query
+	auto response = node->network.prepare_handshake_response (query);
 	auto own_query = node->network.prepare_handshake_query (nano::transport::map_tcp_to_endpoint (remote_endpoint));
-	// Full message (query + response)
 	nano::node_id_handshake handshake_response{ node->network_params.network, own_query, response };
 
 	// TODO: Use channel

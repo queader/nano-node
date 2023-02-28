@@ -787,6 +787,13 @@ std::optional<nano::node_id_handshake::query_payload> nano::network::prepare_han
 	return std::nullopt;
 }
 
+nano::node_id_handshake::response_payload nano::network::prepare_handshake_response (const nano::node_id_handshake::query_payload & query)
+{
+	nano::node_id_handshake::response_payload response{ node.node_id.pub, nano::sign_message (node.node_id.prv, node.node_id.pub, query.cookie) };
+	debug_assert (!nano::validate_message (response.node_id, query.cookie, response.signature));
+	return response;
+}
+
 /*
  * tcp_message_manager
  */
