@@ -121,6 +121,8 @@ public:
 	void erase (nano::transport::channel const &);
 	/** Disconnects and adds peer to exclusion list */
 	void exclude (std::shared_ptr<nano::transport::channel> const & channel);
+	/** Verifies that handshake response matches our query. @returns true if OK */
+	bool verify_handshake (nano::node_id_handshake::response_payload const & response, nano::endpoint const & remote_endpoint);
 
 	static std::string to_string (nano::networks);
 

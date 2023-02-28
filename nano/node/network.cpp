@@ -759,6 +759,28 @@ void nano::network::exclude (std::shared_ptr<nano::transport::channel> const & c
 	erase (*channel);
 }
 
+bool nano::network::verify_handshake (const nano::node_id_handshake::response_payload & response, const nano::endpoint & remote_endpoint)
+{
+	// Prevent connection with ourselves
+	if (response.node_id == node.node_id.pub)
+	{
+		node.stats.inc (nano::stat::type::handshake, nano::stat::detail::invalid_node_id);
+		return false; // Fail
+	}
+	// Verifies whether our previous query was signed, and signature matches reported node id
+	if (syn_cookies.validate (remote_endpoint, response.node_id, response.signature)) // true => error
+	{
+		node.stats.inc (nano::stat::type::handshake, nano::stat::detail::invalid_signature);
+		return false; // Fail
+	}
+	node.stats.inc (nano::stat::type::handshake, nano::stat::detail::ok);
+	return true; // OK
+}
+
+/*
+ * tcp_message_manager
+ */
+
 nano::tcp_message_manager::tcp_message_manager (unsigned incoming_connections_max_a) :
 	max_entries (incoming_connections_max_a * nano::tcp_message_manager::max_entries_per_connection + 1)
 {
@@ -809,6 +831,10 @@ void nano::tcp_message_manager::stop ()
 	consumer_condition.notify_all ();
 	producer_condition.notify_all ();
 }
+
+/*
+ * syn_cookies
+ */
 
 nano::syn_cookies::syn_cookies (std::size_t max_cookies_per_ip_a) :
 	max_cookies_per_ip (max_cookies_per_ip_a)

@@ -8,6 +8,10 @@
 
 #include <boost/format.hpp>
 
+/*
+ * tcp_listener
+ */
+
 nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_a) :
 	node (node_a),
 	port (port_a)
@@ -120,6 +124,10 @@ std::unique_ptr<nano::container_info_component> nano::transport::collect_contain
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", bootstrap_listener.connection_count (), sizeof_element }));
 	return composite;
 }
+
+/*
+ * tcp_server
+ */
 
 nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ std::move (socket_a) },
@@ -307,6 +315,7 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 		{
 			server->node->logger.try_log (boost::str (boost::format ("Disabled realtime TCP for handshake %1%") % server->remote_endpoint));
 		}
+		// Stop invalid handshake
 		server->stop ();
 		return;
 	}
@@ -317,6 +326,7 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 		{
 			server->node->logger.try_log (boost::str (boost::format ("Detected multiple node_id_handshake query from %1%") % server->remote_endpoint));
 		}
+		// Stop invalid handshake
 		server->stop ();
 		return;
 	}
@@ -334,15 +344,15 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 	}
 	if (message.response)
 	{
-		nano::account const & node_id = message.response->node_id;
-		if (!server->node->network.syn_cookies.validate (nano::transport::map_tcp_to_endpoint (server->remote_endpoint), node_id, message.response->signature) && node_id != server->node->node_id.pub)
+		if (server->node->network.verify_handshake (*message.response, nano::transport::map_tcp_to_endpoint (server->remote_endpoint)))
 		{
-			server->to_realtime_connection (node_id);
+			server->to_realtime_connection (message.response->node_id);
 		}
 		else
 		{
 			// Stop invalid handshake
 			server->stop ();
+			return;
 		}
 	}
 

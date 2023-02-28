@@ -684,10 +684,11 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		debug_assert (message.query);
 		debug_assert (message.response);
 
-		auto node_id = message.response->node_id;
-		bool process = (!node_l->network.syn_cookies.validate (endpoint_a, node_id, message.response->signature) && node_id != node_l->node_id.pub);
-		if (!process)
+		auto const node_id = message.response->node_id;
+
+		if (!node_l->network.verify_handshake (*message.response, endpoint_a))
 		{
+			cleanup_node_id_handshake_socket (endpoint_a);
 			return;
 		}
 
@@ -696,6 +697,7 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		auto existing_channel (node_l->network.tcp_channels.find_node_id (node_id));
 		if (existing_channel && !existing_channel->temporary)
 		{
+			cleanup_node_id_handshake_socket (endpoint_a);
 			return;
 		}
 
