@@ -775,17 +775,6 @@ std::shared_ptr<nano::block> nano::node::block (nano::block_hash const & hash_a)
 	return store.block.get (transaction, hash_a);
 }
 
-std::shared_ptr<nano::block> nano::node::head_block (const nano::account & account)
-{
-	auto transaction = store.tx_begin_read ();
-	auto info = store.account.get (transaction, account);
-	if (info)
-	{
-		return store.block.get (transaction, info->head);
-	}
-	return nullptr;
-}
-
 std::pair<nano::uint128_t, nano::uint128_t> nano::node::balance_pending (nano::account const & account_a, bool only_confirmed_a)
 {
 	std::pair<nano::uint128_t, nano::uint128_t> result;
