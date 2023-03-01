@@ -1,8 +1,11 @@
 #include <nano/lib/stats.hpp>
 #include <nano/node/node.hpp>
+#include <nano/node/transport/message_deserializer.hpp>
 #include <nano/node/transport/tcp.hpp>
 
 #include <boost/format.hpp>
+
+#include <memory>
 
 /*
  * channel_tcp
@@ -613,7 +616,8 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		}
 	};
 
-	socket_l->async_read (receive_buffer_a, 8 + sizeof (nano::account) + sizeof (nano::account) + sizeof (nano::signature), [node_w, channel_a, endpoint_a, receive_buffer_a, cleanup_node_id_handshake_socket] (boost::system::error_code const & ec, std::size_t size_a) {
+	auto message_deserializer = std::make_shared<nano::transport::message_deserializer> (node.network_params.network, node.network.publish_filter, node.block_uniquer, node.vote_uniquer);
+	message_deserializer->read (socket_l, [node_w, socket_l, channel_a, endpoint_a, cleanup_node_id_handshake_socket] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
 		auto node_l = node_w.lock ();
 		if (!node_l)
 		{
@@ -630,10 +634,8 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		}
 		node_l->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
 		auto error (false);
-		nano::bufferstream stream (receive_buffer_a->data (), size_a);
-		nano::message_header header (error, stream);
 		// the header type should in principle be checked after checking the network bytes and the version numbers, I will not change it here since the benefits do not outweight the difficulties
-		if (error || header.type != nano::message_type::node_id_handshake)
+		if (error || message->type () != nano::message_type::node_id_handshake)
 		{
 			if (node_l->config.logging.network_node_id_handshake_logging ())
 			{
@@ -642,10 +644,10 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 			cleanup_node_id_handshake_socket (endpoint_a);
 			return;
 		}
-		if (header.network != node_l->network_params.network.current_network || header.version_using < node_l->network_params.network.protocol_version_min)
+		if (message->header.network != node_l->network_params.network.current_network || message->header.version_using < node_l->network_params.network.protocol_version_min)
 		{
 			// error handling, either the networks bytes or the version is wrong
-			if (header.network == node_l->network_params.network.current_network)
+			if (message->header.network == node_l->network_params.network.current_network)
 			{
 				node_l->stats.inc (nano::stat::type::message, nano::stat::detail::invalid_network);
 			}
@@ -662,8 +664,10 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 			}
 			return;
 		}
-		nano::node_id_handshake message (error, stream, header);
-		if (error || !message.response || !message.query)
+
+		auto handshake = std::dynamic_pointer_cast<nano::node_id_handshake> (std::shared_ptr{ std::move (message) });
+
+		if (error || !handshake->response || !handshake->query)
 		{
 			if (node_l->config.logging.network_node_id_handshake_logging ())
 			{
@@ -672,14 +676,14 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 			cleanup_node_id_handshake_socket (endpoint_a);
 			return;
 		}
-		channel_a->set_network_version (header.version_using);
+		channel_a->set_network_version (handshake->header.version_using);
 
-		debug_assert (message.query);
-		debug_assert (message.response);
+		debug_assert (handshake->query);
+		debug_assert (handshake->response);
 
-		auto const node_id = message.response->node_id;
+		auto const node_id = handshake->response->node_id;
 
-		if (!node_l->network.verify_handshake_response (*message.response, endpoint_a))
+		if (!node_l->network.verify_handshake_response (*handshake->response, endpoint_a))
 		{
 			cleanup_node_id_handshake_socket (endpoint_a);
 			return;
@@ -697,13 +701,13 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		channel_a->set_node_id (node_id);
 		channel_a->set_last_packet_received (std::chrono::steady_clock::now ());
 
-		debug_assert (message.query);
-		auto response = node_l->network.prepare_handshake_response (*message.query, message.is_v2 ());
+		debug_assert (handshake->query);
+		auto response = node_l->network.prepare_handshake_response (*handshake->query, handshake->is_v2 ());
 		nano::node_id_handshake handshake_response (node_l->network_params.network, std::nullopt, response);
 
 		if (node_l->config.logging.network_node_id_handshake_logging ())
 		{
-			node_l->logger.try_log (boost::str (boost::format ("Node ID handshake response sent with node ID %1% to %2%: query %3%") % node_l->node_id.pub.to_node_id () % endpoint_a % message.query->cookie.to_string ()));
+			node_l->logger.try_log (boost::str (boost::format ("Node ID handshake response sent with node ID %1% to %2%: query %3%") % node_l->node_id.pub.to_node_id () % endpoint_a % handshake->query->cookie.to_string ()));
 		}
 
 		channel_a->send (handshake_response, [node_w, channel_a, endpoint_a, cleanup_node_id_handshake_socket] (boost::system::error_code const & ec, std::size_t size_a) {
