@@ -454,7 +454,7 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 
 	channel->send (
 	request, nullptr,
-	nano::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
+	nano::transport::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
 }
 
 size_t nano::bootstrap_ascending::priority_size () const

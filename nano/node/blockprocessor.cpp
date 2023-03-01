@@ -97,9 +97,9 @@ void nano::block_processor::add (std::shared_ptr<nano::block> const & block_a)
 
 void nano::block_processor::add (nano::unchecked_info const & info_a)
 {
-	// Do not allow new blocks when full
 	if (full ())
 	{
+		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::drop);
 		return;
 	}
 	auto const & block = info_a.block;
@@ -120,6 +120,11 @@ void nano::block_processor::add (nano::unchecked_info const & info_a)
 
 void nano::block_processor::add_local (nano::unchecked_info const & info_a)
 {
+	if (full ())
+	{
+		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::drop);
+		return;
+	}
 	debug_assert (!node.network_params.work.validate_entry (*info_a.block));
 	state_block_signature_verification.add ({ info_a.block });
 }
@@ -326,7 +331,7 @@ void nano::block_processor::process_live (nano::transaction const & transaction_
 	}
 	else if (!node.flags.disable_block_processor_republishing && node.block_arrival.recent (hash_a))
 	{
-		node.network.flood_block (block_a, nano::buffer_drop_policy::limiter);
+		node.network.flood_block (block_a, nano::transport::buffer_drop_policy::limiter);
 	}
 
 	if (node.websocket.server && node.websocket.server->any_subscriber (nano::websocket::topic::new_unconfirmed_block))

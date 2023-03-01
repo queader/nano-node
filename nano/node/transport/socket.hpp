@@ -3,6 +3,7 @@
 #include <nano/boost/asio/ip/tcp.hpp>
 #include <nano/boost/asio/strand.hpp>
 #include <nano/lib/asio.hpp>
+#include <nano/lib/timer.hpp>
 
 #include <chrono>
 #include <map>
@@ -16,6 +17,11 @@ class network_v6;
 
 namespace nano
 {
+class node;
+}
+
+namespace nano::transport
+{
 /** Policy to affect at which stage a buffer can be dropped */
 enum class buffer_drop_policy
 {
@@ -27,11 +33,10 @@ enum class buffer_drop_policy
 	no_socket_drop
 };
 
-class node;
 class server_socket;
 
 /** Socket class for tcp clients and newly accepted connections */
-class socket : public std::enable_shared_from_this<nano::socket>
+class socket : public std::enable_shared_from_this<nano::transport::socket>
 {
 	friend class server_socket;
 
@@ -57,6 +62,7 @@ public:
 	 */
 	explicit socket (nano::node & node, endpoint_type_t endpoint_type_a);
 	virtual ~socket ();
+
 	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
 	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> = {});
@@ -93,11 +99,11 @@ public:
 	}
 	bool is_realtime_connection () const
 	{
-		return type () == nano::socket::type_t::realtime || type () == nano::socket::type_t::realtime_response_server;
+		return type () == nano::transport::socket::type_t::realtime || type () == nano::transport::socket::type_t::realtime_response_server;
 	}
 	bool is_bootstrap_connection () const
 	{
-		return type () == nano::socket::type_t::bootstrap;
+		return type () == nano::transport::socket::type_t::bootstrap;
 	}
 	bool is_closed () const
 	{
@@ -137,7 +143,7 @@ protected:
 	/** the timestamp (in seconds since epoch) of the last time there was successful receive on the socket
 	 *  successful receive includes graceful closing of the socket by the peer (the read succeeds but returns 0 bytes)
 	 */
-	std::atomic<uint64_t> last_receive_time_or_init;
+	std::atomic<nano::seconds_t> last_receive_time_or_init;
 
 	/** Flag that is set when cleanup decides to close the socket due to timeout.
 	 *  NOTE: Currently used by tcp_server::timeout() but I suspect that this and tcp_server::timeout() are not needed.
@@ -184,7 +190,7 @@ namespace socket_functions
 	boost::asio::ip::network_v6 get_ipv6_subnet_address (boost::asio::ip::address_v6 const &, size_t);
 	boost::asio::ip::address first_ipv6_subnet_address (boost::asio::ip::address_v6 const &, size_t);
 	boost::asio::ip::address last_ipv6_subnet_address (boost::asio::ip::address_v6 const &, size_t);
-	size_t count_subnetwork_connections (nano::address_socket_mmap const &, boost::asio::ip::address_v6 const &, size_t);
+	size_t count_subnetwork_connections (nano::transport::address_socket_mmap const &, boost::asio::ip::address_v6 const &, size_t);
 }
 
 /** Socket class for TCP servers */
@@ -203,22 +209,22 @@ public:
 	/** Stop accepting new connections */
 	void close () override;
 	/** Register callback for new connections. The callback must return true to keep accepting new connections. */
-	void on_connection (std::function<bool (std::shared_ptr<nano::socket> const & new_connection, boost::system::error_code const &)>);
+	void on_connection (std::function<bool (std::shared_ptr<nano::transport::socket> const & new_connection, boost::system::error_code const &)>);
 	uint16_t listening_port ()
 	{
 		return acceptor.local_endpoint ().port ();
 	}
 
 private:
-	nano::address_socket_mmap connections_per_address;
+	nano::transport::address_socket_mmap connections_per_address;
 	boost::asio::ip::tcp::acceptor acceptor;
 	boost::asio::ip::tcp::endpoint local;
 	std::size_t max_inbound_connections;
 	void evict_dead_connections ();
-	void on_connection_requeue_delayed (std::function<bool (std::shared_ptr<nano::socket> const & new_connection, boost::system::error_code const &)>);
+	void on_connection_requeue_delayed (std::function<bool (std::shared_ptr<nano::transport::socket> const & new_connection, boost::system::error_code const &)>);
 	/** Checks whether the maximum number of connections per IP was reached. If so, it returns true. */
-	bool limit_reached_for_incoming_ip_connections (std::shared_ptr<nano::socket> const & new_connection);
-	bool limit_reached_for_incoming_subnetwork_connections (std::shared_ptr<nano::socket> const & new_connection);
+	bool limit_reached_for_incoming_ip_connections (std::shared_ptr<nano::transport::socket> const & new_connection);
+	bool limit_reached_for_incoming_subnetwork_connections (std::shared_ptr<nano::transport::socket> const & new_connection);
 };
 
 /** Socket class for TCP clients */

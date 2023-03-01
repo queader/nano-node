@@ -130,7 +130,7 @@ void nano::network::send_node_id_handshake (std::shared_ptr<nano::transport::cha
 	channel_a->send (message);
 }
 
-void nano::network::flood_message (nano::message & message_a, nano::buffer_drop_policy const drop_policy_a, float const scale_a)
+void nano::network::flood_message (nano::message & message_a, nano::transport::buffer_drop_policy const drop_policy_a, float const scale_a)
 {
 	for (auto & i : list (fanout (scale_a)))
 	{
@@ -142,17 +142,17 @@ void nano::network::flood_keepalive (float const scale_a)
 {
 	nano::keepalive message{ node.network_params.network };
 	random_fill (message.peers);
-	flood_message (message, nano::buffer_drop_policy::limiter, scale_a);
+	flood_message (message, nano::transport::buffer_drop_policy::limiter, scale_a);
 }
 
 void nano::network::flood_keepalive_self (float const scale_a)
 {
 	nano::keepalive message{ node.network_params.network };
 	fill_keepalive_self (message.peers);
-	flood_message (message, nano::buffer_drop_policy::limiter, scale_a);
+	flood_message (message, nano::transport::buffer_drop_policy::limiter, scale_a);
 }
 
-void nano::network::flood_block (std::shared_ptr<nano::block> const & block_a, nano::buffer_drop_policy const drop_policy_a)
+void nano::network::flood_block (std::shared_ptr<nano::block> const & block_a, nano::transport::buffer_drop_policy const drop_policy_a)
 {
 	nano::publish message (node.network_params.network, block_a);
 	flood_message (message, drop_policy_a);
@@ -163,11 +163,11 @@ void nano::network::flood_block_initial (std::shared_ptr<nano::block> const & bl
 	nano::publish message (node.network_params.network, block_a);
 	for (auto const & i : node.rep_crawler.principal_representatives ())
 	{
-		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
+		i.channel->send (message, nullptr, nano::transport::buffer_drop_policy::no_limiter_drop);
 	}
 	for (auto & i : list_non_pr (fanout (1.0)))
 	{
-		i->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
+		i->send (message, nullptr, nano::transport::buffer_drop_policy::no_limiter_drop);
 	}
 }
 
@@ -185,7 +185,7 @@ void nano::network::flood_vote_pr (std::shared_ptr<nano::vote> const & vote_a)
 	nano::confirm_ack message{ node.network_params.network, vote_a };
 	for (auto const & i : node.rep_crawler.principal_representatives ())
 	{
-		i.channel->send (message, nullptr, nano::buffer_drop_policy::no_limiter_drop);
+		i.channel->send (message, nullptr, nano::transport::buffer_drop_policy::no_limiter_drop);
 	}
 }
 
@@ -481,7 +481,7 @@ public:
 			auto telemetry_data = node.local_telemetry ();
 			telemetry_ack = nano::telemetry_ack{ node.network_params.network, telemetry_data };
 		}
-		channel->send (telemetry_ack, nullptr, nano::buffer_drop_policy::no_socket_drop);
+		channel->send (telemetry_ack, nullptr, nano::transport::buffer_drop_policy::no_socket_drop);
 	}
 
 	void telemetry_ack (nano::telemetry_ack const & message_a) override

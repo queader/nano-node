@@ -186,18 +186,20 @@ add_library(
   rocksdb/rocksdb_txn.cpp
   signatures.hpp
   signatures.cpp
-  socket.hpp
-  socket.cpp
   state_block_signature_verification.hpp
   state_block_signature_verification.cpp
   telemetry.hpp
   telemetry.cpp
+  transport/channel.hpp
+  transport/channel.cpp
   transport/fake.hpp
   transport/fake.cpp
   transport/inproc.hpp
   transport/inproc.cpp
   transport/message_deserializer.hpp
   transport/message_deserializer.cpp
+  transport/socket.hpp
+  transport/socket.cpp
   transport/tcp.hpp
   transport/tcp.cpp
   transport/tcp_server.hpp
