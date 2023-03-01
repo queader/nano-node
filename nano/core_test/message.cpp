@@ -571,3 +571,66 @@ TEST (message, node_id_handshake_response_v2_serialization)
 
 	ASSERT_TRUE (nano::at_end (stream));
 }
+
+TEST (handshake, signature)
+{
+	nano::keypair node_id{};
+	nano::keypair node_id_2{};
+	auto cookie = nano::random_pool::generate<nano::uint256_union> ();
+	auto cookie_2 = nano::random_pool::generate<nano::uint256_union> ();
+
+	nano::node_id_handshake::response_payload response{};
+	response.node_id = node_id.pub;
+	response.sign (cookie, node_id);
+	ASSERT_TRUE (response.validate (cookie));
+
+	// Invalid cookie
+	ASSERT_FALSE (response.validate (cookie_2));
+
+	// Invalid node id
+	response.node_id = node_id_2.pub;
+	ASSERT_FALSE (response.validate (cookie));
+}
+
+TEST (handshake, signature_v2)
+{
+	nano::keypair node_id{};
+	nano::keypair node_id_2{};
+	auto cookie = nano::random_pool::generate<nano::uint256_union> ();
+	auto cookie_2 = nano::random_pool::generate<nano::uint256_union> ();
+
+	nano::node_id_handshake::response_payload original{};
+	original.node_id = node_id.pub;
+	original.v2 = nano::node_id_handshake::response_payload::v2_payload{};
+	original.v2->genesis = nano::test::random_hash ();
+	original.v2->salt = nano::random_pool::generate<nano::uint256_union> ();
+	original.sign (cookie, node_id);
+	ASSERT_TRUE (original.validate (cookie));
+
+	// Invalid cookie
+	ASSERT_FALSE (original.validate (cookie_2));
+
+	// Invalid node id
+	{
+		auto message = original;
+		ASSERT_TRUE (message.validate (cookie));
+		message.node_id = node_id_2.pub;
+		ASSERT_FALSE (message.validate (cookie));
+	}
+
+	// Invalid genesis
+	{
+		auto message = original;
+		ASSERT_TRUE (message.validate (cookie));
+		message.v2->genesis = nano::test::random_hash ();
+		ASSERT_FALSE (message.validate (cookie));
+	}
+
+	// Invalid salt
+	{
+		auto message = original;
+		ASSERT_TRUE (message.validate (cookie));
+		message.v2->salt = nano::random_pool::generate<nano::uint256_union> ();
+		ASSERT_FALSE (message.validate (cookie));
+	}
+}
