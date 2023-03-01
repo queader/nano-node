@@ -124,7 +124,7 @@ nano::bootstrap_ascending::account_sets::account_sets (nano::stats & stats_a) :
 {
 }
 
-void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account, float increase)
+void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
 {
 	if (!blocked (account))
 	{
@@ -133,8 +133,8 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 		auto iter = priorities.get<tag_account> ().find (account);
 		if (iter != priorities.get<tag_account> ().end ())
 		{
-			priorities.get<tag_account> ().modify (iter, [increase] (auto & val) {
-				val.priority = std::min (val.priority + increase, priority_max);
+			priorities.get<tag_account> ().modify (iter, [] (auto & val) {
+				val.priority = std::min ((val.priority * account_sets::priority_increase), account_sets::priority_max);
 			});
 		}
 		else
@@ -158,7 +158,7 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::deprioritize);
 
-		auto priority_new = iter->priority * account_sets::priority_halving;
+		auto priority_new = iter->priority - account_sets::priority_decrease;
 		if (priority_new <= account_sets::priority_cutoff)
 		{
 			priorities.get<tag_account> ().erase (iter);
@@ -180,7 +180,7 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 void nano::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
 	//	debug_assert (blocking.get<tag_account> ().count (account) == 0);
-	//release_assert (blocking.get<tag_account> ().count (account) == 0);
+	// release_assert (blocking.get<tag_account> ().count (account) == 0);
 
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
 
@@ -507,8 +507,8 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 				}
 				if (!destination.is_zero ())
 				{
-					accounts.unblock (destination, hash);
-					accounts.priority_up (destination, /* do not increase priority */ 0.0f);
+					accounts.unblock (destination, hash); // Unblocking automatically inserts account into priority set
+					accounts.priority_up (destination);
 				}
 			}
 		}
@@ -755,7 +755,6 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 			{
 				nano::lock_guard<nano::mutex> lock{ mutex };
 				accounts.priority_down (tag.account);
-				accounts.timestamp (tag.account, /* reset timestamp */ true);
 			}
 		}
 		break;

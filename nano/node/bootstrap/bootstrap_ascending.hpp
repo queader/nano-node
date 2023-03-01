@@ -138,7 +138,7 @@ public: // account_sets
 		 * If the account does not exist in priority set and is not blocked, inserts a new entry.
 		 * Current implementation increases priority by 1.0f each increment
 		 */
-		void priority_up (nano::account const & account, float increase = account_sets::priority_increase);
+		void priority_up (nano::account const & account);
 		/**
 		 * Decreases account priority
 		 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
@@ -229,22 +229,16 @@ public: // account_sets
 
 		std::default_random_engine rng;
 
-	private:
+	private: // TODO: Move into config
 		static std::size_t constexpr consideration_count = 4;
-
-		static std::size_t constexpr priorities_max = 64 * 1024;
-		//		static std::size_t constexpr priorities_max = 64 * 1024 * 1024;
-
-		static std::size_t constexpr blocking_max = 64 * 1024;
-		//		static std::size_t constexpr blocking_max = 64 * 1024 * 1024;
-
+		static std::size_t constexpr priorities_max = 256 * 1024;
+		static std::size_t constexpr blocking_max = 256 * 1024;
 		static nano::millis_t constexpr cooldown = 3 * 1000;
 
 	public: // Consts
-		static float constexpr priority_initial = 1.4f;
-		static float constexpr priority_increase = 0.4f;
+		static float constexpr priority_initial = 8.0f;
+		static float constexpr priority_increase = 2.0f;
 		static float constexpr priority_decrease = 0.5f;
-		static float constexpr priority_halving = 0.5f;
 		static float constexpr priority_max = 32.0f;
 		static float constexpr priority_cutoff = 1.0f;
 
@@ -326,16 +320,10 @@ private:
 	std::thread thread;
 	std::thread timeout_thread;
 
-private:
-	//	static std::size_t constexpr requests_limit{ 1024 };
-	//	static std::size_t constexpr requests_limit{ 1024 * 4 };
-	static std::size_t constexpr requests_limit{ 1024 * 16 };
-
+private: // TODO: Move into config
+	static std::size_t constexpr requests_limit{ 1024 * 4 };
 	static std::size_t constexpr database_requests_limit{ 1024 };
-
-	//	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
-	static std::size_t constexpr pull_count{ 32 };
-
+	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
 	static nano::millis_t constexpr timeout{ 1000 * 3 };
 };
 }
