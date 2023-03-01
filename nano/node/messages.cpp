@@ -1669,6 +1669,11 @@ bool nano::node_id_handshake::is_v2 (nano::message_header const & header)
 	return result;
 }
 
+bool nano::node_id_handshake::is_v2 () const
+{
+	return is_v2 (header);
+}
+
 void nano::node_id_handshake::visit (nano::message_visitor & visitor_a) const
 {
 	visitor_a.node_id_handshake (*this);

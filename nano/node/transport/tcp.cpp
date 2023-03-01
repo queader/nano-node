@@ -698,7 +698,7 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		channel_a->set_last_packet_received (std::chrono::steady_clock::now ());
 
 		debug_assert (message.query);
-		auto response = node_l->network.prepare_handshake_response (*message.query);
+		auto response = node_l->network.prepare_handshake_response (*message.query, message.is_v2 ());
 		nano::node_id_handshake handshake_response (node_l->network_params.network, std::nullopt, response);
 
 		if (node_l->config.logging.network_node_id_handshake_logging ())

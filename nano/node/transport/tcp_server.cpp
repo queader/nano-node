@@ -340,7 +340,7 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 
 	if (message.query)
 	{
-		server->send_handshake_response (*message.query);
+		server->send_handshake_response (*message.query, message.is_v2 ());
 	}
 	if (message.response)
 	{
@@ -359,9 +359,9 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 	process = true;
 }
 
-void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query)
+void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query, bool v2)
 {
-	auto response = node->network.prepare_handshake_response (query);
+	auto response = node->network.prepare_handshake_response (query, v2);
 	auto own_query = node->network.prepare_handshake_query (nano::transport::map_tcp_to_endpoint (remote_endpoint));
 	nano::node_id_handshake handshake_response{ node->network_params.network, own_query, response };
 

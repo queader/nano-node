@@ -404,6 +404,7 @@ public: // Header
 	static bool is_query (nano::message_header const &);
 	static bool is_response (nano::message_header const &);
 	static bool is_v2 (nano::message_header const &);
+	bool is_v2 () const;
 
 public: // Payload
 	std::optional<query_payload> query;
