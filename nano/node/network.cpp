@@ -769,6 +769,13 @@ bool nano::network::verify_handshake_response (const nano::node_id_handshake::re
 		return false; // Fail
 	}
 
+	// Prevent mismatched genesis
+	if (response.v2 && response.v2->genesis != node.network_params.ledger.genesis->hash ())
+	{
+		node.stats.inc (nano::stat::type::handshake, nano::stat::detail::invalid_genesis);
+		return false; // Fail
+	}
+
 	auto cookie = syn_cookies.cookie (remote_endpoint);
 	if (!cookie)
 	{

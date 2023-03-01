@@ -278,7 +278,7 @@ enum class detail : uint8_t
 	// handshake
 	invalid_node_id,
 	missing_cookie,
-	invalid_signature_legacy,
+	invalid_genesis,
 
 	_last // Must be the last enum
 };
