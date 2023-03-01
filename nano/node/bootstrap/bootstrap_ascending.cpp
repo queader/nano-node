@@ -124,7 +124,7 @@ nano::bootstrap_ascending::account_sets::account_sets (nano::stats & stats_a) :
 {
 }
 
-void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account, float increase)
+void nano::bootstrap_ascending::account_sets::priority_up (nano::account const & account)
 {
 	if (!blocked (account))
 	{
@@ -133,8 +133,8 @@ void nano::bootstrap_ascending::account_sets::priority_up (nano::account const &
 		auto iter = priorities.get<tag_account> ().find (account);
 		if (iter != priorities.get<tag_account> ().end ())
 		{
-			priorities.get<tag_account> ().modify (iter, [increase] (auto & val) {
-				val.priority = std::min (val.priority + increase, priority_max);
+			priorities.get<tag_account> ().modify (iter, [] (auto & val) {
+				val.priority = std::min ((val.priority * account_sets::priority_increase), account_sets::priority_max);
 			});
 		}
 		else
@@ -158,7 +158,7 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::deprioritize);
 
-		auto priority_new = iter->priority * account_sets::priority_halving;
+		auto priority_new = iter->priority - account_sets::priority_decrease;
 		if (priority_new <= account_sets::priority_cutoff)
 		{
 			priorities.get<tag_account> ().erase (iter);
@@ -179,9 +179,6 @@ void nano::bootstrap_ascending::account_sets::priority_down (nano::account const
 
 void nano::bootstrap_ascending::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
 {
-	//	debug_assert (blocking.get<tag_account> ().count (account) == 0);
-	//release_assert (blocking.get<tag_account> ().count (account) == 0);
-
 	stats.inc (nano::stat::type::bootstrap_ascending_accounts, nano::stat::detail::block);
 
 	auto existing = priorities.get<tag_account> ().find (account);
@@ -452,9 +449,10 @@ void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> 
 
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
 
+	// TODO: There is no feedback mechanism if bandwidth limiter starts dropping our requests
 	channel->send (
 	request, nullptr,
-	nano::transport::buffer_drop_policy::no_limiter_drop, nano::bandwidth_limit_type::bootstrap);
+	nano::transport::buffer_drop_policy::limiter, nano::bandwidth_limit_type::bootstrap);
 }
 
 size_t nano::bootstrap_ascending::priority_size () const
@@ -507,8 +505,8 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 				}
 				if (!destination.is_zero ())
 				{
-					accounts.unblock (destination, hash);
-					accounts.priority_up (destination, /* do not increase priority */ 0.0f);
+					accounts.unblock (destination, hash); // Unblocking automatically inserts account into priority set
+					accounts.priority_up (destination);
 				}
 			}
 		}
@@ -650,7 +648,7 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 	return true; // Request sent
 }
 
-bool nano::bootstrap_ascending::request_one ()
+bool nano::bootstrap_ascending::run_one ()
 {
 	// Ensure there is enough space in blockprocessor for queuing new blocks
 	wait_blockprocessor ();
@@ -658,12 +656,14 @@ bool nano::bootstrap_ascending::request_one ()
 	// Do not do too many requests in parallel, impose throttling
 	wait_available_request ();
 
+	// Waits for channel that is not full
 	auto channel = wait_available_channel ();
 	if (!channel)
 	{
 		return false;
 	}
 
+	// Waits for account either from priority queue or database
 	auto account = wait_available_account ();
 	if (account.is_zero ())
 	{
@@ -679,8 +679,7 @@ void nano::bootstrap_ascending::run ()
 	while (!stopped)
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::loop);
-
-		request_one ();
+		run_one ();
 	}
 }
 
@@ -755,7 +754,6 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 			{
 				nano::lock_guard<nano::mutex> lock{ mutex };
 				accounts.priority_down (tag.account);
-				accounts.timestamp (tag.account, /* reset timestamp */ true);
 			}
 		}
 		break;
