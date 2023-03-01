@@ -465,3 +465,109 @@ TEST (message, asc_pull_ack_serialization_account_info)
 
 	ASSERT_TRUE (nano::at_end (stream));
 }
+
+TEST (message, node_id_handshake_query_serialization)
+{
+	nano::node_id_handshake::query_payload query{};
+	query.cookie = 7;
+	nano::node_id_handshake original{ nano::dev::network_params.network, query };
+
+	// Serialize
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream{ bytes };
+		original.serialize (stream);
+	}
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (nano::message_type::node_id_handshake, header.type);
+
+	// Message
+	nano::node_id_handshake message{ error, stream, header };
+	ASSERT_FALSE (error);
+	ASSERT_TRUE (message.query);
+	ASSERT_FALSE (message.response);
+
+	ASSERT_EQ (original.query->cookie, message.query->cookie);
+
+	ASSERT_TRUE (nano::at_end (stream));
+}
+
+TEST (message, node_id_handshake_response_serialization)
+{
+	nano::node_id_handshake::response_payload response{};
+	response.node_id = nano::account{ 7 };
+	response.signature = nano::signature{ 11 };
+	nano::node_id_handshake original{ nano::dev::network_params.network, std::nullopt, response };
+
+	// Serialize
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream{ bytes };
+		original.serialize (stream);
+	}
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (nano::message_type::node_id_handshake, header.type);
+
+	// Message
+	nano::node_id_handshake message{ error, stream, header };
+	ASSERT_FALSE (error);
+	ASSERT_FALSE (message.query);
+	ASSERT_TRUE (message.response);
+	ASSERT_FALSE (message.response->v2);
+
+	ASSERT_EQ (original.response->node_id, message.response->node_id);
+	ASSERT_EQ (original.response->signature, message.response->signature);
+
+	ASSERT_TRUE (nano::at_end (stream));
+}
+
+TEST (message, node_id_handshake_response_v2_serialization)
+{
+	nano::node_id_handshake::response_payload response{};
+	response.node_id = nano::account{ 7 };
+	response.signature = nano::signature{ 11 };
+	nano::node_id_handshake::response_payload::v2_payload v2_pld{};
+	v2_pld.salt = 17;
+	v2_pld.genesis = nano::block_hash{ 13 };
+	response.v2 = v2_pld;
+
+	nano::node_id_handshake original{ nano::dev::network_params.network, std::nullopt, response };
+
+	// Serialize
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream{ bytes };
+		original.serialize (stream);
+	}
+	nano::bufferstream stream{ bytes.data (), bytes.size () };
+
+	// Header
+	bool error = false;
+	nano::message_header header (error, stream);
+	ASSERT_FALSE (error);
+	ASSERT_EQ (nano::message_type::node_id_handshake, header.type);
+
+	// Message
+	nano::node_id_handshake message{ error, stream, header };
+	ASSERT_FALSE (error);
+	ASSERT_FALSE (message.query);
+	ASSERT_TRUE (message.response);
+	ASSERT_TRUE (message.response->v2);
+
+	ASSERT_EQ (original.response->node_id, message.response->node_id);
+	ASSERT_EQ (original.response->signature, message.response->signature);
+	ASSERT_EQ (original.response->v2->salt, message.response->v2->salt);
+	ASSERT_EQ (original.response->v2->genesis, message.response->v2->genesis);
+
+	ASSERT_TRUE (nano::at_end (stream));
+}
