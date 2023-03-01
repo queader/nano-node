@@ -182,10 +182,10 @@ TEST (bootstrap_ascending, profile)
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::reply, nano::stat::dir::in);
 	rate.observe (*client, nano::stat::type::bootstrap_ascending, nano::stat::detail::blocks, nano::stat::dir::in);
 	rate.observe (*server, nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out);
-	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::old);
-	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_epoch_open_pending);
-	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_source);
-	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_previous);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::old, nano::stat::dir::in);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_epoch_open_pending, nano::stat::dir::in);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_source, nano::stat::dir::in);
+	rate.observe (*client, nano::stat::type::ledger, nano::stat::detail::gap_previous, nano::stat::dir::in);
 	rate.background_print (3s);
 
 	//wait_for_key ();

@@ -64,15 +64,17 @@ void nano::test::rate_observer::background_print_impl (std::chrono::seconds inte
 
 void nano::test::rate_observer::print_once ()
 {
-	std::stringstream ss;
 	for (auto & counter : counters)
 	{
 		const auto observation = counter->observe ();
 
 		// Convert delta milliseconds to seconds (double precision) and then divide the counter delta to get rate per second
 		auto per_sec = observation.delta / (observation.time_delta.count () / 1000.0);
+
+		std::cout << "rate of '" << counter->name << "': "
+				  << std::setw (12) << std::setprecision (2) << std::fixed << per_sec << " /s"
+				  << std::endl;
 	}
-	std::cout << ss.str () << std::endl;
 }
 
 void nano::test::rate_observer::observe (std::string name, std::function<int64_t ()> observe)
