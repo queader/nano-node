@@ -132,6 +132,7 @@ public:
 	bool verify_handshake_response (nano::node_id_handshake::response_payload const & response, nano::endpoint const & remote_endpoint);
 	std::optional<nano::node_id_handshake::query_payload> prepare_handshake_query (nano::endpoint const & remote_endpoint);
 	nano::node_id_handshake::response_payload prepare_handshake_response (nano::node_id_handshake::query_payload const & query, bool v2);
+	static std::vector<uint8_t> handshake_data_to_sign (nano::uint256_union cookie, nano::uint256_union salt, nano::block_hash genesis);
 
 	static std::string to_string (nano::networks);
 

@@ -1,4 +1,5 @@
 #include <nano/crypto_lib/random_pool_shuffle.hpp>
+#include <nano/lib/stream.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/node/network.hpp>
 #include <nano/node/node.hpp>
@@ -759,15 +760,16 @@ void nano::network::exclude (std::shared_ptr<nano::transport::channel> const & c
 	erase (*channel);
 }
 
-namespace
+std::vector<uint8_t> nano::network::handshake_data_to_sign (nano::uint256_union cookie, nano::uint256_union salt, nano::block_hash genesis)
 {
-// Wrapper for data to be signed
-struct handshake_signature_data
-{
-	nano::uint256_union cookie;
-	nano::uint256_union salt;
-	nano::block_hash genesis;
-};
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream{ bytes };
+		nano::write (stream, cookie);
+		nano::write (stream, salt);
+		nano::write (stream, genesis);
+	}
+	return bytes;
 }
 
 bool nano::network::verify_handshake_response (const nano::node_id_handshake::response_payload & response, const nano::endpoint & remote_endpoint)
@@ -788,8 +790,8 @@ bool nano::network::verify_handshake_response (const nano::node_id_handshake::re
 
 	if (response.v2)
 	{
-		handshake_signature_data data{ *cookie, response.v2->salt, response.v2->genesis };
-		if (nano::validate_message (response.node_id, data, response.signature)) // true => error
+		auto data = handshake_data_to_sign (*cookie, response.v2->salt, response.v2->genesis);
+		if (nano::validate_message (response.node_id, data.data (), data.size (), response.signature)) // true => error
 		{
 			node.stats.inc (nano::stat::type::handshake, nano::stat::detail::invalid_signature);
 			return false; // Fail
@@ -830,9 +832,9 @@ nano::node_id_handshake::response_payload nano::network::prepare_handshake_respo
 		response_v2.genesis = node.network_params.ledger.genesis->hash ();
 		response.v2 = response_v2;
 
-		handshake_signature_data data{ query.cookie, response_v2.salt, response_v2.genesis };
-		response.signature = nano::sign_message (node.node_id.prv, node.node_id.pub, data);
-		debug_assert (!nano::validate_message (response.node_id, data, response.signature));
+		auto data = handshake_data_to_sign (query.cookie, response_v2.salt, response_v2.genesis);
+		response.signature = nano::sign_message (node.node_id.prv, node.node_id.pub, data.data (), data.size ());
+		debug_assert (!nano::validate_message (response.node_id, data.data (), data.size (), response.signature)); // false => OK
 		return response;
 	}
 	// TODO: Remove legacy handshake
@@ -841,7 +843,7 @@ nano::node_id_handshake::response_payload nano::network::prepare_handshake_respo
 		nano::node_id_handshake::response_payload response{};
 		response.node_id = node.node_id.pub;
 		response.signature = nano::sign_message (node.node_id.prv, node.node_id.pub, query.cookie);
-		debug_assert (!nano::validate_message (response.node_id, query.cookie, response.signature));
+		debug_assert (!nano::validate_message (response.node_id, query.cookie, response.signature)); // false => OK
 		return response;
 	}
 }
