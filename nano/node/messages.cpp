@@ -1771,6 +1771,45 @@ std::size_t nano::node_id_handshake::response_payload::size (const nano::message
 	return is_v2 (header) ? size_v2 : size_v1;
 }
 
+std::vector<uint8_t> nano::node_id_handshake::response_payload::data_to_sign (const nano::uint256_union & cookie) const
+{
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream{ bytes };
+
+		if (v2)
+		{
+			nano::write (stream, cookie);
+			nano::write (stream, v2->salt);
+			nano::write (stream, v2->genesis);
+		}
+		// TODO: Remove legacy handshake
+		else
+		{
+			nano::write (stream, cookie);
+		}
+	}
+	return bytes;
+}
+
+void nano::node_id_handshake::response_payload::sign (const nano::uint256_union & cookie, nano::keypair const & key)
+{
+	debug_assert (key.pub == node_id);
+	auto data = data_to_sign (cookie);
+	signature = nano::sign_message (key.prv, key.pub, data.data (), data.size ());
+	debug_assert (validate (cookie));
+}
+
+bool nano::node_id_handshake::response_payload::validate (const nano::uint256_union & cookie) const
+{
+	auto data = data_to_sign (cookie);
+	if (nano::validate_message (node_id, data.data (), data.size (), signature)) // true => error
+	{
+		return false; // Fail
+	}
+	return true; // OK
+}
+
 /*
  * asc_pull_req
  */

@@ -366,6 +366,12 @@ public: // Payload definitions
 		void serialize (nano::stream &) const;
 		void deserialize (nano::stream &, nano::message_header const &);
 
+		void sign (nano::uint256_union const & cookie, nano::keypair const &);
+		bool validate (nano::uint256_union const & cookie) const;
+
+	private:
+		std::vector<uint8_t> data_to_sign (nano::uint256_union const & cookie) const;
+
 	public:
 		struct v2_payload
 		{
