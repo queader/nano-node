@@ -24,7 +24,6 @@ namespace nano
 class block_processor;
 class ledger;
 class network;
-
 namespace transport
 {
 	class channel;
@@ -67,7 +66,7 @@ public: // async_tag
 			invalid = 0, // Default initialization
 			blocks_by_hash,
 			blocks_by_account,
-			// TODO: account_info,
+			account_info,
 		};
 
 		query_type type{ 0 };
@@ -87,8 +86,10 @@ private:
 	void inspect (nano::transaction const &, nano::process_return const & result, nano::block const & block);
 
 	void run ();
-	bool run_one ();
+	void run_dependencies ();
 	void run_timeouts ();
+	bool run_one ();
+	bool run_one_dependency ();
 
 	/* Limits the number of requests per second we make */
 	void wait_available_request ();
@@ -100,8 +101,11 @@ private:
 	/* Waits until a suitable account outside of cool down period is available */
 	nano::account available_account ();
 	nano::account wait_available_account ();
+	nano::block_hash available_dependency ();
+	nano::block_hash wait_available_dependency ();
 
 	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
+	bool request_info (nano::block_hash &, std::shared_ptr<nano::transport::channel> &);
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
 	void track (async_tag const & tag);
 
@@ -149,6 +153,7 @@ public: // account_sets
 		void timestamp (nano::account const & account, bool reset = false);
 
 		nano::account next ();
+		nano::block_hash next_dependency ();
 
 	public:
 		bool blocked (nano::account const & account) const;
@@ -313,15 +318,18 @@ private:
 	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
 	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
 	nano::bandwidth_limiter database_limiter;
+	nano::bandwidth_limiter dependencies_limiter;
 
 	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;
 	mutable nano::condition_variable condition;
 	std::thread thread;
+	std::thread dependencies_thread;
 	std::thread timeout_thread;
 
 private: // TODO: Move into config
 	static std::size_t constexpr requests_limit{ 1024 * 4 };
+	static std::size_t constexpr dependencies_request_limit{ 512 };
 	static std::size_t constexpr database_requests_limit{ 1024 };
 	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
 	static nano::millis_t constexpr timeout{ 1000 * 3 };
