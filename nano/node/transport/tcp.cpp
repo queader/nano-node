@@ -1,6 +1,7 @@
 #include <nano/lib/stats.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/transport/message_deserializer.hpp>
+#include <nano/node/transport/socket.hpp>
 #include <nano/node/transport/tcp.hpp>
 
 #include <boost/format.hpp>
@@ -616,8 +617,8 @@ void nano::transport::tcp_channels::start_tcp_receive_node_id (std::shared_ptr<n
 		}
 	};
 
-	auto message_deserializer = std::make_shared<nano::transport::message_deserializer> (node.network_params.network, node.network.publish_filter, node.block_uniquer, node.vote_uniquer);
-	message_deserializer->read (socket_l, [node_w, socket_l, channel_a, endpoint_a, cleanup_node_id_handshake_socket] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
+	auto message_deserializer = std::make_shared<nano::transport::message_deserializer> (node.network_params.network, node.network.publish_filter, node.block_uniquer, node.vote_uniquer, socket_l->make_read_op ());
+	message_deserializer->read ([node_w, socket_l, channel_a, endpoint_a, cleanup_node_id_handshake_socket] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
 		auto node_l = node_w.lock ();
 		if (!node_l)
 		{

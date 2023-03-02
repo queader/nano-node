@@ -208,7 +208,7 @@ void nano::transport::socket::checkup ()
 				return;
 			}
 
-			uint64_t now (nano::seconds_since_epoch ());
+			nano::seconds_t now = nano::seconds_since_epoch ();
 			auto condition_to_disconnect{ false };
 
 			// if this is a server socket, and no data is received for silent_connection_tolerance_time seconds then disconnect
@@ -241,6 +241,19 @@ void nano::transport::socket::checkup ()
 			}
 		}
 	});
+}
+
+nano::transport::socket::read_query nano::transport::socket::make_read_op ()
+{
+	return [this_l = shared_from_this ()] (std::shared_ptr<std::vector<uint8_t>> const & data_a, size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a) {
+		// Increase timeout to receive TCP header (idle server socket)
+		auto const prev_timeout = this_l->get_default_timeout_value ();
+		this_l->set_default_timeout_value (this_l->node.network_params.network.idle_timeout);
+		this_l->async_read (data_a, size_a, [this_l, callback_l = std::move (callback_a), prev_timeout] (boost::system::error_code const & ec_a, std::size_t size_a) {
+			this_l->set_default_timeout_value (prev_timeout);
+			callback_l (ec_a, size_a);
+		});
+	};
 }
 
 bool nano::transport::socket::has_timed_out () const

@@ -3,6 +3,7 @@
 #include <nano/boost/asio/ip/tcp.hpp>
 #include <nano/boost/asio/strand.hpp>
 #include <nano/lib/asio.hpp>
+#include <nano/lib/timer.hpp>
 
 #include <chrono>
 #include <map>
@@ -113,6 +114,9 @@ public:
 		return !closed && tcp_socket.is_open ();
 	}
 
+	using read_query = std::function<void (std::shared_ptr<std::vector<uint8_t>> const &, size_t, std::function<void (boost::system::error_code const &, std::size_t)>)>;
+	read_query make_read_op ();
+
 protected:
 	/** Holds the buffer and callback for queued writes */
 	class queue_item
@@ -142,7 +146,7 @@ protected:
 	/** the timestamp (in seconds since epoch) of the last time there was successful receive on the socket
 	 *  successful receive includes graceful closing of the socket by the peer (the read succeeds but returns 0 bytes)
 	 */
-	std::atomic<uint64_t> last_receive_time_or_init;
+	std::atomic<nano::seconds_t> last_receive_time_or_init;
 
 	/** Flag that is set when cleanup decides to close the socket due to timeout.
 	 *  NOTE: Currently used by tcp_server::timeout() but I suspect that this and tcp_server::timeout() are not needed.

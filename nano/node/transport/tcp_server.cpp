@@ -8,6 +8,8 @@
 
 #include <boost/format.hpp>
 
+#include <memory>
+
 /*
  * tcp_listener
  */
@@ -133,7 +135,7 @@ nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket
 	socket{ std::move (socket_a) },
 	node{ std::move (node_a) },
 	allow_bootstrap{ allow_bootstrap_a },
-	message_deserializer{ std::make_shared<nano::transport::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer) }
+	message_deserializer{ std::make_shared<nano::transport::message_deserializer> (node->network_params.network, node->network.publish_filter, node->block_uniquer, node->vote_uniquer, socket->make_read_op ()) }
 {
 	debug_assert (socket != nullptr);
 }
@@ -194,7 +196,7 @@ void nano::transport::tcp_server::receive_message ()
 		return;
 	}
 
-	message_deserializer->read (socket, [this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
+	message_deserializer->read ([this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
 		if (ec)
 		{
 			// IO error or critical error when deserializing message
