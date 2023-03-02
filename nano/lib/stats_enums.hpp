@@ -286,6 +286,9 @@ enum class detail : uint8_t
 	track,
 	timeout,
 	nothing_new,
+	account_info,
+	account_info_empty,
+	loop_dependencies,
 
 	// bootstrap ascending connections
 	connect,
@@ -309,7 +312,7 @@ enum class detail : uint8_t
 
 	next_priority,
 	next_database,
-	next_none,
+	next_dependency,
 
 	blocking_insert,
 	blocking_erase_overflow,
@@ -319,6 +322,9 @@ enum class detail : uint8_t
 	priority_erase_overflow,
 	deprioritize,
 	deprioritize_failed,
+
+	request_blocks,
+	request_account_info,
 
 	// active
 	started_hinted,

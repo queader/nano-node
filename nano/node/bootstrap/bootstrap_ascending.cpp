@@ -364,6 +364,51 @@ nano::bootstrap_ascending::account_sets::priority_entry::priority_entry (nano::a
 }
 
 /*
+ * dependency_sets
+ */
+
+nano::bootstrap_ascending::dependency_sets::dependency_sets (nano::stats & stats_a) :
+	stats{ stats_a }
+{
+}
+
+void nano::bootstrap_ascending::dependency_sets::insert (const nano::block_hash & dependency)
+{
+	auto existing = dependencies.get<tag_hash> ().find (dependency);
+	if (existing == dependencies.get<tag_hash> ().end ())
+	{
+		dependencies.get<tag_hash> ().insert ({ dependency });
+		if (dependencies.size () >= max_size)
+		{
+			dependencies.pop_front (); // Erase oldest entry
+		}
+	}
+}
+
+nano::block_hash nano::bootstrap_ascending::dependency_sets::next ()
+{
+	if (!dependencies.empty ())
+	{
+		auto dep = dependencies.front ().dependency;
+		dependencies.pop_front ();
+		return dep;
+	}
+	return { 0 };
+}
+
+std::size_t nano::bootstrap_ascending::dependency_sets::size () const
+{
+	return dependencies.size ();
+}
+
+std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::dependency_sets::collect_container_info (const std::string & name)
+{
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "dependencies", dependencies.size (), sizeof (decltype (dependencies)::value_type) }));
+	return composite;
+}
+
+/*
  * bootstrap_ascending
  */
 
@@ -375,8 +420,10 @@ nano::bootstrap_ascending::bootstrap_ascending (nano::node & node_a, nano::store
 	network{ network_a },
 	stats{ stat_a },
 	accounts{ stats },
+	dependencies{ stats },
 	iterator{ store },
 	limiter{ requests_limit, 1.0 },
+	dependencies_limiter{ dependencies_request_limit, 1.0 },
 	database_limiter{ database_requests_limit, 1.0 }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
@@ -407,11 +454,17 @@ nano::bootstrap_ascending::~bootstrap_ascending ()
 void nano::bootstrap_ascending::start ()
 {
 	debug_assert (!thread.joinable ());
+	debug_assert (!dependencies_thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 
 	thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
 		run ();
+	});
+
+	dependencies_thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
+		run_dependencies ();
 	});
 
 	timeout_thread = std::thread ([this] () {
@@ -424,6 +477,7 @@ void nano::bootstrap_ascending::stop ()
 {
 	stopped = true;
 	nano::join_or_pass (thread);
+	nano::join_or_pass (dependencies_thread);
 	nano::join_or_pass (timeout_thread);
 }
 
@@ -436,21 +490,42 @@ nano::bootstrap_ascending::id_t nano::bootstrap_ascending::generate_id ()
 
 void nano::bootstrap_ascending::send (std::shared_ptr<nano::transport::channel> channel, async_tag tag)
 {
-	debug_assert (tag.type == async_tag::query_type::blocks_by_hash || tag.type == async_tag::query_type::blocks_by_account);
-
 	nano::asc_pull_req request{ node.network_params.network };
 	request.id = tag.id;
-	request.type = nano::asc_pull_type::blocks;
 
-	nano::asc_pull_req::blocks_payload request_payload;
-	request_payload.start = tag.start;
-	request_payload.count = pull_count;
-	request_payload.start_type = tag.type == async_tag::query_type::blocks_by_hash ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
+	switch (tag.type)
+	{
+		case async_tag::query_type::blocks_by_hash:
+		case async_tag::query_type::blocks_by_account:
+		{
+			request.type = nano::asc_pull_type::blocks;
 
-	request.payload = request_payload;
+			nano::asc_pull_req::blocks_payload pld;
+			pld.start = tag.start;
+			pld.count = pull_count;
+			pld.start_type = tag.type == async_tag::query_type::blocks_by_hash ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
+			request.payload = pld;
+
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request_blocks, nano::stat::dir::out);
+		}
+		break;
+		case async_tag::query_type::account_info:
+		{
+			request.type = nano::asc_pull_type::account_info;
+
+			nano::asc_pull_req::account_info_payload pld;
+			pld.target_type = nano::asc_pull_req::hash_type::block; // Query account info by block hash
+			pld.target = tag.start;
+			request.payload = pld;
+
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request_account_info, nano::stat::dir::out);
+		}
+		break;
+		default:
+			debug_assert (false);
+	}
+
 	request.update_header ();
-
-	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
 
 	channel->send (
 	request, nullptr,
@@ -520,6 +595,9 @@ void nano::bootstrap_ascending::inspect (nano::transaction const & tx, nano::pro
 
 			// Mark account as blocked because it is missing the source block
 			accounts.block (account, source);
+
+			// Queue for dependency pulling
+			dependencies.insert (source);
 
 			// TODO: Track stats
 		}
@@ -599,7 +677,6 @@ nano::account nano::bootstrap_ascending::available_account ()
 		}
 	}
 
-	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_none);
 	return { 0 };
 }
 
@@ -613,6 +690,38 @@ nano::account nano::bootstrap_ascending::wait_available_account ()
 		{
 			accounts.timestamp (account);
 			return account;
+		}
+		else
+		{
+			condition.wait_for (lock, 100ms);
+		}
+	}
+	return { 0 };
+}
+
+nano::block_hash nano::bootstrap_ascending::available_dependency ()
+{
+	if (dependencies_limiter.should_pass (1))
+	{
+		auto dependency = dependencies.next ();
+		if (!dependency.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_dependency);
+			return dependency;
+		}
+	}
+	return { 0 };
+}
+
+nano::block_hash nano::bootstrap_ascending::wait_available_dependency ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		auto dependency = available_dependency ();
+		if (!dependency.is_zero ())
+		{
+			return dependency;
 		}
 		else
 		{
@@ -650,12 +759,29 @@ bool nano::bootstrap_ascending::request (nano::account & account, std::shared_pt
 	return true; // Request sent
 }
 
-bool nano::bootstrap_ascending::request_one ()
+bool nano::bootstrap_ascending::request_info (nano::block_hash & hash, std::shared_ptr<nano::transport::channel> & channel)
+{
+	async_tag tag{};
+	tag.id = generate_id ();
+	tag.time = nano::milliseconds_since_epoch ();
+
+	tag.type = async_tag::query_type::account_info;
+	tag.start = hash;
+
+	on_request.notify (tag, channel);
+
+	track (tag);
+	send (channel, tag);
+
+	return true; // Request sent
+}
+
+bool nano::bootstrap_ascending::run_one ()
 {
 	// Ensure there is enough space in blockprocessor for queuing new blocks
 	wait_blockprocessor ();
 
-	// Do not do too many requests in parallel, impose throttling
+	// Do not make too many requests in parallel, impose throttling
 	wait_available_request ();
 
 	auto channel = wait_available_channel ();
@@ -679,8 +805,37 @@ void nano::bootstrap_ascending::run ()
 	while (!stopped)
 	{
 		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::loop);
+		run_one ();
+	}
+}
 
-		request_one ();
+bool nano::bootstrap_ascending::run_one_dependency ()
+{
+	// Do not make too many requests in parallel, impose throttling
+	wait_available_request ();
+
+	auto channel = wait_available_channel ();
+	if (!channel)
+	{
+		return false;
+	}
+
+	auto dependency = wait_available_dependency ();
+	if (dependency.is_zero ())
+	{
+		return false;
+	}
+
+	bool success = request_info (dependency, channel);
+	return success;
+}
+
+void nano::bootstrap_ascending::run_dependencies ()
+{
+	while (!stopped)
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::loop_dependencies);
+		run_one_dependency ();
 	}
 }
 
@@ -769,7 +924,21 @@ void nano::bootstrap_ascending::process (const nano::asc_pull_ack::blocks_payloa
 
 void nano::bootstrap_ascending::process (const nano::asc_pull_ack::account_info_payload & response, const nano::bootstrap_ascending::async_tag & tag)
 {
-	// TODO: Make use of account info
+	if (response.account.is_zero ())
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::account_info_empty);
+		return;
+	}
+	else
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::account_info);
+		
+		// Prioritize account containing the dependency
+		{
+			nano::lock_guard<nano::mutex> lock{ mutex };
+			accounts.priority_up (response.account);
+		}
+	}
 }
 
 void nano::bootstrap_ascending::process (const nano::empty_payload & response, const nano::bootstrap_ascending::async_tag & tag)
@@ -855,5 +1024,6 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::colle
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "tags", tags.size (), sizeof (decltype (tags)::value_type) }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
+	composite->add_component (dependencies.collect_container_info ("dependencies"));
 	return composite;
 }

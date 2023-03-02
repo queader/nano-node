@@ -67,7 +67,7 @@ public: // async_tag
 			invalid = 0, // Default initialization
 			blocks_by_hash,
 			blocks_by_account,
-			// TODO: account_info,
+			account_info,
 		};
 
 		query_type type{ 0 };
@@ -87,6 +87,7 @@ private:
 	void inspect (nano::transaction const &, nano::process_return const & result, nano::block const & block);
 
 	void run ();
+	void run_dependencies ();
 	void run_timeouts ();
 
 	/* Limits the number of requests per second we make */
@@ -99,9 +100,13 @@ private:
 	/* Waits until a suitable account outside of cool down period is available */
 	nano::account available_account ();
 	nano::account wait_available_account ();
+	nano::block_hash available_dependency ();
+	nano::block_hash wait_available_dependency ();
 
-	bool request_one ();
+	bool run_one ();
+	bool run_one_dependency ();
 	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
+	bool request_info (nano::block_hash &, std::shared_ptr<nano::transport::channel> &);
 	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
 	void track (async_tag const & tag);
 
@@ -249,6 +254,44 @@ public: // account_sets
 
 	account_sets::info_t info () const;
 
+private:
+	class dependency_sets
+	{
+	public:
+		explicit dependency_sets (nano::stats &);
+
+		void insert (nano::block_hash const & dependency);
+		nano::block_hash next ();
+		std::size_t size () const;
+		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+
+	private: // Dependencies
+		nano::stats & stats;
+
+	private:
+		struct entry
+		{
+			nano::block_hash dependency;
+		};
+
+		// clang-format off
+		class tag_sequenced {};
+		class tag_hash {};
+
+		using ordered_dependencies = boost::multi_index_container<entry,
+		mi::indexed_by<
+			mi::sequenced<mi::tag<tag_sequenced>>,
+			mi::ordered_non_unique<mi::tag<tag_hash>,
+				mi::member<entry, nano::block_hash, &entry::dependency>>
+		>>;
+		// clang-format on
+
+		ordered_dependencies dependencies;
+
+	private:
+		static std::size_t constexpr max_size = 1024 * 8;
+	};
+
 private: // Database iterators
 	class database_iterator
 	{
@@ -291,6 +334,7 @@ private: // Database iterators
 
 private:
 	account_sets accounts;
+	dependency_sets dependencies;
 	buffered_iterator iterator;
 
 	// clang-format off
@@ -313,15 +357,18 @@ private:
 	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
 	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
 	nano::bandwidth_limiter database_limiter;
+	nano::bandwidth_limiter dependencies_limiter;
 
 	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;
 	mutable nano::condition_variable condition;
 	std::thread thread;
+	std::thread dependencies_thread;
 	std::thread timeout_thread;
 
 private: // TODO: Move into config
 	static std::size_t constexpr requests_limit{ 1024 * 4 };
+	static std::size_t constexpr dependencies_request_limit{ 512 };
 	static std::size_t constexpr database_requests_limit{ 1024 };
 	static std::size_t constexpr pull_count{ nano::bootstrap_server::max_blocks };
 	static nano::millis_t constexpr timeout{ 1000 * 3 };
