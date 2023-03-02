@@ -114,6 +114,7 @@ private: // State management
 public: // State transitions
 	bool transition_time (nano::confirmation_solicitor &);
 	void transition_active ();
+	void cancel ();
 
 public: // Status
 	bool confirmed () const;

@@ -2,6 +2,7 @@
 
 #include <nano/lib/numbers.hpp>
 #include <nano/node/active_transactions.hpp>
+#include <nano/node/election_set.hpp>
 #include <nano/node/prioritization.hpp>
 
 #include <boost/optional.hpp>
@@ -33,6 +34,7 @@ public:
 	 * @return true if account was activated
 	 */
 	bool activate (nano::account const &, nano::transaction const &);
+
 	// Blocks until no more elections can be activated or there are no more elections to activate
 	void flush ();
 	void notify ();
@@ -52,6 +54,7 @@ private:
 	bool manual_queue_predicate () const;
 	bool overfill_predicate () const;
 
+private:
 	nano::prioritization priority;
 
 	std::deque<std::tuple<std::shared_ptr<nano::block>, boost::optional<nano::uint128_t>, nano::election_behavior>> manual_queue;

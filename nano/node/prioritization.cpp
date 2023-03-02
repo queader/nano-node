@@ -4,51 +4,85 @@
 
 #include <string>
 
-bool nano::prioritization::value_type::operator< (value_type const & other_a) const
+/*
+ * value_type
+ */
+
+// TODO: Use spaceship
+bool nano::prioritization::value_type::operator<(value_type const & other_a) const
 {
-	return time < other_a.time || (time == other_a.time && block->hash () < other_a.block->hash ());
+	return priority < other_a.priority || (priority == other_a.priority && block->hash () < other_a.block->hash ());
 }
 
 bool nano::prioritization::value_type::operator== (value_type const & other_a) const
 {
-	return time == other_a.time && block->hash () == other_a.block->hash ();
+	return priority == other_a.priority && block->hash () == other_a.block->hash ();
 }
 
-/** Moves the bucket pointer to the next bucket */
-void nano::prioritization::next ()
+/*
+ * bucket
+ */
+
+nano::prioritization::bucket::bucket (std::size_t limit, const election_set_factory_t & factory) :
+	limit_m{ limit }
 {
-	++current;
-	if (current == schedule.end ())
+	elections = factory ();
+}
+
+void nano::prioritization::bucket::insert (std::shared_ptr<nano::block> block, priority_t priority)
+{
+	queue.emplace (value_type{ priority, std::move (block) });
+	if (queue.size () > limit_m)
 	{
-		current = schedule.begin ();
+		pop ();
 	}
 }
 
-/** Seek to the next non-empty bucket, if one exists */
-void nano::prioritization::seek ()
+nano::election_insertion_result nano::prioritization::bucket::activate ()
 {
-	next ();
-	for (std::size_t i = 0, n = schedule.size (); buckets[*current].empty () && i < n; ++i)
-	{
-		next ();
-	}
+	debug_assert (!queue.empty ());
+	auto top = queue.begin ();
+	auto result = elections->activate (top->block, top->priority);
+	pop ();
+	return result;
 }
 
-/** Initialise the schedule vector */
-void nano::prioritization::populate_schedule ()
+bool nano::prioritization::bucket::vacancy () const
 {
-	for (auto i = 0; i < buckets.size (); ++i)
-	{
-		schedule.push_back (i);
-	}
+	return elections->vacancy (queue.begin ()->priority);
 }
+
+bool nano::prioritization::bucket::available () const
+{
+	return !empty () && vacancy ();
+}
+
+void nano::prioritization::bucket::pop ()
+{
+	debug_assert (!queue.empty ());
+	queue.erase (--queue.end ());
+}
+
+bool nano::prioritization::bucket::empty () const
+{
+	return queue.empty ();
+}
+
+std::size_t nano::prioritization::bucket::size () const
+{
+	return queue.size ();
+}
+
+/*
+ * prioritization
+ */
 
 /**
  * Prioritization constructor, construct a container containing approximately 'maximum' number of blocks.
  * @param maximum number of blocks that this container can hold, this is a soft and approximate limit.
  */
-nano::prioritization::prioritization (uint64_t maximum) :
-	maximum{ maximum }
+nano::prioritization::prioritization (std::size_t max_size_a) :
+	max_size{ max_size_a }
 {
 	auto build_region = [this] (uint128_t const & begin, uint128_t const & end, size_t count) {
 		auto width = (end - begin) / count;
@@ -67,9 +101,71 @@ nano::prioritization::prioritization (uint64_t maximum) :
 	build_region (uint128_t{ 1 } << 112, uint128_t{ 1 } << 116, 4);
 	build_region (uint128_t{ 1 } << 116, uint128_t{ 1 } << 120, 2);
 	minimums.push_back (uint128_t{ 1 } << 120);
-	buckets.resize (minimums.size ());
+}
+
+void nano::prioritization::setup (election_set_factory_t const & factory)
+{
+	auto const bucket_size = std::max (1lu, max_size / buckets.size ());
+	for (auto i = 0; i < minimums.size (); ++i)
+	{
+		buckets.emplace_back (bucket_size, factory);
+	}
 	populate_schedule ();
 	current = schedule.begin ();
+}
+
+bool nano::prioritization::available () const
+{
+	if (empty ())
+	{
+		return false;
+	}
+	else
+	{
+		return std::any_of (buckets.begin (), buckets.end (), [] (bucket const & bucket) {
+			return bucket.available ();
+		});
+	}
+}
+
+/** Moves the bucket pointer to the next bucket */
+void nano::prioritization::next ()
+{
+	++current;
+	if (current == schedule.end ())
+	{
+		current = schedule.begin ();
+	}
+}
+
+nano::prioritization::bucket & nano::prioritization::current_bucket ()
+{
+	return buckets[*current];
+}
+
+/** Seek to the next non-empty bucket, if one exists */
+void nano::prioritization::seek (bool skip_first)
+{
+	if (skip_first)
+	{
+		next ();
+	}
+	for (std::size_t i = 0, n = schedule.size (); i < n; ++i, next ())
+	{
+		if (current_bucket ().available ())
+		{
+			return;
+		}
+	}
+}
+
+/** Initialise the schedule vector */
+void nano::prioritization::populate_schedule ()
+{
+	for (auto i = 0; i < buckets.size (); ++i)
+	{
+		schedule.push_back (i);
+	}
 }
 
 std::size_t nano::prioritization::index (nano::uint128_t const & balance) const
@@ -82,39 +178,53 @@ std::size_t nano::prioritization::index (nano::uint128_t const & balance) const
  * Push a block and its associated time into the prioritization container.
  * The time is given here because sideband might not exist in the case of state blocks.
  */
-void nano::prioritization::push (uint64_t time, std::shared_ptr<nano::block> block, nano::amount const & priority)
+void nano::prioritization::insert (uint64_t time, std::shared_ptr<nano::block> block, nano::amount const & priority)
 {
 	auto was_empty = empty ();
 	auto & bucket = buckets[index (priority.number ())];
-	bucket.emplace (value_type{ time, block });
-	if (bucket.size () > std::max (decltype (maximum){ 1 }, maximum / buckets.size ()))
-	{
-		bucket.erase (--bucket.end ());
-	}
+	bucket.insert (std::move (block), time);
 	if (was_empty)
 	{
 		seek ();
 	}
 }
 
-/** Return the highest priority block of the current bucket */
-std::shared_ptr<nano::block> nano::prioritization::top () const
+nano::election_insertion_result nano::prioritization::activate ()
 {
 	debug_assert (!empty ());
-	debug_assert (!buckets[*current].empty ());
-	auto result = buckets[*current].begin ()->block;
-	return result;
+
+	seek (false); // Find first available bucket, including current
+
+	if (!current_bucket ().empty ())
+	{
+		auto result = current_bucket ().activate ();
+		seek (); // Skip to the next available bucket, excluding current
+		return result;
+	}
+	else
+	{
+		return {}; // Failed to find available bucket
+	}
 }
 
-/** Pop the current block from the container and seek to the next block, if it exists */
-void nano::prioritization::pop ()
-{
-	debug_assert (!empty ());
-	debug_assert (!buckets[*current].empty ());
-	auto & bucket = buckets[*current];
-	bucket.erase (bucket.begin ());
-	seek ();
-}
+///** Return the highest priority block of the current bucket */
+// std::shared_ptr<nano::block> nano::prioritization::top () const
+//{
+//	debug_assert (!empty ());
+//	debug_assert (!buckets[*current].empty ());
+//	auto result = buckets[*current].begin ()->block;
+//	return result;
+// }
+//
+///** Pop the current block from the container and seek to the next block, if it exists */
+// void nano::prioritization::pop ()
+//{
+//	debug_assert (!empty ());
+//	debug_assert (!buckets[*current].empty ());
+//	auto & bucket = buckets[*current];
+//	bucket.erase (bucket.begin ());
+//	seek ();
+// }
 
 /** Returns the total number of blocks in buckets */
 std::size_t nano::prioritization::size () const
@@ -142,21 +252,23 @@ std::size_t nano::prioritization::bucket_size (std::size_t index) const
 /** Returns true if all buckets are empty */
 bool nano::prioritization::empty () const
 {
-	return std::all_of (buckets.begin (), buckets.end (), [] (priority const & bucket_a) { return bucket_a.empty (); });
+	return std::all_of (buckets.begin (), buckets.end (), [] (bucket const & bucket_a) {
+		return bucket_a.empty ();
+	});
 }
 
-/** Print the state of the class in stderr */
-void nano::prioritization::dump () const
-{
-	for (auto const & i : buckets)
-	{
-		for (auto const & j : i)
-		{
-			std::cerr << j.time << ' ' << j.block->hash ().to_string () << '\n';
-		}
-	}
-	std::cerr << "current: " << std::to_string (*current) << '\n';
-}
+///** Print the state of the class in stderr */
+// void nano::prioritization::dump () const
+//{
+//	for (auto const & i : buckets)
+//	{
+//		for (auto const & j : i)
+//		{
+//			std::cerr << j.time << ' ' << j.block->hash ().to_string () << '\n';
+//		}
+//	}
+//	std::cerr << "current: " << std::to_string (*current) << '\n';
+// }
 
 std::unique_ptr<nano::container_info_component> nano::prioritization::collect_container_info (std::string const & name)
 {

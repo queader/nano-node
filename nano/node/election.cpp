@@ -156,6 +156,11 @@ void nano::election::transition_active ()
 	state_change (nano::election::state_t::passive, nano::election::state_t::active);
 }
 
+void nano::election::cancel ()
+{
+	state_change (state_m.load (), nano::election::state_t::expired_unconfirmed);
+}
+
 bool nano::election::confirmed () const
 {
 	return state_m == nano::election::state_t::confirmed || state_m == nano::election::state_t::expired_confirmed;
@@ -210,7 +215,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 		case nano::election::state_t::expired_unconfirmed:
 		case nano::election::state_t::expired_confirmed:
-			debug_assert (false);
+			return true; // Return true to indicate this election should be cleaned up
 			break;
 	}
 

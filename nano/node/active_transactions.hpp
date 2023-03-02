@@ -110,12 +110,17 @@ public:
  */
 class active_transactions final
 {
+public:
+	using confirmation_callback_t = std::function<void (std::shared_ptr<nano::block> const &)>;
+	using erased_callback_t = std::function<void (nano::qualified_root const &)>;
+
 private: // Elections
 	class conflict_info final
 	{
 	public:
 		nano::qualified_root root;
 		std::shared_ptr<nano::election> election;
+		erased_callback_t on_erased;
 	};
 
 	friend class nano::election;
@@ -148,7 +153,7 @@ public:
 	/**
 	 * Starts new election with a specified behavior type
 	 */
-	nano::election_insertion_result insert (std::shared_ptr<nano::block> const & block, nano::election_behavior behavior = nano::election_behavior::normal);
+	nano::election_insertion_result insert (std::shared_ptr<nano::block> const & block, nano::election_behavior behavior = nano::election_behavior::normal, erased_callback_t erased_callback = nullptr);
 	// Distinguishes replay votes, cannot be determined if the block is not in any election
 	nano::vote_code vote (std::shared_ptr<nano::vote> const &);
 	// Is the root of this block in the roots container
@@ -189,7 +194,7 @@ public:
 
 private:
 	// Call action with confirmed block, may be different than what we started with
-	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, std::function<void (std::shared_ptr<nano::block> const &)> const & = nullptr);
+	nano::election_insertion_result insert_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, erased_callback_t erased_callback = nullptr, confirmation_callback_t = nullptr);
 	void request_loop ();
 	void request_confirm (nano::unique_lock<nano::mutex> &);
 	void erase (nano::qualified_root const &);

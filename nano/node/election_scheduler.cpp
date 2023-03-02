@@ -1,10 +1,16 @@
 #include <nano/node/election_scheduler.hpp>
 #include <nano/node/node.hpp>
 
+#include <memory>
+
 nano::election_scheduler::election_scheduler (nano::node & node_a, nano::stats & stats_a) :
 	node{ node_a },
-	stats{ stats_a }
+	stats{ stats_a },
+	priority{ 1024 * 256 }
 {
+	priority.setup ([this] () {
+		return std::make_unique<nano::election_set> (node.active, /* default limit */ 200);
+	});
 }
 
 nano::election_scheduler::~election_scheduler ()
@@ -60,7 +66,7 @@ bool nano::election_scheduler::activate (nano::account const & account_a, nano::
 				auto balance = node.ledger.balance (transaction, hash);
 				auto previous_balance = node.ledger.balance (transaction, conf_info.frontier);
 				nano::lock_guard<nano::mutex> lock{ mutex };
-				priority.push (info->modified, block, std::max (balance, previous_balance));
+				priority.insert (info->modified, block, std::max (balance, previous_balance));
 				notify ();
 				return true; // Activated
 			}
@@ -106,7 +112,7 @@ std::size_t nano::election_scheduler::priority_queue_size () const
 
 bool nano::election_scheduler::priority_queue_predicate () const
 {
-	return node.active.vacancy () > 0 && !priority.empty ();
+	return node.active.vacancy () > 0 && priority.available ();
 }
 
 bool nano::election_scheduler::manual_queue_predicate () const
@@ -142,22 +148,26 @@ void nano::election_scheduler::run ()
 				lock.unlock ();
 				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::erase_oldest);
 				node.active.erase_oldest ();
+				lock.lock ();
 			}
-			else if (manual_queue_predicate ())
+			if (manual_queue_predicate ())
 			{
 				auto const [block, previous_balance, election_behavior] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
 				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_manual);
 				node.active.insert (block, election_behavior);
+				lock.lock ();
 			}
-			else if (priority_queue_predicate ())
+			if (priority_queue_predicate ())
 			{
-				auto block = priority.top ();
-				priority.pop ();
-				lock.unlock ();
 				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
-				auto result = node.active.insert (block);
+				auto result = priority.activate ();
+				//				auto block = priority.top ();
+				//				priority.pop ();
+				lock.unlock ();
+				//				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
+				//				auto result = node.active.insert (block);
 				if (result.inserted)
 				{
 					stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority_success);
@@ -166,8 +176,9 @@ void nano::election_scheduler::run ()
 				{
 					result.election->transition_active ();
 				}
+				lock.lock ();
 			}
-			else
+			if (lock.owns_lock ())
 			{
 				lock.unlock ();
 			}

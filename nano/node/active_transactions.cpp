@@ -270,6 +270,7 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	debug_assert (lock_a.owns_lock ());
 
 	node.stats.inc (completion_type (*election), nano::to_stat_detail (election->behavior ()));
+
 	// Keep track of election count by election type
 	debug_assert (count_by_behavior[election->behavior ()] > 0);
 	count_by_behavior[election->behavior ()]--;
@@ -282,10 +283,22 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 		debug_assert (erased == 1);
 		node.inactive_vote_cache.erase (hash);
 	}
-	roots.get<tag_root> ().erase (roots.get<tag_root> ().find (election->qualified_root));
+
+	// Erase root info
+	auto it = roots.get<tag_root> ().find (election->qualified_root);
+	debug_assert (it != roots.get<tag_root> ().end ());
+	auto root_info = *it;
+	roots.get<tag_root> ().erase (it);
 
 	lock_a.unlock ();
+
+	// Let election sets update before notifying about vacancy
+	if (root_info.on_erased)
+	{
+		root_info.on_erased (election->qualified_root);
+	}
 	vacancy_update ();
+
 	for (auto const & [hash, block] : blocks_l)
 	{
 		// Notify observers about dropped elections & blocks lost confirmed elections
@@ -362,17 +375,17 @@ void nano::active_transactions::request_loop ()
 	}
 }
 
-nano::election_insertion_result nano::active_transactions::insert (const std::shared_ptr<nano::block> & block, nano::election_behavior behavior)
+nano::election_insertion_result nano::active_transactions::insert (const std::shared_ptr<nano::block> & block, nano::election_behavior behavior, erased_callback_t erased_callback)
 {
 	debug_assert (block != nullptr);
 
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
-	auto result = insert_impl (lock, block, behavior);
+	auto result = insert_impl (lock, block, behavior, erased_callback);
 	return result;
 }
 
-nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a)
+nano::election_insertion_result nano::active_transactions::insert_impl (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, erased_callback_t erased_callback_a, confirmation_callback_t confirmation_action_a)
 {
 	debug_assert (!mutex.try_lock ());
 	debug_assert (lock_a.owns_lock ());
@@ -389,12 +402,12 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 				result.inserted = true;
 				auto hash (block_a->hash ());
 				result.election = nano::make_shared<nano::election> (
-				node, block_a, confirmation_action_a, [&node = node] (auto const & rep_a) {
+				node, block_a, std::move (confirmation_action_a), [&node = node] (auto const & rep_a) {
 					// Representative is defined as online if replying to live votes or rep_crawler queries
 					node.online_reps.observe (rep_a);
 				},
 				election_behavior_a);
-				roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election });
+				roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election, std::move (erased_callback_a) });
 				blocks.emplace (hash, result.election);
 				// Keep track of election count by election type
 				debug_assert (count_by_behavior[result.election->behavior ()] >= 0);

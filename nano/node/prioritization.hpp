@@ -1,8 +1,12 @@
 #pragma once
+
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/utility.hpp>
+#include <nano/node/election_set.hpp>
+#include <nano/node/prioritization.hpp>
 
 #include <cstddef>
+#include <functional>
 #include <set>
 #include <vector>
 
@@ -22,19 +26,42 @@ class block;
  */
 class prioritization final
 {
+public:
+	using priority_t = uint64_t;
+	using election_set_factory_t = std::function<std::unique_ptr<nano::election_set> ()>;
+
+public:
 	class value_type
 	{
 	public:
-		uint64_t time;
+		priority_t priority;
 		std::shared_ptr<nano::block> block;
-		bool operator< (value_type const & other_a) const;
+
+		bool operator<(value_type const & other_a) const;
 		bool operator== (value_type const & other_a) const;
 	};
 
-	using priority = std::set<value_type>;
+	class bucket
+	{
+	public:
+		bucket (std::size_t limit, election_set_factory_t const & factory);
+
+		void insert (std::shared_ptr<nano::block> block, priority_t priority);
+		nano::election_insertion_result activate ();
+		bool vacancy () const;
+		bool available () const;
+		void pop ();
+		bool empty () const;
+		std::size_t size () const;
+
+	private:
+		std::size_t const limit_m;
+		std::set<value_type> queue;
+		std::unique_ptr<nano::election_set> elections;
+	};
 
 	/** container for the buckets to be read in round robin fashion */
-	std::vector<priority> buckets;
+	std::vector<bucket> buckets;
 
 	/** thresholds that define the bands for each bucket, the minimum balance an account must have to enter a bucket,
 	 *  the container writes a block to the lowest indexed bucket that has balance larger than the bucket's minimum value */
@@ -47,23 +74,30 @@ class prioritization final
 	decltype (schedule)::const_iterator current;
 
 	/** maximum number of blocks in whole container, each bucket's maximum is maximum / bucket_number */
-	uint64_t const maximum;
+	std::size_t const max_size;
 
 	void next ();
-	void seek ();
+	void seek (bool skip_first = true);
+	bucket & current_bucket ();
 	void populate_schedule ();
 
 public:
-	prioritization (uint64_t maximum = 250000u);
-	void push (uint64_t time, std::shared_ptr<nano::block> block, nano::amount const & priority);
-	std::shared_ptr<nano::block> top () const;
-	void pop ();
+	explicit prioritization (std::size_t max_size);
+	void setup (election_set_factory_t const & factory);
+
+	void insert (uint64_t time, std::shared_ptr<nano::block> block, nano::amount const & priority);
+	nano::election_insertion_result activate ();
+
+	//	std::shared_ptr<nano::block> top () const;
+	//	void pop ();
 	std::size_t size () const;
 	std::size_t bucket_count () const;
 	std::size_t bucket_size (std::size_t index) const;
 	bool empty () const;
 	void dump () const;
 	std::size_t index (nano::uint128_t const & balance) const;
+
+	bool available () const;
 
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const &);
 };

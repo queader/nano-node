@@ -66,6 +66,8 @@ add_library(
   election.cpp
   election_scheduler.hpp
   election_scheduler.cpp
+  election_set.hpp
+  election_set.cpp
   epoch_upgrader.hpp
   epoch_upgrader.cpp
   gap_cache.hpp
