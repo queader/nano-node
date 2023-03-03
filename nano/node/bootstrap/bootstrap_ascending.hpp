@@ -169,7 +169,6 @@ public: // account_sets
 		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
 	private:
-		void trim_overflow ();
 		bool check_timestamp (nano::account const & account) const;
 
 	private: // Dependencies
@@ -235,10 +234,10 @@ public: // account_sets
 		std::default_random_engine rng;
 
 	private: // TODO: Move into config
-		static std::size_t constexpr consideration_count = 4;
-		static std::size_t constexpr priorities_max = 256 * 1024;
-		static std::size_t constexpr blocking_max = 256 * 1024;
 		static nano::millis_t constexpr cooldown = 3 * 1000;
+		static std::size_t constexpr consideration_count = 4;
+		static std::size_t constexpr max_priorities = 16 * 1024;
+		static std::size_t constexpr max_blocking = 16 * 1024;
 
 	public: // Consts
 		static float constexpr priority_initial = 8.0f;
