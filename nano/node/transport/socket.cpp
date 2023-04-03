@@ -152,7 +152,7 @@ void nano::transport::socket::async_write (nano::shared_const_buffer const & buf
 		return;
 	}
 
-	boost::asio::post (strand, boost::asio::bind_executor (strand, [this_s = shared_from_this (), buffer_a, callback_a, traffic_type] () {
+	boost::asio::post (strand, boost::asio::bind_executor (strand, [this_s = shared_from_this ()] () {
 		if (!this_s->write_in_progress)
 		{
 			this_s->write_queued_messages ();
@@ -176,7 +176,9 @@ void nano::transport::socket::write_queued_messages ()
 
 	set_default_timeout ();
 
+	debug_assert (!write_in_progress);
 	write_in_progress = true;
+
 	nano::async_write (tcp_socket, next->buffer,
 	boost::asio::bind_executor (strand, [this_s = shared_from_this (), next /* `next` object keeps buffer in scope */] (boost::system::error_code ec, std::size_t size) {
 		this_s->write_in_progress = false;
