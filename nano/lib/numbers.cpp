@@ -408,6 +408,10 @@ nano::public_key nano::pub_key (nano::raw_key const & raw_key_a)
 
 nano::signature nano::sign_message (nano::raw_key const & private_key, nano::public_key const & public_key, uint8_t const * data, size_t size)
 {
+#if NANO_IGNORE_SIGNATURES
+	return { 0 };
+#endif
+
 	nano::signature result;
 	ed25519_sign (data, size, private_key.bytes.data (), public_key.bytes.data (), result.bytes.data ());
 	return result;
@@ -420,6 +424,10 @@ nano::signature nano::sign_message (nano::raw_key const & private_key, nano::pub
 
 bool nano::validate_message (nano::public_key const & public_key, uint8_t const * data, size_t size, nano::signature const & signature)
 {
+#if NANO_IGNORE_SIGNATURES
+	return false;
+#endif
+
 	return 0 != ed25519_sign_open (data, size, public_key.bytes.data (), signature.bytes.data ());
 }
 
@@ -432,7 +440,11 @@ bool nano::validate_message_batch (const unsigned char ** m, size_t * mlen, cons
 {
 	for (size_t i{ 0 }; i < num; ++i)
 	{
+#if NANO_IGNORE_SIGNATURES
+		valid[i] = true;
+#else
 		valid[i] = (0 == ed25519_sign_open (m[i], mlen[i], pk[i], RS[i]));
+#endif
 	}
 	return true;
 }
