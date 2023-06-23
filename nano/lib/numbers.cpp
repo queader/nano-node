@@ -928,6 +928,10 @@ uint64_t nano::difficulty::from_multiplier (double const multiplier_a, uint64_t 
 
 double nano::difficulty::to_multiplier (uint64_t const difficulty_a, uint64_t const base_difficulty_a)
 {
+	if (difficulty_a == 0 && base_difficulty_a == 0)
+	{
+		return 1;
+	}
 	debug_assert (difficulty_a > 0);
 	return static_cast<double> (-base_difficulty_a) / (-difficulty_a);
 }
