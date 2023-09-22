@@ -1093,7 +1093,7 @@ TEST (node, fork_no_vote_quorum)
 	ASSERT_FALSE (system.wallet (1)->store.fetch (transaction, key1, key3));
 	auto vote = std::make_shared<nano::vote> (key1, key3, 0, 0, std::vector<nano::block_hash>{ send2->hash () });
 	nano::confirm_ack confirm{ nano::dev::network_params.network, vote };
-	std::vector<uint8_t> buffer;
+	nano::vectorbuffer buffer;
 	{
 		nano::vectorstream stream (buffer);
 		confirm.serialize (stream);
@@ -3270,7 +3270,7 @@ TEST (node, unchecked_cleanup)
 				.sign (key.prv, key.pub)
 				.work (*system.work.generate (key.pub))
 				.build_shared ();
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		open->serialize (stream);

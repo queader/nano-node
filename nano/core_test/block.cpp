@@ -51,7 +51,7 @@ TEST (block, send_serialize)
 				  .sign (nano::keypair ().prv, 4)
 				  .work (5)
 				  .build ();
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream1 (bytes);
 		block1->serialize (stream1);
@@ -101,7 +101,7 @@ TEST (block, receive_serialize)
 				  .work (4)
 				  .build ();
 	nano::keypair key1;
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream1 (bytes);
 		block1->serialize (stream1);
@@ -259,7 +259,7 @@ TEST (send_block, deserialize)
 				  .work (5)
 				  .build ();
 	ASSERT_EQ (block1->hash (), block1->hash ());
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream1 (bytes);
 		block1->serialize (stream1);
@@ -285,7 +285,7 @@ TEST (receive_block, deserialize)
 	ASSERT_EQ (block1->hash (), block1->hash ());
 	block1->hashables.previous = 2;
 	block1->hashables.source = 4;
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream1 (bytes);
 		block1->serialize (stream1);
@@ -310,7 +310,7 @@ TEST (open_block, deserialize)
 				  .work (0)
 				  .build ();
 	ASSERT_EQ (block1->hash (), block1->hash ());
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		block1->serialize (stream);
@@ -334,7 +334,7 @@ TEST (change_block, deserialize)
 				  .work (5)
 				  .build ();
 	ASSERT_EQ (block1->hash (), block1->hash ());
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream1 (bytes);
 		block1->serialize (stream1);
@@ -357,7 +357,7 @@ TEST (frontier_req, serialization)
 	request1.start = 1;
 	request1.age = 2;
 	request1.count = 3;
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		request1.serialize (stream);

@@ -89,7 +89,7 @@ void nano::transport::socket::async_connect (nano::tcp_endpoint const & endpoint
 	}));
 }
 
-void nano::transport::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
+void nano::transport::socket::async_read (std::shared_ptr<nano::vectorbuffer> const & buffer_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
 	debug_assert (callback_a);
 
@@ -289,7 +289,7 @@ void nano::transport::socket::ongoing_checkup ()
 	});
 }
 
-void nano::transport::socket::read_impl (std::shared_ptr<std::vector<uint8_t>> const & data_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
+void nano::transport::socket::read_impl (std::shared_ptr<nano::vectorbuffer> const & data_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
 	// Increase timeout to receive TCP header (idle server socket)
 	auto const prev_timeout = get_default_timeout_value ();

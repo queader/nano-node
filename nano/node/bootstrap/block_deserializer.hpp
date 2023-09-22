@@ -43,7 +43,7 @@ namespace bootstrap
 		 */
 		void received_block (nano::block_type type, callback_type const && callback);
 
-		std::shared_ptr<std::vector<uint8_t>> read_buffer;
+		std::shared_ptr<nano::vectorbuffer> read_buffer;
 	};
 }
 }

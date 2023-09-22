@@ -77,7 +77,7 @@ TEST (block_store, block_details_serialization)
 	details1.is_epoch = false;
 	details1.is_receive = true;
 	details1.is_send = false;
-	std::vector<uint8_t> vector;
+	nano::vectorbuffer vector;
 	{
 		nano::vectorstream stream1 (vector);
 		details1.serialize (stream1);
@@ -96,7 +96,7 @@ TEST (block_store, sideband_serialization)
 	sideband1.height = 3;
 	sideband1.successor = 4;
 	sideband1.timestamp = 5;
-	std::vector<uint8_t> vector;
+	nano::vectorbuffer vector;
 	{
 		nano::vectorstream stream1 (vector);
 		sideband1.serialize (stream1, nano::block_type::receive);

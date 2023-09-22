@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/boost/asio/write.hpp>
+#include <nano/lib/stream.hpp>
 
 namespace nano
 {
@@ -10,20 +11,20 @@ public:
 	using value_type = boost::asio::const_buffer;
 	using const_iterator = boost::asio::const_buffer const *;
 
-	explicit shared_const_buffer (std::vector<uint8_t> const & data);
-	explicit shared_const_buffer (uint8_t data);
+	explicit shared_const_buffer (nano::vectorbuffer const & data);
+	//	explicit shared_const_buffer (nano::vectorbuffer::value_type data);
 	explicit shared_const_buffer (std::string const & data);
-	explicit shared_const_buffer (std::vector<uint8_t> && data);
-	explicit shared_const_buffer (std::shared_ptr<std::vector<uint8_t>> const & data);
+	explicit shared_const_buffer (nano::vectorbuffer && data);
+	explicit shared_const_buffer (std::shared_ptr<nano::vectorbuffer> const & data);
 
 	boost::asio::const_buffer const * begin () const;
 	boost::asio::const_buffer const * end () const;
 
 	std::size_t size () const;
-	std::vector<uint8_t> to_bytes () const;
+	nano::vectorbuffer to_bytes () const;
 
 private:
-	std::shared_ptr<std::vector<uint8_t>> m_data;
+	std::shared_ptr<nano::vectorbuffer> m_data;
 	boost::asio::const_buffer m_buffer;
 };
 

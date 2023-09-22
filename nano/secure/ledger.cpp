@@ -1458,7 +1458,7 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (boost::filesystem::path const & data
 			{
 				auto rocksdb_transaction (rocksdb_store->tx_begin_write ({}, { nano::tables::blocks }));
 
-				std::vector<uint8_t> vector;
+				nano::vectorbuffer vector;
 				{
 					nano::vectorstream stream (vector);
 					nano::serialize_block (stream, *i->second.block);

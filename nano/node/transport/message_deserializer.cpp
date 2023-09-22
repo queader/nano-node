@@ -3,7 +3,7 @@
 
 nano::transport::message_deserializer::message_deserializer (nano::network_constants const & network_constants_a, nano::network_filter & publish_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a,
 read_query read_op) :
-	read_buffer{ std::make_shared<std::vector<uint8_t>> () },
+	read_buffer{ std::make_shared<nano::vectorbuffer> () },
 	network_constants_m{ network_constants_a },
 	publish_filter_m{ publish_filter_a },
 	block_uniquer_m{ block_uniquer_a },

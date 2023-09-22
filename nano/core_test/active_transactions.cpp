@@ -625,7 +625,7 @@ TEST (active_transactions, dropped_cleanup)
 	auto hash = chain[0]->hash ();
 
 	// Add to network filter to ensure proper cleanup after the election is dropped
-	std::vector<uint8_t> block_bytes;
+	nano::vectorbuffer block_bytes;
 	{
 		nano::vectorstream stream (block_bytes);
 		chain[0]->serialize (stream);
@@ -761,7 +761,7 @@ TEST (active_transactions, fork_filter_cleanup)
 				 .work (*system.work.generate (latest_hash))
 				 .build_shared ();
 
-	std::vector<uint8_t> send_block_bytes{};
+	nano::vectorbuffer send_block_bytes{};
 	{
 		nano::vectorstream stream{ send_block_bytes };
 		send1->serialize (stream);

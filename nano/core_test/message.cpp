@@ -28,7 +28,7 @@ std::shared_ptr<nano::block> random_block ()
 TEST (message, keepalive_serialization)
 {
 	nano::keepalive request1{ nano::dev::network_params.network };
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		request1.serialize (stream);
@@ -46,7 +46,7 @@ TEST (message, keepalive_deserialize)
 {
 	nano::keepalive message1{ nano::dev::network_params.network };
 	message1.peers[0] = nano::endpoint (boost::asio::ip::address_v6::loopback (), 10000);
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		message1.serialize (stream);
@@ -66,7 +66,7 @@ TEST (message, publish_serialization)
 	auto block = random_block ();
 	nano::publish publish{ nano::dev::network_params.network, block };
 	ASSERT_EQ (nano::block_type::send, publish.header.block_type ());
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		publish.header.serialize (stream);
@@ -114,7 +114,7 @@ TEST (message, confirm_ack_hash_serialization)
 	nano::keypair representative1;
 	auto vote (std::make_shared<nano::vote> (representative1.pub, representative1.prv, 0, 0, hashes));
 	nano::confirm_ack con1{ nano::dev::network_params.network, vote };
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream1 (bytes);
 		con1.serialize (stream1);
@@ -145,7 +145,7 @@ TEST (message, confirm_req_serialization)
 				 .work (3)
 				 .build_shared ();
 	nano::confirm_req req{ nano::dev::network_params.network, block };
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		req.serialize (stream);
@@ -173,7 +173,7 @@ TEST (message, confirm_req_hash_serialization)
 				 .work (3)
 				 .build ();
 	nano::confirm_req req{ nano::dev::network_params.network, block->hash (), block->root () };
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		req.serialize (stream);
@@ -225,7 +225,7 @@ TEST (message, confirm_req_hash_batch_serialization)
 	}
 	roots_hashes.push_back (std::make_pair (open->hash (), open->root ()));
 	nano::confirm_req req{ nano::dev::network_params.network, roots_hashes };
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream (bytes);
 		req.serialize (stream);
@@ -273,7 +273,7 @@ TEST (message, bulk_pull_serialization)
 {
 	nano::bulk_pull message_in{ nano::dev::network_params.network };
 	message_in.header.flag_set (nano::message_header::bulk_pull_ascending_flag);
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		message_in.serialize (stream);
@@ -301,7 +301,7 @@ TEST (message, asc_pull_req_serialization_blocks)
 	original.update_header ();
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
@@ -341,7 +341,7 @@ TEST (message, asc_pull_req_serialization_account_info)
 	original.update_header ();
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
@@ -385,7 +385,7 @@ TEST (message, asc_pull_ack_serialization_blocks)
 	original.update_header ();
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
@@ -434,7 +434,7 @@ TEST (message, asc_pull_ack_serialization_account_info)
 	original.update_header ();
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
@@ -473,7 +473,7 @@ TEST (message, node_id_handshake_query_serialization)
 	nano::node_id_handshake original{ nano::dev::network_params.network, query };
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
@@ -505,7 +505,7 @@ TEST (message, node_id_handshake_response_serialization)
 	nano::node_id_handshake original{ nano::dev::network_params.network, std::nullopt, response };
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
@@ -544,7 +544,7 @@ TEST (message, node_id_handshake_response_v2_serialization)
 	nano::node_id_handshake original{ nano::dev::network_params.network, std::nullopt, response };
 
 	// Serialize
-	std::vector<uint8_t> bytes;
+	nano::vectorbuffer bytes;
 	{
 		nano::vectorstream stream{ bytes };
 		original.serialize (stream);
