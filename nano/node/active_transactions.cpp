@@ -327,6 +327,18 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	debug_assert (!mutex.try_lock ());
 	debug_assert (lock_a.owns_lock ());
 
+	if (election->confirmed())
+	{
+		debug_assert (recently_confirmed.exists (election->qualified_root));
+	}
+
+	std::cout << "stopped active: " << election->qualified_root.to_string ()
+			  << " confirmed: " << election->confirmed ()
+			  << " failed: " << election->failed ()
+			  << " blocks: " << election->blocks ().size ()
+			  << " votes: " << election->votes ().size ()
+			  << std::endl;
+
 	node.stats.inc (completion_type (*election), nano::to_stat_detail (election->behavior ()));
 	// Keep track of election count by election type
 	debug_assert (count_by_behavior[election->behavior ()] > 0);
@@ -419,11 +431,32 @@ void nano::active_transactions::request_loop ()
 	}
 }
 
+namespace
+{
+std::string to_str (nano::election_behavior behavior)
+{
+	switch (behavior)
+	{
+		case nano::election_behavior::normal:
+			return "normal";
+		case nano::election_behavior::hinted:
+			return "hinted";
+		case nano::election_behavior::optimistic:
+			return "optimistic";
+	}
+
+	debug_assert (false);
+	return "<unknown>";
+}
+}
+
 nano::election_insertion_result nano::active_transactions::insert (const std::shared_ptr<nano::block> & block, nano::election_behavior behavior)
 {
 	debug_assert (block != nullptr);
 
 	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	//	std::cout << "activating: " << block->hash ().to_string () << " behavior: " << to_str (behavior) << std::endl;
 
 	auto result = insert_impl (lock, block, behavior);
 	return result;
@@ -457,6 +490,8 @@ nano::election_insertion_result nano::active_transactions::insert_impl (nano::un
 		{
 			if (!recently_confirmed.exists (root))
 			{
+				std::cout << "activating: " << block_a->hash ().to_string () << " behavior: " << to_str (election_behavior_a) << std::endl;
+
 				result.inserted = true;
 				auto hash (block_a->hash ());
 				result.election = nano::make_shared<nano::election> (

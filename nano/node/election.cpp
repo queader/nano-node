@@ -429,6 +429,11 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 		live_vote_action (rep);
 	}
 
+	if (vote_source_a == vote_source::cache)
+	{
+		debug_assert (node.stats.count (nano::stat::type::election, nano::stat::detail::vote_cached) == 0);
+	}
+
 	node.stats.inc (nano::stat::type::election, vote_source_a == vote_source::live ? nano::stat::detail::vote_new : nano::stat::detail::vote_cached);
 
 	if (!confirmed ())

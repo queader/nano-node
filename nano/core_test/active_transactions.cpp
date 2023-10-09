@@ -299,6 +299,9 @@ TEST (active_transactions, inactive_votes_cache_fork)
 				 .work (*system.work.generate (latest))
 				 .build_shared ();
 
+	std::cout << "send1: " << send1->hash ().to_string () << std::endl;
+	std::cout << "send2: " << send2->hash ().to_string () << std::endl;
+
 	auto const vote = std::make_shared<nano::vote> (nano::dev::genesis_key.pub, nano::dev::genesis_key.prv, nano::vote::timestamp_max, nano::vote::duration_max, std::vector<nano::block_hash> (1, send1->hash ()));
 	node.vote_processor.vote (vote, std::make_shared<nano::transport::inproc::channel> (node, node));
 	ASSERT_TIMELY (5s, node.vote_cache.size () == 1);
@@ -312,6 +315,7 @@ TEST (active_transactions, inactive_votes_cache_fork)
 	ASSERT_TIMELY (5s, election->blocks ().size () == 2);
 	ASSERT_TIMELY (5s, node.block_confirmed (send1->hash ()));
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::election, nano::stat::detail::vote_cached));
+	ASSERT_ALWAYS (1s, 1 == node.stats.count (nano::stat::type::election, nano::stat::detail::vote_cached));
 }
 
 TEST (active_transactions, inactive_votes_cache_existing_vote)
