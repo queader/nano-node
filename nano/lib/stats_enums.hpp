@@ -21,6 +21,9 @@ enum class type : uint8_t
 	http_callback,
 	ipc,
 	tcp,
+	channel,
+	socket,
+	socket_write,
 	confirmation_height,
 	confirmation_observer,
 	drop,
@@ -291,6 +294,11 @@ enum class detail : uint8_t
 	priority_erase_overflow,
 	deprioritize,
 	deprioritize_failed,
+
+	// socket
+	error_critical,
+	error_transient,
+	success,
 
 	_last // Must be the last enum
 };

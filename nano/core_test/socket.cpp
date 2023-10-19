@@ -20,7 +20,6 @@ using namespace std::chrono_literals;
 TEST (socket, max_connections)
 {
 	nano::test::system system;
-
 	auto node = system.add_node ();
 
 	auto server_port = system.get_available_port ();
@@ -105,8 +104,6 @@ TEST (socket, max_connections)
 	ASSERT_TIMELY_EQ (5s, get_tcp_accept_successes (), 5);
 	ASSERT_TIMELY_EQ (5s, connection_attempts, 8); // connections initiated by the client
 	ASSERT_TIMELY_EQ (5s, server_sockets.size (), 5); // connections accepted by the server
-
-	node->stop ();
 }
 
 TEST (socket, max_connections_per_ip)
