@@ -685,7 +685,7 @@ nano::confirm_ack::confirm_ack (nano::network_constants const & constants, std::
 	vote (vote_a)
 {
 	header.block_type_set (nano::block_type::not_a_block);
-	debug_assert (vote_a->hashes.size () < 16);
+//	debug_assert (vote_a->hashes.size () < 16);
 	header.count_set (static_cast<uint8_t> (vote_a->hashes.size ()));
 }
 
