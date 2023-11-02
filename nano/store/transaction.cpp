@@ -36,6 +36,7 @@ nano::store::write_transaction_impl::write_transaction_impl (nano::id_dispenser:
 nano::store::read_transaction::read_transaction (std::unique_ptr<store::read_transaction_impl> read_transaction_impl) :
 	impl (std::move (read_transaction_impl))
 {
+	start = std::chrono::steady_clock::now ();
 }
 
 void * nano::store::read_transaction::get_handle () const
@@ -56,12 +57,22 @@ void nano::store::read_transaction::reset () const
 void nano::store::read_transaction::renew () const
 {
 	impl->renew ();
+	start = std::chrono::steady_clock::now ();
 }
 
 void nano::store::read_transaction::refresh () const
 {
 	reset ();
 	renew ();
+}
+
+void nano::store::read_transaction::refresh_if_needed (std::chrono::milliseconds max_age) const
+{
+	auto now = std::chrono::steady_clock::now ();
+	if (now - start > max_age)
+	{
+		refresh ();
+	}
 }
 
 /*
@@ -99,8 +110,17 @@ void nano::store::write_transaction::renew ()
 
 void nano::store::write_transaction::refresh ()
 {
-	impl->commit ();
-	impl->renew ();
+	commit ();
+	renew ();
+}
+
+void nano::store::write_transaction::refresh_if_needed (std::chrono::milliseconds max_age)
+{
+	auto now = std::chrono::steady_clock::now ();
+	if (now - start > max_age)
+	{
+		refresh ();
+	}
 }
 
 bool nano::store::write_transaction::contains (nano::tables table_a) const
