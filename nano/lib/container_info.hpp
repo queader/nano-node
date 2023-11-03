@@ -55,6 +55,14 @@ private:
  */
 namespace nano::experimental
 {
+template <typename T>
+concept sized_container = requires (T a) {
+	typename T::value_type;
+	{
+		a.size ()
+	} -> std::convertible_to<std::size_t>;
+};
+
 class container_info
 {
 public:
@@ -83,7 +91,7 @@ public:
 	 * @param count
 	 * @param sizeof_element
 	 */
-	void put (std::string const & name, std::size_t size, std::size_t sizeof_element)
+	void put (std::string const & name, std::size_t size, std::size_t sizeof_element = 0)
 	{
 		entries_m.push_back ({ name, size, sizeof_element });
 	}
@@ -92,6 +100,12 @@ public:
 	void put (std::string const & name, std::size_t size)
 	{
 		put (name, size, sizeof (T));
+	}
+
+	template <sized_container T>
+	void put (std::string const & name, T const & container)
+	{
+		put (name, container.size (), sizeof (typename T::value_type));
 	}
 
 public:
