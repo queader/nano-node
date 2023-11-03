@@ -66,6 +66,8 @@ public:
 	 */
 	void notify ();
 
+	nano::experimental::container_info collect_container_info () const;
+
 private:
 	bool activate_predicate (nano::account_info const &, nano::confirmation_height_info const &) const;
 

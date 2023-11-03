@@ -161,6 +161,15 @@ void nano::scheduler::optimistic::run_one (store::transaction const & transactio
 	}
 }
 
+nano::experimental::container_info nano::scheduler::optimistic::collect_container_info () const
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	nano::experimental::container_info info;
+	info.put ("candidates", candidates);
+	return info;
+}
+
 /*
  * optimistic_scheduler_config
  */

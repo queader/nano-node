@@ -58,6 +58,8 @@ public:
 	 */
 	void notify ();
 
+	nano::experimental::container_info collect_container_info () const;
+
 private:
 	bool predicate () const;
 	void run ();

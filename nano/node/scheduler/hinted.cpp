@@ -163,10 +163,14 @@ void nano::scheduler::hinted::run ()
 
 		if (!stopped)
 		{
+			lock.unlock ();
+
 			if (predicate ())
 			{
 				run_iterative ();
 			}
+
+			lock.lock ();
 		}
 	}
 }
@@ -185,6 +189,8 @@ nano::uint128_t nano::scheduler::hinted::final_tally_threshold () const
 
 bool nano::scheduler::hinted::cooldown (const nano::block_hash & hash)
 {
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
 	auto const now = std::chrono::steady_clock::now ();
 
 	// Check if the hash is still in the cooldown period using the hashed index
@@ -209,6 +215,15 @@ bool nano::scheduler::hinted::cooldown (const nano::block_hash & hash)
 	}
 
 	return false; // No need to cooldown
+}
+
+nano::experimental::container_info nano::scheduler::hinted::collect_container_info () const
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	nano::experimental::container_info info;
+	info.put ("cooldowns", cooldowns_m);
+	return info;
 }
 
 /*

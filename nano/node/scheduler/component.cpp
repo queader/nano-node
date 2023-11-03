@@ -42,5 +42,7 @@ nano::experimental::container_info nano::scheduler::component::collect_container
 	nano::experimental::container_info info;
 	info.add ("manual", manual.collect_container_info ());
 	info.add ("priority", priority.collect_container_info ());
+	info.add ("optimistic", optimistic.collect_container_info ());
+	info.add ("hinted", hinted.collect_container_info ());
 	return info;
 }
