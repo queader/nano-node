@@ -48,3 +48,71 @@ private:
 	container_info info;
 };
 }
+
+namespace nano::experimental
+{
+class container_info
+{
+public:
+	// Child represented as < name, container_info > pair
+	using child = std::pair<std::string, container_info>;
+
+	struct entry
+	{
+		std::string name;
+		std::size_t size;
+		std::size_t sizeof_element;
+	};
+
+public:
+	/**
+	 * Adds a subcontainer
+	 */
+	void add (std::string const & name, container_info const & info)
+	{
+		children_m.emplace_back (name, info);
+	}
+
+	/**
+	 * TODO: Description
+	 * @param name
+	 * @param count
+	 * @param sizeof_element
+	 */
+	void put (std::string const & name, std::size_t size, std::size_t sizeof_element)
+	{
+		entries_m.push_back ({ name, size, sizeof_element });
+	}
+
+	template <class T>
+	void put (std::string const & name, std::size_t size)
+	{
+		put (name, size, sizeof (T));
+	}
+
+public:
+	bool children_empty () const
+	{
+		return children_m.empty ();
+	}
+
+	std::vector<child> const & children () const
+	{
+		return children_m;
+	}
+
+	bool entries_empty () const
+	{
+		return entries_m.empty ();
+	}
+
+	std::vector<entry> const & entries () const
+	{
+		return entries_m;
+	}
+
+private:
+	std::vector<child> children_m;
+	std::vector<entry> entries_m;
+};
+}
