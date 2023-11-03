@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -49,6 +50,9 @@ private:
 };
 }
 
+/*
+ * V2 Version
+ */
 namespace nano::experimental
 {
 class container_info
@@ -109,6 +113,27 @@ public:
 	std::vector<entry> const & entries () const
 	{
 		return entries_m;
+	}
+
+public:
+	std::unique_ptr<nano::container_info_component> to_legacy_component (std::string const & name) const
+	{
+		auto composite = std::make_unique<nano::container_info_composite> (name);
+
+		// Add entries as leaf components
+		for (const auto & entry : entries_m)
+		{
+			nano::container_info info{ entry.name, entry.size, entry.sizeof_element };
+			composite->add_component (std::make_unique<nano::container_info_leaf> (info));
+		}
+
+		// Recursively convert children to composites and add them
+		for (const auto & [child_name, child] : children_m)
+		{
+			composite->add_component (child.to_legacy_component (child_name));
+		}
+
+		return composite;
 	}
 
 private:
