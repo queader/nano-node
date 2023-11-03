@@ -31,6 +31,8 @@ add_library(
   config.hpp
   config.cpp
   configbase.hpp
+  container_info.hpp
+  container_info.cpp
   diagnosticsconfig.hpp
   diagnosticsconfig.cpp
   epoch.hpp
