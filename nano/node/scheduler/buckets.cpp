@@ -138,13 +138,13 @@ void nano::scheduler::buckets::dump () const
 	std::cerr << "current: " << current - buckets_m.begin () << '\n';
 }
 
-std::unique_ptr<nano::container_info_component> nano::scheduler::buckets::collect_container_info (std::string const & name)
+nano::experimental::container_info nano::scheduler::buckets::collect_container_info () const
 {
-	auto composite = std::make_unique<container_info_composite> (name);
+	nano::experimental::container_info info;
 	for (auto i = 0; i < buckets_m.size (); ++i)
 	{
 		auto const & bucket = buckets_m[i];
-		composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (i), bucket->size (), 0 }));
+		info.put (std::to_string (i), bucket->size ());
 	}
-	return composite;
+	return info;
 }

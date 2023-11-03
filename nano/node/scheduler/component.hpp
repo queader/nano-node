@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/container_info.hpp>
 #include <nano/lib/locks.hpp>
 
 #include <memory>
@@ -7,7 +8,6 @@
 
 namespace nano
 {
-class container_info_component;
 class node;
 }
 namespace nano::scheduler
@@ -23,7 +23,6 @@ class component final
 	std::unique_ptr<nano::scheduler::manual> manual_impl;
 	std::unique_ptr<nano::scheduler::optimistic> optimistic_impl;
 	std::unique_ptr<nano::scheduler::priority> priority_impl;
-	nano::mutex mutex;
 
 public:
 	explicit component (nano::node & node);
@@ -34,8 +33,9 @@ public:
 	// Stops all schedulers
 	void stop ();
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+	nano::experimental::container_info collect_container_info () const;
 
+public:
 	nano::scheduler::hinted & hinted;
 	nano::scheduler::manual & manual;
 	nano::scheduler::optimistic & optimistic;

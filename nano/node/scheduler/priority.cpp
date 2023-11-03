@@ -130,11 +130,11 @@ void nano::scheduler::priority::run ()
 	}
 }
 
-std::unique_ptr<nano::container_info_component> nano::scheduler::priority::collect_container_info (std::string const & name)
+nano::experimental::container_info nano::scheduler::priority::collect_container_info () const
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
-	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (buckets->collect_container_info ("buckets"));
-	return composite;
+	nano::experimental::container_info info;
+	info.add ("buckets", buckets->collect_container_info ());
+	return info;
 }

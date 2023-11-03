@@ -55,6 +55,6 @@ public:
 	void dump () const;
 	std::size_t index (nano::uint128_t const & balance) const;
 
-	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const &);
+	nano::experimental::container_info collect_container_info () const;
 };
 } // namespace nano::scheduler

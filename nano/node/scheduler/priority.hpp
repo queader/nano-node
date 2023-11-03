@@ -39,7 +39,7 @@ public:
 	std::size_t size () const;
 	bool empty () const;
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+	nano::experimental::container_info collect_container_info () const;
 
 private: // Dependencies
 	nano::node & node;
