@@ -275,7 +275,6 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.hinted_scheduler.hinting_threshold_percent, defaults.node.hinted_scheduler.hinting_threshold_percent);
 	ASSERT_EQ (conf.node.hinted_scheduler.check_interval.count (), defaults.node.hinted_scheduler.check_interval.count ());
 	ASSERT_EQ (conf.node.hinted_scheduler.block_cooldown.count (), defaults.node.hinted_scheduler.block_cooldown.count ());
-	ASSERT_EQ (conf.node.hinted_scheduler.vacancy_threshold_percent, defaults.node.hinted_scheduler.vacancy_threshold_percent);
 
 	ASSERT_EQ (conf.node.vote_cache.max_size, defaults.node.vote_cache.max_size);
 	ASSERT_EQ (conf.node.vote_cache.max_voters, defaults.node.vote_cache.max_voters);
@@ -722,7 +721,6 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.hinted_scheduler.hinting_threshold_percent, defaults.node.hinted_scheduler.hinting_threshold_percent);
 	ASSERT_NE (conf.node.hinted_scheduler.check_interval.count (), defaults.node.hinted_scheduler.check_interval.count ());
 	ASSERT_NE (conf.node.hinted_scheduler.block_cooldown.count (), defaults.node.hinted_scheduler.block_cooldown.count ());
-	ASSERT_NE (conf.node.hinted_scheduler.vacancy_threshold_percent, defaults.node.hinted_scheduler.vacancy_threshold_percent);
 
 	ASSERT_NE (conf.node.vote_cache.max_size, defaults.node.vote_cache.max_size);
 	ASSERT_NE (conf.node.vote_cache.max_voters, defaults.node.vote_cache.max_voters);

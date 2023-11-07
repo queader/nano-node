@@ -39,7 +39,6 @@ public:
 	std::chrono::milliseconds check_interval{ 1000 };
 	std::chrono::milliseconds block_cooldown{ 10000 };
 	unsigned hinting_threshold_percent{ 10 };
-	unsigned vacancy_threshold_percent{ 20 };
 };
 
 /*
