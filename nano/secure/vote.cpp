@@ -1,3 +1,4 @@
+#include <nano/lib/utility.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/vote.hpp>
 
@@ -52,6 +53,12 @@ bool nano::vote::deserialize (nano::stream & stream_a)
 		error = true;
 	}
 	return error;
+}
+
+std::size_t nano::vote::size (uint16_t count)
+{
+	debug_assert (count <= max_hashes);
+	return partial_size + count * sizeof (nano::block_hash);
 }
 
 std::string const nano::vote::hash_prefix = "vote ";

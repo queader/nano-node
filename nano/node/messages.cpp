@@ -282,11 +282,11 @@ std::size_t nano::message_header::payload_length_bytes () const
 		}
 		case nano::message_type::confirm_ack:
 		{
-			return nano::confirm_ack::size (count_get ());
+			return nano::confirm_ack::size (*this);
 		}
 		case nano::message_type::confirm_req:
 		{
-			return nano::confirm_req::size (block_type (), count_get ());
+			return nano::confirm_req::size (*this);
 		}
 		case nano::message_type::node_id_handshake:
 		{
@@ -526,6 +526,7 @@ nano::confirm_req::confirm_req (nano::network_constants const & constants, std::
 	message (constants, nano::message_type::confirm_req),
 	roots_hashes (roots_hashes_a)
 {
+	debug_assert (!roots_hashes.empty ());
 	debug_assert (roots_hashes.size () <= nano::vote::max_hashes);
 
 	// not_a_block (1) block type for hashes + roots request
@@ -534,15 +535,8 @@ nano::confirm_req::confirm_req (nano::network_constants const & constants, std::
 }
 
 nano::confirm_req::confirm_req (nano::network_constants const & constants, nano::block_hash const & hash_a, nano::root const & root_a) :
-	message (constants, nano::message_type::confirm_req),
-	roots_hashes (std::vector<std::pair<nano::block_hash, nano::root>> (1, std::make_pair (hash_a, root_a)))
+	confirm_req (constants, std::vector<std::pair<nano::block_hash, nano::root>> (1, std::make_pair (hash_a, root_a)))
 {
-	debug_assert (!roots_hashes.empty ());
-	debug_assert (roots_hashes.size () <= nano::vote::max_hashes);
-
-	// not_a_block (1) block type for hashes + roots request
-	header.block_type_set (nano::block_type::not_a_block);
-	header.count_set (static_cast<uint8_t> (roots_hashes.size ()));
 }
 
 void nano::confirm_req::visit (nano::message_visitor & visitor_a) const
@@ -634,18 +628,19 @@ std::string nano::confirm_req::roots_string () const
 	return result;
 }
 
-std::size_t nano::confirm_req::size (nano::block_type type_a, std::size_t count)
+std::size_t nano::confirm_req::size (const nano::message_header & header)
 {
-	std::size_t result (0);
-	if (type_a != nano::block_type::invalid && type_a != nano::block_type::not_a_block)
+	auto const type = header.block_type ();
+	if (type != nano::block_type::invalid && type != nano::block_type::not_a_block)
 	{
-		result = nano::block::size (type_a);
+		return nano::block::size (type);
 	}
-	else if (type_a == nano::block_type::not_a_block)
+	else if (type == nano::block_type::not_a_block)
 	{
-		result = count * (sizeof (nano::uint256_union) + sizeof (nano::block_hash));
+		auto const count = header.count_get ();
+		return count * (sizeof (hash_root_pair));
 	}
-	return result;
+	return 0;
 }
 
 std::string nano::confirm_req::to_string () const
@@ -707,10 +702,10 @@ void nano::confirm_ack::visit (nano::message_visitor & visitor_a) const
 	visitor_a.confirm_ack (*this);
 }
 
-std::size_t nano::confirm_ack::size (std::size_t count)
+std::size_t nano::confirm_ack::size (const nano::message_header & header)
 {
-	std::size_t result = sizeof (nano::account) + sizeof (nano::signature) + sizeof (uint64_t) + count * sizeof (nano::block_hash);
-	return result;
+	auto const count = header.count_get ();
+	return nano::vote::size (count);
 }
 
 std::string nano::confirm_ack::to_string () const
