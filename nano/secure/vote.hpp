@@ -57,6 +57,8 @@ public:
 	static uint64_t constexpr timestamp_min = { 0x0000'0000'0000'0010ULL };
 	static uint8_t constexpr duration_max = { 0x0fu };
 
+	static std::size_t constexpr max_hashes = 256;
+
 	/* Check if timestamp represents a final vote */
 	static bool is_final_timestamp (uint64_t timestamp);
 

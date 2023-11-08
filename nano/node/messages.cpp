@@ -526,9 +526,10 @@ nano::confirm_req::confirm_req (nano::network_constants const & constants, std::
 	message (constants, nano::message_type::confirm_req),
 	roots_hashes (roots_hashes_a)
 {
+	debug_assert (roots_hashes.size () <= nano::vote::max_hashes);
+
 	// not_a_block (1) block type for hashes + roots request
 	header.block_type_set (nano::block_type::not_a_block);
-	debug_assert (roots_hashes.size () < 16);
 	header.count_set (static_cast<uint8_t> (roots_hashes.size ()));
 }
 
@@ -537,9 +538,10 @@ nano::confirm_req::confirm_req (nano::network_constants const & constants, nano:
 	roots_hashes (std::vector<std::pair<nano::block_hash, nano::root>> (1, std::make_pair (hash_a, root_a)))
 {
 	debug_assert (!roots_hashes.empty ());
+	debug_assert (roots_hashes.size () <= nano::vote::max_hashes);
+
 	// not_a_block (1) block type for hashes + roots request
 	header.block_type_set (nano::block_type::not_a_block);
-	debug_assert (roots_hashes.size () < 16);
 	header.count_set (static_cast<uint8_t> (roots_hashes.size ()));
 }
 
@@ -684,7 +686,6 @@ nano::confirm_ack::confirm_ack (nano::network_constants const & constants, std::
 	vote (vote_a)
 {
 	header.block_type_set (nano::block_type::not_a_block);
-	debug_assert (vote_a->hashes.size () < 16);
 	header.count_set (static_cast<uint8_t> (vote_a->hashes.size ()));
 }
 
