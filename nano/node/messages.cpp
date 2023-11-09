@@ -194,21 +194,54 @@ void nano::message_header::block_type_set (nano::block_type type_a)
 
 uint8_t nano::message_header::count_get () const
 {
+	debug_assert (type == nano::message_type::confirm_ack || type == nano::message_type::confirm_req);
+	debug_assert (!flag_test (confirm_v2_flag)); // Only valid for v1
+
 	return static_cast<uint8_t> (((extensions & count_mask) >> 12).to_ullong ());
 }
 
 void nano::message_header::count_set (uint8_t count_a)
 {
-	debug_assert (count_a < 16);
+	debug_assert (type == nano::message_type::confirm_ack || type == nano::message_type::confirm_req);
+	debug_assert (!flag_test (confirm_v2_flag)); // Only valid for v1
+	debug_assert (count_a < 16); // Max 4 bits
+
 	extensions &= ~count_mask;
 	extensions |= std::bitset<16> (static_cast<unsigned long long> (count_a) << 12);
 }
 
-void nano::message_header::flag_set (uint8_t flag_a, bool enable)
+// TODO: Implement and use get/set_value helper
+
+uint16_t nano::message_header::count_v2_get () const
+{
+	debug_assert (type == nano::message_type::confirm_ack || type == nano::message_type::confirm_req);
+	debug_assert (flag_test (confirm_v2_flag)); // Only valid for v2
+
+	return static_cast<uint16_t> (((extensions & count_v2_mask) >> 4).to_ullong ());
+}
+
+void nano::message_header::count_v2_set (uint16_t count)
+{
+	debug_assert (type == nano::message_type::confirm_ack || type == nano::message_type::confirm_req);
+	debug_assert (flag_test (confirm_v2_flag)); // Only valid for v2
+	debug_assert (count < 4096); // Max 12 bits
+
+	extensions &= ~count_v2_mask;
+	extensions |= extensions_bitset_t{ count } << 4;
+}
+
+bool nano::message_header::flag_test (uint8_t flag) const
 {
 	// Flags from 8 are block_type & count
-	debug_assert (flag_a < 8);
-	extensions.set (flag_a, enable);
+	debug_assert (flag < 8);
+	return extensions.test (flag);
+}
+
+void nano::message_header::flag_set (uint8_t flag, bool enable)
+{
+	// Flags from 8 are block_type & count
+	debug_assert (flag < 8);
+	extensions.set (flag, enable);
 }
 
 bool nano::message_header::bulk_pull_is_count_present () const
@@ -248,6 +281,18 @@ bool nano::message_header::frontier_req_is_only_confirmed_present () const
 		}
 	}
 	return result;
+}
+
+bool nano::message_header::confirm_is_v2 () const
+{
+	debug_assert (type == nano::message_type::confirm_ack || type == nano::message_type::confirm_req);
+	return flag_test (confirm_v2_flag);
+}
+
+void nano::message_header::confirm_set_v2 (bool value)
+{
+	debug_assert (type == nano::message_type::confirm_ack || type == nano::message_type::confirm_req);
+	flag_set (confirm_v2_flag, value);
 }
 
 std::size_t nano::message_header::payload_length_bytes () const

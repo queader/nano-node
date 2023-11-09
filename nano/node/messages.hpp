@@ -81,13 +81,17 @@ public: // Payload
 public:
 	static std::size_t constexpr size = sizeof (nano::networks) + sizeof (version_max) + sizeof (version_using) + sizeof (version_min) + sizeof (type) + sizeof (/* extensions */ uint16_t);
 
-	void flag_set (uint8_t, bool enable = true);
+	bool flag_test (uint8_t flag) const;
+	void flag_set (uint8_t flag, bool enable = true);
 
 	nano::block_type block_type () const;
 	void block_type_set (nano::block_type);
 
 	uint8_t count_get () const;
 	void count_set (uint8_t);
+
+	uint16_t count_v2_get () const;
+	void count_v2_set (uint16_t);
 
 	static uint8_t constexpr bulk_pull_count_present_flag = 0;
 	static uint8_t constexpr bulk_pull_ascending_flag = 1;
@@ -96,6 +100,10 @@ public:
 
 	static uint8_t constexpr frontier_req_only_confirmed = 1;
 	bool frontier_req_is_only_confirmed_present () const;
+
+	static uint8_t constexpr confirm_v2_flag = 0;
+	bool confirm_is_v2 () const;
+	void confirm_set_v2 (bool);
 
 	/** Size of the payload in bytes. For some messages, the payload size is based on header flags. */
 	std::size_t payload_length_bytes () const;
