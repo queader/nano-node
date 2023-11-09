@@ -165,7 +165,6 @@ class confirm_req final : public message
 {
 public:
 	confirm_req (bool & error, nano::stream &, nano::message_header const &, nano::block_uniquer * = nullptr);
-	confirm_req (nano::network_constants const & constants, std::shared_ptr<nano::block> const &);
 	confirm_req (nano::network_constants const & constants, std::vector<std::pair<nano::block_hash, nano::root>> const &);
 	confirm_req (nano::network_constants const & constants, nano::block_hash const &, nano::root const &);
 
@@ -182,7 +181,6 @@ public:
 public: // Payload
 	using hash_root_pair = std::pair<nano::block_hash, nano::root>;
 
-	std::shared_ptr<nano::block> block;
 	std::vector<hash_root_pair> roots_hashes;
 };
 
