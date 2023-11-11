@@ -196,7 +196,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	epoch_upgrader{ *this, ledger, store, network_params, logger },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq),
-	block_broadcast{ block_processor, network, block_arrival, !flags.disable_block_processor_republishing },
+	block_broadcast{ block_processor, network, block_arrival, stats, !flags.disable_block_processor_republishing },
 	gap_tracker{ gap_cache },
 	process_live_dispatcher{ ledger, scheduler.priority, vote_cache, websocket }
 {
@@ -689,6 +689,7 @@ void nano::node::start ()
 	}
 	websocket.start ();
 	telemetry.start ();
+	block_broadcast.start ();
 }
 
 void nano::node::stop ()
@@ -711,6 +712,7 @@ void nano::node::stop ()
 	}
 	unchecked.stop ();
 	block_processor.stop ();
+	block_broadcast.stop ();
 	aggregator.stop ();
 	vote_processor.stop ();
 	scheduler.stop ();

@@ -32,6 +32,7 @@ enum class type : uint8_t
 	vote_cache,
 	hinting,
 	blockprocessor,
+	block_broadcaster,
 	bootstrap_server,
 	active,
 	active_started,
@@ -293,6 +294,10 @@ enum class detail : uint8_t
 	priority_erase_overflow,
 	deprioritize,
 	deprioritize_failed,
+
+	// block_broadcaster
+	broadcast_normal,
+	broadcast_aggressive,
 
 	_last // Must be the last enum
 };

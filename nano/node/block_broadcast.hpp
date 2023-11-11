@@ -2,6 +2,7 @@
 
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/locks.hpp>
+#include <nano/lib/processing_queue.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -28,8 +29,21 @@ namespace nano
  */
 class block_broadcast
 {
+	enum class broadcast_strategy
+	{
+		normal,
+		aggressive,
+	};
+
+	using entry = std::pair<std::shared_ptr<nano::block>, broadcast_strategy>;
+	using queue_t = nano::processing_queue<entry>;
+
 public:
-	block_broadcast (nano::block_processor &, nano::network &, nano::block_arrival &, bool enabled = false);
+	block_broadcast (nano::block_processor &, nano::network &, nano::block_arrival &, nano::stats &, bool enabled = false);
+	~block_broadcast ();
+
+	void start ();
+	void stop ();
 
 	// Mark a block as originating locally
 	void track_local (nano::block_hash const &);
@@ -38,13 +52,13 @@ private: // Dependencies
 	nano::block_processor & block_processor;
 	nano::network & network;
 	nano::block_arrival & block_arrival;
+	nano::stats & stats;
 
 private:
 	// Block_processor observer
 	void observe (std::shared_ptr<nano::block> const & block);
-
-	void run ();
-
+	void process_batch (queue_t::batch_t & batch);
+	
 private:
 	class hash_tracker
 	{
@@ -73,13 +87,11 @@ private:
 
 		static std::size_t constexpr max_size = 1024 * 128;
 	};
-
 	hash_tracker local;
 
 	bool enabled{ false };
-	bool stopped{ false };
-	nano::condition_variable condition;
-	mutable nano::mutex mutex;
-	std::thread thread;
+	queue_t queue;
+
+	static std::size_t constexpr max_size = 1024 * 32;
 };
 }

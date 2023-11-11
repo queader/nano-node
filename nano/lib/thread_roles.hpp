@@ -15,6 +15,7 @@ enum class name
 	packet_processing,
 	vote_processing,
 	block_processing,
+	block_broadcasting,
 	request_loop,
 	wallet_actions,
 	bootstrap_initiator,
