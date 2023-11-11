@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/thread_roles.hpp>
 #include <nano/lib/utility.hpp>
 
 #include <boost/thread/thread.hpp>
