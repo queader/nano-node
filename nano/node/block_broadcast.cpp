@@ -3,19 +3,17 @@
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/network.hpp>
 
-nano::block_broadcast::block_broadcast (nano::network & network, nano::block_arrival & block_arrival, bool enabled) :
+nano::block_broadcast::block_broadcast (nano::block_processor & block_processor, nano::network & network, nano::block_arrival & block_arrival, bool enabled) :
+	block_processor{ block_processor },
 	network{ network },
 	block_arrival{ block_arrival },
 	enabled{ enabled }
-{
-}
-
-void nano::block_broadcast::connect (nano::block_processor & block_processor)
 {
 	if (!enabled)
 	{
 		return;
 	}
+
 	block_processor.processed.add ([this] (auto const & result, auto const & block) {
 		switch (result.code)
 		{
@@ -25,17 +23,14 @@ void nano::block_broadcast::connect (nano::block_processor & block_processor)
 			default:
 				break;
 		}
-		erase (block);
+		local.erase (block->hash ());
 	});
 }
 
-void nano::block_broadcast::observe (std::shared_ptr<nano::block> block)
+void nano::block_broadcast::observe (std::shared_ptr<nano::block> const & block)
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	auto existing = local.find (block);
-	auto local_l = existing != local.end ();
-	lock.unlock ();
-	if (local_l)
+	bool is_local = local.contains (block->hash ());
+	if (is_local)
 	{
 		// Block created on this node
 		// Perform more agressive initial flooding
@@ -56,22 +51,38 @@ void nano::block_broadcast::observe (std::shared_ptr<nano::block> block)
 	}
 }
 
-void nano::block_broadcast::set_local (std::shared_ptr<nano::block> block)
+void nano::block_broadcast::track_local (nano::block_hash const & hash)
 {
 	if (!enabled)
 	{
 		return;
 	}
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	local.insert (block);
+	local.add (hash);
 }
 
-void nano::block_broadcast::erase (std::shared_ptr<nano::block> block)
+/*
+ * hash_tracker
+ */
+
+void nano::block_broadcast::hash_tracker::add (nano::block_hash const & hash)
 {
-	if (!enabled)
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	hashes.emplace_back (hash);
+	while (hashes.size () > max_size)
 	{
-		return;
+		// Erase oldest hashes
+		hashes.pop_front ();
 	}
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	local.erase (block);
+}
+
+void nano::block_broadcast::hash_tracker::erase (nano::block_hash const & hash)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	hashes.get<tag_hash> ().erase (hash);
+}
+
+bool nano::block_broadcast::hash_tracker::contains (nano::block_hash const & hash) const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return hashes.get<tag_hash> ().find (hash) != hashes.get<tag_hash> ().end ();
 }
