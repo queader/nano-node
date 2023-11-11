@@ -197,12 +197,11 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	epoch_upgrader{ *this, ledger, store, network_params, logger },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq),
-	block_broadcast{ network, block_arrival, !flags.disable_block_processor_republishing },
+	block_broadcast{ block_processor, network, block_arrival, !flags.disable_block_processor_republishing },
 	process_live_dispatcher{ ledger, scheduler.priority, vote_cache, websocket }
 {
 	logger.debug (nano::log::type::node, "Constructing node...");
 
-	block_broadcast.connect (block_processor);
 	process_live_dispatcher.connect (block_processor);
 
 	unchecked.satisfied.add ([this] (nano::unchecked_info const & info) {
@@ -576,7 +575,7 @@ std::optional<nano::process_return> nano::node::process_local (std::shared_ptr<n
 {
 	// Add block hash as recently arrived to trigger automatic rebroadcast and election
 	block_arrival.add (block_a->hash ());
-	block_broadcast.set_local (block_a);
+	block_broadcast.track_local (block_a->hash ());
 	return block_processor.add_blocking (block_a);
 }
 
