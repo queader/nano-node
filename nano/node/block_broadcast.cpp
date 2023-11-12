@@ -1,14 +1,12 @@
 #include <nano/lib/threading.hpp>
 #include <nano/lib/utility.hpp>
-#include <nano/node/block_arrival.hpp>
 #include <nano/node/block_broadcast.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/network.hpp>
 
-nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_a, nano::network & network_a, nano::block_arrival & block_arrival_a, nano::stats & stats_a, bool enabled_a) :
+nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_a, nano::network & network_a, nano::stats & stats_a, bool enabled_a) :
 	block_processor{ block_processor_a },
 	network{ network_a },
-	block_arrival{ block_arrival_a },
 	stats{ stats_a },
 	enabled{ enabled_a },
 	queue{ stats_a, nano::stat::type::block_broadcaster, nano::thread_role::name::block_broadcasting, /* single thread */ 1, max_size }
@@ -22,7 +20,7 @@ nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_
 		switch (result.code)
 		{
 			case nano::process_result::progress:
-				observe (block);
+				observe (block, context);
 				break;
 			default:
 				break;
@@ -54,7 +52,7 @@ void nano::block_broadcast::stop ()
 	queue.stop ();
 }
 
-void nano::block_broadcast::observe (std::shared_ptr<nano::block> const & block)
+void nano::block_broadcast::observe (std::shared_ptr<nano::block> const & block, nano::block_processor::context const & context)
 {
 	bool is_local = local.contains (block->hash ());
 	if (is_local)
@@ -65,7 +63,7 @@ void nano::block_broadcast::observe (std::shared_ptr<nano::block> const & block)
 	}
 	else
 	{
-		if (block_arrival.recent (block->hash ()))
+		if (context.recent_arrival ())
 		{
 			// Block arrived from realtime traffic, do normal gossip.
 			queue.add (entry{ block, broadcast_strategy::normal });

@@ -6,6 +6,10 @@
 
 #include <boost/format.hpp>
 
+/*
+ * block_processor
+ */
+
 nano::block_processor::block_processor (nano::node & node_a, nano::write_database_queue & write_database_queue_a) :
 	node (node_a),
 	write_database_queue (write_database_queue_a),
@@ -376,4 +380,13 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (bl
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks", blocks_count, sizeof (decltype (block_processor.blocks)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "forced", forced_count, sizeof (decltype (block_processor.forced)::value_type) }));
 	return composite;
+}
+
+/*
+ * context
+ */
+
+bool nano::block_processor::context::recent_arrival () const
+{
+	return std::chrono::steady_clock::now () < arrival + recent_arrival_cutoff;
 }
