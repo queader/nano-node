@@ -13,10 +13,9 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 {
 	batch_processed.add ([this] (auto const & items) {
 		// For every batch item: notify the 'processed' observer.
-		for (auto const & item : items)
+		for (auto const & [result, block, context] : items)
 		{
-			auto const & [result, block] = item;
-			processed.notify (result, block);
+			processed.notify (result, block, context);
 		}
 	});
 	blocking.connect (*this);
@@ -64,7 +63,7 @@ bool nano::block_processor::half_full ()
 	return size () >= node.flags.block_processor_full_size / 2;
 }
 
-void nano::block_processor::add (std::shared_ptr<nano::block> const & block)
+void nano::block_processor::add (std::shared_ptr<nano::block> const & block, block_source const source)
 {
 	if (full ())
 	{
@@ -76,14 +75,14 @@ void nano::block_processor::add (std::shared_ptr<nano::block> const & block)
 		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::insufficient_work);
 		return;
 	}
-	add_impl (block);
+	add_impl (block, source);
 	return;
 }
 
-std::optional<nano::process_return> nano::block_processor::add_blocking (std::shared_ptr<nano::block> const & block)
+std::optional<nano::process_return> nano::block_processor::add_blocking (std::shared_ptr<nano::block> const & block, block_source const source)
 {
 	auto future = blocking.insert (block);
-	add_impl (block);
+	add_impl (block, source);
 	condition.notify_all ();
 	std::optional<nano::process_return> result;
 	try
@@ -143,7 +142,7 @@ void nano::block_processor::force (std::shared_ptr<nano::block> const & block_a)
 {
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
-		forced.push_back (block_a);
+		forced.emplace_back (block_a, context{ block_source::forced, std::chrono::steady_clock::now () });
 	}
 	condition.notify_all ();
 }
@@ -194,67 +193,86 @@ bool nano::block_processor::have_blocks ()
 	return have_blocks_ready ();
 }
 
-void nano::block_processor::add_impl (std::shared_ptr<nano::block> block)
+void nano::block_processor::add_impl (std::shared_ptr<nano::block> block, block_source const source)
 {
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		blocks.emplace_back (block);
+		blocks.emplace_back (block, context{ source, std::chrono::steady_clock::now () });
 	}
 	condition.notify_all ();
+}
+
+auto nano::block_processor::next_block () -> std::pair<entry_t, bool>
+{
+	debug_assert (!mutex.try_lock ());
+
+	if (forced.empty ())
+	{
+		release_assert (!blocks.empty ()); // Checked before calling this function
+
+		auto entry = blocks.front ();
+		blocks.pop_front ();
+		return { entry, false }; // Not forced
+	}
+	else
+	{
+		auto entry = forced.front ();
+		forced.pop_front ();
+		return { entry, true }; // Forced
+	}
 }
 
 auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock_a) -> std::deque<processed_t>
 {
 	std::deque<processed_t> processed;
+
 	auto scoped_write_guard = write_database_queue.wait (nano::writer::process_batch);
 	auto transaction (node.store.tx_begin_write ({ tables::accounts, tables::blocks, tables::frontiers, tables::pending }));
 	nano::timer<std::chrono::milliseconds> timer_l;
+
 	lock_a.lock ();
+
 	timer_l.start ();
 	// Processing blocks
 	unsigned number_of_blocks_processed (0), number_of_forced_processed (0);
 	auto deadline_reached = [&timer_l, deadline = node.config.block_processor_batch_max_time] { return timer_l.after_deadline (deadline); };
 	auto processor_batch_reached = [&number_of_blocks_processed, max = node.flags.block_processor_batch_size] { return number_of_blocks_processed >= max; };
 	auto store_batch_reached = [&number_of_blocks_processed, max = node.store.max_block_write_batch_num ()] { return number_of_blocks_processed >= max; };
+
 	while (have_blocks_ready () && (!deadline_reached () || !processor_batch_reached ()) && !store_batch_reached ())
 	{
 		if ((blocks.size () + forced.size () > 64) && should_log ())
 		{
 			node.logger.always_log (boost::str (boost::format ("%1% blocks (+ %2% forced) in processing queue") % blocks.size () % forced.size ()));
 		}
-		std::shared_ptr<nano::block> block;
-		nano::block_hash hash (0);
-		bool force (false);
-		if (forced.empty ())
-		{
-			block = blocks.front ();
-			blocks.pop_front ();
-			hash = block->hash ();
-		}
-		else
-		{
-			block = forced.front ();
-			forced.pop_front ();
-			hash = block->hash ();
-			force = true;
-			number_of_forced_processed++;
-		}
+
+		auto [entry, force] = next_block ();
+		auto const & [block, context] = entry;
+		auto const hash = block->hash ();
+
 		lock_a.unlock ();
+
 		if (force)
 		{
+			number_of_forced_processed++;
 			rollback_competitor (transaction, *block);
 		}
+
 		number_of_blocks_processed++;
+
 		auto result = process_one (transaction, block, force);
-		processed.emplace_back (result, block);
+		processed.emplace_back (result, block, context);
+
 		lock_a.lock ();
 	}
+
 	lock_a.unlock ();
 
 	if (node.config.logging.timing_logging () && number_of_blocks_processed != 0 && timer_l.stop () > std::chrono::milliseconds (100))
 	{
 		node.logger.always_log (boost::str (boost::format ("Processed %1% blocks (%2% blocks were forced) in %3% %4%") % number_of_blocks_processed % number_of_forced_processed % timer_l.value ().count () % timer_l.unit ()));
 	}
+
 	return processed;
 }
 

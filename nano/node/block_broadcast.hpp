@@ -58,7 +58,7 @@ private:
 	// Block_processor observer
 	void observe (std::shared_ptr<nano::block> const & block);
 	void process_batch (queue_t::batch_t & batch);
-	
+
 private:
 	class hash_tracker
 	{
@@ -89,8 +89,14 @@ private:
 	};
 	hash_tracker local;
 
+private:
 	bool enabled{ false };
 	queue_t queue;
+
+	bool stopped{ false };
+	nano::condition_variable condition;
+	mutable nano::mutex mutex;
+	std::thread thread;
 
 	static std::size_t constexpr max_size = 1024 * 32;
 };
