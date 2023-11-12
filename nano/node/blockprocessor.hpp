@@ -1,12 +1,12 @@
 #pragma once
 
 #include <nano/lib/blocks.hpp>
-#include <nano/node/blocking_observer.hpp>
 #include <nano/secure/common.hpp>
 
 #include <chrono>
 #include <future>
 #include <memory>
+#include <optional>
 #include <thread>
 
 namespace nano::store
@@ -35,18 +35,28 @@ public: // Context
 		forced,
 	};
 
-	struct context
+	class context final
 	{
-		block_source source;
-		std::chrono::steady_clock::time_point arrival;
+	public:
+		using result_t = nano::process_return;
+
+		context (block_source);
+
+		block_source const source;
+		std::chrono::steady_clock::time_point const arrival;
+
+	private:
+		std::optional<std::promise<result_t>> promise;
 
 	public:
+		std::future<result_t> get_future ();
+		void set_result (result_t const &);
+
 		bool recent_arrival () const;
 		static std::chrono::seconds constexpr recent_arrival_cutoff{ 60 * 5 };
 	};
 
 	using entry_t = std::pair<std::shared_ptr<nano::block>, context>;
-	using processed_t = std::tuple<nano::process_return, std::shared_ptr<nano::block>, context>;
 
 public:
 	block_processor (nano::node &, nano::write_database_queue &);
@@ -68,21 +78,21 @@ public:
 	std::atomic<bool> flushing{ false };
 
 public: // Events
-	nano::observer_set<nano::process_return const &, std::shared_ptr<nano::block>, context> processed;
-	// The batch observer feeds the processed obsever
-	nano::observer_set<std::deque<processed_t> const &> batch_processed;
+	using processed_t = std::tuple<nano::process_return, std::shared_ptr<nano::block>, context>;
+	using processed_batch_t = std::deque<processed_t>;
 
-private:
-	blocking_observer blocking;
+	// The batch observer feeds the processed obsever
+	nano::observer_set<nano::process_return const &, std::shared_ptr<nano::block> const &, context const &> processed;
+	nano::observer_set<processed_batch_t const &> batch_processed;
 
 private:
 	// Roll back block in the ledger that conflicts with 'block'
 	void rollback_competitor (store::write_transaction const &, nano::block const & block);
 	nano::process_return process_one (store::write_transaction const &, std::shared_ptr<nano::block> block, bool forced = false);
 	void queue_unchecked (store::write_transaction const &, nano::hash_or_account const &);
-	std::deque<processed_t> process_batch (nano::unique_lock<nano::mutex> &);
+	processed_batch_t process_batch (nano::unique_lock<nano::mutex> &);
 	std::pair<entry_t, bool> next_block (); /// @returns <next block entry, forced>
-	void add_impl (std::shared_ptr<nano::block> block, block_source source);
+	void add_impl (std::shared_ptr<nano::block> block, context);
 
 private: // Dependencies
 	nano::node & node;
