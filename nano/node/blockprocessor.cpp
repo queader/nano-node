@@ -268,6 +268,9 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 		auto result = process_one (transaction, block, force);
 		processed.emplace_back (result, block, std::move (context));
 
+		node.stats.inc (nano::stat::type::blockprocessor, to_stat_detail (result.code));
+		node.stats.inc (nano::stat::type::blockprocessor_processed, to_stat_detail (context.source));
+
 		lock_a.lock ();
 	}
 
@@ -422,8 +425,6 @@ nano::process_return nano::block_processor::process_one (store::write_transactio
 		}
 	}
 
-	node.stats.inc (nano::stat::type::blockprocessor, nano::to_stat_detail (result.code));
-
 	return result;
 }
 
@@ -480,4 +481,24 @@ void nano::block_processor::context::set_result (result_t const & result)
 	{
 		promise->set_value (result);
 	}
+}
+
+nano::stat::detail nano::to_stat_detail (block_processor::block_source source)
+{
+	switch (source)
+	{
+		using enum nano::block_processor::block_source;
+		case live:
+			return nano::stat::detail::live;
+		case bootstrap:
+			return nano::stat::detail::bootstrap;
+		case local:
+			return nano::stat::detail::local;
+		case forced:
+			return nano::stat::detail::forced;
+		default:
+			return nano::stat::detail::unknown;
+	}
+	debug_assert (false, "missing case");
+	return {};
 }
