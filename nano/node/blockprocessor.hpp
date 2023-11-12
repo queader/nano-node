@@ -39,6 +39,10 @@ public: // Context
 	{
 		block_source source;
 		std::chrono::steady_clock::time_point arrival;
+
+	public:
+		bool recent_arrival () const;
+		static std::chrono::seconds constexpr recent_arrival_cutoff{ 60 * 5 };
 	};
 
 	using entry_t = std::pair<std::shared_ptr<nano::block>, context>;

@@ -3,9 +3,12 @@
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/locks.hpp>
 #include <nano/lib/processing_queue.hpp>
+#include <nano/node/blockprocessor.hpp>
+#include <nano/secure/common.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 
 #include <memory>
@@ -16,8 +19,6 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
-class block_arrival;
-class block_processor;
 class network;
 }
 
@@ -39,7 +40,7 @@ class block_broadcast
 	using queue_t = nano::processing_queue<entry>;
 
 public:
-	block_broadcast (nano::block_processor &, nano::network &, nano::block_arrival &, nano::stats &, bool enabled = false);
+	block_broadcast (nano::block_processor &, nano::network &, nano::stats &, bool enabled = false);
 	~block_broadcast ();
 
 	void start ();
@@ -51,12 +52,11 @@ public:
 private: // Dependencies
 	nano::block_processor & block_processor;
 	nano::network & network;
-	nano::block_arrival & block_arrival;
 	nano::stats & stats;
 
 private:
 	// Block_processor observer
-	void observe (std::shared_ptr<nano::block> const & block);
+	void observe (std::shared_ptr<nano::block> const & block, nano::block_processor::context const & context);
 	void process_batch (queue_t::batch_t & batch);
 
 private:
