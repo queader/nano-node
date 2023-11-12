@@ -287,8 +287,11 @@ nano::process_return nano::block_processor::process_one (store::write_transactio
 	result = node.ledger.process (transaction_a, *block);
 
 	node.stats.inc (nano::stat::type::blockprocessor, to_stat_detail (result.code));
+	node.stats.inc (nano::stat::type::blockprocessor_sources, to_stat_detail (context.source));
 	node.logger.trace (nano::log::type::blockprocessor, nano::log::detail::block_processed,
 	nano::log::arg{ "result", result.code },
+	nano::log::arg{ "source", context.source },
+	nano::log::arg{ "arrival", context.arrival.time_since_epoch ().count () },
 	nano::log::arg{ "forced", forced_a },
 	nano::log::arg{ "block", block });
 
@@ -425,4 +428,26 @@ void nano::block_processor::context::set_result (result_t const & result)
 	{
 		promise->set_value (result);
 	}
+}
+
+nano::stat::detail nano::to_stat_detail (block_processor::block_source source)
+{
+	switch (source)
+	{
+		using enum nano::block_processor::block_source;
+		case live:
+			return nano::stat::detail::live;
+		case bootstrap:
+			return nano::stat::detail::bootstrap;
+		case unchecked:
+			return nano::stat::detail::unchecked;
+		case local:
+			return nano::stat::detail::local;
+		case forced:
+			return nano::stat::detail::forced;
+		default:
+			return nano::stat::detail::unknown;
+	}
+	debug_assert (false, "missing case");
+	return {};
 }
