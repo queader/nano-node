@@ -550,6 +550,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
 	composite->add_component (node.ascendboot.collect_container_info ("bootstrap_ascending"));
 	composite->add_component (node.unchecked.collect_container_info ("unchecked"));
+	composite->add_component (node.block_broadcast.collect_container_info ("block_broadcast"));
 	return composite;
 }
 
@@ -571,7 +572,6 @@ nano::process_return nano::node::process (nano::block & block)
 
 std::optional<nano::process_return> nano::node::process_local (std::shared_ptr<nano::block> const & block_a)
 {
-	block_broadcast.track_local (block_a->hash ());
 	return block_processor.add_blocking (block_a, nano::block_processor::block_source::local);
 }
 

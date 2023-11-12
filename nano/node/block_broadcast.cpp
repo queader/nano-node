@@ -8,33 +8,43 @@ nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_
 	block_processor{ block_processor_a },
 	network{ network_a },
 	stats{ stats_a },
-	enabled{ enabled_a },
-	queue{ stats_a, nano::stat::type::block_broadcaster, nano::thread_role::name::block_broadcasting, /* single thread */ 1, max_size }
+	enabled{ enabled_a }
 {
 	if (!enabled)
 	{
 		return;
 	}
 
-	block_processor.processed.add ([this] (auto const & result, auto const & block, auto const & context) {
-		switch (result.code)
+	block_processor.batch_processed.add ([this] (auto const & batch) {
+		bool should_notify = false;
+		for (auto const & [result, block, context] : batch)
 		{
-			case nano::process_result::progress:
-				observe (block, context);
-				break;
-			default:
-				break;
-		}
-		local.erase (block->hash ());
-	});
+			// Only rebroadcast local blocks that were successfully processed (no forks or gaps)
+			if (result.code == nano::process_result::progress && context.source == nano::block_processor::block_source::local)
+			{
+				nano::lock_guard<nano::mutex> guard{ mutex };
+				local_blocks.emplace_back (local_entry{ block, std::chrono::steady_clock::now () });
 
-	queue.process_batch = [this] (auto & batch) {
-		process_batch (batch);
-	};
+				// Erase oldest blocks if the queue gets too big
+				while (local_blocks.size () > local_max_size)
+				{
+					local_blocks.pop_front ();
+				}
+
+				should_notify = true;
+			}
+		}
+		if (should_notify)
+		{
+			condition.notify_all ();
+		}
+	});
 }
 
 nano::block_broadcast::~block_broadcast ()
 {
+	// Thread must be stopped before destruction
+	debug_assert (!thread.joinable ());
 }
 
 void nano::block_broadcast::start ()
@@ -44,92 +54,89 @@ void nano::block_broadcast::start ()
 		return;
 	}
 
-	queue.start ();
+	debug_assert (!thread.joinable ());
+
+	thread = std::thread{ [this] () {
+		nano::thread_role::set (nano::thread_role::name::block_broadcasting);
+		run ();
+	} };
 }
 
 void nano::block_broadcast::stop ()
 {
-	queue.stop ();
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		stopped = true;
+	}
+	condition.notify_all ();
+	nano::join_or_pass (thread);
 }
 
-void nano::block_broadcast::observe (std::shared_ptr<nano::block> const & block, nano::block_processor::context const & context)
+void nano::block_broadcast::run ()
 {
-	bool is_local = local.contains (block->hash ());
-	if (is_local)
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
 	{
-		// Block created on this node
-		// Perform more agressive initial flooding
-		queue.add (entry{ block, broadcast_strategy::aggressive });
-	}
-	else
-	{
-		if (context.recent_arrival ())
-		{
-			// Block arrived from realtime traffic, do normal gossip.
-			queue.add (entry{ block, broadcast_strategy::normal });
-		}
-		else
-		{
-			// Block arrived from bootstrap
-			// Don't broadcast blocks we're bootstrapping
-		}
-	}
-}
+		stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::loop);
 
-void nano::block_broadcast::track_local (nano::block_hash const & hash)
-{
-	if (!enabled)
-	{
-		return;
-	}
-	local.add (hash);
-}
+		condition.wait_for (lock, local_check_interval);
+		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
 
-void nano::block_broadcast::process_batch (queue_t::batch_t & batch)
-{
-	for (auto & [block, strategy] : batch)
-	{
-		switch (strategy)
+		if (!stopped)
 		{
-			case broadcast_strategy::normal:
-			{
-				stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::broadcast_normal, nano::stat::dir::out);
-				network.flood_block (block, nano::transport::buffer_drop_policy::limiter);
-			}
-			break;
-			case broadcast_strategy::aggressive:
-			{
-				stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::broadcast_aggressive, nano::stat::dir::out);
-				network.flood_block_initial (block);
-			}
-			break;
+			run_once (lock);
+			debug_assert (lock.owns_lock ());
+			cleanup ();
 		}
 	}
 }
 
-/*
- * hash_tracker
- */
-
-void nano::block_broadcast::hash_tracker::add (nano::block_hash const & hash)
+void nano::block_broadcast::run_once (nano::unique_lock<nano::mutex> & lock)
 {
-	nano::lock_guard<nano::mutex> guard{ mutex };
-	hashes.emplace_back (hash);
-	while (hashes.size () > max_size)
+	debug_assert (lock.owns_lock ());
+
+	std::vector<std::shared_ptr<nano::block>> to_broadcast;
+
+	auto const now = std::chrono::steady_clock::now ();
+	for (auto & entry : local_blocks)
 	{
-		// Erase oldest hashes
-		hashes.pop_front ();
+		if (entry.last_broadcast + local_broadcast_interval < now)
+		{
+			to_broadcast.push_back (entry.block);
+			entry.last_broadcast = now;
+		}
 	}
+
+	lock.unlock ();
+
+	for (auto const & block : to_broadcast)
+	{
+		stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::broadcast, nano::stat::dir::out);
+		network.flood_block_initial (block);
+	}
+
+	lock.lock ();
 }
 
-void nano::block_broadcast::hash_tracker::erase (nano::block_hash const & hash)
+void nano::block_broadcast::cleanup ()
 {
-	nano::lock_guard<nano::mutex> guard{ mutex };
-	hashes.get<tag_hash> ().erase (hash);
+	debug_assert (!mutex.try_lock ());
+
+	erase_if (local_blocks, [this] (auto const & entry) {
+		if (entry.arrival + local_age_cutoff < std::chrono::steady_clock::now ())
+		{
+			stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::erase);
+			return true;
+		}
+		return false;
+	});
 }
 
-bool nano::block_broadcast::hash_tracker::contains (nano::block_hash const & hash) const
+std::unique_ptr<nano::container_info_component> nano::block_broadcast::collect_container_info (const std::string & name) const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	return hashes.get<tag_hash> ().find (hash) != hashes.get<tag_hash> ().end ();
+
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "local", local_blocks.size (), sizeof (decltype (local_blocks)::value_type) }));
+	return composite;
 }

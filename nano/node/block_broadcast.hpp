@@ -7,6 +7,7 @@
 #include <nano/secure/common.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
@@ -36,9 +37,6 @@ class block_broadcast
 		aggressive,
 	};
 
-	using entry = std::pair<std::shared_ptr<nano::block>, broadcast_strategy>;
-	using queue_t = nano::processing_queue<entry>;
-
 public:
 	block_broadcast (nano::block_processor &, nano::network &, nano::stats &, bool enabled = false);
 	~block_broadcast ();
@@ -46,8 +44,7 @@ public:
 	void start ();
 	void stop ();
 
-	// Mark a block as originating locally
-	void track_local (nano::block_hash const &);
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
 
 private: // Dependencies
 	nano::block_processor & block_processor;
@@ -55,49 +52,78 @@ private: // Dependencies
 	nano::stats & stats;
 
 private:
-	// Block_processor observer
-	void observe (std::shared_ptr<nano::block> const & block, nano::block_processor::context const & context);
-	void process_batch (queue_t::batch_t & batch);
+	struct local_entry
+	{
+		std::shared_ptr<nano::block> block;
+		std::chrono::steady_clock::time_point arrival;
+		mutable std::chrono::steady_clock::time_point last_broadcast{}; // Not part of any index
+
+		nano::block_hash hash () const
+		{
+			return block->hash ();
+		}
+	};
+
+	// clang-format off
+	class tag_sequenced	{};
+	class tag_hash {};
+
+	using ordered_locals = boost::multi_index_container<local_entry,
+	mi::indexed_by<
+		mi::sequenced<mi::tag<tag_sequenced>>,
+		mi::hashed_unique<mi::tag<tag_hash>,
+			mi::const_mem_fun<local_entry, nano::block_hash, &local_entry::hash>>
+	>>;
+	// clang-format on
+
+	ordered_locals local_blocks;
 
 private:
-	class hash_tracker
-	{
-	public:
-		void add (nano::block_hash const &);
-		void erase (nano::block_hash const &);
-		bool contains (nano::block_hash const &) const;
+	void run ();
+	void run_once (nano::unique_lock<nano::mutex> &);
+	void cleanup ();
 
-	private:
-		mutable nano::mutex mutex;
-
-		// clang-format off
-		class tag_sequenced {};
-		class tag_hash {};
-
-		using ordered_hashes = boost::multi_index_container<nano::block_hash,
-		mi::indexed_by<
-			mi::sequenced<mi::tag<tag_sequenced>>,
-			mi::hashed_unique<mi::tag<tag_hash>,
-				mi::identity<nano::block_hash>>
-		>>;
-		// clang-format on
-
-		// Blocks originated on this node
-		ordered_hashes hashes;
-
-		static std::size_t constexpr max_size = 1024 * 128;
-	};
-	hash_tracker local;
+private:
+	//	class hash_tracker
+	//	{
+	//	public:
+	//		void add (nano::block_hash const &);
+	//		void erase (nano::block_hash const &);
+	//		bool contains (nano::block_hash const &) const;
+	//
+	//	private:
+	//		mutable nano::mutex mutex;
+	//
+	//		// clang-format off
+	//		class tag_sequenced {};
+	//		class tag_hash {};
+	//
+	//		using ordered_hashes = boost::multi_index_container<nano::block_hash,
+	//		mi::indexed_by<
+	//			mi::sequenced<mi::tag<tag_sequenced>>,
+	//			mi::hashed_unique<mi::tag<tag_hash>,
+	//				mi::identity<nano::block_hash>>
+	//		>>;
+	//		// clang-format on
+	//
+	//		// Blocks originated on this node
+	//		ordered_hashes hashes;
+	//
+	//		static std::size_t constexpr max_size = 1024 * 128;
+	//	};
+	//	hash_tracker local;
 
 private:
 	bool enabled{ false };
-	queue_t queue;
 
 	bool stopped{ false };
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;
 
-	static std::size_t constexpr max_size = 1024 * 32;
+	static std::size_t constexpr local_max_size{ 1024 * 32 };
+	static std::chrono::seconds constexpr local_check_interval{ 30 };
+	static std::chrono::seconds constexpr local_broadcast_interval{ 60 };
+	static std::chrono::seconds constexpr local_age_cutoff{ 60 * 60 };
 };
 }

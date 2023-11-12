@@ -72,6 +72,8 @@ enum class detail : uint8_t
 	top,
 	none,
 	success,
+	unknown,
+	erase,
 
 	// processing queue
 	queue,
