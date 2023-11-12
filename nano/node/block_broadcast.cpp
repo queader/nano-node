@@ -18,7 +18,7 @@ nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_
 		return;
 	}
 
-	block_processor.processed.add ([this] (auto const & result, auto const & block) {
+	block_processor.processed.add ([this] (auto const & result, auto const & block, auto const & context) {
 		switch (result.code)
 		{
 			case nano::process_result::progress:
@@ -45,6 +45,7 @@ void nano::block_broadcast::start ()
 	{
 		return;
 	}
+
 	queue.start ();
 }
 
