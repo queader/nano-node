@@ -69,6 +69,7 @@ enum class detail : uint8_t
 	top,
 	unknown,
 	erase,
+	rollback,
 
 	// processing queue
 	queue,

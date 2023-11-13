@@ -270,6 +270,12 @@ public:
 		add (type, stat::detail::all, dir, value);
 	}
 
+	/** Adds \p value to the given counter */
+	void add (stat::type type, stat::detail detail, uint64_t value)
+	{
+		add (type, detail, stat::dir::in, value);
+	}
+
 	/**
 	 * Define histogram bins. Values are clamped into the first and last bins, but a catch-all bin on one or both
 	 * ends can be defined.
