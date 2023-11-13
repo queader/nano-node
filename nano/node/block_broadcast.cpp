@@ -137,6 +137,11 @@ void nano::block_broadcast::cleanup ()
 	erase_if (local_blocks, [this, &transaction] (auto const & entry) {
 		transaction.refresh_if_needed ();
 
+		if (entry.last_broadcast == std::chrono::steady_clock::time_point{})
+		{
+			// This block has never been broadcasted, keep it so it's broadcasted at least once
+			return false;
+		}
 		if (entry.arrival + local_age_cutoff < std::chrono::steady_clock::now ())
 		{
 			stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::erase_old);
