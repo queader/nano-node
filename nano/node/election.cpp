@@ -242,6 +242,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 		case nano::election::state_t::confirmed:
 			result = true; // Return true to indicate this election should be cleaned up
+			broadcast_block (solicitor_a); // Ensure election winner is broadcasted
 			state_change (nano::election::state_t::confirmed, nano::election::state_t::expired_confirmed);
 			break;
 		case nano::election::state_t::expired_unconfirmed:
