@@ -627,8 +627,8 @@ TEST (node, fork_publish_inactive)
 
 	ASSERT_EQ (nano::process_result::fork, node.process_local (send2).value ().code);
 
-	auto blocks = election->blocks ();
-	ASSERT_TIMELY_EQ (5s, blocks.size (), 2);
+	decltype (election->blocks ()) blocks;
+	ASSERT_TIMELY_EQ (5s, (blocks = election->blocks ()).size (), 2);
 	ASSERT_NE (blocks.end (), blocks.find (send1->hash ()));
 	ASSERT_NE (blocks.end (), blocks.find (send2->hash ()));
 	ASSERT_EQ (election->winner ()->hash (), send1->hash ());
