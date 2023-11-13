@@ -78,7 +78,7 @@ public: // async_tag
 		query_type type{ query_type::invalid };
 		nano::bootstrap_ascending::id_t id{ 0 };
 		nano::hash_or_account start{ 0 };
-		nano::millis_t time{ 0 };
+		std::chrono::steady_clock::time_point time{};
 		nano::account account{ 0 };
 	};
 

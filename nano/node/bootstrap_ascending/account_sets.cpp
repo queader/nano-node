@@ -116,7 +116,7 @@ void nano::bootstrap_ascending::account_sets::unblock (nano::account const & acc
 
 void nano::bootstrap_ascending::account_sets::timestamp (const nano::account & account, bool reset)
 {
-	const nano::millis_t tstamp = reset ? 0 : nano::milliseconds_since_epoch ();
+	const std::chrono::steady_clock::time_point tstamp = reset ? std::chrono::steady_clock::time_point{} : std::chrono::steady_clock::now ();
 
 	auto iter = priorities.get<tag_account> ().find (account);
 	if (iter != priorities.get<tag_account> ().end ())
@@ -132,7 +132,8 @@ bool nano::bootstrap_ascending::account_sets::check_timestamp (const nano::accou
 	auto iter = priorities.get<tag_account> ().find (account);
 	if (iter != priorities.get<tag_account> ().end ())
 	{
-		if (nano::milliseconds_since_epoch () - iter->timestamp < config.cooldown)
+		// Not cooled down yet
+		if (iter->timestamp + config.cooldown > std::chrono::steady_clock::now ())
 		{
 			return false;
 		}

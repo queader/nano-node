@@ -71,7 +71,7 @@ private:
 	{
 		nano::account account{ 0 };
 		float priority{ 0 };
-		nano::millis_t timestamp{ 0 };
+		std::chrono::steady_clock::time_point timestamp{};
 		nano::bootstrap_ascending::id_t id{ 0 }; // Uniformly distributed, used for random querying
 
 		priority_entry (nano::account account, float priority);

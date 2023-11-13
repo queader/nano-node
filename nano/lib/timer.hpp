@@ -111,9 +111,4 @@ inline seconds_t seconds_since_epoch ()
 {
 	return std::chrono::duration_cast<std::chrono::seconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
 }
-
-inline nano::millis_t time_difference (nano::millis_t start, nano::millis_t end)
-{
-	return end > start ? (end - start) : 0;
-}
 }

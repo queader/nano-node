@@ -264,7 +264,7 @@ bool nano::bootstrap_ascending::service::request (nano::account & account, std::
 	async_tag tag{};
 	tag.id = nano::bootstrap_ascending::generate_id ();
 	tag.account = account;
-	tag.time = nano::milliseconds_since_epoch ();
+	tag.time = std::chrono::steady_clock::now ();
 
 	// Check if the account picked has blocks, if it does, start the pull from the highest block
 	auto info = ledger.store.account.get (ledger.store.tx_begin_read (), account);
@@ -341,8 +341,14 @@ void nano::bootstrap_ascending::service::run_timeouts ()
 		scoring.sync (network.list ());
 		scoring.timeout ();
 		throttle.resize (compute_throttle_size ());
+
 		auto & tags_by_order = tags.get<tag_sequenced> ();
-		while (!tags_by_order.empty () && nano::time_difference (tags_by_order.front ().time, nano::milliseconds_since_epoch ()) > config.bootstrap_ascending.timeout)
+
+		auto const now = std::chrono::steady_clock::now ();
+		auto timed_out = [&] (auto const & tag) {
+			return tag.time + config.bootstrap_ascending.timeout < now;
+		};
+		while (!tags_by_order.empty () && timed_out (*tags_by_order.begin ()))
 		{
 			auto tag = tags_by_order.front ();
 			tags_by_order.pop_front ();
