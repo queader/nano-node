@@ -319,6 +319,8 @@ enum class detail : uint8_t
 	// block_broadcaster
 	broadcast_normal,
 	broadcast_aggressive,
+	erase_old,
+	erase_confirmed,
 
 	_last // Must be the last enum
 };

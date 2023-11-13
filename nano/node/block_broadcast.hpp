@@ -20,6 +20,7 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
+class node;
 class network;
 }
 
@@ -38,7 +39,7 @@ class block_broadcast
 	};
 
 public:
-	block_broadcast (nano::block_processor &, nano::network &, nano::stats &, bool enabled = false);
+	block_broadcast (nano::node &, nano::block_processor &, nano::network &, nano::stats &, bool enabled = false);
 	~block_broadcast ();
 
 	void start ();
@@ -47,6 +48,7 @@ public:
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
 
 private: // Dependencies
+	nano::node & node;
 	nano::block_processor & block_processor;
 	nano::network & network;
 	nano::stats & stats;
