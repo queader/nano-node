@@ -3,8 +3,10 @@
 #include <nano/node/block_broadcast.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 
-nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_a, nano::network & network_a, nano::stats & stats_a, bool enabled_a) :
+nano::block_broadcast::block_broadcast (nano::node & node_a, nano::block_processor & block_processor_a, nano::network & network_a, nano::stats & stats_a, bool enabled_a) :
+	node{ node_a },
 	block_processor{ block_processor_a },
 	network{ network_a },
 	stats{ stats_a },
@@ -92,9 +94,9 @@ void nano::block_broadcast::run ()
 
 		if (!stopped)
 		{
+			cleanup ();
 			run_once (lock);
 			debug_assert (lock.owns_lock ());
-			cleanup ();
 		}
 	}
 }
@@ -130,12 +132,22 @@ void nano::block_broadcast::cleanup ()
 {
 	debug_assert (!mutex.try_lock ());
 
-	erase_if (local_blocks, [this] (auto const & entry) {
+	// TODO: Mutex is held during IO, it is possible to improve this further
+	auto transaction = node.store.tx_begin_read ();
+	erase_if (local_blocks, [this, &transaction] (auto const & entry) {
+		transaction.refresh_if_needed ();
+
 		if (entry.arrival + local_age_cutoff < std::chrono::steady_clock::now ())
 		{
-			stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::erase);
+			stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::erase_old);
 			return true;
 		}
+		if (node.block_confirmed_or_being_confirmed (transaction, entry.block->hash ()))
+		{
+			stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::erase_confirmed);
+			return true;
+		}
+
 		return false;
 	});
 }

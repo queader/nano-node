@@ -195,7 +195,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	epoch_upgrader{ *this, ledger, store, network_params, logger },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq),
-	block_broadcast{ block_processor, network, stats, !flags.disable_block_processor_republishing },
+	block_broadcast{ *this, block_processor, network, stats, !flags.disable_block_processor_republishing },
 	process_live_dispatcher{ ledger, scheduler.priority, vote_cache, websocket }
 {
 	process_live_dispatcher.connect (block_processor);
