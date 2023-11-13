@@ -24,10 +24,12 @@ nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_
 			{
 				nano::lock_guard<nano::mutex> guard{ mutex };
 				local_blocks.emplace_back (local_entry{ block, std::chrono::steady_clock::now () });
+				stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::insert);
 
 				// Erase oldest blocks if the queue gets too big
 				while (local_blocks.size () > local_max_size)
 				{
+					stats.inc (nano::stat::type::block_broadcaster, nano::stat::detail::overfill);
 					local_blocks.pop_front ();
 				}
 
@@ -38,6 +40,12 @@ nano::block_broadcast::block_broadcast (nano::block_processor & block_processor_
 		{
 			condition.notify_all ();
 		}
+	});
+
+	block_processor.rolled_back.add ([this] (auto const & block) {
+		nano::lock_guard<nano::mutex> guard{ mutex };
+		auto erased = local_blocks.get<tag_hash> ().erase (block->hash ());
+		stats.add (nano::stat::type::block_broadcaster, nano::stat::detail::rollback, erased);
 	});
 }
 

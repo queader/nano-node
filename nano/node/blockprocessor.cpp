@@ -90,7 +90,7 @@ std::optional<nano::process_return> nano::block_processor::add_blocking (std::sh
 	return std::nullopt;
 }
 
-void nano::block_processor::rollback_competitor (store::write_transaction const & transaction, nano::block const & block)
+std::vector<std::shared_ptr<nano::block>> nano::block_processor::rollback_competitor (store::write_transaction const & transaction, nano::block const & block)
 {
 	auto hash = block.hash ();
 	auto successor = node.ledger.successor (transaction, block.qualified_root ());
@@ -119,7 +119,9 @@ void nano::block_processor::rollback_competitor (store::write_transaction const 
 				node.active.erase (*i);
 			}
 		}
+		return rollback_list;
 	}
+	return {};
 }
 
 void nano::block_processor::force (std::shared_ptr<nano::block> const & block_a)
@@ -248,7 +250,11 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 		if (force)
 		{
 			number_of_forced_processed++;
-			rollback_competitor (transaction, *block);
+			auto rollback_list = rollback_competitor (transaction, *block);
+			for (auto const & rblock : rollback_list)
+			{
+				rolled_back.notify (rblock);
+			}
 		}
 
 		number_of_blocks_processed++;

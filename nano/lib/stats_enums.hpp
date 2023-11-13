@@ -74,6 +74,7 @@ enum class detail : uint8_t
 	success,
 	unknown,
 	erase,
+	rollback,
 
 	// processing queue
 	queue,

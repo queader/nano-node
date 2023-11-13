@@ -84,10 +84,11 @@ public: // Events
 	// The batch observer feeds the processed obsever
 	nano::observer_set<nano::process_return const &, std::shared_ptr<nano::block> const &, context const &> processed;
 	nano::observer_set<processed_batch_t const &> batch_processed;
+	nano::observer_set<std::shared_ptr<nano::block> const &> rolled_back;
 
 private:
 	// Roll back block in the ledger that conflicts with 'block'
-	void rollback_competitor (store::write_transaction const &, nano::block const & block);
+	std::vector<std::shared_ptr<nano::block>> rollback_competitor (store::write_transaction const &, nano::block const & block);
 	nano::process_return process_one (store::write_transaction const &, std::shared_ptr<nano::block> block, bool forced = false);
 	void queue_unchecked (store::write_transaction const &, nano::hash_or_account const &);
 	processed_batch_t process_batch (nano::unique_lock<nano::mutex> &);
