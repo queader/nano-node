@@ -108,6 +108,7 @@ private: // State management
 	std::chrono::steady_clock::time_point last_req{};
 	/** The last time vote for this election was generated */
 	std::chrono::steady_clock::time_point last_vote{};
+	nano::block_hash last_vote_hash{ 0 };
 
 	bool valid_change (nano::election::state_t, nano::election::state_t) const;
 	bool state_change (nano::election::state_t, nano::election::state_t);
@@ -144,12 +145,6 @@ public: // Interface
 	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
 	boost::optional<nano::election_status_type> try_confirm (nano::block_hash const & hash);
 	nano::election_status set_status_type (nano::election_status_type status_type);
-
-	/**
-	 * Broadcasts vote for the current winner of this election
-	 * Checks if sufficient amount of time (`vote_generation_interval`) passed since the last vote generation
-	 */
-	void broadcast_vote ();
 	nano::vote_info get_last_vote (nano::account const & account);
 	void set_last_vote (nano::account const & account, nano::vote_info vote_info);
 	nano::election_status get_status () const;
@@ -171,10 +166,8 @@ private:
 	bool broadcast_block_predicate () const;
 	void broadcast_block (nano::confirmation_solicitor &);
 	void send_confirm_req (nano::confirmation_solicitor &);
-	/**
-	 * Broadcast vote for current election winner. Generates final vote if reached quorum or already confirmed
-	 * Requires mutex lock
-	 */
+	bool broadcast_vote_predicate () const;
+	void broadcast_vote ();
 	void broadcast_vote_impl ();
 	void remove_votes (nano::block_hash const &);
 	void remove_block (nano::block_hash const &);

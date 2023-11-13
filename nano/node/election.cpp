@@ -196,13 +196,50 @@ void nano::election::broadcast_block (nano::confirmation_solicitor & solicitor_a
 	}
 }
 
-void nano::election::broadcast_vote ()
+bool nano::election::broadcast_vote_predicate () const
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
+	// Broadcast the vote if enough time has passed since the last broadcast (or it's the first broadcast)
 	if (last_vote + node.config.network_params.network.vote_broadcast_interval < std::chrono::steady_clock::now ())
 	{
+		return true;
+	}
+	// Or the current election winner has changed
+	if (get_status ().winner->hash () != last_vote_hash)
+	{
+		return true;
+	}
+	return false;
+}
+
+void nano::election::broadcast_vote ()
+{
+	if (broadcast_vote_predicate ())
+	{
+		nano::lock_guard<nano::mutex> guard{ mutex };
 		broadcast_vote_impl ();
 		last_vote = std::chrono::steady_clock::now ();
+		last_vote_hash = status.winner->hash ();
+	}
+}
+
+void nano::election::broadcast_vote_impl ()
+{
+	debug_assert (!mutex.try_lock ());
+
+	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
+	{
+		node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote);
+
+		if (confirmed () || have_quorum (tally_impl ()))
+		{
+			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_final);
+			node.final_generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
+		}
+		else
+		{
+			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_normal);
+			node.generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
+		}
 	}
 }
 
@@ -242,6 +279,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 		case nano::election::state_t::confirmed:
 			result = true; // Return true to indicate this election should be cleaned up
+			broadcast_vote (); // Ensure final vote for election winner is broadcasted
 			broadcast_block (solicitor_a); // Ensure election winner is broadcasted
 			state_change (nano::election::state_t::confirmed, nano::election::state_t::expired_confirmed);
 			break;
@@ -375,13 +413,7 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 	}
 	if (have_quorum (tally_l))
 	{
-		if (node.ledger.cache.final_votes_confirmation_canary.load () && !is_quorum.exchange (true) && node.config.enable_voting && node.wallets.reps ().voting > 0)
-		{
-			auto hash = status.winner->hash ();
-			lock_a.unlock ();
-			node.final_generator.add (root, hash);
-			lock_a.lock ();
-		}
+		is_quorum = true;
 		if (!node.ledger.cache.final_votes_confirmation_canary.load () || final_weight >= node.online_reps.delta ())
 		{
 			if (node.config.logging.vote_logging () || (node.config.logging.election_fork_tally_logging () && last_blocks.size () > 1))
@@ -566,27 +598,6 @@ std::shared_ptr<nano::block> nano::election::winner () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 	return status.winner;
-}
-
-void nano::election::broadcast_vote_impl ()
-{
-	debug_assert (!mutex.try_lock ());
-
-	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
-	{
-		node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote);
-
-		if (confirmed () || have_quorum (tally_impl ()))
-		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_final);
-			node.final_generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
-		}
-		else
-		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_normal);
-			node.generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
-		}
-	}
 }
 
 void nano::election::remove_votes (nano::block_hash const & hash_a)
