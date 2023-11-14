@@ -64,22 +64,76 @@ private: // Dependencies
 	nano::network & network;
 	nano::stats & stats;
 
-public: // async_tag
-	struct async_tag
+public: // Strategies
+	class async_tag;
+
+	template <typename Self, class Response>
+	class base_strategy
 	{
+	public:
+		nano::asc_pull_req::payload_variant prepare (service & service)
+		{
+			return service.prepare (*static_cast<Self *> (this));
+		}
+
+		void process_response (nano::asc_pull_ack::payload_variant const & response, service & service)
+		{
+			std::visit ([&] (auto const & payload) { process (payload, service); }, response);
+		}
+
+		void process (Response const & response, service & service)
+		{
+			service.process (response, *static_cast<Self *> (this));
+		}
+
+		// Fallback
+		void process (auto const & response, service & service)
+		{
+			nano::asc_pull_ack::payload_variant{ response }; // Force compilation error if response is not part of variant
+			debug_assert (false, "invalid payload");
+		}
+	};
+
+	class account_scan_strategy : public base_strategy<account_scan_strategy, nano::asc_pull_ack::blocks_payload>
+	{
+	public:
 		enum class query_type
 		{
-			invalid = 0, // Default initialization
 			blocks_by_hash,
 			blocks_by_account,
-			// TODO: account_info,
 		};
 
-		query_type type{ query_type::invalid };
+		const nano::account account{};
+		nano::hash_or_account start{};
+		query_type type{};
+
+		enum class verify_result
+		{
+			ok,
+			nothing_new,
+			invalid,
+		};
+
+		verify_result verify (nano::asc_pull_ack::blocks_payload const & response) const;
+	};
+
+	class lazy_bootstrap_strategy : public base_strategy<lazy_bootstrap_strategy, nano::asc_pull_ack::account_info_payload>
+	{
+	};
+
+	using strategy_variant = std::variant<account_scan_strategy, lazy_bootstrap_strategy>;
+
+public:
+	struct async_tag
+	{
+		strategy_variant strategy;
 		nano::bootstrap_ascending::id_t id{ 0 };
-		nano::hash_or_account start{ 0 };
 		std::chrono::steady_clock::time_point time{};
-		nano::account account{ 0 };
+
+		nano::asc_pull_req::payload_variant prepare_request (service & service)
+		{
+			return std::visit ([&] (auto && sgy) { return sgy.prepare (service); }, strategy);
+		}
 	};
 
 public: // Events
@@ -96,6 +150,11 @@ private:
 	bool run_one ();
 	void run_timeouts ();
 
+	bool request (strategy_variant const &, std::shared_ptr<nano::transport::channel> &);
+	void track (async_tag const & tag);
+
+	std::optional<strategy_variant> wait_next ();
+
 	/* Throttles requesting new blocks, not to overwhelm blockprocessor */
 	void wait_blockprocessor ();
 	/* Waits for channel with free capacity for bootstrap messages */
@@ -104,28 +163,11 @@ private:
 	nano::account available_account ();
 	nano::account wait_available_account ();
 
-	bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
-	void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
-	void track (async_tag const & tag);
+	nano::asc_pull_req::payload_variant prepare (account_scan_strategy &);
+	nano::asc_pull_req::payload_variant prepare (lazy_bootstrap_strategy &);
 
-	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
-	void process (nano::empty_payload const & response, async_tag const & tag);
-
-	enum class verify_result
-	{
-		ok,
-		nothing_new,
-		invalid,
-	};
-
-	/**
-	 * Verifies whether the received response is valid. Returns:
-	 * - invalid: when received blocks do not correspond to requested hash/account or they do not make a valid chain
-	 * - nothing_new: when received response indicates that the account chain does not have more blocks
-	 * - ok: otherwise, if all checks pass
-	 */
-	verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
+	void process (nano::asc_pull_ack::blocks_payload const & response, account_scan_strategy const &);
+	void process (nano::asc_pull_ack::account_info_payload const & response, lazy_bootstrap_strategy const &);
 
 public: // account_sets
 	nano::bootstrap_ascending::account_sets::info_t info () const;
@@ -134,6 +176,7 @@ private:
 	nano::bootstrap_ascending::account_sets accounts;
 	nano::bootstrap_ascending::buffered_iterator iterator;
 	nano::bootstrap_ascending::throttle throttle;
+
 	// Calculates a lookback size based on the size of the ledger where larger ledgers have a larger sample count
 	std::size_t compute_throttle_size () const;
 
@@ -146,9 +189,7 @@ private:
 	mi::indexed_by<
 		mi::sequenced<mi::tag<tag_sequenced>>,
 		mi::hashed_unique<mi::tag<tag_id>,
-			mi::member<async_tag, nano::bootstrap_ascending::id_t, &async_tag::id>>,
-		mi::hashed_non_unique<mi::tag<tag_account>,
-			mi::member<async_tag, nano::account , &async_tag::account>>
+			mi::member<async_tag, nano::bootstrap_ascending::id_t, &async_tag::id>>
 	>>;
 	// clang-format on
 	ordered_tags tags;
