@@ -136,11 +136,11 @@ TEST (bootstrap_ascending, profile)
 		}
 	});
 
-	client->ascendboot.on_request.add ([&] (auto & tag, auto & channel) {
-		nano::lock_guard<nano::mutex> lock{ mutex };
-
-		requests[tag.id] = { tag, channel };
-	});
+	//	client->ascendboot.on_request.add ([&] (auto & tag, auto & channel) {
+	//		nano::lock_guard<nano::mutex> lock{ mutex };
+	//
+	//		requests[tag.id] = { tag, channel };
+	//	});
 
 	client->ascendboot.on_reply.add ([&] (auto & tag) {
 		nano::lock_guard<nano::mutex> lock{ mutex };
