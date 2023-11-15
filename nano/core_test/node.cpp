@@ -2684,6 +2684,26 @@ TEST (node, epoch_conflict_confirm)
 					  .work (*system.work.generate (open->hash ()))
 					  .build_shared ();
 
+	// Print easily visible separator
+	for (int i = 0; i < 10; ++i)
+	{
+		std::cout << "==" << std::endl;
+	}
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::cout << std::endl;
+
+	std::cout << "send: " << send->hash ().to_string () << " root: " << send->root ().to_string () << std::endl;
+	std::cout << "open: " << open->hash ().to_string () << " root: " << open->root ().to_string () << std::endl;
+	std::cout << "change: " << change->hash ().to_string () << " root: " << change->root ().to_string () << std::endl;
+	std::cout << "send2: " << send2->hash ().to_string () << " root: " << send2->root ().to_string () << std::endl;
+	std::cout << "epoch_open: " << epoch_open->hash ().to_string () << " root: " << epoch_open->root ().to_string () << std::endl;
+	std::cout << std::endl;
+
+	std::cout << "node0: " << node0.network.port << std::endl;
+	std::cout << "node1: " << node1.network.port << std::endl;
+	std::cout << std::endl;
+
 	// Process initial blocks on node1
 	ASSERT_TRUE (nano::test::process (node1, { send, send2, open }));
 
@@ -2713,7 +2733,7 @@ TEST (node, epoch_conflict_confirm)
 	system.wallet (1)->insert_adhoc (nano::dev::genesis_key.prv);
 
 	// Ensure the elections for conflicting blocks have completed
-	ASSERT_TIMELY (5s, nano::test::active (node0, { change, epoch_open }));
+	ASSERT_TIMELY (5s, !nano::test::active (node0, { change, epoch_open }));
 
 	// Ensure both conflicting blocks were successfully processed and confirmed
 	ASSERT_TIMELY (5s, nano::test::confirmed (node0, { change, epoch_open }));

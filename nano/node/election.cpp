@@ -30,11 +30,20 @@ nano::election::election (nano::node & node_a, std::shared_ptr<nano::block> cons
 {
 	last_votes.emplace (nano::account::null (), nano::vote_info{ std::chrono::steady_clock::now (), 0, block_a->hash () });
 	last_blocks.emplace (block_a->hash (), block_a);
+
+	std::cout
+	<< "node: " << node.network.port << " "
+	<< "election started for: " << block_a->hash ().to_string () << " id: " << (void *)this << std::endl;
 }
 
 void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock_a, nano::election_status_type type_a)
 {
+	std::cout
+	<< "node: " << node.network.port << " "
+	<< "election confirmed for: " << status.winner->hash ().to_string () << " id: " << (void *)this << std::endl;
+
 	debug_assert (lock_a.owns_lock ());
+
 	// This must be kept above the setting of election state, as dependent confirmed elections require up to date changes to election_winner_details
 	nano::unique_lock<nano::mutex> election_winners_lk{ node.active.election_winner_details_mutex };
 	if (state_m.exchange (nano::election::state_t::confirmed) != nano::election::state_t::confirmed && (node.active.election_winner_details.count (status.winner->hash ()) == 0))
@@ -142,6 +151,10 @@ void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_
 {
 	if (confirm_req_time () < (std::chrono::steady_clock::now () - last_req))
 	{
+		std::cout
+		<< "node: " << node.network.port << " "
+		<< "send_confirm_req for: " << status.winner->hash ().to_string () << " id: " << (void *)this << std::endl;
+
 		nano::lock_guard<nano::mutex> guard{ mutex };
 		if (!solicitor_a.add (*this))
 		{

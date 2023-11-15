@@ -198,6 +198,11 @@ bool nano::vote_generator::should_vote (store::write_transaction const & transac
 		auto block (ledger.store.block.get (transaction, hash_a));
 		should_vote = block != nullptr && ledger.dependents_confirmed (transaction, *block);
 	}
+
+	std::cout
+	<< "node: " << network.port << " "
+	<< "final vote request for: " << hash_a.to_string () << " should_vote: " << should_vote << std::endl;
+
 	return should_vote;
 }
 
