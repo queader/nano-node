@@ -36,65 +36,37 @@ namespace transport
 
 namespace nano::bootstrap_ascending
 {
-class service
+template <typename Self, class Response>
+class tag_base
 {
 public:
-	service (nano::node_config &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &);
-	~service ();
-
-	void start ();
-	void stop ();
-
-	/**
-	 * Process `asc_pull_ack` message coming from network
-	 */
-	void process (nano::asc_pull_ack const & message, std::shared_ptr<nano::transport::channel> channel);
-
-public: // Container info
-	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
-	std::size_t blocked_size () const;
-	std::size_t priority_size () const;
-	std::size_t score_size () const;
-
-private: // Dependencies
-	nano::node_config & config;
-	nano::network_constants & network_consts;
-	nano::block_processor & block_processor;
-	nano::ledger & ledger;
-	nano::network & network;
-	nano::stats & stats;
-
-public: // Strategies
-	class async_tag;
-
-	template <typename Self, class Response>
-	class base_strategy
+	nano::asc_pull_req::payload_variant prepare (auto & service)
 	{
-	public:
-		nano::asc_pull_req::payload_variant prepare (service & service)
-		{
-			return service.prepare (*static_cast<Self *> (this));
-		}
+		return service.prepare (*static_cast<Self *> (this));
+	}
 
-		void process_response (nano::asc_pull_ack::payload_variant const & response, service & service)
-		{
-			std::visit ([&] (auto const & payload) { process (payload, service); }, response);
-		}
+	void process_response (nano::asc_pull_ack::payload_variant const & response, auto & service)
+	{
+		std::visit ([&] (auto const & payload) { process (payload, service); }, response);
+	}
 
-		void process (Response const & response, service & service)
-		{
-			service.process (response, *static_cast<Self *> (this));
-		}
+	void process (Response const & response, auto & service)
+	{
+		service.process (response, *static_cast<Self *> (this));
+	}
 
-		// Fallback
-		void process (auto const & response, service & service)
-		{
-			nano::asc_pull_ack::payload_variant{ response }; // Force compilation error if response is not part of variant
-			debug_assert (false, "invalid payload");
-		}
-	};
+	// Fallback
+	void process (auto const & response, auto & service)
+	{
+		nano::asc_pull_ack::payload_variant{ response }; // Force compilation error if response is not part of variant
+		debug_assert (false, "invalid payload");
+	}
+};
 
-	class account_scan_strategy : public base_strategy<account_scan_strategy, nano::asc_pull_ack::blocks_payload>
+class account_scan final
+{
+public:
+	class tag : public tag_base<tag, nano::asc_pull_ack::blocks_payload>
 	{
 	public:
 		enum class query_type
@@ -116,17 +88,54 @@ public: // Strategies
 
 		verify_result verify (nano::asc_pull_ack::blocks_payload const & response) const;
 	};
+};
 
-	class lazy_bootstrap_strategy : public base_strategy<lazy_bootstrap_strategy, nano::asc_pull_ack::account_info_payload>
+class lazy_pulling final
+{
+public:
+	class tag : public tag_base<tag, nano::asc_pull_ack::account_info_payload>
 	{
 	};
+};
 
-	using strategy_variant = std::variant<account_scan_strategy, lazy_bootstrap_strategy>;
-
+class service final
+{
 public:
+	service (nano::node_config &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &);
+	~service ();
+
+	void start ();
+	void stop ();
+
+	/**
+	 * Process `asc_pull_ack` message coming from network
+	 */
+	void process (nano::asc_pull_ack const & message, std::shared_ptr<nano::transport::channel> channel);
+
+public: // Info
+	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+	std::size_t blocked_size () const;
+	std::size_t priority_size () const;
+	std::size_t score_size () const;
+
+private: // Dependencies
+	nano::node_config & config;
+	nano::network_constants & network_consts;
+	nano::block_processor & block_processor;
+	nano::ledger & ledger;
+	nano::network & network;
+	nano::stats & stats;
+
+public: // Strategies
+	account_scan account_scan;
+	lazy_pulling lazy_pulling;
+
+	using tag_strategy_variant = std::variant<account_scan::tag, lazy_pulling::tag>;
+
+public: // Tag
 	struct async_tag
 	{
-		strategy_variant strategy;
+		tag_strategy_variant strategy;
 		nano::bootstrap_ascending::id_t id{ 0 };
 		std::chrono::steady_clock::time_point time{};
 
@@ -150,10 +159,10 @@ private:
 	bool run_one ();
 	void run_timeouts ();
 
-	bool request (strategy_variant const &, std::shared_ptr<nano::transport::channel> &);
+	bool request (tag_strategy_variant const &, std::shared_ptr<nano::transport::channel> &);
 	void track (async_tag const & tag);
 
-	std::optional<strategy_variant> wait_next ();
+	std::optional<tag_strategy_variant> wait_next ();
 
 	/* Throttles requesting new blocks, not to overwhelm blockprocessor */
 	void wait_blockprocessor ();
@@ -163,11 +172,12 @@ private:
 	nano::account available_account ();
 	nano::account wait_available_account ();
 
-	nano::asc_pull_req::payload_variant prepare (account_scan_strategy &);
-	nano::asc_pull_req::payload_variant prepare (lazy_bootstrap_strategy &);
+public:
+	nano::asc_pull_req::payload_variant prepare (account_scan::tag &);
+	nano::asc_pull_req::payload_variant prepare (lazy_pulling::tag &);
 
-	void process (nano::asc_pull_ack::blocks_payload const & response, account_scan_strategy const &);
-	void process (nano::asc_pull_ack::account_info_payload const & response, lazy_bootstrap_strategy const &);
+	void process (nano::asc_pull_ack::blocks_payload const & response, account_scan::tag const &);
+	void process (nano::asc_pull_ack::account_info_payload const & response, lazy_pulling::tag const &);
 
 public: // account_sets
 	nano::bootstrap_ascending::account_sets::info_t info () const;

@@ -236,7 +236,7 @@ nano::account nano::bootstrap_ascending::service::wait_available_account ()
 	return { 0 };
 }
 
-auto nano::bootstrap_ascending::service::wait_next () -> std::optional<strategy_variant>
+auto nano::bootstrap_ascending::service::wait_next () -> std::optional<tag_strategy_variant>
 {
 	// Waits for account either from priority queue or database
 	auto account = wait_available_account ();
@@ -245,11 +245,11 @@ auto nano::bootstrap_ascending::service::wait_next () -> std::optional<strategy_
 		return {};
 	}
 
-	account_scan_strategy strategy{ {}, account };
+	account_scan::tag strategy{ {}, account };
 	return strategy;
 }
 
-bool nano::bootstrap_ascending::service::request (const strategy_variant & strategy, std::shared_ptr<nano::transport::channel> & channel)
+bool nano::bootstrap_ascending::service::request (const tag_strategy_variant & strategy, std::shared_ptr<nano::transport::channel> & channel)
 {
 	async_tag tag{ strategy };
 	tag.id = nano::bootstrap_ascending::generate_id ();
@@ -346,29 +346,32 @@ void nano::bootstrap_ascending::service::run_timeouts ()
 	}
 }
 
-nano::asc_pull_req::payload_variant nano::bootstrap_ascending::service::prepare (nano::bootstrap_ascending::service::account_scan_strategy & strategy)
+nano::asc_pull_req::payload_variant nano::bootstrap_ascending::service::prepare (nano::bootstrap_ascending::account_scan::tag & tag)
 {
 	nano::asc_pull_req::blocks_payload request;
 	request.count = config.bootstrap_ascending.pull_count;
 
+	const auto account = tag.account; // Requested account
+
 	// Check if the account picked has blocks, if it does, start the pull from the highest block
-	auto info = ledger.store.account.get (ledger.store.tx_begin_read (), strategy.account);
+	auto info = ledger.store.account.get (ledger.store.tx_begin_read (), account);
 	if (info)
 	{
-		strategy.type = account_scan_strategy::query_type::blocks_by_hash;
-		strategy.start = request.start = info->head;
+		tag.type = account_scan::tag::query_type::blocks_by_hash;
+		tag.start = request.start = info->head;
 		request.start_type = nano::asc_pull_req::hash_type::block;
 	}
 	else
 	{
-		strategy.type = account_scan_strategy::query_type::blocks_by_account;
-		strategy.start = request.start = strategy.account;
+		tag.type = account_scan::tag::query_type::blocks_by_account;
+		tag.start = request.start = account;
 		request.start_type = nano::asc_pull_req::hash_type::account;
 	}
+
 	return request;
 }
 
-nano::asc_pull_req::payload_variant nano::bootstrap_ascending::service::prepare (nano::bootstrap_ascending::service::lazy_bootstrap_strategy & strategy)
+nano::asc_pull_req::payload_variant nano::bootstrap_ascending::service::prepare (nano::bootstrap_ascending::lazy_pulling::tag & tag)
 {
 	nano::asc_pull_req::account_info_payload request;
 	return request;
@@ -401,14 +404,14 @@ void nano::bootstrap_ascending::service::process (nano::asc_pull_ack const & mes
 	}
 }
 
-void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::blocks_payload & response, const account_scan_strategy & strategy)
+void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::blocks_payload & response, const account_scan::tag & tag)
 {
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::reply);
 
-	auto result = strategy.verify (response);
+	auto result = tag.verify (response);
 	switch (result)
 	{
-		using enum account_scan_strategy::verify_result;
+		using enum account_scan::tag::verify_result;
 
 		case ok:
 		{
@@ -428,7 +431,7 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::bloc
 			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::nothing_new);
 
 			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.priority_down (strategy.account);
+			accounts.priority_down (tag.account);
 			throttle.add (false);
 		}
 		break;
@@ -447,7 +450,7 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::bloc
  * - nothing_new: when received response indicates that the account chain does not have more blocks
  * - ok: otherwise, if all checks pass
  */
-auto nano::bootstrap_ascending::service::account_scan_strategy::verify (const nano::asc_pull_ack::blocks_payload & response) const -> verify_result
+auto nano::bootstrap_ascending::account_scan::tag::verify (const nano::asc_pull_ack::blocks_payload & response) const -> verify_result
 {
 	auto const & blocks = response.blocks;
 
@@ -503,7 +506,7 @@ auto nano::bootstrap_ascending::service::account_scan_strategy::verify (const na
 	return verify_result::ok;
 }
 
-void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::account_info_payload & response, const lazy_bootstrap_strategy & strategy)
+void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::account_info_payload & response, const lazy_pulling::tag & tag)
 {
 	// TODO: Make use of account info
 }
