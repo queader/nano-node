@@ -2629,6 +2629,15 @@ TEST (node, DISABLED_vote_by_hash_epoch_block_republish)
 
 TEST (node, epoch_conflict_confirm)
 {
+	// Print easily visible separator
+	for (int i = 0; i < 10; ++i)
+	{
+		std::cout << "==" << std::endl;
+	}
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::cout << std::endl;
+
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
@@ -2683,15 +2692,6 @@ TEST (node, epoch_conflict_confirm)
 					  .sign (epoch_signer.prv, epoch_signer.pub)
 					  .work (*system.work.generate (open->hash ()))
 					  .build_shared ();
-
-	// Print easily visible separator
-	for (int i = 0; i < 10; ++i)
-	{
-		std::cout << "==" << std::endl;
-	}
-	std::cout << std::endl;
-	std::cout << std::endl;
-	std::cout << std::endl;
 
 	std::cout << "send: " << send->hash ().to_string () << " root: " << send->root ().to_string () << std::endl;
 	std::cout << "open: " << open->hash ().to_string () << " root: " << open->root ().to_string () << std::endl;

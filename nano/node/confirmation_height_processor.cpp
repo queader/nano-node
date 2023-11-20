@@ -157,6 +157,8 @@ void nano::confirmation_height_processor::unpause ()
 
 void nano::confirmation_height_processor::add (std::shared_ptr<nano::block> const & block_a)
 {
+	std::cout << "confirmation_height_processor::add hash: " << block_a->hash ().to_string () << std::endl;
+
 	{
 		nano::lock_guard<nano::mutex> lk (mutex);
 		awaiting_processing.get<tag_sequence> ().emplace_back (block_a);

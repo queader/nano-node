@@ -17,7 +17,7 @@ bool nano::store::lmdb::final_vote::put (store::write_transaction const & transa
 	}
 	else
 	{
-		std::cout << "put final vote for root: " << root.to_string ()
+		std::cout << "final vote store root: " << root.to_string ()
 				  << " hash: " << hash.to_string ()
 				  << std::endl;
 

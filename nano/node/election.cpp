@@ -151,9 +151,9 @@ void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_
 {
 	if (confirm_req_time () < (std::chrono::steady_clock::now () - last_req))
 	{
-		std::cout
-		<< "node: " << node.network.port << " "
-		<< "send_confirm_req for: " << status.winner->hash ().to_string () << " id: " << (void *)this << std::endl;
+		//		std::cout
+		//		<< "node: " << node.network.port << " "
+		//		<< "send_confirm_req for: " << status.winner->hash ().to_string () << " id: " << (void *)this << std::endl;
 
 		nano::lock_guard<nano::mutex> guard{ mutex };
 		if (!solicitor_a.add (*this))

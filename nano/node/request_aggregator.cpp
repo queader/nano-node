@@ -41,11 +41,11 @@ void nano::request_aggregator::add (std::shared_ptr<nano::transport::channel> co
 	auto const endpoint (nano::transport::map_endpoint_to_v6 (channel_a->get_endpoint ()));
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
-	for (auto const & [hash, root] : hashes_roots_a)
-	{
-		std::cout
-		<< "request aggregator request #1 for: " << hash.to_string () << std::endl;
-	}
+//	for (auto const & [hash, root] : hashes_roots_a)
+//	{
+//		std::cout
+//		<< "request aggregator request #1 for: " << hash.to_string () << std::endl;
+//	}
 
 	// Protecting from ever-increasing memory usage when request are consumed slower than generated
 	// Reject request if the oldest request has not yet been processed after its deadline + a modest margin
@@ -88,11 +88,11 @@ void nano::request_aggregator::add (std::shared_ptr<nano::transport::channel> co
 		});
 		if (requests.size () == 1)
 		{
-			for (auto const & [hash, root] : hashes_roots_a)
-			{
-				std::cout
-				<< "request aggregator request #5 for: " << hash.to_string () << std::endl;
-			}
+//			for (auto const & [hash, root] : hashes_roots_a)
+//			{
+//				std::cout
+//				<< "request aggregator request #5 for: " << hash.to_string () << std::endl;
+//			}
 
 			lock.unlock ();
 			condition.notify_all ();
@@ -113,7 +113,7 @@ void nano::request_aggregator::run ()
 	{
 		if (!requests.empty ())
 		{
-			std::cout << "request aggregator loop" << std::endl;
+//			std::cout << "request aggregator loop" << std::endl;
 
 			auto & requests_by_deadline (requests.get<tag_deadline> ());
 			auto front (requests_by_deadline.begin ());
@@ -235,12 +235,12 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 	std::unordered_set<nano::block_hash> cached_hashes;
 	for (auto const & [hash, root] : requests_a)
 	{
-		std::cout << "aggregate: " << hash.to_string () << " root: " << root.to_string () << std::endl;
+		//		std::cout << "aggregate: " << hash.to_string () << " root: " << root.to_string () << std::endl;
 
 		// 0. Hashes already sent
 		if (cached_hashes.count (hash) > 0)
 		{
-			std::cout << "aggregate drop: " << hash.to_string () << std::endl;
+			//			std::cout << "aggregate drop: " << hash.to_string () << std::endl;
 			continue;
 		}
 
@@ -248,7 +248,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 		auto find_votes (local_votes.votes (root, hash));
 		if (!find_votes.empty ())
 		{
-			std::cout << "aggregate already cached: " << hash.to_string () << std::endl;
+			//			std::cout << "aggregate already cached: " << hash.to_string () << std::endl;
 			for (auto & found_vote : find_votes)
 			{
 				cached_votes.push_back (found_vote);
@@ -268,14 +268,14 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			auto final_vote_hashes (ledger.store.final_vote.get (transaction, root));
 			if (!final_vote_hashes.empty ())
 			{
-				std::cout << "aggregate final vote: " << hash.to_string ()
-						  << " final_vote_hashes.size (): " << final_vote_hashes.size ()
-						  << std::endl;
+				//				std::cout << "aggregate final vote: " << hash.to_string ()
+				//						  << " final_vote_hashes.size (): " << final_vote_hashes.size ()
+				//						  << std::endl;
 
-				for (auto const & final_vote_hash : final_vote_hashes)
-				{
-					std::cout << "aggregate final vote hash: " << final_vote_hash.to_string () << std::endl;
-				}
+				//				for (auto const & final_vote_hash : final_vote_hashes)
+				//				{
+				//					std::cout << "aggregate final vote hash: " << final_vote_hash.to_string () << std::endl;
+				//				}
 
 				generate_final_vote = true;
 				block = ledger.store.block.get (transaction, final_vote_hashes[0]);
@@ -291,7 +291,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			// 3. Election winner by hash
 			if (block == nullptr)
 			{
-				std::cout << "aggregate election winner: " << hash.to_string () << std::endl;
+				//				std::cout << "aggregate election winner: " << hash.to_string () << std::endl;
 
 				block = active.winner (hash);
 			}
@@ -299,7 +299,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			// 4. Ledger by hash
 			if (block == nullptr)
 			{
-				std::cout << "aggregate ledger by hash: " << hash.to_string () << std::endl;
+				//				std::cout << "aggregate ledger by hash: " << hash.to_string () << std::endl;
 
 				block = ledger.store.block.get (transaction, hash);
 				// Confirmation status. Generate final votes for confirmed
@@ -314,7 +314,7 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 			// 5. Ledger by root
 			if (block == nullptr && !root.is_zero ())
 			{
-				std::cout << "aggregate ledger by root: " << hash.to_string () << std::endl;
+				//				std::cout << "aggregate ledger by root: " << hash.to_string () << std::endl;
 
 				// Search for block root
 				auto successor (ledger.store.block.successor (transaction, root.as_block_hash ()));
@@ -371,16 +371,16 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 					}
 				}
 
-				for (auto const & block : to_generate)
-				{
-					std::cout
-					<< "aggregate to_generate #temp: " << block->hash ().to_string () << std::endl;
-				}
-				for (auto const & block : to_generate_final)
-				{
-					std::cout
-					<< "aggregate to_generate_final #temp: " << block->hash ().to_string () << std::endl;
-				}
+				//				for (auto const & block : to_generate)
+				//				{
+				//					std::cout
+				//					<< "aggregate to_generate #temp: " << block->hash ().to_string () << std::endl;
+				//				}
+				//				for (auto const & block : to_generate_final)
+				//				{
+				//					std::cout
+				//					<< "aggregate to_generate_final #temp: " << block->hash ().to_string () << std::endl;
+				//				}
 
 				// Let the node know about the alternative block
 				if (block->hash () != hash)
@@ -408,16 +408,16 @@ std::pair<std::vector<std::shared_ptr<nano::block>>, std::vector<std::shared_ptr
 	stats.add (nano::stat::type::requests, nano::stat::detail::requests_cached_hashes, stat::dir::in, cached_hashes.size ());
 	stats.add (nano::stat::type::requests, nano::stat::detail::requests_cached_votes, stat::dir::in, cached_votes.size ());
 
-	for (auto const & block : to_generate)
-	{
-		std::cout
-		<< "aggregate to_generate: " << block->hash ().to_string () << std::endl;
-	}
-	for (auto const & block : to_generate_final)
-	{
-		std::cout
-		<< "aggregate to_generate_final: " << block->hash ().to_string () << std::endl;
-	}
+	//	for (auto const & block : to_generate)
+	//	{
+	//		std::cout
+	//		<< "aggregate to_generate: " << block->hash ().to_string () << std::endl;
+	//	}
+	//	for (auto const & block : to_generate_final)
+	//	{
+	//		std::cout
+	//		<< "aggregate to_generate_final: " << block->hash ().to_string () << std::endl;
+	//	}
 
 	return std::make_pair (to_generate, to_generate_final);
 }

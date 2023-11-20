@@ -9,6 +9,7 @@
 #include <nano/node/wallet.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/store/component.hpp>
+#include <nano/lib/stacktrace.hpp>
 
 #include <chrono>
 
@@ -232,6 +233,12 @@ void nano::vote_generator::stop ()
 
 void nano::vote_generator::add (const root & root, const block_hash & hash)
 {
+	std::cout << "vote_generator::add"
+			  << " root: " << root.to_string ()
+			  << " hash: " << hash.to_string ()
+			  << " stacktrace: " << nano::generate_stacktrace ()
+			  << std::endl;
+
 	vote_generation_queue.add (std::make_pair (root, hash));
 }
 
