@@ -36,6 +36,8 @@ namespace transport
 
 namespace nano::bootstrap_ascending
 {
+class service;
+
 template <typename Self, class Response>
 class tag_base
 {
@@ -88,6 +90,59 @@ public:
 
 		verify_result verify (nano::asc_pull_ack::blocks_payload const & response) const;
 	};
+
+public:
+	account_scan (bootstrap_ascending_config const &, service &, nano::ledger &, nano::network_constants &, nano::block_processor &, nano::stats &);
+	~account_scan ();
+
+	void start ();
+	void stop ();
+
+	void process (nano::asc_pull_ack::blocks_payload const & response, account_scan::tag const &);
+	void cleanup ();
+
+	std::size_t blocked_size () const;
+	std::size_t priority_size () const;
+
+private: // Dependencies
+	bootstrap_ascending_config const & config;
+	service & service;
+	nano::ledger & ledger;
+	nano::network_constants & network_consts;
+	nano::block_processor & block_processor;
+	nano::stats & stats;
+
+private:
+	void run ();
+	void run_one ();
+
+	/* Inspects a block that has been processed by the block processor */
+	void inspect (store::transaction const &, nano::process_return const & result, nano::block const & block);
+
+	/* Waits until a suitable account outside of cool down period is available */
+	nano::account available_account ();
+	nano::account wait_available_account ();
+
+	/* Throttles requesting new blocks, not to overwhelm blockprocessor */
+	void wait_blockprocessor ();
+
+	void throttle_if_needed (nano::unique_lock<nano::mutex> & lock);
+	// Calculates a lookback size based on the size of the ledger where larger ledgers have a larger sample count
+	std::size_t compute_throttle_size () const;
+
+private:
+	nano::bootstrap_ascending::account_sets accounts;
+	nano::bootstrap_ascending::buffered_iterator iterator;
+	nano::bootstrap_ascending::throttle throttle;
+
+	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
+	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
+	nano::bandwidth_limiter database_limiter;
+
+	bool stopped{ false };
+	mutable nano::mutex mutex;
+	mutable nano::condition_variable condition;
+	std::thread thread;
 };
 
 class lazy_pulling final
@@ -112,10 +167,10 @@ public:
 	 */
 	void process (nano::asc_pull_ack const & message, std::shared_ptr<nano::transport::channel> channel);
 
+	void wait_next ();
+
 public: // Info
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
-	std::size_t blocked_size () const;
-	std::size_t priority_size () const;
 	std::size_t score_size () const;
 
 private: // Dependencies
@@ -131,6 +186,8 @@ public: // Strategies
 	lazy_pulling lazy_pulling;
 
 	using tag_strategy_variant = std::variant<account_scan::tag, lazy_pulling::tag>;
+
+	void request (tag_strategy_variant const &);
 
 public: // Tag
 	struct async_tag
@@ -151,26 +208,13 @@ public: // Events
 	nano::observer_set<async_tag const &> on_timeout;
 
 private:
-	/* Inspects a block that has been processed by the block processor */
-	void inspect (store::transaction const &, nano::process_return const & result, nano::block const & block);
-
-	void throttle_if_needed (nano::unique_lock<nano::mutex> & lock);
-	void run ();
-	bool run_one ();
 	void run_timeouts ();
 
 	bool request (tag_strategy_variant const &, std::shared_ptr<nano::transport::channel> &);
 	void track (async_tag const & tag);
 
-	std::optional<tag_strategy_variant> wait_next ();
-
-	/* Throttles requesting new blocks, not to overwhelm blockprocessor */
-	void wait_blockprocessor ();
 	/* Waits for channel with free capacity for bootstrap messages */
 	std::shared_ptr<nano::transport::channel> wait_available_channel ();
-	/* Waits until a suitable account outside of cool down period is available */
-	nano::account available_account ();
-	nano::account wait_available_account ();
 
 public:
 	nano::asc_pull_req::payload_variant prepare (account_scan::tag &);
@@ -179,17 +223,7 @@ public:
 	void process (nano::asc_pull_ack::blocks_payload const & response, account_scan::tag const &);
 	void process (nano::asc_pull_ack::account_info_payload const & response, lazy_pulling::tag const &);
 
-public: // account_sets
-	nano::bootstrap_ascending::account_sets::info_t info () const;
-
 private:
-	nano::bootstrap_ascending::account_sets accounts;
-	nano::bootstrap_ascending::buffered_iterator iterator;
-	nano::bootstrap_ascending::throttle throttle;
-
-	// Calculates a lookback size based on the size of the ledger where larger ledgers have a larger sample count
-	std::size_t compute_throttle_size () const;
-
 	// clang-format off
 	class tag_sequenced {};
 	class tag_id {};
@@ -205,9 +239,6 @@ private:
 	ordered_tags tags;
 
 	nano::bootstrap_ascending::peer_scoring scoring;
-	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
-	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
-	nano::bandwidth_limiter database_limiter;
 
 	bool stopped{ false };
 	mutable nano::mutex mutex;
