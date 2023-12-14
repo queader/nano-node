@@ -899,6 +899,7 @@ std::string nano::to_string (double const value_a, int const precision_a)
 #pragma warning(disable : 4146) // warning C4146: unary minus operator applied to unsigned type, result still unsigned
 #endif
 
+/*
 uint64_t nano::difficulty::from_multiplier (double const multiplier_a, uint64_t const base_difficulty_a)
 {
 	debug_assert (multiplier_a > 0.);
@@ -907,7 +908,7 @@ uint64_t nano::difficulty::from_multiplier (double const multiplier_a, uint64_t 
 	{
 		return 0;
 	}
-	else if (reverse_difficulty != 0 || base_difficulty_a == 0 || multiplier_a < 1.)
+	if (reverse_difficulty != 0 || base_difficulty_a == 0 || multiplier_a < 1.)
 	{
 		return -(static_cast<uint64_t> (reverse_difficulty));
 	}
@@ -921,6 +922,51 @@ double nano::difficulty::to_multiplier (uint64_t const difficulty_a, uint64_t co
 {
 	debug_assert (difficulty_a > 0);
 	return static_cast<double> (-base_difficulty_a) / (-difficulty_a);
+}
+*/
+
+/*
+uint64_t nano::difficulty::from_multiplier (double const multiplier_a, uint64_t const base_difficulty_a)
+{
+	assert (multiplier_a > 0.);
+
+	// Use 128-bit integer to handle potential overflow
+	nano::uint128_t reverse_difficulty = static_cast<nano::uint128_t> (base_difficulty_a) / multiplier_a;
+
+	if (reverse_difficulty > std::numeric_limits<std::uint64_t>::max ())
+	{
+		return 0;
+	}
+	else
+	{
+		return static_cast<uint64_t> (reverse_difficulty);
+	}
+}
+*/
+
+uint64_t nano::difficulty::from_multiplier (double const multiplier_a, uint64_t const base_difficulty_a)
+{
+	assert (multiplier_a > 0.);
+
+	// Convert base_difficulty_a to double for the division
+	double reverse_difficulty_double = static_cast<double> (base_difficulty_a) / multiplier_a;
+
+	// Convert back to uint128_t, then to uint64_t with checks
+	nano::uint128_t reverse_difficulty = static_cast<nano::uint128_t> (reverse_difficulty_double);
+	if (reverse_difficulty > std::numeric_limits<std::uint64_t>::max ())
+	{
+		return 0;
+	}
+	else
+	{
+		return static_cast<uint64_t> (reverse_difficulty);
+	}
+}
+
+double nano::difficulty::to_multiplier (uint64_t const difficulty_a, uint64_t const base_difficulty_a)
+{
+	assert (difficulty_a > 0);
+	return static_cast<double> (base_difficulty_a) / difficulty_a;
 }
 
 #ifdef _WIN32
