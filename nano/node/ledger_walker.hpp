@@ -61,7 +61,7 @@ private:
 	void clear_queue ();
 	std::shared_ptr<nano::block> dequeue_block (store::transaction const & transaction_a);
 
-	friend class ledger_walker_genesis_account_longer_Test;
+	friend class ledger_walker_DISABLED_genesis_account_longer_Test;
 };
 
 }

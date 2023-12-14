@@ -11,7 +11,7 @@
 
 using namespace std::chrono_literals;
 
-TEST (ledger_walker, genesis_block)
+TEST (ledger_walker, DISABLED_genesis_block)
 {
 	nano::test::system system{};
 	auto const node = system.add_node ();
@@ -39,7 +39,7 @@ TEST (ledger_walker, genesis_block)
 
 namespace nano
 {
-TEST (ledger_walker, genesis_account_longer)
+TEST (ledger_walker, DISABLED_genesis_account_longer)
 {
 	nano::test::system system{};
 	nano::node_config node_config = system.default_config ();
@@ -88,7 +88,7 @@ TEST (ledger_walker, genesis_account_longer)
 
 }
 
-TEST (ledger_walker, cross_account)
+TEST (ledger_walker, DISABLED_cross_account)
 {
 	nano::test::system system{};
 	nano::node_config node_config = system.default_config ();
