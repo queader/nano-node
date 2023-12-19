@@ -146,9 +146,6 @@ if(${NANO_ASIO_HANDLER_TRACKING} GREATER 0)
                   -DBOOST_ASIO_ENABLE_HANDLER_TRACKING)
 endif()
 
-option(NANO_ASAN_INT "Enable ASan+UBSan+Integer overflow" OFF)
-option(NANO_ASAN "Enable ASan+UBSan" OFF)
-option(NANO_TSAN "Enable TSan" OFF)
 option(NANO_SIMD_OPTIMIZATIONS
        "Enable CPU-specific SIMD optimizations (SSE/AVX or NEON, e.g.)" OFF)
 option(
@@ -216,55 +213,72 @@ endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(USING_ASAN (NANO_ASAN OR RAIBLOCKS_ASAN))
-set(USING_ASAN_INT (NANO_ASAN_INT OR RAIBLOCKS_ASAN_INT))
-set(USING_TSAN (NANO_TSAN OR RAIBLOCKS_TSAN))
-
 find_package(Threads)
+
+# Sanitizers
+option(NANO_ASAN "Enable ASan" OFF)
+if(${NANO_ASAN})
+    message(STATUS "Using Asan")
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
+
+#    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+#    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+
+    add_definitions(-DED25519_NO_INLINE_ASM)
+endif ()
+
+option(NANO_ASAN_INT "Enable ASan+Integer overflow" OFF)
+if(${NANO_ASAN_INT})
+    message(STATUS "Using ASan+Integer overflow")
+    add_compile_options(-fsanitize=address,integer)
+    add_link_options(-fsanitize=address,integer)
+
+#    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+#    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+
+    add_definitions(-DED25519_NO_INLINE_ASM)
+endif ()
+
+option(NANO_UBSAN "Enable UBSan" OFF)
+if(${NANO_UBSAN})
+    message(STATUS "Using UBSan")
+    add_compile_options(-fsanitize=undefined)
+    add_link_options(-fsanitize=undefined)
+
+    add_definitions(-DED25519_NO_INLINE_ASM)
+    add_definitions(-DROCKSDB_UBSAN_RUN)
+endif ()
+
+option(NANO_TSAN "Enable TSan" OFF)
+if(${NANO_TSAN})
+    message(STATUS "Using TSan")
+    add_compile_options(-fsanitize=thread)
+    add_link_options(-fsanitize=thread)
+
+    add_definitions(-DED25519_NO_INLINE_ASM)
+endif ()
+
+if(NANO_WARN_TO_ERR)
+    add_compile_options(-Werror -Wno-deprecated-declarations)
+endif()
 
 if(WIN32)
   find_library(PSAPI Psapi)
   add_definitions(-D_WIN32_WINNT=0x0600 -DWINVER=0x0600 -DMINIUPNP_STATICLIB
                   -D_CRT_SECURE_NO_WARNINGS -DNOGDI /EHsc)
 
-  if(${USING_TSAN}
-     OR ${USING_ASAN}
-     OR ${USING_ASAN_INT})
-    message(WARNING "Cannot use TSAN or ASAN on Windows, sanitizers ignored")
-  endif()
+#  if(${USING_TSAN}
+#     OR ${USING_ASAN}
+#     OR ${USING_ASAN_INT})
+#    message(WARNING "Cannot use TSAN or ASAN on Windows, sanitizers ignored")
+#  endif()
 
 else()
-  if(NANO_WARN_TO_ERR)
-    add_compile_options(-Werror -Wno-deprecated-declarations)
-  endif()
 
-  if((${USING_TSAN} AND ${USING_ASAN}) OR (${USING_TSAN} AND ${USING_ASAN_INT}))
-    message(WARNING "Cannot use TSAN/ASAN together, defaulting to ASAN")
-  endif()
-
-  if(${USING_ASAN} OR ${USING_ASAN_INT})
-    if(${USING_ASAN_INT})
-      message(STATUS "Using ASAN+UBSAN+Integer overflow")
-      add_compile_options(-fsanitize=address,undefined,integer)
-    else()
-      message(STATUS "Using ASAN+UBSAN")
-      add_compile_options(-fsanitize=address,undefined)
-    endif()
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      add_compile_options(
-              "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist")
-    endif()
-    add_definitions(-DED25519_NO_INLINE_ASM)
-    add_definitions(-DROCKSDB_UBSAN_RUN)
-  elseif(${USING_TSAN})
-    message(STATUS "Using TSAN")
-    add_compile_options(-fsanitize=thread)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      add_compile_options(
-        "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist")
-    endif()
-    add_definitions(-DED25519_NO_INLINE_ASM)
-  endif()
+#  if((${USING_TSAN} AND ${USING_ASAN}) OR (${USING_TSAN} AND ${USING_ASAN_INT}))
+#    message(WARNING "Cannot use TSAN/ASAN together, defaulting to ASAN")
+#  endif()
 
   if(NANO_FUZZER_TEST)
     add_compile_options(-fsanitize=fuzzer-no-link -fno-omit-frame-pointer)
@@ -327,30 +341,6 @@ else()
     set(PLATFORM_LINK_FLAGS "-static-libgcc -static-libstdc++")
   endif()
 
-  if(${USING_ASAN_INT})
-    set(PLATFORM_LINK_FLAGS
-        "${PLATFORM_LINK_FLAGS} -fsanitize=address,undefined,integer")
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      set(PLATFORM_LINK_FLAGS
-              "${PLATFORM_LINK_FLAGS} -fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist"
-      )
-    endif()
-  elseif(${USING_ASAN})
-    set(PLATFORM_LINK_FLAGS
-        "${PLATFORM_LINK_FLAGS} -fsanitize=address,undefined")
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      set(PLATFORM_LINK_FLAGS
-              "${PLATFORM_LINK_FLAGS} -fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist"
-      )
-    endif()
-  elseif(${USING_TSAN})
-    set(PLATFORM_LINK_FLAGS "${PLATFORM_LINK_FLAGS} -fsanitize=thread")
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      set(PLATFORM_LINK_FLAGS
-          "${PLATFORM_LINK_FLAGS} -fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist"
-      )
-    endif()
-  endif()
   if(NANO_FUZZER_TEST)
     set(PLATFORM_LINK_FLAGS "${PLATFORM_LINK_FLAGS} -fsanitize=fuzzer-no-link")
   endif()
