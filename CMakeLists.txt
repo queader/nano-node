@@ -250,6 +250,10 @@ else()
       message(STATUS "Using ASAN+UBSAN")
       add_compile_options(-fsanitize=address,undefined)
     endif()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      add_compile_options(
+              "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist")
+    endif()
     add_definitions(-DED25519_NO_INLINE_ASM)
     add_definitions(-DROCKSDB_UBSAN_RUN)
   elseif(${USING_TSAN})
@@ -257,7 +261,7 @@ else()
     add_compile_options(-fsanitize=thread)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       add_compile_options(
-        "-fsanitize-blacklist=${PROJECT_SOURCE_DIR}/tsan_clang_blacklist")
+        "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist")
     endif()
     add_definitions(-DED25519_NO_INLINE_ASM)
   endif()
@@ -326,14 +330,24 @@ else()
   if(${USING_ASAN_INT})
     set(PLATFORM_LINK_FLAGS
         "${PLATFORM_LINK_FLAGS} -fsanitize=address,undefined,integer")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      set(PLATFORM_LINK_FLAGS
+              "${PLATFORM_LINK_FLAGS} -fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist"
+      )
+    endif()
   elseif(${USING_ASAN})
     set(PLATFORM_LINK_FLAGS
         "${PLATFORM_LINK_FLAGS} -fsanitize=address,undefined")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      set(PLATFORM_LINK_FLAGS
+              "${PLATFORM_LINK_FLAGS} -fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist"
+      )
+    endif()
   elseif(${USING_TSAN})
     set(PLATFORM_LINK_FLAGS "${PLATFORM_LINK_FLAGS} -fsanitize=thread")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       set(PLATFORM_LINK_FLAGS
-          "${PLATFORM_LINK_FLAGS} -fsanitize-blacklist=${PROJECT_SOURCE_DIR}/tsan_clang_blacklist"
+          "${PLATFORM_LINK_FLAGS} -fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist"
       )
     endif()
   endif()

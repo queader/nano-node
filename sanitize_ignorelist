@@ -1,5 +1,2 @@
-src:*mdb.c
-src:*midl.c
-
 src:*crypto/ed25519*
 src:*crypto/blake2*
