@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euox pipefail
+shopt -s nocasematch  # Enable case-insensitive matching
 
 BUILD_TARGET=""
 if [[ ${1:-} ]]; then
