@@ -218,55 +218,71 @@ find_package(Threads)
 # Sanitizers
 option(NANO_ASAN "Enable ASan" OFF)
 if(${NANO_ASAN})
-    message(STATUS "Using Asan")
-    add_compile_options(-fsanitize=address)
-    add_link_options(-fsanitize=address)
+  message(STATUS "Using Asan")
+  add_compile_options(-fsanitize=address)
+  add_link_options(-fsanitize=address)
 
-    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
-    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+    add_link_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+  endif()
 
-    add_definitions(-DED25519_NO_INLINE_ASM)
-endif ()
+  add_definitions(-DED25519_NO_INLINE_ASM)
+endif()
 
 option(NANO_ASAN_INT "Enable ASan+Integer overflow" OFF)
 if(${NANO_ASAN_INT})
-    message(STATUS "Using ASan+Integer overflow")
-    add_compile_options(-fsanitize=address,integer)
-    add_link_options(-fsanitize=address,integer)
+  message(STATUS "Using ASan+Integer overflow")
+  add_compile_options(-fsanitize=address,integer)
+  add_link_options(-fsanitize=address,integer)
 
-    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
-    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+    add_link_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+  endif()
 
-    add_definitions(-DED25519_NO_INLINE_ASM)
-endif ()
+  add_definitions(-DED25519_NO_INLINE_ASM)
+endif()
 
 option(NANO_UBSAN "Enable UBSan" OFF)
 if(${NANO_UBSAN})
-    message(STATUS "Using UBSan")
-    add_compile_options(-fsanitize=undefined)
-    add_link_options(-fsanitize=undefined)
+  message(STATUS "Using UBSan")
+  add_compile_options(-fsanitize=undefined)
+  add_link_options(-fsanitize=undefined)
 
-    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_ubsan")
-    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_ubsan")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_ubsan")
+    add_link_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_ubsan")
+  endif()
 
-    add_definitions(-DED25519_NO_INLINE_ASM)
-    add_definitions(-DROCKSDB_UBSAN_RUN)
-endif ()
+  add_definitions(-DED25519_NO_INLINE_ASM)
+  add_definitions(-DROCKSDB_UBSAN_RUN)
+endif()
 
 option(NANO_TSAN "Enable TSan" OFF)
 if(${NANO_TSAN})
-    message(STATUS "Using TSan")
-    add_compile_options(-fsanitize=thread)
-    add_link_options(-fsanitize=thread)
+  message(STATUS "Using TSan")
+  add_compile_options(-fsanitize=thread)
+  add_link_options(-fsanitize=thread)
 
-    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_tsan")
-    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_tsan")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_tsan")
+    add_link_options(
+      "-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_tsan")
+  endif()
 
-    add_definitions(-DED25519_NO_INLINE_ASM)
-endif ()
+  add_definitions(-DED25519_NO_INLINE_ASM)
+endif()
 
 if(NANO_WARN_TO_ERR)
-    add_compile_options(-Werror -Wno-deprecated-declarations)
+  add_compile_options(-Werror -Wno-deprecated-declarations)
 endif()
 
 if(WIN32)
