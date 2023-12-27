@@ -222,8 +222,8 @@ if(${NANO_ASAN})
     add_compile_options(-fsanitize=address)
     add_link_options(-fsanitize=address)
 
-#    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
-#    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
 
     add_definitions(-DED25519_NO_INLINE_ASM)
 endif ()
@@ -234,8 +234,8 @@ if(${NANO_ASAN_INT})
     add_compile_options(-fsanitize=address,integer)
     add_link_options(-fsanitize=address,integer)
 
-#    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
-#    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
+    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_asan")
 
     add_definitions(-DED25519_NO_INLINE_ASM)
 endif ()
@@ -246,6 +246,9 @@ if(${NANO_UBSAN})
     add_compile_options(-fsanitize=undefined)
     add_link_options(-fsanitize=undefined)
 
+    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_ubsan")
+    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_ubsan")
+
     add_definitions(-DED25519_NO_INLINE_ASM)
     add_definitions(-DROCKSDB_UBSAN_RUN)
 endif ()
@@ -255,6 +258,9 @@ if(${NANO_TSAN})
     message(STATUS "Using TSan")
     add_compile_options(-fsanitize=thread)
     add_link_options(-fsanitize=thread)
+
+    add_compile_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_tsan")
+    add_link_options("-fsanitize-ignorelist=${PROJECT_SOURCE_DIR}/sanitize_ignorelist_tsan")
 
     add_definitions(-DED25519_NO_INLINE_ASM)
 endif ()
