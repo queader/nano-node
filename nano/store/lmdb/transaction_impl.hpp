@@ -43,6 +43,7 @@ public:
 
 private:
 	nano::store::lmdb::env const & env;
+	std::thread::id const thread_id{ std::this_thread::get_id () };
 };
 
 class write_transaction_impl final : public store::write_transaction_impl
@@ -61,6 +62,7 @@ public:
 
 private:
 	nano::store::lmdb::env const & env;
+	std::thread::id const thread_id{ std::this_thread::get_id () };
 };
 } // namespace nano::store::lmdb
 

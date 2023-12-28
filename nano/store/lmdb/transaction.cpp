@@ -50,6 +50,7 @@ nano::store::lmdb::read_transaction_impl::read_transaction_impl (nano::store::lm
 
 nano::store::lmdb::read_transaction_impl::~read_transaction_impl ()
 {
+	debug_assert (std::this_thread::get_id () == thread_id);
 	{
 		nano::lock_guard<std::mutex> guard{ env.mutex };
 		// This uses commit rather than abort, as it is needed when opening databases with a read only transaction
@@ -61,6 +62,7 @@ nano::store::lmdb::read_transaction_impl::~read_transaction_impl ()
 
 void nano::store::lmdb::read_transaction_impl::reset ()
 {
+	debug_assert (std::this_thread::get_id () == thread_id);
 	{
 		nano::lock_guard<std::mutex> guard{ env.mutex };
 		mdb_txn_reset (handle);
@@ -70,6 +72,7 @@ void nano::store::lmdb::read_transaction_impl::reset ()
 
 void nano::store::lmdb::read_transaction_impl::renew ()
 {
+	debug_assert (std::this_thread::get_id () == thread_id);
 	{
 		nano::lock_guard<std::mutex> guard{ env.mutex };
 		auto status (mdb_txn_renew (handle));
@@ -80,6 +83,7 @@ void nano::store::lmdb::read_transaction_impl::renew ()
 
 void * nano::store::lmdb::read_transaction_impl::get_handle () const
 {
+	debug_assert (std::this_thread::get_id () == thread_id);
 	return handle;
 }
 
@@ -100,6 +104,7 @@ void nano::store::lmdb::write_transaction_impl::commit ()
 {
 	if (active)
 	{
+		debug_assert (std::this_thread::get_id () == thread_id);
 		{
 			nano::lock_guard<std::mutex> guard{ env.mutex };
 			auto status = mdb_txn_commit (handle);
@@ -115,6 +120,7 @@ void nano::store::lmdb::write_transaction_impl::commit ()
 
 void nano::store::lmdb::write_transaction_impl::renew ()
 {
+	debug_assert (std::this_thread::get_id () == thread_id);
 	{
 		auto status (mdb_txn_begin (env, nullptr, 0, &handle));
 		release_assert (status == MDB_SUCCESS, mdb_strerror (status));
@@ -125,6 +131,7 @@ void nano::store::lmdb::write_transaction_impl::renew ()
 
 void * nano::store::lmdb::write_transaction_impl::get_handle () const
 {
+	debug_assert (std::this_thread::get_id () == thread_id);
 	return handle;
 }
 
