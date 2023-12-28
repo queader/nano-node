@@ -34,11 +34,15 @@ class read_transaction_impl final : public store::read_transaction_impl
 public:
 	read_transaction_impl (nano::store::lmdb::env const &, txn_callbacks mdb_txn_callbacks);
 	~read_transaction_impl ();
+
 	void reset () override;
 	void renew () override;
 	void * get_handle () const override;
 	MDB_txn * handle;
 	lmdb::txn_callbacks txn_callbacks;
+
+private:
+	nano::store::lmdb::env const & env;
 };
 
 class write_transaction_impl final : public store::write_transaction_impl
@@ -46,14 +50,17 @@ class write_transaction_impl final : public store::write_transaction_impl
 public:
 	write_transaction_impl (nano::store::lmdb::env const &, txn_callbacks mdb_txn_callbacks);
 	~write_transaction_impl ();
+
 	void commit () override;
 	void renew () override;
 	void * get_handle () const override;
 	bool contains (nano::tables table_a) const override;
 	MDB_txn * handle;
-	nano::store::lmdb::env const & env;
 	lmdb::txn_callbacks txn_callbacks;
 	bool active{ true };
+
+private:
+	nano::store::lmdb::env const & env;
 };
 } // namespace nano::store::lmdb
 

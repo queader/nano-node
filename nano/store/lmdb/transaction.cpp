@@ -37,31 +37,44 @@ private:
 
 nano::store::lmdb::read_transaction_impl::read_transaction_impl (nano::store::lmdb::env const & environment_a, nano::store::lmdb::txn_callbacks txn_callbacks_a) :
 	store::read_transaction_impl (environment_a.store_id),
-	txn_callbacks (txn_callbacks_a)
+	txn_callbacks (txn_callbacks_a),
+	env (environment_a)
 {
-	auto status (mdb_txn_begin (environment_a, nullptr, MDB_RDONLY, &handle));
-	release_assert (status == 0);
+	{
+		nano::lock_guard<std::mutex> guard{ env.mutex };
+		auto status (mdb_txn_begin (environment_a, nullptr, MDB_RDONLY, &handle));
+		release_assert (status == 0);
+	}
 	txn_callbacks.txn_start (this);
 }
 
 nano::store::lmdb::read_transaction_impl::~read_transaction_impl ()
 {
-	// This uses commit rather than abort, as it is needed when opening databases with a read only transaction
-	auto status (mdb_txn_commit (handle));
-	release_assert (status == MDB_SUCCESS);
+	{
+		nano::lock_guard<std::mutex> guard{ env.mutex };
+		// This uses commit rather than abort, as it is needed when opening databases with a read only transaction
+		auto status (mdb_txn_commit (handle));
+		release_assert (status == MDB_SUCCESS);
+	}
 	txn_callbacks.txn_end (this);
 }
 
 void nano::store::lmdb::read_transaction_impl::reset ()
 {
-	mdb_txn_reset (handle);
+	{
+		nano::lock_guard<std::mutex> guard{ env.mutex };
+		mdb_txn_reset (handle);
+	}
 	txn_callbacks.txn_end (this);
 }
 
 void nano::store::lmdb::read_transaction_impl::renew ()
 {
-	auto status (mdb_txn_renew (handle));
-	release_assert (status == 0);
+	{
+		nano::lock_guard<std::mutex> guard{ env.mutex };
+		auto status (mdb_txn_renew (handle));
+		release_assert (status == 0);
+	}
 	txn_callbacks.txn_start (this);
 }
 
@@ -72,8 +85,8 @@ void * nano::store::lmdb::read_transaction_impl::get_handle () const
 
 nano::store::lmdb::write_transaction_impl::write_transaction_impl (nano::store::lmdb::env const & environment_a, nano::store::lmdb::txn_callbacks txn_callbacks_a) :
 	store::write_transaction_impl (environment_a.store_id),
-	env (environment_a),
-	txn_callbacks (txn_callbacks_a)
+	txn_callbacks (txn_callbacks_a),
+	env (environment_a)
 {
 	renew ();
 }
@@ -87,10 +100,13 @@ void nano::store::lmdb::write_transaction_impl::commit ()
 {
 	if (active)
 	{
-		auto status = mdb_txn_commit (handle);
-		if (status != MDB_SUCCESS)
 		{
-			release_assert (false && "Unable to write to the LMDB database", mdb_strerror (status));
+			nano::lock_guard<std::mutex> guard{ env.mutex };
+			auto status = mdb_txn_commit (handle);
+			if (status != MDB_SUCCESS)
+			{
+				release_assert (false && "Unable to write to the LMDB database", mdb_strerror (status));
+			}
 		}
 		txn_callbacks.txn_end (this);
 		active = false;
@@ -99,8 +115,10 @@ void nano::store::lmdb::write_transaction_impl::commit ()
 
 void nano::store::lmdb::write_transaction_impl::renew ()
 {
-	auto status (mdb_txn_begin (env, nullptr, 0, &handle));
-	release_assert (status == MDB_SUCCESS, mdb_strerror (status));
+	{
+		auto status (mdb_txn_begin (env, nullptr, 0, &handle));
+		release_assert (status == MDB_SUCCESS, mdb_strerror (status));
+	}
 	txn_callbacks.txn_start (this);
 	active = true;
 }

@@ -69,5 +69,11 @@ public:
 	MDB_txn * tx (store::transaction const & transaction_a) const;
 	MDB_env * environment;
 	nano::id_dispenser::id_t const store_id{ id_gen.next_id () };
+
+private:
+	mutable std::mutex mutex;
+
+	friend class nano::store::lmdb::read_transaction_impl;
+	friend class nano::store::lmdb::write_transaction_impl;
 };
 } // namespace nano::store::lmdb
