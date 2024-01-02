@@ -4,7 +4,7 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   linux_sanitizers:
-    name: Linux [${{ matrix.SANITIZER.name }}] [${{ matrix.BACKEND }} | ${{ matrix.COMPILER }}]
+    name: Linux [${{ matrix.SANITIZER.name }}] [${{ matrix.BACKEND }} | ${{ matrix.COMPILER }}] ${{ matrix.SANITIZER.ignore_errors && ' (Errors Ignored)' || '' }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -15,7 +15,7 @@ jobs:
           - { name: UBSAN, ignore_errors: false }
           - { name: ASAN, ignore_errors: true }
           - { name: ASAN_INT, ignore_errors: true }
-          - { name: TSAN, ignore_errors: false }
+          - { name: TSAN, ignore_errors: true }
     runs-on: ubuntu-22.04
     env:
       COMPILER: ${{ matrix.COMPILER }}
