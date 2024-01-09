@@ -66,3 +66,11 @@ private:
 
 void initialize_logging (nano::log::preset = nano::log::preset::cli);
 }
+
+namespace nano::logging
+{
+inline void release_file_sink ()
+{
+	// TODO
+}
+}

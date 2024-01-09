@@ -112,8 +112,6 @@ add_library(
   json_handler.cpp
   ledger_walker.hpp
   ledger_walker.cpp
-  logging.hpp
-  logging.cpp
   make_store.hpp
   make_store.cpp
   network.hpp
@@ -210,8 +208,6 @@ target_link_libraries(
   argon2
   lmdb
   Boost::beast
-  Boost::log_setup
-  Boost::log
   Boost::program_options
   Boost::stacktrace
   Boost::system
