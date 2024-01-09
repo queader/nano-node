@@ -84,7 +84,7 @@ void nano::rpc_connection::read (STREAM_TYPE & stream)
 		}
 		else
 		{
-			this_l->nlogger.error (nano::log::tag::rpc_connection, "RPC header error: ", ec.message ());
+			this_l->nlogger.error (nano::log::type::rpc_connection, "RPC header error: ", ec.message ());
 
 			// Respond with the reason for the invalid header
 			auto response_handler ([this_l, &stream] (std::string const & tree_a) {
@@ -125,7 +125,7 @@ void nano::rpc_connection::parse_request (STREAM_TYPE & stream, std::shared_ptr<
 
 					// Bump logging level if RPC request logging is enabled
 					this_l->nlogger.log (this_l->rpc_config.rpc_logging.log_rpc ? nano::log::level::info : nano::log::level::debug,
-					nano::log::tag::rpc_request, "RPC request {} completed in {} microseconds", request_id, std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::steady_clock::now () - start).count ());
+					nano::log::type::rpc_request, "RPC request {} completed in {} microseconds", request_id, std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::steady_clock::now () - start).count ());
 				});
 
 				std::string api_path_l = "/api/v2";
@@ -165,7 +165,7 @@ void nano::rpc_connection::parse_request (STREAM_TYPE & stream, std::shared_ptr<
 		}
 		else
 		{
-			this_l->nlogger.error (nano::log::tag::rpc_connection, "RPC read error: ", ec.message ());
+			this_l->nlogger.error (nano::log::type::rpc_connection, "RPC read error: ", ec.message ());
 		}
 	}));
 }

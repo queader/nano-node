@@ -65,7 +65,7 @@ nano::websocket::confirmation_options::confirmation_options (boost::property_tre
 
 		if (!include_block)
 		{
-			nlogger.warn (nano::log::tag::websocket, "Filtering option \"all_local_accounts\" requires that \"include_block\" is set to true to be effective");
+			nlogger.warn (nano::log::type::websocket, "Filtering option \"all_local_accounts\" requires that \"include_block\" is set to true to be effective");
 		}
 	}
 	auto accounts_l (options_a.get_child_optional ("accounts"));
@@ -82,13 +82,13 @@ nano::websocket::confirmation_options::confirmation_options (boost::property_tre
 			}
 			else
 			{
-				nlogger.warn (nano::log::tag::websocket, "Invalid account provided for filtering blocks: ", account_l.second.data ());
+				nlogger.warn (nano::log::type::websocket, "Invalid account provided for filtering blocks: ", account_l.second.data ());
 			}
 		}
 
 		if (!include_block)
 		{
-			nlogger.warn (nano::log::tag::websocket, "Filtering option \"accounts\" requires that \"include_block\" is set to true to be effective");
+			nlogger.warn (nano::log::type::websocket, "Filtering option \"accounts\" requires that \"include_block\" is set to true to be effective");
 		}
 	}
 	check_filter_empty ();
@@ -163,7 +163,7 @@ bool nano::websocket::confirmation_options::update (boost::property_tree::ptree 
 			}
 			else
 			{
-				nlogger.warn (nano::log::tag::websocket, "Invalid account provided for filtering blocks: ", account_l.second.data ());
+				nlogger.warn (nano::log::type::websocket, "Invalid account provided for filtering blocks: ", account_l.second.data ());
 			}
 		}
 	};
@@ -191,7 +191,7 @@ void nano::websocket::confirmation_options::check_filter_empty () const
 	// Warn the user if the options resulted in an empty filter
 	if (has_account_filtering_options && !all_local_accounts && accounts.empty ())
 	{
-		nlogger.warn (nano::log::tag::websocket, "Provided options resulted in an empty account confirmation filter");
+		nlogger.warn (nano::log::type::websocket, "Provided options resulted in an empty account confirmation filter");
 	}
 }
 
@@ -212,13 +212,13 @@ nano::websocket::vote_options::vote_options (boost::property_tree::ptree const &
 			}
 			else
 			{
-				nlogger.warn (nano::log::tag::websocket, "Invalid account provided for filtering votes: ", representative_l.second.data ());
+				nlogger.warn (nano::log::type::websocket, "Invalid account provided for filtering votes: ", representative_l.second.data ());
 			}
 		}
 		// Warn the user if the option will be ignored
 		if (representatives.empty ())
 		{
-			nlogger.warn (nano::log::tag::websocket, "Account filter for votes is empty, no messages will be filtered");
+			nlogger.warn (nano::log::type::websocket, "Account filter for votes is empty, no messages will be filtered");
 		}
 	}
 }
@@ -261,7 +261,7 @@ nano::websocket::session::session (nano::websocket::listener & listener_a, socke
 		debug_assert (!ec);
 	}
 
-	nlogger.info (nano::log::tag::websocket, "Session started ({})", nano::util::to_str (remote));
+	nlogger.info (nano::log::type::websocket, "Session started ({})", nano::util::to_str (remote));
 }
 
 nano::websocket::session::~session ()
@@ -286,14 +286,14 @@ void nano::websocket::session::handshake ()
 		}
 		else
 		{
-			this_l->nlogger.error (nano::log::tag::websocket, "Handshake failed: {} ({})", ec.message (), nano::util::to_str (this_l->remote));
+			this_l->nlogger.error (nano::log::type::websocket, "Handshake failed: {} ({})", ec.message (), nano::util::to_str (this_l->remote));
 		}
 	});
 }
 
 void nano::websocket::session::close ()
 {
-	nlogger.info (nano::log::tag::websocket, "Session closing ({})", nano::util::to_str (remote));
+	nlogger.info (nano::log::type::websocket, "Session closing ({})", nano::util::to_str (remote));
 
 	auto this_l (shared_from_this ());
 	boost::asio::dispatch (ws.get_strand (),
@@ -369,12 +369,12 @@ void nano::websocket::session::read ()
 				}
 				catch (boost::property_tree::json_parser::json_parser_error const & ex)
 				{
-					this_l->nlogger.error (nano::log::tag::websocket, "JSON parsing failed: {} ({})", ex.what (), nano::util::to_str (this_l->remote));
+					this_l->nlogger.error (nano::log::type::websocket, "JSON parsing failed: {} ({})", ex.what (), nano::util::to_str (this_l->remote));
 				}
 			}
 			else if (ec != boost::asio::error::eof)
 			{
-				this_l->nlogger.error (nano::log::tag::websocket, "Read failed: {} ({})", ec.message (), nano::util::to_str (this_l->remote));
+				this_l->nlogger.error (nano::log::type::websocket, "Read failed: {} ({})", ec.message (), nano::util::to_str (this_l->remote));
 			}
 		});
 	});
@@ -509,13 +509,13 @@ void nano::websocket::session::handle_message (boost::property_tree::ptree const
 		auto existing (subscriptions.find (topic_l));
 		if (existing != subscriptions.end ())
 		{
-			nlogger.info (nano::log::tag::websocket, "Updated subscription to topic: {} ({})", from_topic (topic_l), nano::util::to_str (remote));
+			nlogger.info (nano::log::type::websocket, "Updated subscription to topic: {} ({})", from_topic (topic_l), nano::util::to_str (remote));
 
 			existing->second = std::move (options_l);
 		}
 		else
 		{
-			nlogger.info (nano::log::tag::websocket, "New subscription to topic: {} ({})", from_topic (topic_l), nano::util::to_str (remote));
+			nlogger.info (nano::log::type::websocket, "New subscription to topic: {} ({})", from_topic (topic_l), nano::util::to_str (remote));
 
 			subscriptions.emplace (topic_l, std::move (options_l));
 			ws_listener.increase_subscriber_count (topic_l);
@@ -540,7 +540,7 @@ void nano::websocket::session::handle_message (boost::property_tree::ptree const
 		nano::lock_guard<nano::mutex> lk (subscriptions_mutex);
 		if (subscriptions.erase (topic_l))
 		{
-			nlogger.info (nano::log::tag::websocket, "Removed subscription to topic: {} ({})", from_topic (topic_l), nano::util::to_str (remote));
+			nlogger.info (nano::log::type::websocket, "Removed subscription to topic: {} ({})", from_topic (topic_l), nano::util::to_str (remote));
 
 			ws_listener.decrease_subscriber_count (topic_l);
 		}
@@ -595,7 +595,7 @@ nano::websocket::listener::listener (std::shared_ptr<nano::tls_config> const & t
 	}
 	catch (std::exception const & ex)
 	{
-		nlogger.error (nano::log::tag::websocket, "Listen failed: {}", ex.what ());
+		nlogger.error (nano::log::type::websocket, "Listen failed: {}", ex.what ());
 	}
 }
 
@@ -620,7 +620,7 @@ void nano::websocket::listener::on_accept (boost::system::error_code ec)
 {
 	if (ec)
 	{
-		nlogger.error (nano::log::tag::websocket, "Accept failed: {}", ec.message ());
+		nlogger.error (nano::log::type::websocket, "Accept failed: {}", ec.message ());
 	}
 	else
 	{

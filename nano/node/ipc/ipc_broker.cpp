@@ -65,7 +65,7 @@ void nano::ipc::broker::start ()
 		}
 		catch (nano::error const & err)
 		{
-			this_l->node.nlogger.error (nano::log::tag::ipc, "Could not broadcast message: {}", err.get_message ());
+			this_l->node.nlogger.error (nano::log::type::ipc, "Could not broadcast message: {}", err.get_message ());
 		}
 	});
 }
@@ -85,7 +85,7 @@ void subscribe_or_unsubscribe (nano::nlogger & nlogger, COLL & subscriber_collec
 											 remove = topic_a->unsubscribe && subscriber_l->get_id () == calling_subscriber_l->get_id ();
 											 if (remove)
 											 {
-												 nlogger.info (nano::log::tag::ipc, "Subscriber ubsubscribed #{}", calling_subscriber_l->get_id ());
+												 nlogger.info (nano::log::type::ipc, "Subscriber ubsubscribed #{}", calling_subscriber_l->get_id ());
 											 }
 										 }
 									 }

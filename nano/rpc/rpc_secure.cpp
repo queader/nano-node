@@ -27,7 +27,7 @@ void nano::rpc_secure::accept ()
 		}
 		else
 		{
-			nlogger.error (nano::log::tag::rpc, "Error accepting RPC connection: {}", ec.message ());
+			nlogger.error (nano::log::type::rpc, "Error accepting RPC connection: {}", ec.message ());
 		}
 	}));
 }

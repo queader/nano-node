@@ -76,7 +76,7 @@ void nano::confirmation_height_unbounded::process (std::shared_ptr<nano::block> 
 		}
 		if (!block)
 		{
-			nlogger.critical (nano::log::tag::conf_processor_unbounded, "Ledger mismatch trying to set confirmation height for block {} (unbounded processor)", current.to_string ());
+			nlogger.critical (nano::log::type::conf_processor_unbounded, "Ledger mismatch trying to set confirmation height for block {} (unbounded processor)", current.to_string ());
 		}
 		release_assert (block);
 
@@ -392,7 +392,7 @@ void nano::confirmation_height_unbounded::cement_blocks (nano::write_guard & sco
 					}
 					else
 					{
-						nlogger.critical (nano::log::tag::conf_processor_unbounded, "Failed to write confirmation height for block {} (unbounded processor)", pending.hash.to_string ());
+						nlogger.critical (nano::log::type::conf_processor_unbounded, "Failed to write confirmation height for block {} (unbounded processor)", pending.hash.to_string ());
 
 						error = true;
 						break;

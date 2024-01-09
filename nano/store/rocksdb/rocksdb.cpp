@@ -95,14 +95,14 @@ nano::store::rocksdb::component::component (nano::nlogger & nlogger_a, std::file
 		auto version_l = version.get (transaction);
 		if (version_l > version_current)
 		{
-			nlogger.critical (nano::log::tag::rocksdb, "The version of the ledger ({}) is too high for this node", version_l);
+			nlogger.critical (nano::log::type::rocksdb, "The version of the ledger ({}) is too high for this node", version_l);
 
 			error = true;
 			return;
 		}
 		else if (version_l < version_minimum)
 		{
-			nlogger.critical (nano::log::tag::rocksdb, "The version of the ledger ({}) is lower than the minimum ({}) which is supported for upgrades. Either upgrade a node first or delete the ledger.", version_l, version_minimum);
+			nlogger.critical (nano::log::type::rocksdb, "The version of the ledger ({}) is lower than the minimum ({}) which is supported for upgrades. Either upgrade a node first or delete the ledger.", version_l, version_minimum);
 
 			error = true;
 			return;
@@ -151,7 +151,7 @@ nano::store::rocksdb::component::component (nano::nlogger & nlogger_a, std::file
 	open (error, path_a, open_read_only_a, options, get_current_column_families (path_a.string (), options));
 	if (!error)
 	{
-		nlogger.info (nano::log::tag::rocksdb, "Upgrade in progress...");
+		nlogger.info (nano::log::type::rocksdb, "Upgrade in progress...");
 
 		auto transaction = tx_begin_write ();
 		error |= do_upgrades (transaction);
@@ -243,7 +243,7 @@ bool nano::store::rocksdb::component::do_upgrades (store::write_transaction cons
 		case 22:
 			break;
 		default:
-			nlogger.critical (nano::log::tag::rocksdb, "The version of the ledger ({}) is too high for this node", version_l);
+			nlogger.critical (nano::log::type::rocksdb, "The version of the ledger ({}) is too high for this node", version_l);
 			error_l = true;
 			break;
 	}
@@ -252,7 +252,7 @@ bool nano::store::rocksdb::component::do_upgrades (store::write_transaction cons
 
 void nano::store::rocksdb::component::upgrade_v21_to_v22 (store::write_transaction const & transaction_a)
 {
-	nlogger.info (nano::log::tag::rocksdb, "Upgrading database from v21 to v22...");
+	nlogger.info (nano::log::type::rocksdb, "Upgrading database from v21 to v22...");
 
 	if (column_family_exists ("unchecked"))
 	{
@@ -268,12 +268,12 @@ void nano::store::rocksdb::component::upgrade_v21_to_v22 (store::write_transacti
 			}
 			return false;
 		});
-		nlogger.debug (nano::log::tag::rocksdb, "Finished removing unchecked table");
+		nlogger.debug (nano::log::type::rocksdb, "Finished removing unchecked table");
 	}
 
 	version.put (transaction_a, 22);
 
-	nlogger.info (nano::log::tag::rocksdb, "Upgrading database from v21 to v22 completed");
+	nlogger.info (nano::log::type::rocksdb, "Upgrading database from v21 to v22 completed");
 }
 
 void nano::store::rocksdb::component::generate_tombstone_map ()

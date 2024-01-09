@@ -65,7 +65,7 @@ void nano::rpc_handler::process_request (nano::rpc_handler_request_params const 
 
 				// Bump logging level if RPC request logging is enabled
 				nlogger.log (rpc_config.rpc_logging.log_rpc ? nano::log::level::info : nano::log::level::debug,
-				nano::log::tag::rpc_request, "Request {} : {}", request_id, filter_request (request));
+				nano::log::type::rpc_request, "Request {} : {}", request_id, filter_request (request));
 
 				// Check if this is a RPC command which requires RPC enabled control
 				std::error_code rpc_control_disabled_ec = nano::error_rpc::rpc_control_disabled;

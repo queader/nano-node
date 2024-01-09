@@ -100,7 +100,7 @@ void nano::confirmation_height_bounded::process (std::shared_ptr<nano::block> or
 			}
 			else
 			{
-				nlogger.critical (nano::log::tag::conf_processor_bounded, "Ledger mismatch trying to set confirmation height for block {} (bounded processor)", current.to_string ());
+				nlogger.critical (nano::log::type::conf_processor_bounded, "Ledger mismatch trying to set confirmation height for block {} (bounded processor)", current.to_string ());
 
 				release_assert (block);
 			}
@@ -431,7 +431,7 @@ void nano::confirmation_height_bounded::cement_blocks (nano::write_guard & scope
 				{
 					if (!block)
 					{
-						nlogger.critical (nano::log::tag::conf_processor_bounded, "Failed to write confirmation height for block {} (bounded processor)", new_cemented_frontier.to_string ());
+						nlogger.critical (nano::log::type::conf_processor_bounded, "Failed to write confirmation height for block {} (bounded processor)", new_cemented_frontier.to_string ());
 
 						// Undo any blocks about to be cemented from this account for this pending write.
 						cemented_blocks.erase (cemented_blocks.end () - num_blocks_iterated, cemented_blocks.end ());

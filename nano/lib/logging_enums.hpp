@@ -16,7 +16,7 @@ enum class level
 	off,
 };
 
-enum class tag
+enum class type
 {
 	all = 0, // reserved
 
@@ -121,7 +121,7 @@ enum class preset
 
 namespace nano
 {
-std::string_view to_string (nano::log::tag);
+std::string_view to_string (nano::log::type);
 std::string_view to_string (nano::log::detail);
 std::string_view to_string (nano::log::level);
 }

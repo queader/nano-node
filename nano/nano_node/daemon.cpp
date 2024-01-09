@@ -65,7 +65,7 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 {
 	nano::initialize_logging (nano::log::preset::daemon);
 
-	nlogger.info (nano::log::tag::daemon, "Daemon started");
+	nlogger.info (nano::log::type::daemon, "Daemon started");
 
 	install_abort_signal_handler ();
 
@@ -106,17 +106,17 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 		try
 		{
 			// This avoids a blank prompt during any node initialization delays
-			nlogger.info (nano::log::tag::daemon, "Starting up Nano node...");
+			nlogger.info (nano::log::type::daemon, "Starting up Nano node...");
 
 			// Print info about number of logical cores detected, those are used to decide how many IO, worker and signature checker threads to spawn
-			nlogger.info (nano::log::tag::daemon, "Hardware concurrency: {} ( configured: {} )", std::thread::hardware_concurrency (), nano::hardware_concurrency ());
+			nlogger.info (nano::log::type::daemon, "Hardware concurrency: {} ( configured: {} )", std::thread::hardware_concurrency (), nano::hardware_concurrency ());
 
 			nano::set_file_descriptor_limit (OPEN_FILE_DESCRIPTORS_LIMIT);
 			auto const file_descriptor_limit = nano::get_file_descriptor_limit ();
-			nlogger.info (nano::log::tag::daemon, "File descriptors limit: {}", file_descriptor_limit);
+			nlogger.info (nano::log::type::daemon, "File descriptors limit: {}", file_descriptor_limit);
 			if (file_descriptor_limit < OPEN_FILE_DESCRIPTORS_LIMIT)
 			{
-				nlogger.warn (nano::log::tag::daemon, "File descriptors limit is lower than the {} recommended. Node was unable to change it.", OPEN_FILE_DESCRIPTORS_LIMIT);
+				nlogger.warn (nano::log::type::daemon, "File descriptors limit is lower than the {} recommended. Node was unable to change it.", OPEN_FILE_DESCRIPTORS_LIMIT);
 			}
 
 			// for the daemon start up, if the user hasn't specified a port in
@@ -133,12 +133,12 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 				auto network_label = node->network_params.network.get_current_network_as_string ();
 				std::time_t dateTime = std::time (nullptr);
 
-				nlogger.info (nano::log::tag::daemon, "Network: {}", network_label);
-				nlogger.info (nano::log::tag::daemon, "Version: {}", NANO_VERSION_STRING);
-				nlogger.info (nano::log::tag::daemon, "Data path: '{}'", node->application_path.string ());
-				nlogger.info (nano::log::tag::daemon, "Build info: {}", BUILD_INFO);
-				nlogger.info (nano::log::tag::daemon, "Database backend: {}", node->store.vendor_get ());
-				nlogger.info (nano::log::tag::daemon, "Start time: {:%c} UTC", fmt::gmtime (dateTime));
+				nlogger.info (nano::log::type::daemon, "Network: {}", network_label);
+				nlogger.info (nano::log::type::daemon, "Version: {}", NANO_VERSION_STRING);
+				nlogger.info (nano::log::type::daemon, "Data path: '{}'", node->application_path.string ());
+				nlogger.info (nano::log::type::daemon, "Build info: {}", BUILD_INFO);
+				nlogger.info (nano::log::type::daemon, "Database backend: {}", node->store.vendor_get ());
+				nlogger.info (nano::log::type::daemon, "Start time: {:%c} UTC", fmt::gmtime (dateTime));
 
 				node->start ();
 
@@ -185,7 +185,7 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 
 				debug_assert (!nano::signal_handler_impl);
 				nano::signal_handler_impl = [this, &io_ctx] () {
-					nlogger.warn (nano::log::tag::daemon, "Interrupt signal received, stopping...");
+					nlogger.warn (nano::log::type::daemon, "Interrupt signal received, stopping...");
 
 					io_ctx.stop ();
 					sig_int_or_term = 1;
@@ -218,18 +218,18 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 			}
 			else
 			{
-				nlogger.critical (nano::log::tag::daemon, "Error initializing node");
+				nlogger.critical (nano::log::type::daemon, "Error initializing node");
 			}
 		}
 		catch (std::runtime_error const & e)
 		{
-			nlogger.critical (nano::log::tag::daemon, "Error while running node: {}", e.what ());
+			nlogger.critical (nano::log::type::daemon, "Error while running node: {}", e.what ());
 		}
 	}
 	else
 	{
-		nlogger.critical (nano::log::tag::daemon, "Error deserializing config: {}", error.get_message ());
+		nlogger.critical (nano::log::type::daemon, "Error deserializing config: {}", error.get_message ());
 	}
 
-	nlogger.info (nano::log::tag::daemon, "Daemon exiting...");
+	nlogger.info (nano::log::type::daemon, "Daemon exiting...");
 }

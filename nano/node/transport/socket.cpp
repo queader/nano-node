@@ -280,7 +280,7 @@ void nano::transport::socket::ongoing_checkup ()
 
 			if (condition_to_disconnect)
 			{
-				this_l->node.nlogger.debug (nano::log::tag::tcp_server, "Closing socket due to timeout ({})", nano::util::to_str (this_l->remote));
+				this_l->node.nlogger.debug (nano::log::type::tcp_server, "Closing socket due to timeout ({})", nano::util::to_str (this_l->remote));
 
 				this_l->timed_out = true;
 				this_l->close ();
@@ -355,7 +355,7 @@ void nano::transport::socket::close_internal ()
 	if (ec)
 	{
 		node.stats.inc (nano::stat::type::socket, nano::stat::detail::error_socket_close);
-		node.nlogger.error (nano::log::tag::socket, "Failed to close socket gracefully: {} ({})", ec.message (), nano::util::to_str (remote));
+		node.nlogger.error (nano::log::type::socket, "Failed to close socket gracefully: {} ({})", ec.message (), nano::util::to_str (remote));
 	}
 }
 
@@ -556,7 +556,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 	boost::asio::post (strand, boost::asio::bind_executor (strand, [this_l, callback = std::move (callback_a)] () mutable {
 		if (!this_l->acceptor.is_open ())
 		{
-			this_l->node.nlogger.error (nano::log::tag::socket_server, "Acceptor is not open");
+			this_l->node.nlogger.error (nano::log::type::socket_server, "Acceptor is not open");
 			return;
 		}
 
@@ -570,7 +570,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 			if (this_l->connections_per_address.size () >= this_l->max_inbound_connections)
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_failure, nano::stat::dir::in);
-				this_l->node.nlogger.debug (nano::log::tag::socket_server, "Max connections reached ({}), unable to open new connection", this_l->connections_per_address.size ());
+				this_l->node.nlogger.debug (nano::log::type::socket_server, "Max connections reached ({}), unable to open new connection", this_l->connections_per_address.size ());
 
 				this_l->on_connection_requeue_delayed (std::move (cbk));
 				return;
@@ -579,7 +579,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 			if (this_l->limit_reached_for_incoming_ip_connections (new_connection))
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_max_per_ip, nano::stat::dir::in);
-				this_l->node.nlogger.debug (nano::log::tag::socket_server, "Max connections per IP reached ({}), unable to open new connection", new_connection->remote_endpoint ().address ().to_string ());
+				this_l->node.nlogger.debug (nano::log::type::socket_server, "Max connections per IP reached ({}), unable to open new connection", new_connection->remote_endpoint ().address ().to_string ());
 
 				this_l->on_connection_requeue_delayed (std::move (cbk));
 				return;
@@ -592,7 +592,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 				auto const remote_subnet = socket_functions::get_ipv6_subnet_address (remote_ip_address.to_v6 (), this_l->node.network_params.network.max_peers_per_subnetwork);
 
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_max_per_subnetwork, nano::stat::dir::in);
-				this_l->node.nlogger.debug (nano::log::tag::socket_server, "Max connections per subnetwork reached (subnetwork: {}, ip: {}), unable to open new connection",
+				this_l->node.nlogger.debug (nano::log::type::socket_server, "Max connections per subnetwork reached (subnetwork: {}, ip: {}), unable to open new connection",
 				remote_subnet.canonical ().to_string (),
 				remote_ip_address.to_string ());
 
@@ -624,13 +624,13 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 					return;
 				}
 
-				this_l->node.nlogger.warn (nano::log::tag::socket_server, "Stopping to accept new connections");
+				this_l->node.nlogger.warn (nano::log::type::socket_server, "Stopping to accept new connections");
 				return;
 			}
 
 			// accept error
 			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_failure, nano::stat::dir::in);
-			this_l->node.nlogger.error (nano::log::tag::socket_server, "Unable to accept connection: {} ({})", ec_a.message (), new_connection->remote_endpoint ().address ().to_string ());
+			this_l->node.nlogger.error (nano::log::type::socket_server, "Unable to accept connection: {} ({})", ec_a.message (), new_connection->remote_endpoint ().address ().to_string ());
 
 			if (is_temporary_error (ec_a))
 			{
@@ -647,7 +647,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 			}
 
 			// No requeue if we reach here, no incoming socket connections will be handled
-			this_l->node.nlogger.warn (nano::log::tag::socket_server, "Stopping to accept new connections");
+			this_l->node.nlogger.warn (nano::log::type::socket_server, "Stopping to accept new connections");
 		}));
 	}));
 }

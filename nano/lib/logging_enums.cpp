@@ -6,7 +6,7 @@
 
 #include <magic_enum.hpp>
 
-std::string_view nano::to_string (nano::log::tag tag)
+std::string_view nano::to_string (nano::log::type tag)
 {
 	return magic_enum::enum_name (tag);
 }

@@ -77,7 +77,7 @@ void nano::vote_processor::process_loop ()
 
 			if (log_this_iteration && elapsed.stop () > std::chrono::milliseconds (100))
 			{
-				nlogger.debug (nano::log::tag::vote_processor, "Processed {} votes in {} milliseconds (rate of {} votes per second)",
+				nlogger.debug (nano::log::type::vote_processor, "Processed {} votes in {} milliseconds (rate of {} votes per second)",
 				votes_l.size (),
 				elapsed.value ().count (),
 				((votes_l.size () * 1000ULL) / elapsed.value ().count ()));
@@ -199,7 +199,7 @@ void nano::vote_processor::flush ()
 	});
 	if (!success)
 	{
-		nlogger.error (nano::log::tag::vote_processor, "Flush timeout");
+		nlogger.error (nano::log::type::vote_processor, "Flush timeout");
 		debug_assert (false && "vote_processor::flush timeout while waiting for flush");
 	}
 }

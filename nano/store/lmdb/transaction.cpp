@@ -195,7 +195,7 @@ void nano::mdb_txn_tracker::log_if_held_long_enough (nano::mdb_txn_stats const &
 	{
 		debug_assert (mdb_txn_stats.stacktrace);
 
-		nlogger.warn (nano::log::tag::txn_tracker, "{}ms {} held on thread {}\n{}",
+		nlogger.warn (nano::log::type::txn_tracker, "{}ms {} held on thread {}\n{}",
 		time_open.count (),
 		is_write ? "write lock" : "read",
 		mdb_txn_stats.thread_name,

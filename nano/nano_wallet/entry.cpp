@@ -29,7 +29,7 @@ nano::nlogger nlogger;
 
 void show_error (std::string const & message_a)
 {
-	nlogger.critical (nano::log::tag::daemon, "{}", message_a);
+	nlogger.critical (nano::log::type::daemon, "{}", message_a);
 
 	QMessageBox message (QMessageBox::Critical, "Error starting Nano", message_a.c_str ());
 	message.setModal (true);
@@ -75,7 +75,7 @@ int run_wallet (QApplication & application, int argc, char * const * argv, std::
 {
 	nano::initialize_logging (nano::log::preset::daemon);
 
-	nlogger.info (nano::log::tag::daemon, "Daemon started (wallet)");
+	nlogger.info (nano::log::type::daemon, "Daemon started (wallet)");
 
 	int result (0);
 	nano_qt::eventloop_processor processor;

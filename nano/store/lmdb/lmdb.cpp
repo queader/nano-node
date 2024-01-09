@@ -66,7 +66,7 @@ nano::store::lmdb::component::component (nano::nlogger & nlogger_a, std::filesys
 		{
 			if (!is_fresh_db)
 			{
-				nlogger.info (nano::log::tag::lmdb, "Upgrade in progress...");
+				nlogger.info (nano::log::type::lmdb, "Upgrade in progress...");
 
 				if (backup_before_upgrade_a)
 				{
@@ -85,17 +85,17 @@ nano::store::lmdb::component::component (nano::nlogger & nlogger_a, std::filesys
 
 			if (needs_vacuuming)
 			{
-				nlogger.info (nano::log::tag::lmdb, "Ledger vaccum in progress...");
+				nlogger.info (nano::log::type::lmdb, "Ledger vaccum in progress...");
 
 				auto vacuum_success = vacuum_after_upgrade (path_a, lmdb_config_a);
 				if (vacuum_success)
 				{
-					nlogger.info (nano::log::tag::lmdb, "Ledger vacuum completed");
+					nlogger.info (nano::log::type::lmdb, "Ledger vacuum completed");
 				}
 				else
 				{
-					nlogger.error (nano::log::tag::lmdb, "Ledger vaccum failed");
-					nlogger.error (nano::log::tag::lmdb, "(Optional) Please ensure enough disk space is available for a copy of the database and try to vacuum after shutting down the node");
+					nlogger.error (nano::log::type::lmdb, "Ledger vaccum failed");
+					nlogger.error (nano::log::type::lmdb, "(Optional) Please ensure enough disk space is available for a copy of the database and try to vacuum after shutting down the node");
 				}
 			}
 		}
@@ -212,7 +212,7 @@ bool nano::store::lmdb::component::do_upgrades (store::write_transaction & trans
 	auto version_l = version.get (transaction_a);
 	if (version_l < version_minimum)
 	{
-		nlogger.critical (nano::log::tag::lmdb, "The version of the ledger ({}) is lower than the minimum ({}) which is supported for upgrades. Either upgrade a node first or delete the ledger.", version_l, version_minimum);
+		nlogger.critical (nano::log::type::lmdb, "The version of the ledger ({}) is lower than the minimum ({}) which is supported for upgrades. Either upgrade a node first or delete the ledger.", version_l, version_minimum);
 		return true;
 	}
 	switch (version_l)
@@ -223,7 +223,7 @@ bool nano::store::lmdb::component::do_upgrades (store::write_transaction & trans
 		case 22:
 			break;
 		default:
-			nlogger.critical (nano::log::tag::lmdb, "The version of the ledger ({}) is too high for this node", version_l);
+			nlogger.critical (nano::log::type::lmdb, "The version of the ledger ({}) is too high for this node", version_l);
 			error = true;
 			break;
 	}
@@ -232,14 +232,14 @@ bool nano::store::lmdb::component::do_upgrades (store::write_transaction & trans
 
 void nano::store::lmdb::component::upgrade_v21_to_v22 (store::write_transaction const & transaction_a)
 {
-	nlogger.info (nano::log::tag::lmdb, "Upgrading database from v21 to v22...");
+	nlogger.info (nano::log::type::lmdb, "Upgrading database from v21 to v22...");
 
 	MDB_dbi unchecked_handle{ 0 };
 	release_assert (!mdb_dbi_open (env.tx (transaction_a), "unchecked", MDB_CREATE, &unchecked_handle));
 	release_assert (!mdb_drop (env.tx (transaction_a), unchecked_handle, 1)); // del = 1, to delete it from the environment and close the DB handle.
 	version.put (transaction_a, 22);
 
-	nlogger.info (nano::log::tag::lmdb, "Upgrading database from v21 to v22 completed");
+	nlogger.info (nano::log::type::lmdb, "Upgrading database from v21 to v22 completed");
 }
 
 /** Takes a filepath, appends '_backup_<timestamp>' to the end (but before any extension) and saves that file in the same directory */
@@ -255,17 +255,17 @@ void nano::store::lmdb::component::create_backup_file (nano::store::lmdb::env & 
 	backup_filename += extension;
 	auto backup_filepath = backup_path / backup_filename;
 
-	nlogger.info (nano::log::tag::lmdb, "Performing {} backup before database upgrade...", filepath_a.filename ().string ());
+	nlogger.info (nano::log::type::lmdb, "Performing {} backup before database upgrade...", filepath_a.filename ().string ());
 
 	auto error (mdb_env_copy (env_a, backup_filepath.string ().c_str ()));
 	if (error)
 	{
-		nlogger.critical (nano::log::tag::lmdb, "Database backup failed");
+		nlogger.critical (nano::log::type::lmdb, "Database backup failed");
 		std::exit (1);
 	}
 	else
 	{
-		nlogger.info (nano::log::tag::lmdb, "Database backup completed. Backup can be found at: {}", backup_filepath.string ());
+		nlogger.info (nano::log::type::lmdb, "Database backup completed. Backup can be found at: {}", backup_filepath.string ());
 	}
 }
 
