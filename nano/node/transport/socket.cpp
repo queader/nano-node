@@ -74,6 +74,7 @@ void nano::transport::socket::async_connect (nano::tcp_endpoint const & endpoint
 	this_l->tcp_socket.async_connect (endpoint_a,
 	boost::asio::bind_executor (this_l->strand,
 	[this_l, callback = std::move (callback_a), endpoint_a] (boost::system::error_code const & ec) {
+		this_l->remote = endpoint_a;
 		if (ec)
 		{
 			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in);
@@ -82,9 +83,13 @@ void nano::transport::socket::async_connect (nano::tcp_endpoint const & endpoint
 		else
 		{
 			this_l->set_last_completion ();
+			{
+				// Best effort attempt to get endpoint address
+				boost::system::error_code ec;
+				this_l->local = this_l->tcp_socket.local_endpoint (ec);
+			}
+			this_l->node.observers.socket_connected.notify (*this_l);
 		}
-		this_l->remote = endpoint_a;
-		this_l->node.observers.socket_connected.notify (*this_l);
 		callback (ec);
 	}));
 }
@@ -261,23 +266,22 @@ void nano::transport::socket::ongoing_checkup ()
 			if (this_l->endpoint_type () == endpoint_type_t::server && (now - this_l->last_receive_time_or_init) > static_cast<uint64_t> (this_l->silent_connection_tolerance_time.count ()))
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_silent_connection_drop, nano::stat::dir::in);
+
 				condition_to_disconnect = true;
 			}
 
 			// if there is no activity for timeout seconds then disconnect
 			if ((now - this_l->last_completion_time_or_init) > this_l->timeout)
 			{
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop,
-				this_l->endpoint_type () == endpoint_type_t::server ? nano::stat::dir::in : nano::stat::dir::out);
+				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, this_l->endpoint_type () == endpoint_type_t::server ? nano::stat::dir::in : nano::stat::dir::out);
+
 				condition_to_disconnect = true;
 			}
 
 			if (condition_to_disconnect)
 			{
-				if (this_l->node.config.logging.network_timeout_logging ())
-				{
-					this_l->node.logger.try_log (boost::str (boost::format ("Disconnecting from %1% due to timeout") % this_l->remote));
-				}
+				this_l->node.nlogger.debug (nano::log::type::tcp_server, "Closing socket due to timeout ({})", nano::util::to_str (this_l->remote));
+
 				this_l->timed_out = true;
 				this_l->close ();
 			}
@@ -350,19 +354,21 @@ void nano::transport::socket::close_internal ()
 
 	if (ec)
 	{
-		node.logger.try_log ("Failed to close socket gracefully: ", ec.message ());
-		node.stats.inc (nano::stat::type::bootstrap, nano::stat::detail::error_socket_close);
+		node.stats.inc (nano::stat::type::socket, nano::stat::detail::error_socket_close);
+		node.nlogger.error (nano::log::type::socket, "Failed to close socket gracefully: {} ({})", ec.message (), nano::util::to_str (remote));
 	}
 }
 
 nano::tcp_endpoint nano::transport::socket::remote_endpoint () const
 {
+	// Using cached value to avoid calling tcp_socket.remote_endpoint() which may be invalid (throw) after closing the socket
 	return remote;
 }
 
 nano::tcp_endpoint nano::transport::socket::local_endpoint () const
 {
-	return tcp_socket.local_endpoint ();
+	// Using cached value to avoid calling tcp_socket.local_endpoint() which may be invalid (throw) after closing the socket
+	return local;
 }
 
 /*
@@ -550,7 +556,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 	boost::asio::post (strand, boost::asio::bind_executor (strand, [this_l, callback = std::move (callback_a)] () mutable {
 		if (!this_l->acceptor.is_open ())
 		{
-			this_l->node.logger.always_log ("Network: Acceptor is not open");
+			this_l->node.nlogger.error (nano::log::type::socket_server, "Acceptor is not open");
 			return;
 		}
 
@@ -563,20 +569,18 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 
 			if (this_l->connections_per_address.size () >= this_l->max_inbound_connections)
 			{
-				this_l->node.logger.try_log ("Network: max_inbound_connections reached, unable to open new connection");
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_failure, nano::stat::dir::in);
+				this_l->node.nlogger.debug (nano::log::type::socket_server, "Max connections reached ({}), unable to open new connection", this_l->connections_per_address.size ());
+
 				this_l->on_connection_requeue_delayed (std::move (cbk));
 				return;
 			}
 
 			if (this_l->limit_reached_for_incoming_ip_connections (new_connection))
 			{
-				auto const remote_ip_address = new_connection->remote_endpoint ().address ();
-				auto const log_message = boost::str (
-				boost::format ("Network: max connections per IP (max_peers_per_ip) was reached for %1%, unable to open new connection")
-				% remote_ip_address.to_string ());
-				this_l->node.logger.try_log (log_message);
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_max_per_ip, nano::stat::dir::in);
+				this_l->node.nlogger.debug (nano::log::type::socket_server, "Max connections per IP reached ({}), unable to open new connection", new_connection->remote_endpoint ().address ().to_string ());
+
 				this_l->on_connection_requeue_delayed (std::move (cbk));
 				return;
 			}
@@ -586,37 +590,47 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 				auto const remote_ip_address = new_connection->remote_endpoint ().address ();
 				debug_assert (remote_ip_address.is_v6 ());
 				auto const remote_subnet = socket_functions::get_ipv6_subnet_address (remote_ip_address.to_v6 (), this_l->node.network_params.network.max_peers_per_subnetwork);
-				auto const log_message = boost::str (
-				boost::format ("Network: max connections per subnetwork (max_peers_per_subnetwork) was reached for subnetwork %1% (remote IP: %2%), unable to open new connection")
-				% remote_subnet.canonical ().to_string ()
-				% remote_ip_address.to_string ());
-				this_l->node.logger.try_log (log_message);
+
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_max_per_subnetwork, nano::stat::dir::in);
+				this_l->node.nlogger.debug (nano::log::type::socket_server, "Max connections per subnetwork reached (subnetwork: {}, ip: {}), unable to open new connection",
+				remote_subnet.canonical ().to_string (),
+				remote_ip_address.to_string ());
+
 				this_l->on_connection_requeue_delayed (std::move (cbk));
 				return;
 			}
 
 			if (!ec_a)
 			{
+				{
+					// Best effort attempt to get endpoint addresses
+					boost::system::error_code ec;
+					new_connection->local = new_connection->tcp_socket.local_endpoint (ec);
+				}
+
 				// Make sure the new connection doesn't idle. Note that in most cases, the callback is going to start
 				// an IO operation immediately, which will start a timer.
 				new_connection->start ();
 				new_connection->set_timeout (this_l->node.network_params.network.idle_timeout);
+
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_success, nano::stat::dir::in);
+
 				this_l->connections_per_address.emplace (new_connection->remote.address (), new_connection);
 				this_l->node.observers.socket_accepted.notify (*new_connection);
+
 				if (cbk (new_connection, ec_a))
 				{
 					this_l->on_connection (std::move (cbk));
 					return;
 				}
-				this_l->node.logger.always_log ("Network: Stopping to accept connections");
+
+				this_l->node.nlogger.warn (nano::log::type::socket_server, "Stopping to accept new connections");
 				return;
 			}
 
 			// accept error
-			this_l->node.logger.try_log ("Network: Unable to accept connection: ", ec_a.message ());
 			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_failure, nano::stat::dir::in);
+			this_l->node.nlogger.error (nano::log::type::socket_server, "Unable to accept connection: {} ({})", ec_a.message (), new_connection->remote_endpoint ().address ().to_string ());
 
 			if (is_temporary_error (ec_a))
 			{
@@ -633,7 +647,7 @@ void nano::transport::server_socket::on_connection (std::function<bool (std::sha
 			}
 
 			// No requeue if we reach here, no incoming socket connections will be handled
-			this_l->node.logger.always_log ("Network: Stopping to accept connections");
+			this_l->node.nlogger.warn (nano::log::type::socket_server, "Stopping to accept new connections");
 		}));
 	}));
 }
