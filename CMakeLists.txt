@@ -529,7 +529,8 @@ else()
 endif()
 add_subdirectory(submodules/rocksdb EXCLUDE_FROM_ALL)
 
-include_directories(cpptoml/include)
+# cpptoml
+include_directories(submodules/cpptoml/include)
 
 # magic_enum
 include_directories(submodules/magic_enum/include)
@@ -773,7 +774,6 @@ if(NANO_GUI OR RAIBLOCKS_GUI)
 
   add_library(qt nano/qt/qt.cpp nano/qt/qt.hpp)
   include_directories(${CMAKE_SOURCE_DIR}/submodules)
-  include_directories(${CMAKE_SOURCE_DIR}/submodules/cpptoml/include)
 
   target_link_libraries(
     qt
