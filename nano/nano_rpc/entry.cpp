@@ -1,5 +1,6 @@
 #include <nano/lib/cli.hpp>
 #include <nano/lib/errors.hpp>
+#include <nano/lib/logging.hpp>
 #include <nano/lib/signal_manager.hpp>
 #include <nano/lib/thread_runner.hpp>
 #include <nano/lib/threading.hpp>
@@ -17,6 +18,8 @@
 
 namespace
 {
+nano::nlogger nlogger;
+
 void logging_init (std::filesystem::path const & application_path_a)
 {
 	static std::atomic_flag logging_already_added = ATOMIC_FLAG_INIT;
@@ -36,6 +39,10 @@ volatile sig_atomic_t sig_int_or_term = 0;
 
 void run (std::filesystem::path const & data_path, std::vector<std::string> const & config_overrides)
 {
+	nano::initialize_logging (nano::log::preset::daemon);
+
+	nlogger.info (nano::log::tag::daemon, "Daemon started (RPC)");
+
 	std::filesystem::create_directories (data_path);
 	boost::system::error_code error_chmod;
 	nano::set_secure_perm_directory (data_path, error_chmod);
@@ -47,13 +54,12 @@ void run (std::filesystem::path const & data_path, std::vector<std::string> cons
 	if (!error)
 	{
 		logging_init (data_path);
-		nano::logger_mt logger;
 
 		auto tls_config (std::make_shared<nano::tls_config> ());
-		error = nano::read_tls_config_toml (data_path, *tls_config, logger);
+		error = nano::read_tls_config_toml (data_path, *tls_config, nlogger);
 		if (error)
 		{
-			std::cerr << error.get_message () << std::endl;
+			nlogger.critical (nano::log::tag::daemon, "Error reading RPC TLS config: {}", error.get_message ());
 			std::exit (1);
 		}
 		else
@@ -88,12 +94,12 @@ void run (std::filesystem::path const & data_path, std::vector<std::string> cons
 		}
 		catch (std::runtime_error const & e)
 		{
-			std::cerr << "Error while running rpc (" << e.what () << ")\n";
+			nlogger.critical (nano::log::tag::daemon, "Error while running RPC: {}", e.what ());
 		}
 	}
 	else
 	{
-		std::cerr << "Error deserializing config: " << error.get_message () << std::endl;
+		nlogger.critical (nano::log::tag::daemon, "Error deserializing config: {}", error.get_message ());
 	}
 }
 }
@@ -101,6 +107,7 @@ void run (std::filesystem::path const & data_path, std::vector<std::string> cons
 int main (int argc, char * const * argv)
 {
 	nano::set_umask ();
+	nano::initialize_logging ();
 
 	boost::program_options::options_description description ("Command line options");
 

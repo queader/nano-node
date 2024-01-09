@@ -254,6 +254,8 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 
 	if (vm.count ("initialize"))
 	{
+		nano::initialize_logging (nano::log::preset::daemon);
+
 		auto node_flags = nano::inactive_node_flag_defaults ();
 		node_flags.read_only = false;
 		nano::update_flags (node_flags, vm);
@@ -730,7 +732,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			environment.dump (std::cout);
 			std::stringstream stream;
 			environment.dump (stream);
-			inactive_node->node->logger.always_log (stream.str ());
+			std::cout << stream.str () << std::endl;
 		}
 		else
 		{

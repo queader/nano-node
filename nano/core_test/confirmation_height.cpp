@@ -1,3 +1,4 @@
+#include <nano/lib/logging.hpp>
 #include <nano/node/election.hpp>
 #include <nano/node/make_store.hpp>
 #include <nano/test_common/system.hpp>
@@ -1159,8 +1160,7 @@ TEST (confirmation_heightDeathTest, rollback_added_block)
 	// valgrind can be noisy with death tests
 	if (!nano::running_within_valgrind ())
 	{
-		nano::logger_mt logger;
-		nano::logging logging;
+		nano::nlogger logger;
 		auto path (nano::unique_path ());
 		auto store = nano::make_store (logger, path, nano::dev::constants);
 		ASSERT_TRUE (!store->init_error ());
@@ -1186,13 +1186,13 @@ TEST (confirmation_heightDeathTest, rollback_added_block)
 		uint64_t batch_write_size = 2048;
 		std::atomic<bool> stopped{ false };
 		nano::confirmation_height_unbounded unbounded_processor (
-		ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
+		ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
 
 		// Processing a block which doesn't exist should bail
 		ASSERT_DEATH_IF_SUPPORTED (unbounded_processor.process (send), "");
 
 		nano::confirmation_height_bounded bounded_processor (
-		ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
+		ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
 		// Processing a block which doesn't exist should bail
 		ASSERT_DEATH_IF_SUPPORTED (bounded_processor.process (send), "");
 	}
@@ -1251,8 +1251,7 @@ TEST (confirmation_heightDeathTest, modified_chain)
 	// valgrind can be noisy with death tests
 	if (!nano::running_within_valgrind ())
 	{
-		nano::logging logging;
-		nano::logger_mt logger;
+		nano::nlogger logger;
 		auto path (nano::unique_path ());
 		auto store = nano::make_store (logger, path, nano::dev::constants);
 		ASSERT_TRUE (!store->init_error ());
@@ -1279,7 +1278,7 @@ TEST (confirmation_heightDeathTest, modified_chain)
 		uint64_t batch_write_size = 2048;
 		std::atomic<bool> stopped{ false };
 		nano::confirmation_height_bounded bounded_processor (
-		ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
+		ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
 
 		{
 			// This reads the blocks in the account, but prevents any writes from occuring yet
@@ -1298,7 +1297,7 @@ TEST (confirmation_heightDeathTest, modified_chain)
 		store->confirmation_height.put (store->tx_begin_write (), nano::dev::genesis->account (), { 1, nano::dev::genesis->hash () });
 
 		nano::confirmation_height_unbounded unbounded_processor (
-		ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
+		ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
 
 		{
 			// This reads the blocks in the account, but prevents any writes from occuring yet
@@ -1329,8 +1328,7 @@ TEST (confirmation_heightDeathTest, modified_chain_account_removed)
 	// valgrind can be noisy with death tests
 	if (!nano::running_within_valgrind ())
 	{
-		nano::logging logging;
-		nano::logger_mt logger;
+		nano::nlogger logger;
 		auto path (nano::unique_path ());
 		auto store = nano::make_store (logger, path, nano::dev::constants);
 		ASSERT_TRUE (!store->init_error ());
@@ -1368,7 +1366,7 @@ TEST (confirmation_heightDeathTest, modified_chain_account_removed)
 		uint64_t batch_write_size = 2048;
 		std::atomic<bool> stopped{ false };
 		nano::confirmation_height_unbounded unbounded_processor (
-		ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
+		ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
 
 		{
 			// This reads the blocks in the account, but prevents any writes from occuring yet
@@ -1388,7 +1386,7 @@ TEST (confirmation_heightDeathTest, modified_chain_account_removed)
 		store->confirmation_height.put (store->tx_begin_write (), nano::dev::genesis->account (), { 1, nano::dev::genesis->hash () });
 
 		nano::confirmation_height_bounded bounded_processor (
-		ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
+		ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [] (auto const &) {}, [] (auto const &) {}, [] () { return 0; });
 
 		{
 			// This reads the blocks in the account, but prevents any writes from occuring yet
@@ -2041,7 +2039,7 @@ TEST (confirmation_height, unbounded_block_cache_iteration)
 		// Don't test this in rocksdb mode
 		GTEST_SKIP ();
 	}
-	nano::logger_mt logger;
+	nano::nlogger logger;
 	auto path (nano::unique_path ());
 	auto store = nano::make_store (logger, path, nano::dev::constants);
 	ASSERT_TRUE (!store->init_error ());
@@ -2050,7 +2048,6 @@ TEST (confirmation_height, unbounded_block_cache_iteration)
 	nano::write_database_queue write_database_queue (false);
 	boost::latch initialized_latch{ 0 };
 	nano::work_pool pool{ nano::dev::network_params.network, std::numeric_limits<unsigned>::max () };
-	nano::logging logging;
 	nano::keypair key1;
 	nano::block_builder builder;
 	auto send = builder
@@ -2076,7 +2073,7 @@ TEST (confirmation_height, unbounded_block_cache_iteration)
 		ASSERT_EQ (nano::process_result::progress, ledger.process (transaction, *send1).code);
 	}
 
-	nano::confirmation_height_processor confirmation_height_processor (ledger, write_database_queue, 10ms, logging, logger, initialized_latch, nano::confirmation_height_mode::unbounded);
+	nano::confirmation_height_processor confirmation_height_processor (ledger, write_database_queue, 10ms, logger, initialized_latch, nano::confirmation_height_mode::unbounded);
 	nano::timer<> timer;
 	timer.start ();
 	{
@@ -2105,7 +2102,7 @@ TEST (confirmation_height, unbounded_block_cache_iteration)
 
 TEST (confirmation_height, pruned_source)
 {
-	nano::logger_mt logger;
+	nano::nlogger logger;
 	nano::logging logging;
 	auto path (nano::unique_path ());
 	auto store = nano::make_store (logger, path, nano::dev::constants);
@@ -2180,7 +2177,7 @@ TEST (confirmation_height, pruned_source)
 	std::atomic<bool> stopped{ false };
 	bool first_time{ true };
 	nano::confirmation_height_bounded bounded_processor (
-	ledger, write_database_queue, 10ms, logging, logger, stopped, batch_write_size, [&] (auto const & cemented_blocks_a) {
+	ledger, write_database_queue, 10ms, logger, stopped, batch_write_size, [&] (auto const & cemented_blocks_a) {
 		if (first_time)
 		{
 			// Prune the send

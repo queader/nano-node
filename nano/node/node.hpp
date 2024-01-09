@@ -1,6 +1,8 @@
 #pragma once
 
 #include <nano/lib/config.hpp>
+#include <nano/lib/logger_mt.hpp>
+#include <nano/lib/logging.hpp>
 #include <nano/lib/stats.hpp>
 #include <nano/lib/thread_pool.hpp>
 #include <nano/lib/work.hpp>
@@ -69,6 +71,9 @@ outbound_bandwidth_limiter::config outbound_bandwidth_limiter_config (node_confi
 class node final : public std::enable_shared_from_this<nano::node>
 {
 public:
+	nano::nlogger nlogger;
+
+public:
 	node (boost::asio::io_context &, uint16_t, std::filesystem::path const &, nano::logging const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
 	node (boost::asio::io_context &, std::filesystem::path const &, nano::node_config const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
 	~node ();
@@ -106,7 +111,7 @@ public:
 	void bootstrap_wallet ();
 	void unchecked_cleanup ();
 	bool collect_ledger_pruning_targets (std::deque<nano::block_hash> &, nano::account &, uint64_t const, uint64_t const, uint64_t const);
-	void ledger_pruning (uint64_t const, bool, bool);
+	void ledger_pruning (uint64_t const, bool);
 	void ongoing_ledger_pruning ();
 	int price (nano::uint128_t const &, int);
 	// The default difficulty updates to base only when the first epoch_2 block is processed
@@ -228,7 +233,8 @@ private:
 	void long_inactivity_cleanup ();
 };
 
-nano::keypair load_or_create_node_id (std::filesystem::path const & application_path, nano::logger_mt & logger);
+nano::keypair load_or_create_node_id (std::filesystem::path const & application_path, nano::nlogger &);
+
 std::unique_ptr<container_info_component> collect_container_info (node & node, std::string const & name);
 
 nano::node_flags const & inactive_node_flag_defaults ();
