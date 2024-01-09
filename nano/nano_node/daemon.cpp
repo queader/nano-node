@@ -63,7 +63,7 @@ constexpr std::size_t OPEN_FILE_DESCRIPTORS_LIMIT = 16384;
 
 void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flags const & flags)
 {
-	nano::initialize_logging (nano::log::preset::daemon);
+	nano::logging::initialize (nano::logging::config::daemon_default ());
 
 	nlogger.info (nano::log::type::daemon, "Daemon started");
 

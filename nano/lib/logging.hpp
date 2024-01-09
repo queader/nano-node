@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/lib/logging_enums.hpp>
+#include <nano/lib/tomlconfig.hpp>
 
 #include <initializer_list>
 #include <memory>
@@ -9,9 +10,51 @@
 
 #include <spdlog/spdlog.h>
 
+namespace nano::logging
+{
+class config final
+{
+public:
+	nano::error serialize_toml (nano::tomlconfig &) const;
+	nano::error deserialize_toml (nano::tomlconfig &);
+
+public:
+	nano::log::level default_level{ nano::log::level::info };
+
+	struct console_config
+	{
+		bool enable{ true };
+		bool colors{ true };
+		bool to_cerr{ false };
+	};
+
+	struct file_config
+	{
+		bool enable{ true };
+		std::size_t max_size{ 32 * 1024 * 1024 };
+		std::size_t rotation_count{ 4 };
+	};
+
+	console_config console;
+	file_config file;
+
+	// TODO: Per logger type levels
+
+public: // Predefined defaults
+	static config cli_default ();
+	static config daemon_default ();
+	static config tests_default ();
+};
+
+void initialize (nano::logging::config const &);
+void release ();
+
+spdlog::level::level_enum to_spdlog_level (nano::log::level);
+}
+
 namespace nano
 {
-class nlogger
+class nlogger final
 {
 public:
 	nlogger ();
@@ -20,7 +63,7 @@ public:
 	template <class... Args>
 	void log (nano::log::level level, nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
 	{
-		get_logger (tag).log (to_spd_level (level), fmt, std::forward<Args> (args)...);
+		get_logger (tag).log (nano::logging::to_spdlog_level (level), fmt, std::forward<Args> (args)...);
 	}
 
 	template <class... Args>
@@ -60,17 +103,5 @@ private:
 private:
 	spdlog::logger & get_logger (nano::log::type tag);
 	std::shared_ptr<spdlog::logger> make_logger (nano::log::type tag);
-
-	static spdlog::level::level_enum to_spd_level (nano::log::level);
 };
-
-void initialize_logging (nano::log::preset = nano::log::preset::cli);
-}
-
-namespace nano::logging
-{
-inline void release_file_sink ()
-{
-	// TODO
-}
 }

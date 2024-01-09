@@ -73,7 +73,7 @@ nano::error read_wallet_config (nano::wallet_config & config_a, std::filesystem:
 
 int run_wallet (QApplication & application, int argc, char * const * argv, std::filesystem::path const & data_path, nano::node_flags const & flags)
 {
-	nano::initialize_logging (nano::log::preset::daemon);
+	nano::logging::initialize (nano::logging::config::daemon_default ());
 
 	nlogger.info (nano::log::type::daemon, "Daemon started (wallet)");
 
@@ -242,8 +242,8 @@ int run_wallet (QApplication & application, int argc, char * const * argv, std::
 
 int main (int argc, char * const * argv)
 {
-	nano::set_umask ();
-	nano::initialize_logging ();
+	nano::set_umask (); // Make sure the process umask is set before any files are created
+	nano::logging::initialize (nano::logging::config::cli_default ());
 
 	nano::node_singleton_memory_pool_purge_guard memory_pool_cleanup_guard;
 

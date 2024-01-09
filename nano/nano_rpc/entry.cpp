@@ -23,7 +23,7 @@ volatile sig_atomic_t sig_int_or_term = 0;
 
 void run (std::filesystem::path const & data_path, std::vector<std::string> const & config_overrides)
 {
-	nano::initialize_logging (nano::log::preset::daemon);
+	nano::logging::initialize (nano::logging::config::daemon_default ());
 
 	nlogger.info (nano::log::type::daemon, "Daemon started (RPC)");
 
@@ -88,8 +88,8 @@ void run (std::filesystem::path const & data_path, std::vector<std::string> cons
 
 int main (int argc, char * const * argv)
 {
-	nano::set_umask ();
-	nano::initialize_logging ();
+	nano::set_umask (); // Make sure the process umask is set before any files are created
+	nano::logging::initialize (nano::logging::config::cli_default ());
 
 	boost::program_options::options_description description ("Command line options");
 

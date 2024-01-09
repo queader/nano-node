@@ -19,7 +19,7 @@ void force_nano_dev_network ();
 
 GTEST_API_ int main (int argc, char ** argv)
 {
-	nano::initialize_logging (nano::log::preset::tests);
+	nano::logging::initialize (nano::logging::config::tests_default ());
 	nano::set_file_descriptor_limit (OPEN_FILE_DESCRIPTORS_LIMIT);
 	nano::force_nano_dev_network ();
 	nano::node_singleton_memory_pool_purge_guard memory_pool_cleanup_guard;

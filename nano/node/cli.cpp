@@ -254,7 +254,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 
 	if (vm.count ("initialize"))
 	{
-		nano::initialize_logging (nano::log::preset::daemon);
+		nano::logging::initialize (nano::logging::config::daemon_default ());
 
 		auto node_flags = nano::inactive_node_flag_defaults ();
 		node_flags.read_only = false;

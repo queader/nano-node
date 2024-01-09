@@ -14,7 +14,7 @@ void force_nano_dev_network ();
 
 int main (int argc, char ** argv)
 {
-	nano::initialize_logging (nano::log::preset::tests);
+	nano::logging::initialize (nano::logging::config::tests_default ());
 	nano::force_nano_dev_network ();
 	nano::node_singleton_memory_pool_purge_guard memory_pool_cleanup_guard;
 	testing::InitGoogleTest (&argc, argv);
