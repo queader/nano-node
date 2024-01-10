@@ -173,3 +173,97 @@ nano::logging::config nano::logging::config::tests_default ()
 	config.default_level = nano::log::level::critical;
 	return config;
 }
+
+/*
+ * logging config
+ */
+
+nano::error nano::logging::config::serialize (nano::tomlconfig & toml) const
+{
+	toml.put ("level", std::string{ to_string (default_level) });
+
+	nano::tomlconfig console_config;
+	console_config.put ("enable", console.enable);
+	console_config.put ("to_cerr", console.to_cerr);
+	console_config.put ("colors", console.colors);
+	toml.put_child ("console", console_config);
+
+	nano::tomlconfig file_config;
+	file_config.put ("enable", file.enable);
+	file_config.put ("max_size", file.max_size);
+	file_config.put ("rotation_count", file.rotation_count);
+	toml.put_child ("file", file_config);
+
+	return toml.get_error ();
+}
+
+nano::error nano::logging::config::deserialize (nano::tomlconfig & toml)
+{
+	try
+	{
+		if (toml.has_key ("level"))
+		{
+			auto default_level_l = toml.get<std::string> ("level");
+			default_level = parse_level (default_level_l);
+		}
+
+		if (toml.has_key ("console"))
+		{
+			auto console_config = toml.get_required_child ("console");
+			console.enable = console_config.get<bool> ("enable");
+			console.to_cerr = console_config.get<bool> ("to_cerr");
+			console.colors = console_config.get<bool> ("colors");
+		}
+
+		if (toml.has_key ("file"))
+		{
+			auto file_config = toml.get_required_child ("file");
+			file.enable = file_config.get<bool> ("enable");
+			file.max_size = file_config.get<std::size_t> ("max_size");
+			file.rotation_count = file_config.get<std::size_t> ("rotation_count");
+		}
+	}
+
+	catch (std::runtime_error const & ex)
+	{
+		toml.get_error ().set (ex.what ());
+	}
+
+	return toml.get_error ();
+}
+
+nano::log::level nano::logging::config::parse_level (const std::string & level)
+{
+	if (level == "off")
+	{
+		return nano::log::level::off;
+	}
+	else if (level == "critical")
+	{
+		return nano::log::level::critical;
+	}
+	else if (level == "error")
+	{
+		return nano::log::level::error;
+	}
+	else if (level == "warn")
+	{
+		return nano::log::level::warn;
+	}
+	else if (level == "info")
+	{
+		return nano::log::level::info;
+	}
+	else if (level == "debug")
+	{
+		return nano::log::level::debug;
+	}
+	else if (level == "trace")
+	{
+		return nano::log::level::trace;
+	}
+	else
+	{
+		throw std::runtime_error ("Invalid log level: " + level + ". Must be one of: off, critical, error, warn, info, debug, trace");
+	}
+}

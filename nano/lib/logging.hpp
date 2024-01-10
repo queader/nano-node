@@ -15,8 +15,11 @@ namespace nano::logging
 class config final
 {
 public:
-	nano::error serialize_toml (nano::tomlconfig &) const;
-	nano::error deserialize_toml (nano::tomlconfig &);
+	nano::error serialize (nano::tomlconfig &) const;
+	nano::error deserialize (nano::tomlconfig &);
+
+private:
+	nano::log::level parse_level (std::string const &);
 
 public:
 	nano::log::level default_level{ nano::log::level::info };
@@ -104,4 +107,13 @@ private:
 	spdlog::logger & get_logger (nano::log::type tag);
 	std::shared_ptr<spdlog::logger> make_logger (nano::log::type tag);
 };
+}
+
+namespace nano::log
+{
+template <class... Args>
+void log (nano::log::level level, nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+{
+	//	nano::nlogger::get ().log (level, tag, fmt, std::forward<Args> (args)...);
+}
 }

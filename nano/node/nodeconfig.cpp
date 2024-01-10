@@ -167,6 +167,10 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	callback_l.put ("target", callback_target, "Callback target path.\ntype:string,uri");
 	toml.put_child ("httpcallback", callback_l);
 
+	nano::tomlconfig logging_l;
+	logging.serialize (logging_l);
+	toml.put_child ("logging", logging_l);
+
 	nano::tomlconfig websocket_l;
 	websocket_config.serialize_toml (websocket_l);
 	toml.put_child ("websocket", websocket_l);
@@ -216,6 +220,12 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			callback_l.get<std::string> ("address", callback_address);
 			callback_l.get<uint16_t> ("port", callback_port);
 			callback_l.get<std::string> ("target", callback_target);
+		}
+
+		if (toml.has_key ("logging"))
+		{
+			auto logging_l (toml.get_required_child ("logging"));
+			logging.deserialize (logging_l);
 		}
 
 		if (toml.has_key ("websocket"))
