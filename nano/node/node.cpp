@@ -144,6 +144,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	node_initialized_latch (1),
 	config (config_a),
 	network_params{ config.network_params },
+	nlogger{ config.logging },
 	stats (config.stats_config),
 	workers{ config.background_threads, nano::thread_role::name::worker },
 	bootstrap_workers{ config.bootstrap_serving_threads, nano::thread_role::name::bootstrap_worker },

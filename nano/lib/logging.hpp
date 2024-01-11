@@ -60,7 +60,7 @@ namespace nano
 class nlogger final
 {
 public:
-	nlogger ();
+	nlogger (nano::logging::config const &, std::string identifier = "");
 
 public:
 	template <class... Args>
@@ -100,6 +100,8 @@ public:
 	}
 
 private:
+
+	std::vector<spdlog::sink_ptr> sinks;
 	std::unordered_map<nano::log::type, std::shared_ptr<spdlog::logger>> spd_loggers;
 	std::shared_mutex mutex;
 
@@ -111,9 +113,41 @@ private:
 
 namespace nano::log
 {
+nano::nlogger & default_logger ();
+
 template <class... Args>
 void log (nano::log::level level, nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	//	nano::nlogger::get ().log (level, tag, fmt, std::forward<Args> (args)...);
+	nano::log::default_logger ().log (level, tag, fmt, std::forward<Args> (args)...);
+}
+
+template <class... Args>
+void debug (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+{
+	nano::log::default_logger ().debug (tag, fmt, std::forward<Args> (args)...);
+}
+
+template <class... Args>
+void info (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+{
+	nano::log::default_logger ().info (tag, fmt, std::forward<Args> (args)...);
+}
+
+template <class... Args>
+void warn (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+{
+	nano::log::default_logger ().warn (tag, fmt, std::forward<Args> (args)...);
+}
+
+template <class... Args>
+void error (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+{
+	nano::log::default_logger ().error (tag, fmt, std::forward<Args> (args)...);
+}
+
+template <class... Args>
+void critical (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+{
+	nano::log::default_logger ().critical (tag, fmt, std::forward<Args> (args)...);
 }
 }

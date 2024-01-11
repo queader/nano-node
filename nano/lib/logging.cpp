@@ -13,13 +13,34 @@ namespace
 std::atomic<bool> logging_initialized{ false };
 }
 
+nano::nlogger & nano::log::default_logger ()
+{
+	static nano::nlogger logger{ nano::logging::config::cli_default () };
+	return logger;
+}
+
 void nano::logging::initialize (const nano::logging::config & config)
 {
 	spdlog::set_automatic_registration (false);
 	spdlog::set_level (to_spdlog_level (config.default_level));
 	spdlog::cfg::load_env_levels ();
 
-	std::vector<spdlog::sink_ptr> sinks;
+	logging_initialized = true;
+}
+
+void nano::logging::release ()
+{
+	logging_initialized = false;
+	spdlog::shutdown ();
+}
+
+/*
+ * nlogger
+ */
+
+nano::nlogger::nlogger (const nano::logging::config & config, std::string identifier)
+{
+	debug_assert (logging_initialized, "nano::log::initialize must be called before creating a logger");
 
 	// Console setup
 	if (config.console.enable)
@@ -73,25 +94,6 @@ void nano::logging::initialize (const nano::logging::config & config)
 			sinks.push_back (file_sink);
 		}
 	}
-
-	auto logger = std::make_shared<spdlog::logger> ("default", sinks.begin (), sinks.end ());
-	spdlog::set_default_logger (logger);
-
-	logging_initialized = true;
-}
-
-void nano::logging::release ()
-{
-	logging_initialized = false;
-	spdlog::shutdown ();
-}
-
-/*
- * nlogger
- */
-
-nano::nlogger::nlogger ()
-{
 }
 
 spdlog::logger & nano::nlogger::get_logger (nano::log::type tag)
@@ -116,12 +118,7 @@ spdlog::logger & nano::nlogger::get_logger (nano::log::type tag)
 
 std::shared_ptr<spdlog::logger> nano::nlogger::make_logger (nano::log::type tag)
 {
-	debug_assert (logging_initialized, "logging must be initialized before using nlogger");
-
-	auto const default_logger = spdlog::default_logger ();
-	auto const & sinks = default_logger->sinks ();
-
-	auto spd_logger = std::make_shared<spdlog::logger> (std::string{ nano::to_string (tag) }, sinks.begin (), sinks.end ());
+	auto spd_logger = std::make_shared<spdlog::logger> (std::string{ to_string (tag) }, sinks.begin (), sinks.end ());
 	spdlog::initialize_logger (spd_logger);
 	return spd_logger;
 }
