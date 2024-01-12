@@ -22,6 +22,7 @@ enum class type
 
 	generic,
 	node,
+	node_wrapper,
 	daemon,
 	wallet,
 	qt,

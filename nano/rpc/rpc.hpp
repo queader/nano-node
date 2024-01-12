@@ -20,7 +20,7 @@ class rpc_handler_interface;
 class rpc
 {
 public:
-	rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
+	rpc (nano::nlogger &, boost::asio::io_context & io_ctx_a, nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
 	virtual ~rpc ();
 	void start ();
 	virtual void accept ();
@@ -31,7 +31,8 @@ public:
 		return acceptor.local_endpoint ().port ();
 	}
 
-	nano::nlogger nlogger;
+public:
+	nano::nlogger & nlogger;
 	nano::rpc_config config;
 	boost::asio::ip::tcp::acceptor acceptor;
 	boost::asio::io_context & io_ctx;
@@ -40,5 +41,5 @@ public:
 };
 
 /** Returns the correct RPC implementation based on TLS configuration */
-std::unique_ptr<nano::rpc> get_rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
+std::unique_ptr<nano::rpc> get_rpc (nano::nlogger &, boost::asio::io_context & io_ctx_a, nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a);
 }

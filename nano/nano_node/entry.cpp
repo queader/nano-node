@@ -54,7 +54,7 @@ public:
 int main (int argc, char * const * argv)
 {
 	nano::set_umask (); // Make sure the process umask is set before any files are created
-	nano::logging::initialize (nano::logging::config::cli_default ());
+	nano::initialize_logging ();
 
 	nano::node_singleton_memory_pool_purge_guard memory_pool_cleanup_guard;
 
@@ -613,7 +613,7 @@ int main (int argc, char * const * argv)
 						error |= device >= environment.platforms[platform].devices.size ();
 						if (!error)
 						{
-							nano::nlogger nlogger;
+							nano::nlogger & nlogger = nano::default_logger ();
 							nano::opencl_config config (platform, device, threads);
 							auto opencl (nano::opencl_work::create (true, config, nlogger, network_params.work));
 							nano::work_pool work_pool{ network_params.network, 0, std::chrono::nanoseconds (0), opencl ? [&opencl] (nano::work_version const version_a, nano::root const & root_a, uint64_t difficulty_a, std::atomic<int> &) {
@@ -1144,7 +1144,7 @@ int main (int argc, char * const * argv)
 			flags.disable_legacy_bootstrap = true;
 			flags.disable_wallet_bootstrap = true;
 			flags.disable_bootstrap_listener = true;
-			auto node1 (std::make_shared<nano::node> (io_ctx1, path1, config1, work, flags, 0));
+			auto node1 (std::make_shared<nano::node> (nano::default_logger (), io_ctx1, path1, config1, work, flags, 0));
 			nano::block_hash genesis_latest (node1->latest (nano::dev::genesis_key.pub));
 			nano::uint128_t genesis_balance (std::numeric_limits<nano::uint128_t>::max ());
 			// Generating blocks
@@ -1230,7 +1230,7 @@ int main (int argc, char * const * argv)
 				config2.active_elections_size = daemon_config.node.active_elections_size;
 			}
 
-			auto node2 (std::make_shared<nano::node> (io_ctx2, path2, config2, work, flags, 1));
+			auto node2 (std::make_shared<nano::node> (nano::default_logger (), io_ctx2, path2, config2, work, flags, 1));
 			node2->start ();
 			nano::thread_runner runner2 (io_ctx2, node2->config.io_threads);
 			std::cout << boost::str (boost::format ("Processing %1% blocks (test node)\n") % (count * 2));

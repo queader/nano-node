@@ -313,6 +313,11 @@ std::string get_tls_toml_config_path (std::filesystem::path const & data_path)
 {
 	return (data_path / "config-tls.toml").string ();
 }
+
+std::string get_log_toml_config_path (std::filesystem::path const & data_path)
+{
+	return (data_path / "config-log.toml").string ();
+}
 } // namespace nano
 
 std::optional<std::string> nano::get_env (const char * variable_name)

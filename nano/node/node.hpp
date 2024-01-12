@@ -70,8 +70,8 @@ outbound_bandwidth_limiter::config outbound_bandwidth_limiter_config (node_confi
 class node final : public std::enable_shared_from_this<nano::node>
 {
 public:
-	node (boost::asio::io_context &, uint16_t, std::filesystem::path const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
-	node (boost::asio::io_context &, std::filesystem::path const &, nano::node_config const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
+	node (nano::nlogger &, boost::asio::io_context &, uint16_t, std::filesystem::path const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
+	node (nano::nlogger &, boost::asio::io_context &, std::filesystem::path const &, nano::node_config const &, nano::work_pool &, nano::node_flags = nano::node_flags (), unsigned seq = 0);
 	~node ();
 
 public:
@@ -141,11 +141,11 @@ public:
 
 public:
 	nano::write_database_queue write_database_queue;
+	nano::nlogger & nlogger;
 	boost::asio::io_context & io_ctx;
 	boost::latch node_initialized_latch;
 	nano::node_config config;
 	nano::network_params & network_params;
-	nano::nlogger nlogger;
 	nano::stats stats;
 	nano::thread_pool workers;
 	nano::thread_pool bootstrap_workers;
@@ -243,6 +243,7 @@ public:
 
 	nano::network_params network_params;
 	std::shared_ptr<boost::asio::io_context> io_context;
+	std::shared_ptr<nano::nlogger> nlogger;
 	nano::work_pool work;
 	std::shared_ptr<nano::node> node;
 };

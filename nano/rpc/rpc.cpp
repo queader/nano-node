@@ -12,7 +12,8 @@
 #include <nano/rpc/rpc_secure.hpp>
 #endif
 
-nano::rpc::rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a) :
+nano::rpc::rpc (nano::nlogger & nlogger_a, boost::asio::io_context & io_ctx_a, nano::rpc_config config_a, nano::rpc_handler_interface & rpc_handler_interface_a) :
+	nlogger{ nlogger_a },
 	config (std::move (config_a)),
 	acceptor (io_ctx_a),
 	io_ctx (io_ctx_a),
@@ -78,7 +79,7 @@ void nano::rpc::stop ()
 	acceptor.close ();
 }
 
-std::unique_ptr<nano::rpc> nano::get_rpc (boost::asio::io_context & io_ctx_a, nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a)
+std::unique_ptr<nano::rpc> nano::get_rpc (nano::nlogger & nlogger_a, boost::asio::io_context & io_ctx_a, nano::rpc_config const & config_a, nano::rpc_handler_interface & rpc_handler_interface_a)
 {
 	std::unique_ptr<rpc> impl;
 
@@ -90,7 +91,7 @@ std::unique_ptr<nano::rpc> nano::get_rpc (boost::asio::io_context & io_ctx_a, na
 	}
 	else
 	{
-		impl = std::make_unique<rpc> (io_ctx_a, config_a, rpc_handler_interface_a);
+		impl = std::make_unique<rpc> (nlogger_a, io_ctx_a, config_a, rpc_handler_interface_a);
 	}
 
 	return impl;

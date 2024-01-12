@@ -1559,13 +1559,12 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (std::filesystem::path const & data_p
 	auto rockdb_data_path = data_path_a / "rocksdb";
 	std::filesystem::remove_all (rockdb_data_path);
 
-	nano::nlogger nlogger;
 	auto error (false);
 
 	// Open rocksdb database
 	nano::rocksdb_config rocksdb_config;
 	rocksdb_config.enable = true;
-	auto rocksdb_store = nano::make_store (nlogger, data_path_a, nano::dev::constants, false, true, rocksdb_config);
+	auto rocksdb_store = nano::make_store (nano::default_logger (), data_path_a, nano::dev::constants, false, true, rocksdb_config);
 
 	if (!rocksdb_store->init_error ())
 	{

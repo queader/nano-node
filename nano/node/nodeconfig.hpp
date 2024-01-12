@@ -48,7 +48,6 @@ public:
 	nano::account random_representative () const;
 
 	nano::network_params network_params;
-	nano::logging::config logging;
 	std::optional<uint16_t> peering_port{};
 	nano::scheduler::optimistic_config optimistic_scheduler;
 	nano::scheduler::hinted_config hinted_scheduler;

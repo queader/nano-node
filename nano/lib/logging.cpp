@@ -1,3 +1,4 @@
+#include <nano/lib/config.hpp>
 #include <nano/lib/logging.hpp>
 #include <nano/lib/utility.hpp>
 
@@ -13,24 +14,28 @@ namespace
 std::atomic<bool> logging_initialized{ false };
 }
 
-nano::nlogger & nano::log::default_logger ()
+nano::nlogger & nano::default_logger ()
 {
-	static nano::nlogger logger{ nano::logging::config::cli_default () };
+	static nano::log_config config = nano::log_config::cli_default ();
+	static nano::nlogger logger{ config };
 	return logger;
 }
 
-void nano::logging::initialize (const nano::logging::config & config)
+void nano::initialize_logging ()
 {
+	debug_assert (!logging_initialized, "initialize_logging must only be called once");
+
 	spdlog::set_automatic_registration (false);
-	spdlog::set_level (to_spdlog_level (config.default_level));
+	spdlog::set_level (spdlog::level::trace);
 	spdlog::cfg::load_env_levels ();
 
 	logging_initialized = true;
 }
 
-void nano::logging::release ()
+void nano::release_logging ()
 {
 	logging_initialized = false;
+
 	spdlog::shutdown ();
 }
 
@@ -38,9 +43,9 @@ void nano::logging::release ()
  * nlogger
  */
 
-nano::nlogger::nlogger (const nano::logging::config & config, std::string identifier)
+nano::nlogger::nlogger (const nano::log_config & config, std::string identifier)
 {
-	debug_assert (logging_initialized, "nano::log::initialize must be called before creating a logger");
+	debug_assert (logging_initialized, "initialize_logging must be called before creating a logger");
 
 	// Console setup
 	if (config.console.enable)
@@ -123,7 +128,7 @@ std::shared_ptr<spdlog::logger> nano::nlogger::make_logger (nano::log::type tag)
 	return spd_logger;
 }
 
-spdlog::level::level_enum nano::logging::to_spdlog_level (nano::log::level level)
+spdlog::level::level_enum nano::to_spdlog_level (nano::log::level level)
 {
 	switch (level)
 	{
@@ -150,23 +155,23 @@ spdlog::level::level_enum nano::logging::to_spdlog_level (nano::log::level level
  * logging config presets
  */
 
-nano::logging::config nano::logging::config::cli_default ()
+nano::log_config nano::log_config::cli_default ()
 {
-	logging::config config;
+	log_config config;
 	config.default_level = nano::log::level::critical;
 	return config;
 }
 
-nano::logging::config nano::logging::config::daemon_default ()
+nano::log_config nano::log_config::daemon_default ()
 {
-	logging::config config;
+	log_config config;
 	config.default_level = nano::log::level::info;
 	return config;
 }
 
-nano::logging::config nano::logging::config::tests_default ()
+nano::log_config nano::log_config::tests_default ()
 {
-	logging::config config;
+	log_config config;
 	config.default_level = nano::log::level::critical;
 	return config;
 }
@@ -175,7 +180,7 @@ nano::logging::config nano::logging::config::tests_default ()
  * logging config
  */
 
-nano::error nano::logging::config::serialize (nano::tomlconfig & toml) const
+nano::error nano::log_config::serialize (nano::tomlconfig & toml) const
 {
 	toml.put ("level", std::string{ to_string (default_level) });
 
@@ -194,7 +199,7 @@ nano::error nano::logging::config::serialize (nano::tomlconfig & toml) const
 	return toml.get_error ();
 }
 
-nano::error nano::logging::config::deserialize (nano::tomlconfig & toml)
+nano::error nano::log_config::deserialize (nano::tomlconfig & toml)
 {
 	try
 	{
@@ -229,7 +234,7 @@ nano::error nano::logging::config::deserialize (nano::tomlconfig & toml)
 	return toml.get_error ();
 }
 
-nano::log::level nano::logging::config::parse_level (const std::string & level)
+nano::log::level nano::log_config::parse_level (const std::string & level)
 {
 	if (level == "off")
 	{
@@ -263,4 +268,44 @@ nano::log::level nano::logging::config::parse_level (const std::string & level)
 	{
 		throw std::runtime_error ("Invalid log level: " + level + ". Must be one of: off, critical, error, warn, info, debug, trace");
 	}
+}
+
+nano::error nano::read_log_config_toml (const std::filesystem::path & data_path, nano::log_config & config, const std::vector<std::string> & config_overrides)
+{
+	nano::error error;
+	auto toml_config_path = nano::get_log_toml_config_path (data_path);
+
+	// Parse and deserialize
+	nano::tomlconfig toml;
+
+	std::stringstream config_overrides_stream;
+	for (auto const & entry : config_overrides)
+	{
+		config_overrides_stream << entry << std::endl;
+	}
+	config_overrides_stream << std::endl;
+
+	// Make sure we don't create an empty toml file if it doesn't exist. Running without a toml file is the default.
+	if (!error)
+	{
+		if (std::filesystem::exists (toml_config_path))
+		{
+			error = toml.read (config_overrides_stream, toml_config_path);
+		}
+		else
+		{
+			error = toml.read (config_overrides_stream);
+		}
+	}
+
+	if (!error)
+	{
+		auto logging_l = toml.get_optional_child ("log");
+		if (logging_l)
+		{
+			error = config.deserialize (*logging_l);
+		}
+	}
+
+	return error;
 }

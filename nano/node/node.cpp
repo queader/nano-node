@@ -133,18 +133,18 @@ nano::keypair nano::load_or_create_node_id (std::filesystem::path const & applic
 	}
 }
 
-nano::node::node (boost::asio::io_context & io_ctx_a, uint16_t peering_port_a, std::filesystem::path const & application_path_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
-	node (io_ctx_a, application_path_a, nano::node_config (peering_port_a), work_a, flags_a, seq)
+nano::node::node (nano::nlogger & nlogger_a, boost::asio::io_context & io_ctx_a, uint16_t peering_port_a, std::filesystem::path const & application_path_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
+	node (nlogger_a, io_ctx_a, application_path_a, nano::node_config (peering_port_a), work_a, flags_a, seq)
 {
 }
 
-nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path const & application_path_a, nano::node_config const & config_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
+nano::node::node (nano::nlogger & nlogger_a, boost::asio::io_context & io_ctx_a, std::filesystem::path const & application_path_a, nano::node_config const & config_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
 	write_database_queue (!flags_a.force_use_write_database_queue && (config_a.rocksdb_config.enable)),
+	nlogger{ nlogger_a },
 	io_ctx (io_ctx_a),
 	node_initialized_latch (1),
 	config (config_a),
 	network_params{ config.network_params },
-	nlogger{ config.logging },
 	stats (config.stats_config),
 	workers{ config.background_threads, nano::thread_role::name::worker },
 	bootstrap_workers{ config.bootstrap_serving_threads, nano::thread_role::name::bootstrap_worker },
@@ -1485,31 +1485,44 @@ nano::node_wrapper::node_wrapper (std::filesystem::path const & path_a, std::fil
 	io_context (std::make_shared<boost::asio::io_context> ()),
 	work{ network_params.network, 1 }
 {
-	boost::system::error_code error_chmod;
-
 	/*
 	 * @warning May throw a filesystem exception
 	 */
 	std::filesystem::create_directories (path_a);
+
+	boost::system::error_code error_chmod;
 	nano::set_secure_perm_directory (path_a, error_chmod);
+
+	nano::log_config log_config = nano::log_config::daemon_default ();
+	{
+		auto error = nano::read_log_config_toml (config_path_a, log_config, node_flags_a.config_overrides);
+		if (error)
+		{
+			nano::log::error (nano::log::type::daemon, "Error reading logging config: {}, using defaults", error.get_message ());
+			log_config = nano::log_config::daemon_default ();
+		}
+	}
+	nlogger = std::make_shared<nano::nlogger> (log_config);
+
 	nano::daemon_config daemon_config{ path_a, network_params };
 	auto error = nano::read_node_config_toml (config_path_a, daemon_config, node_flags_a.config_overrides);
 	if (error)
 	{
-		std::cerr << "Error deserializing config file";
-		if (!node_flags_a.config_overrides.empty ())
+		if (node_flags_a.config_overrides.empty ())
 		{
-			std::cerr << " or --config option";
+			nano::log::error (nano::log::type::node_wrapper, "Error deserializing node config: {}", error.get_message ());
 		}
-		std::cerr << "\n"
-				  << error.get_message () << std::endl;
+		else
+		{
+			nano::log::error (nano::log::type::node_wrapper, "Error deserializing node config or --config option: {}", error.get_message ());
+		}
 		std::exit (1);
 	}
 
 	auto & node_config = daemon_config.node;
 	node_config.peering_port = 24000;
 
-	node = std::make_shared<nano::node> (*io_context, path_a, node_config, work, node_flags_a);
+	node = std::make_shared<nano::node> (*nlogger, *io_context, path_a, node_config, work, node_flags_a);
 }
 
 nano::node_wrapper::~node_wrapper ()

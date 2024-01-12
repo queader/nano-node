@@ -63,20 +63,34 @@ constexpr std::size_t OPEN_FILE_DESCRIPTORS_LIMIT = 16384;
 
 void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flags const & flags)
 {
-	nano::logging::initialize (nano::logging::config::daemon_default ());
-
-	nlogger.info (nano::log::type::daemon, "Daemon started");
+	nano::log::info (nano::log::type::daemon, "Daemon started");
 
 	install_abort_signal_handler ();
 
 	std::filesystem::create_directories (data_path);
+
 	boost::system::error_code error_chmod;
 	nano::set_secure_perm_directory (data_path, error_chmod);
+
+	nano::log_config log_config = nano::log_config::daemon_default ();
+	{
+		auto error = nano::read_log_config_toml (data_path, log_config, flags.config_overrides);
+		if (error)
+		{
+			nano::log::error (nano::log::type::daemon, "Error reading logging config: {}, using defaults", error.get_message ());
+			log_config = nano::log_config::daemon_default ();
+		}
+	}
+	nano::nlogger nlogger{ log_config };
+
 	std::unique_ptr<nano::thread_runner> runner;
+
 	nano::network_params network_params{ nano::network_constants::active_network };
 	nano::daemon_config config{ data_path, network_params };
 	auto error = nano::read_node_config_toml (data_path, config, flags.config_overrides);
+
 	nano::set_use_memory_pools (config.node.use_memory_pools);
+
 	if (!error)
 	{
 		error = nano::flags_config_conflicts (flags, config.node);
@@ -125,7 +139,7 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 				config.node.peering_port = network_params.network.default_node_port;
 			}
 
-			auto node (std::make_shared<nano::node> (io_ctx, data_path, config.node, opencl_work, flags));
+			auto node (std::make_shared<nano::node> (nlogger, io_ctx, data_path, config.node, opencl_work, flags));
 			if (!node->init_error ())
 			{
 				auto network_label = node->network_params.network.get_current_network_as_string ();
@@ -164,7 +178,7 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 								io_ctx.stop ();
 							});
 						});
-						rpc = nano::get_rpc (io_ctx, rpc_config, *rpc_handler);
+						rpc = nano::get_rpc (nlogger, io_ctx, rpc_config, *rpc_handler);
 						rpc->start ();
 					}
 					else
@@ -182,7 +196,7 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 				}
 
 				debug_assert (!nano::signal_handler_impl);
-				nano::signal_handler_impl = [this, &io_ctx] () {
+				nano::signal_handler_impl = [this, &io_ctx, &nlogger] () {
 					nlogger.warn (nano::log::type::daemon, "Interrupt signal received, stopping...");
 
 					io_ctx.stop ();
@@ -226,8 +240,8 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 	}
 	else
 	{
-		nlogger.critical (nano::log::type::daemon, "Error deserializing config: {}", error.get_message ());
+		nlogger.critical (nano::log::type::daemon, "Error deserializing node config: {}", error.get_message ());
 	}
 
-	nlogger.info (nano::log::type::daemon, "Daemon exiting...");
+	nano::log::info (nano::log::type::daemon, "Daemon exiting...");
 }
