@@ -1498,7 +1498,7 @@ nano::node_wrapper::node_wrapper (std::filesystem::path const & path_a, std::fil
 		auto error = nano::read_log_config_toml (config_path_a, log_config, node_flags_a.config_overrides);
 		if (error)
 		{
-			nano::log::error (nano::log::type::daemon, "Error reading logging config: {}, using defaults", error.get_message ());
+			nano::log::error ("Error reading logging config: {}, using defaults", error.get_message ());
 			log_config = nano::log_config::daemon_default ();
 		}
 	}
@@ -1510,11 +1510,11 @@ nano::node_wrapper::node_wrapper (std::filesystem::path const & path_a, std::fil
 	{
 		if (node_flags_a.config_overrides.empty ())
 		{
-			nano::log::error (nano::log::type::node_wrapper, "Error deserializing node config: {}", error.get_message ());
+			nano::log::error ("Error deserializing node config: {}", error.get_message ());
 		}
 		else
 		{
-			nano::log::error (nano::log::type::node_wrapper, "Error deserializing node config or --config option: {}", error.get_message ());
+			nano::log::error ("Error deserializing node config or --config option: {}", error.get_message ());
 		}
 		std::exit (1);
 	}

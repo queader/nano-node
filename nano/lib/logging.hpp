@@ -120,38 +120,38 @@ nano::nlogger & default_logger ();
 namespace nano::log
 {
 template <class... Args>
-void log (nano::log::level level, nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+void log (nano::log::level level, spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	nano::default_logger ().log (level, tag, fmt, std::forward<Args> (args)...);
+	nano::default_logger ().log (level, nano::log::type::all, fmt, std::forward<Args> (args)...);
 }
 
 template <class... Args>
-void debug (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+void debug (spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	nano::default_logger ().debug (tag, fmt, std::forward<Args> (args)...);
+	nano::default_logger ().debug (nano::log::type::all, fmt, std::forward<Args> (args)...);
 }
 
 template <class... Args>
-void info (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+void info (spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	nano::default_logger ().info (tag, fmt, std::forward<Args> (args)...);
+	nano::default_logger ().info (nano::log::type::all, fmt, std::forward<Args> (args)...);
 }
 
 template <class... Args>
-void warn (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+void warn (spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	nano::default_logger ().warn (tag, fmt, std::forward<Args> (args)...);
+	nano::default_logger ().warn (nano::log::type::all, fmt, std::forward<Args> (args)...);
 }
 
 template <class... Args>
-void error (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+void error (spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	nano::default_logger ().error (tag, fmt, std::forward<Args> (args)...);
+	nano::default_logger ().error (nano::log::type::all, fmt, std::forward<Args> (args)...);
 }
 
 template <class... Args>
-void critical (nano::log::type tag, spdlog::format_string_t<Args...> fmt, Args &&... args)
+void critical (spdlog::format_string_t<Args...> fmt, Args &&... args)
 {
-	nano::default_logger ().critical (tag, fmt, std::forward<Args> (args)...);
+	nano::default_logger ().critical (nano::log::type::all, fmt, std::forward<Args> (args)...);
 }
 }

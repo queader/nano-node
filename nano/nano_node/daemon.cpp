@@ -63,7 +63,7 @@ constexpr std::size_t OPEN_FILE_DESCRIPTORS_LIMIT = 16384;
 
 void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flags const & flags)
 {
-	nano::log::info (nano::log::type::daemon, "Daemon started");
+	nano::log::info ("Daemon started");
 
 	install_abort_signal_handler ();
 
@@ -77,7 +77,7 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 		auto error = nano::read_log_config_toml (data_path, log_config, flags.config_overrides);
 		if (error)
 		{
-			nano::log::error (nano::log::type::daemon, "Error reading logging config: {}, using defaults", error.get_message ());
+			nano::log::error ("Error reading logging config: {}, using defaults", error.get_message ());
 			log_config = nano::log_config::daemon_default ();
 		}
 	}
@@ -243,5 +243,5 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 		nlogger.critical (nano::log::type::daemon, "Error deserializing node config: {}", error.get_message ());
 	}
 
-	nano::log::info (nano::log::type::daemon, "Daemon exiting...");
+	nano::log::info ("Daemon exiting...");
 }
