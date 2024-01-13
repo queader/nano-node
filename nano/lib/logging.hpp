@@ -18,11 +18,11 @@ public:
 	nano::error serialize (nano::tomlconfig &) const;
 	nano::error deserialize (nano::tomlconfig &);
 
-private:
-	nano::log::level parse_level (std::string const &);
-
 public:
 	nano::log::level default_level{ nano::log::level::info };
+
+	using logger_id_t = std::pair<nano::log::type, nano::log::detail>;
+	std::map<logger_id_t, nano::log::level> levels{ default_levels (default_level) };
 
 	struct console_config
 	{
@@ -41,12 +41,16 @@ public:
 	console_config console;
 	file_config file;
 
-	// TODO: Per logger type levels
-
 public: // Predefined defaults
 	static log_config cli_default ();
 	static log_config daemon_default ();
 	static log_config tests_default ();
+
+private:
+	logger_id_t parse_logger_id (std::string const &);
+
+	/// Returns placeholder log levels for all loggers
+	static std::map<logger_id_t, nano::log::level> default_levels (nano::log::level);
 };
 
 nano::error read_log_config_toml (std::filesystem::path const & data_path, nano::log_config & config, std::vector<std::string> const & overrides);
@@ -62,7 +66,7 @@ spdlog::level::level_enum to_spdlog_level (nano::log::level);
 class nlogger final
 {
 public:
-	nlogger (nano::log_config const &, std::string identifier = "");
+	nlogger (nano::log_config, std::string identifier = "");
 
 	// Disallow copies
 	nlogger (nlogger const &) = delete;
@@ -105,6 +109,9 @@ public:
 	}
 
 private:
+	const nano::log_config config;
+	const std::string identifier;
+
 	std::vector<spdlog::sink_ptr> sinks;
 	std::unordered_map<nano::log::type, std::shared_ptr<spdlog::logger>> spd_loggers;
 	std::shared_mutex mutex;

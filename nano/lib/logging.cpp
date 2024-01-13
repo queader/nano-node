@@ -43,7 +43,9 @@ void nano::release_logging ()
  * nlogger
  */
 
-nano::nlogger::nlogger (const nano::log_config & config, std::string identifier)
+nano::nlogger::nlogger (nano::log_config config, std::string identifier) :
+	config{ std::move (config) },
+	identifier{ std::move (identifier) }
 {
 	debug_assert (logging_initialized, "initialize_logging must be called before creating a logger");
 
@@ -124,7 +126,18 @@ spdlog::logger & nano::nlogger::get_logger (nano::log::type tag)
 std::shared_ptr<spdlog::logger> nano::nlogger::make_logger (nano::log::type tag)
 {
 	auto spd_logger = std::make_shared<spdlog::logger> (std::string{ to_string (tag) }, sinks.begin (), sinks.end ());
+
 	spdlog::initialize_logger (spd_logger);
+
+	if (auto it = config.levels.find ({ tag, nano::log::detail::all }); it != config.levels.end ())
+	{
+		spd_logger->set_level (to_spdlog_level (it->second));
+	}
+	else
+	{
+		spd_logger->set_level (to_spdlog_level (config.default_level));
+	}
+
 	return spd_logger;
 }
 
@@ -182,7 +195,7 @@ nano::log_config nano::log_config::tests_default ()
 
 nano::error nano::log_config::serialize (nano::tomlconfig & toml) const
 {
-	toml.put ("level", std::string{ to_string (default_level) });
+	toml.put ("default_level", std::string{ to_string (default_level) });
 
 	nano::tomlconfig console_config;
 	console_config.put ("enable", console.enable);
@@ -196,17 +209,26 @@ nano::error nano::log_config::serialize (nano::tomlconfig & toml) const
 	file_config.put ("rotation_count", file.rotation_count);
 	toml.put_child ("file", file_config);
 
+	nano::tomlconfig levels_config;
+	for (auto const & [logger_id, level] : levels)
+	{
+		auto logger_name = to_string (logger_id.first);
+		levels_config.put (std::string{ logger_name }, std::string{ to_string (level) });
+	}
+	toml.put_child ("levels", levels_config);
+
 	return toml.get_error ();
 }
 
+// TODO: Move handling of deserialization exceptions outside of this function
 nano::error nano::log_config::deserialize (nano::tomlconfig & toml)
 {
 	try
 	{
-		if (toml.has_key ("level"))
+		if (toml.has_key ("default_level"))
 		{
-			auto default_level_l = toml.get<std::string> ("level");
-			default_level = parse_level (default_level_l);
+			auto default_level_l = toml.get<std::string> ("default_level");
+			default_level = nano::log::to_level (default_level_l);
 		}
 
 		if (toml.has_key ("console"))
@@ -224,9 +246,29 @@ nano::error nano::log_config::deserialize (nano::tomlconfig & toml)
 			file.max_size = file_config.get<std::size_t> ("max_size");
 			file.rotation_count = file_config.get<std::size_t> ("rotation_count");
 		}
-	}
 
-	catch (std::runtime_error const & ex)
+		if (toml.has_key ("levels"))
+		{
+			auto levels_config = toml.get_required_child ("levels");
+			for (auto & level : levels_config.get_values<std::string> ())
+			{
+				try
+				{
+					auto & [name_str, level_str] = level;
+					auto logger_level = nano::log::to_level (level_str);
+					auto logger_id = parse_logger_id (name_str);
+
+					levels[logger_id] = logger_level;
+				}
+				catch (std::invalid_argument const & ex)
+				{
+					// Ignore but warn about invalid logger names
+					nano::log::warn ("Processing log config: {}", ex.what ());
+				}
+			}
+		}
+	}
+	catch (std::invalid_argument const & ex)
 	{
 		toml.get_error ().set (ex.what ());
 	}
@@ -234,40 +276,34 @@ nano::error nano::log_config::deserialize (nano::tomlconfig & toml)
 	return toml.get_error ();
 }
 
-nano::log::level nano::log_config::parse_level (const std::string & level)
+/**
+ * Parse `logger_name[:logger_detail]` into a pair of `log::type` and `log::detail`
+ * @throw std::invalid_argument if `logger_name` or `logger_detail` are invalid
+ */
+nano::log_config::logger_id_t nano::log_config::parse_logger_id (const std::string & logger_name)
 {
-	if (level == "off")
+	auto pos = logger_name.find ("::");
+	if (pos == std::string::npos)
 	{
-		return nano::log::level::off;
-	}
-	else if (level == "critical")
-	{
-		return nano::log::level::critical;
-	}
-	else if (level == "error")
-	{
-		return nano::log::level::error;
-	}
-	else if (level == "warn")
-	{
-		return nano::log::level::warn;
-	}
-	else if (level == "info")
-	{
-		return nano::log::level::info;
-	}
-	else if (level == "debug")
-	{
-		return nano::log::level::debug;
-	}
-	else if (level == "trace")
-	{
-		return nano::log::level::trace;
+		return { nano::log::to_type (logger_name), nano::log::detail::all };
 	}
 	else
 	{
-		throw std::runtime_error ("Invalid log level: " + level + ". Must be one of: off, critical, error, warn, info, debug, trace");
+		auto logger_type = logger_name.substr (0, pos);
+		auto logger_detail = logger_name.substr (pos + 1);
+
+		return { nano::log::to_type (logger_type), nano::log::to_detail (logger_detail) };
 	}
+}
+
+std::map<nano::log_config::logger_id_t, nano::log::level> nano::log_config::default_levels (nano::log::level default_level)
+{
+	std::map<nano::log_config::logger_id_t, nano::log::level> result;
+	for (auto const & type : nano::log::all_types ())
+	{
+		result.emplace (std::make_pair (type, nano::log::detail::all), default_level);
+	}
+	return result;
 }
 
 nano::error nano::read_log_config_toml (const std::filesystem::path & data_path, nano::log_config & config, const std::vector<std::string> & config_overrides)

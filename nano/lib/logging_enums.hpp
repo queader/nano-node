@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <vector>
 
 namespace nano::log
 {
@@ -69,13 +70,6 @@ enum class type
 	bootstrap_legacy,
 };
 
-enum class category
-{
-	all = 0, // reserved
-
-	work_generation,
-};
-
 enum class detail
 {
 	all = 0, // reserved
@@ -112,17 +106,31 @@ enum class detail
 
 };
 
-enum class preset
+// TODO: Additionally categorize logs by categories which can be enabled/disabled independently
+enum class category
 {
-	cli,
-	daemon,
-	tests,
+	all = 0, // reserved
+
+	work_generation,
+	// ...
 };
 }
 
-namespace nano
+namespace nano::log
 {
 std::string_view to_string (nano::log::type);
 std::string_view to_string (nano::log::detail);
 std::string_view to_string (nano::log::level);
+
+/// @throw std::invalid_argument if the input string does not match a log::level
+nano::log::level to_level (std::string_view);
+
+/// @throw std::invalid_argument if the input string does not match a log::type
+nano::log::type to_type (std::string_view);
+
+/// @throw std::invalid_argument if the input string does not match a log::detail
+nano::log::detail to_detail (std::string_view);
+
+std::vector<nano::log::level> const & all_levels ();
+std::vector<nano::log::type> const & all_types ();
 }
