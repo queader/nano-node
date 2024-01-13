@@ -17,19 +17,28 @@
 
 namespace
 {
-nano::nlogger nlogger;
-
 volatile sig_atomic_t sig_int_or_term = 0;
 
 void run (std::filesystem::path const & data_path, std::vector<std::string> const & config_overrides)
 {
-	nano::logging::initialize (nano::logging::config::daemon_default ());
-
-	nlogger.info (nano::log::type::daemon, "Daemon started (RPC)");
+	nano::log::info ("Daemon started (RPC)");
 
 	std::filesystem::create_directories (data_path);
+
 	boost::system::error_code error_chmod;
 	nano::set_secure_perm_directory (data_path, error_chmod);
+
+	nano::log_config log_config = nano::log_config::daemon_default ();
+	{
+		auto error = nano::read_log_config_toml (data_path, log_config, config_overrides);
+		if (error)
+		{
+			nano::log::error ("Error reading logging config: {}, using defaults", error.get_message ());
+			log_config = nano::log_config::daemon_default ();
+		}
+	}
+	nano::nlogger nlogger{ log_config };
+
 	std::unique_ptr<nano::thread_runner> runner;
 
 	nano::network_params network_params{ nano::network_constants::active_network };
@@ -54,7 +63,7 @@ void run (std::filesystem::path const & data_path, std::vector<std::string> cons
 		try
 		{
 			nano::ipc_rpc_processor ipc_rpc_processor (io_ctx, rpc_config);
-			auto rpc = nano::get_rpc (io_ctx, rpc_config, ipc_rpc_processor);
+			auto rpc = nano::get_rpc (nlogger, io_ctx, rpc_config, ipc_rpc_processor);
 			rpc->start ();
 
 			debug_assert (!nano::signal_handler_impl);
@@ -83,13 +92,15 @@ void run (std::filesystem::path const & data_path, std::vector<std::string> cons
 	{
 		nlogger.critical (nano::log::type::daemon, "Error deserializing config: {}", error.get_message ());
 	}
+
+	nano::log::info ("Daemon stopped (RPC)");
 }
 }
 
 int main (int argc, char * const * argv)
 {
 	nano::set_umask (); // Make sure the process umask is set before any files are created
-	nano::logging::initialize (nano::logging::config::cli_default ());
+	nano::initialize_logging ();
 
 	boost::program_options::options_description description ("Command line options");
 
