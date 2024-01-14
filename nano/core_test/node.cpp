@@ -3300,7 +3300,7 @@ TEST (node, dont_write_lock_node)
 	std::promise<void> write_lock_held_promise;
 	std::promise<void> finished_promise;
 	std::thread ([&path, &write_lock_held_promise, &finished_promise] () {
-		nano::nlogger logger;
+		nano::nlogger & logger = nano::default_logger ();
 		auto store = nano::make_store (logger, path, nano::dev::constants, false, true);
 		{
 			nano::ledger_cache ledger_cache;

@@ -1160,7 +1160,7 @@ TEST (confirmation_heightDeathTest, rollback_added_block)
 	// valgrind can be noisy with death tests
 	if (!nano::running_within_valgrind ())
 	{
-		nano::nlogger logger;
+		nano::nlogger & logger = nano::default_logger ();
 		auto path (nano::unique_path ());
 		auto store = nano::make_store (logger, path, nano::dev::constants);
 		ASSERT_TRUE (!store->init_error ());
@@ -1251,7 +1251,7 @@ TEST (confirmation_heightDeathTest, modified_chain)
 	// valgrind can be noisy with death tests
 	if (!nano::running_within_valgrind ())
 	{
-		nano::nlogger logger;
+		nano::nlogger & logger = nano::default_logger ();
 		auto path (nano::unique_path ());
 		auto store = nano::make_store (logger, path, nano::dev::constants);
 		ASSERT_TRUE (!store->init_error ());
@@ -1328,7 +1328,7 @@ TEST (confirmation_heightDeathTest, modified_chain_account_removed)
 	// valgrind can be noisy with death tests
 	if (!nano::running_within_valgrind ())
 	{
-		nano::nlogger logger;
+		nano::nlogger & logger = nano::default_logger ();
 		auto path (nano::unique_path ());
 		auto store = nano::make_store (logger, path, nano::dev::constants);
 		ASSERT_TRUE (!store->init_error ());
@@ -2039,7 +2039,7 @@ TEST (confirmation_height, unbounded_block_cache_iteration)
 		// Don't test this in rocksdb mode
 		GTEST_SKIP ();
 	}
-	nano::nlogger logger;
+	nano::nlogger & logger = nano::default_logger ();
 	auto path (nano::unique_path ());
 	auto store = nano::make_store (logger, path, nano::dev::constants);
 	ASSERT_TRUE (!store->init_error ());
@@ -2102,7 +2102,7 @@ TEST (confirmation_height, unbounded_block_cache_iteration)
 
 TEST (confirmation_height, pruned_source)
 {
-	nano::nlogger logger;
+	nano::nlogger & logger = nano::default_logger ();
 	auto path (nano::unique_path ());
 	auto store = nano::make_store (logger, path, nano::dev::constants);
 	ASSERT_TRUE (!store->init_error ());

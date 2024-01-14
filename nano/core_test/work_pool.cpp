@@ -89,14 +89,13 @@ TEST (work, cancel_many)
 
 TEST (work, opencl)
 {
-	nano::nlogger logger;
 	bool error (false);
 	nano::opencl_environment environment (error);
 	ASSERT_TRUE (!error || !nano::opencl_loaded);
 	if (!environment.platforms.empty () && !environment.platforms.begin ()->devices.empty ())
 	{
 		nano::opencl_config config (0, 0, 16 * 1024);
-		auto opencl (nano::opencl_work::create (true, config, logger, nano::dev::network_params.work));
+		auto opencl (nano::opencl_work::create (true, config, nano::default_logger (), nano::dev::network_params.work));
 		if (opencl != nullptr)
 		{
 			// 0 threads, should add 1 for managing OpenCL

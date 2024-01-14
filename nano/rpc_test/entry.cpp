@@ -15,7 +15,7 @@ void force_nano_dev_network ();
 
 int main (int argc, char ** argv)
 {
-	nano::logging::initialize (nano::logging::config::tests_default ());
+	nano::initialize_logging ();
 	nano::force_nano_dev_network ();
 	nano::set_use_memory_pools (false);
 	nano::node_singleton_memory_pool_purge_guard cleanup_guard;
