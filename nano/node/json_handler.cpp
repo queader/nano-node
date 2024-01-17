@@ -1295,11 +1295,18 @@ void nano::json_handler::blocks_info ()
 
 	boost::property_tree::ptree blocks;
 	boost::property_tree::ptree blocks_not_found;
-	auto transaction (node.store.tx_begin_read ());
-	for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+
 	{
-		if (!ec)
+		auto transaction (node.store.tx_begin_read ());
+		for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
 		{
+			if (ec)
+			{
+				break;
+			}
+
+			transaction.refresh_if_needed ();
+
 			std::string hash_text = hashes.second.data ();
 			nano::block_hash hash;
 			if (!hash.decode_hex (hash_text))
