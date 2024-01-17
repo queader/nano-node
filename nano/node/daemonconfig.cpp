@@ -1,3 +1,4 @@
+#include <nano/lib/cli.hpp>
 #include <nano/lib/config.hpp>
 #include <nano/lib/jsonconfig.hpp>
 #include <nano/lib/tomlconfig.hpp>
@@ -59,7 +60,7 @@ nano::error nano::daemon_config::deserialize_toml (nano::tomlconfig & toml)
 	return toml.get_error ();
 }
 
-nano::error nano::read_node_config_toml (std::filesystem::path const & data_path_a, nano::daemon_config & config_a, std::vector<std::string> const & config_overrides)
+nano::error nano::read_node_config_toml (std::filesystem::path data_path_a, nano::daemon_config & config_a, nano::config_overrides_t config_overrides)
 {
 	nano::error error;
 	auto toml_config_path = nano::get_node_toml_config_path (data_path_a);
@@ -67,13 +68,7 @@ nano::error nano::read_node_config_toml (std::filesystem::path const & data_path
 
 	// Parse and deserialize
 	nano::tomlconfig toml;
-
-	std::stringstream config_overrides_stream;
-	for (auto const & entry : config_overrides)
-	{
-		config_overrides_stream << entry << std::endl;
-	}
-	config_overrides_stream << std::endl;
+	std::stringstream config_overrides_stream = nano::config_overrides_to_toml (config_overrides);
 
 	// Make sure we don't create an empty toml file if it doesn't exist. Running without a toml file is the default.
 	if (!error)

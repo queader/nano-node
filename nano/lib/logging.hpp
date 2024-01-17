@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/config.hpp>
 #include <nano/lib/logging_enums.hpp>
 #include <nano/lib/tomlconfig.hpp>
 
@@ -59,7 +60,7 @@ private:
 };
 
 /// @throws std::runtime_error if the log config file is malformed
-nano::log_config load_log_config (nano::log_config fallback, std::filesystem::path const & data_path = {}, std::vector<std::string> const & config_overrides = std::vector<std::string> ());
+nano::log_config load_log_config (nano::log_config fallback, std::filesystem::path data_path = {}, nano::config_overrides_t config_overrides = {});
 }
 
 namespace nano

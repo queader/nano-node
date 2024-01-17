@@ -1,4 +1,5 @@
 #include <nano/lib/blocks.hpp>
+#include <nano/lib/cli.hpp>
 #include <nano/lib/config.hpp>
 #include <nano/lib/logging.hpp>
 
@@ -377,19 +378,13 @@ std::string_view nano::to_string (nano::networks network)
 	return "n/a";
 }
 
-nano::tomlconfig nano::load_toml_file (const std::filesystem::path & config_filename, const std::filesystem::path & data_path, const std::vector<std::string> & config_overrides)
+nano::tomlconfig nano::load_toml_file (const std::filesystem::path & config_filename, const std::filesystem::path & data_path, const nano::config_overrides_t & config_overrides)
 {
-	std::stringstream config_overrides_stream;
-	for (auto const & entry : config_overrides)
-	{
-		config_overrides_stream << entry << std::endl;
-	}
-	config_overrides_stream << std::endl;
-
-	auto try_load_toml = [&config_overrides_stream] (auto toml_config_path) -> std::optional<nano::tomlconfig> {
+	auto try_load_toml = [&config_overrides] (auto toml_config_path) -> std::optional<nano::tomlconfig> {
 		// Make sure we don't create an empty toml file if it doesn't exist. Running without a toml file is the default.
 		if (std::filesystem::exists (toml_config_path))
 		{
+			auto config_overrides_stream = nano::config_overrides_to_toml (config_overrides);
 			nano::tomlconfig toml;
 			auto error = toml.read (config_overrides_stream, toml_config_path);
 			if (error)
@@ -414,6 +409,7 @@ nano::tomlconfig nano::load_toml_file (const std::filesystem::path & config_file
 	}
 
 	// If no config was found, return an empty config with overrides applied
+	auto config_overrides_stream = nano::config_overrides_to_toml (config_overrides);
 	nano::tomlconfig toml;
 	auto error = toml.read (config_overrides_stream);
 	if (error)

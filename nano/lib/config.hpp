@@ -9,6 +9,7 @@
 #include <array>
 #include <chrono>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 
@@ -80,6 +81,8 @@ inline bool is_tsan_build ()
 
 namespace nano
 {
+using config_overrides_t = std::map<std::string, std::string>; // <config_key, config_value>
+
 uint8_t get_major_node_version ();
 uint8_t get_minor_node_version ();
 uint8_t get_patch_node_version ();
@@ -413,10 +416,10 @@ void force_nano_dev_network ();
  * Attempt to read a configuration file from current working directory, or if not found, the nano root directory.
  * Returns empty tomlconfig if nothing is found.
  */
-nano::tomlconfig load_toml_file (const std::filesystem::path & config_filename, const std::filesystem::path & data_path, const std::vector<std::string> & config_overrides);
+nano::tomlconfig load_toml_file (const std::filesystem::path & config_filename, const std::filesystem::path & data_path, const nano::config_overrides_t & config_overrides);
 
 template <typename T>
-T load_config_file (T fallback, const std::filesystem::path & config_filename, const std::filesystem::path & data_path, const std::vector<std::string> & config_overrides)
+T load_config_file (T fallback, const std::filesystem::path & config_filename, const std::filesystem::path & data_path, const nano::config_overrides_t & config_overrides)
 {
 	auto toml = load_toml_file (config_filename, data_path, config_overrides);
 

@@ -1,4 +1,5 @@
 #include <nano/boost/asio/ip/address_v6.hpp>
+#include <nano/lib/cli.hpp>
 #include <nano/lib/config.hpp>
 #include <nano/lib/rpcconfig.hpp>
 #include <nano/lib/tomlconfig.hpp>
@@ -111,20 +112,14 @@ nano::rpc_process_config::rpc_process_config (nano::network_constants & network_
 
 namespace nano
 {
-nano::error read_rpc_config_toml (std::filesystem::path const & data_path_a, nano::rpc_config & config_a, std::vector<std::string> const & config_overrides)
+nano::error read_rpc_config_toml (std::filesystem::path data_path_a, nano::rpc_config & config_a, nano::config_overrides_t config_overrides)
 {
 	nano::error error;
 	auto toml_config_path = nano::get_rpc_toml_config_path (data_path_a);
 
 	// Parse and deserialize
 	nano::tomlconfig toml;
-
-	std::stringstream config_overrides_stream;
-	for (auto const & entry : config_overrides)
-	{
-		config_overrides_stream << entry << std::endl;
-	}
-	config_overrides_stream << std::endl;
+	std::stringstream config_overrides_stream = nano::config_overrides_to_toml (config_overrides);
 
 	// Make sure we don't create an empty toml file if it doesn't exist. Running without a toml file is the default.
 	if (!error)

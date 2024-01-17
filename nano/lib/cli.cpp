@@ -5,22 +5,23 @@
 
 #include <sstream>
 
-std::vector<std::string> nano::config_overrides (std::vector<config_key_value_pair> const & key_value_pairs_a)
+nano::config_overrides_t nano::make_config_overrides (const nano::cli_config_overrides_t & config_overrides)
 {
-	std::vector<std::string> overrides;
-	auto format (boost::format ("%1%=%2%"));
-	auto format_add_escaped_quotes (boost::format ("%1%=\"%2%\""));
-	for (auto pair : key_value_pairs_a)
+	nano::config_overrides_t overrides;
+
+	for (auto const & pair : config_overrides)
 	{
-		auto start = pair.value.find ('[');
+		auto & [pair_key, pair_value] = pair;
+
+		auto start = pair_value.find ('[');
 
 		std::string value;
 		auto is_array = (start != std::string::npos);
 		if (is_array)
 		{
 			// Trim off the square brackets [] of the array
-			auto end = pair.value.find (']');
-			auto array_values = pair.value.substr (start + 1, end - start - 1);
+			auto end = pair_value.find (']');
+			auto array_values = pair_value.substr (start + 1, end - start - 1);
 
 			// Split the string by comma
 			std::vector<std::string> split_elements;
@@ -47,12 +48,38 @@ std::vector<std::string> nano::config_overrides (std::vector<config_key_value_pa
 		}
 		else
 		{
-			value = pair.value;
+			value = pair_value;
 		}
-		auto already_escaped = value.find ('\"') != std::string::npos;
-		overrides.push_back (((!already_escaped ? format_add_escaped_quotes : format) % pair.key % value).str ());
+
+		// Ensure the value is always surrounded by quotes
+		bool already_escaped = value.find ('\"') != std::string::npos;
+		if (!already_escaped)
+		{
+			value = "\"" + value + "\"";
+		}
+
+		overrides[pair_key] = value;
 	}
+
 	return overrides;
+}
+
+std::stringstream nano::config_overrides_to_toml (nano::config_overrides_t const & config_overrides)
+{
+	std::stringstream config_overrides_stream;
+	for (auto const & entry : config_overrides)
+	{
+		auto [key, value] = entry;
+
+		auto format (boost::format ("%1%=%2%"));
+		auto format_add_escaped_quotes (boost::format ("%1%=\"%2%\""));
+
+		bool already_escaped = value.find ('\"') != std::string::npos;
+		auto key_value_pair = ((!already_escaped ? format_add_escaped_quotes : format) % key % value).str ();
+
+		config_overrides_stream << key_value_pair << std::endl;
+	}
+	config_overrides_stream << std::endl;
 }
 
 std::istream & nano::operator>> (std::istream & is, nano::config_key_value_pair & into)

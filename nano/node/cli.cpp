@@ -168,12 +168,12 @@ std::error_code nano::update_flags (nano::node_flags & flags_a, boost::program_o
 	auto config (vm.find ("config"));
 	if (config != vm.end ())
 	{
-		flags_a.config_overrides = nano::config_overrides (config->second.as<std::vector<nano::config_key_value_pair>> ());
+		flags_a.config_overrides = nano::make_config_overrides (config->second.as<nano::cli_config_overrides_t> ());
 	}
 	auto rpcconfig (vm.find ("rpcconfig"));
 	if (rpcconfig != vm.end ())
 	{
-		flags_a.rpc_config_overrides = nano::config_overrides (rpcconfig->second.as<std::vector<nano::config_key_value_pair>> ());
+		flags_a.rpc_config_overrides = nano::make_config_overrides (rpcconfig->second.as<nano::cli_config_overrides_t> ());
 	}
 	return ec;
 }
@@ -455,7 +455,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 	{
 		auto data_path = vm.count ("data_path") ? std::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
 		auto node_flags = nano::inactive_node_flag_defaults ();
-		node_flags.config_overrides.push_back ("node.rocksdb.enable=false");
+		node_flags.config_overrides["node.rocksdb.enable"] = "false";
 		nano::update_flags (node_flags, vm);
 		nano::inactive_node node (data_path, node_flags);
 		auto error (false);
@@ -1332,10 +1332,10 @@ bool is_using_rocksdb (std::filesystem::path const & data_path, boost::program_o
 
 	// Config overriding
 	auto config_arg (vm.find ("config"));
-	std::vector<std::string> config_overrides;
+	nano::config_overrides_t config_overrides;
 	if (config_arg != vm.end ())
 	{
-		config_overrides = nano::config_overrides (config_arg->second.as<std::vector<nano::config_key_value_pair>> ());
+		config_overrides = nano::make_config_overrides (config_arg->second.as<nano::cli_config_overrides_t> ());
 	}
 
 	// config override...

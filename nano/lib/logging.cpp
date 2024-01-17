@@ -424,7 +424,21 @@ std::map<nano::log_config::logger_id_t, nano::log::level> nano::log_config::defa
  * config loading
  */
 
-nano::log_config nano::load_log_config (nano::log_config fallback, const std::filesystem::path & data_path, const std::vector<std::string> & config_overrides)
+/*
+ * Config prioritization hierarchy:
+ * 1. Command line options
+ * 2. Environment variables
+ * 3. Config file (current working directory)
+ * 4. Config file (nano::working_path ())
+ * 5. Defaults
+ */
+
+namespace
+{
+
+}
+
+nano::log_config nano::load_log_config (nano::log_config fallback, std::filesystem::path data_path, nano::config_overrides_t config_overrides)
 {
 	const std::string config_filename = "config-log.toml";
 	try
