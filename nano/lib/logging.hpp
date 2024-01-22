@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/lib/logging_enums.hpp>
+#include <nano/lib/object_stream.hpp>
 #include <nano/lib/tomlconfig.hpp>
 
 #include <initializer_list>
@@ -12,6 +13,19 @@
 
 namespace nano::log
 {
+template <class T>
+struct arg
+{
+	std::string_view name;
+	T const & value;
+
+	arg (std::string_view name_a, T const & value_a) :
+		name{ name_a },
+		value{ value_a }
+	{
+	}
+};
+
 using logger_id = std::pair<nano::log::type, nano::log::detail>;
 
 std::string to_string (logger_id);
@@ -123,6 +137,35 @@ public:
 	void critical (nano::log::type type, spdlog::format_string_t<Args...> fmt, Args &&... args)
 	{
 		get_logger (type).critical (fmt, std::forward<Args> (args)...);
+	}
+
+public:
+	template <class T>
+	struct arg
+	{
+		std::string_view name;
+		T const & value;
+
+		arg (std::string_view name_a, T const & value_a) :
+			name{ name_a },
+			value{ value_a }
+		{
+		}
+	};
+
+	template <typename... Args>
+	void trace (nano::log::type type, nano::log::detail detail, Args &&... args)
+	{
+		auto logger = get_logger (type, detail);
+		if (logger.should_log (spdlog::level::trace))
+		{
+			std::stringstream ss;
+
+			nano::object_stream obs{ ss };
+			(obs.write (args.name, args.value), ...);
+
+			logger.trace ("\"{}\" {}", to_string (detail), ss.str ());
+		}
 	}
 
 private:
