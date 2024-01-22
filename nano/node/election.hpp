@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/id_dispenser.hpp>
 #include <nano/lib/logging.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
@@ -202,6 +203,9 @@ private:
 	std::chrono::steady_clock::time_point const election_start = { std::chrono::steady_clock::now () };
 
 	mutable nano::mutex mutex;
+
+public: // Logging
+	void operator() (nano::object_stream &) const;
 
 private: // Constants
 	static std::size_t constexpr max_blocks{ 10 };

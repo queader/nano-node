@@ -18,6 +18,10 @@ nano::election_vote_result::election_vote_result (bool replay_a, bool processed_
 	processed = processed_a;
 }
 
+/*
+ * election
+ */
+
 nano::election::election (nano::node & node_a, std::shared_ptr<nano::block> const & block_a, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action_a, std::function<void (nano::account const &)> const & live_vote_action_a, nano::election_behavior election_behavior_a) :
 	confirmation_action (confirmation_action_a),
 	live_vote_action (live_vote_action_a),
@@ -249,6 +253,11 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 		// state_change returning true would indicate it
 		if (!state_change (state_m, nano::election::state_t::expired_unconfirmed))
 		{
+			// TODO: Log votes tally
+			node.logger.trace (nano::log::type::election, nano::log::detail::election_expired,
+			nano::log::arg{ "id", id },
+			nano::log::arg{ "root", qualified_root });
+
 			result = true; // Return true to indicate this election should be cleaned up
 			status.type = nano::election_status_type::stopped;
 		}
@@ -371,6 +380,11 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 		}
 		if (!node.ledger.cache.final_votes_confirmation_canary.load () || final_weight >= node.online_reps.delta ())
 		{
+			// TODO: Log votes tally
+			node.logger.trace (nano::log::type::election, nano::log::detail::election_confirmed,
+			nano::log::arg{ "id", id },
+			nano::log::arg{ "root", qualified_root });
+
 			confirm_once (lock_a, nano::election_status_type::active_confirmed_quorum);
 		}
 	}
@@ -541,18 +555,31 @@ void nano::election::broadcast_vote_locked (nano::unique_lock<nano::mutex> & loc
 		return;
 	}
 	last_vote = std::chrono::steady_clock::now ();
+
 	if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 	{
-		node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote);
+		node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote);
 
 		if (confirmed_locked (lock) || have_quorum (tally_impl ()))
 		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_final);
+			node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote_final);
+			node.logger.trace (nano::log::type::election, nano::log::detail::broadcast_vote,
+			nano::log::arg{ "id", id },
+			nano::log::arg{ "root", qualified_root },
+			nano::log::arg{ "winner", status.winner },
+			nano::log::arg{ "type", "final" });
+
 			node.final_generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
 		}
 		else
 		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_normal);
+			node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote_normal);
+			node.logger.trace (nano::log::type::election, nano::log::detail::broadcast_vote,
+			nano::log::arg{ "id", id },
+			nano::log::arg{ "root", qualified_root },
+			nano::log::arg{ "winner", status.winner },
+			nano::log::arg{ "type", "normal" });
+
 			node.generator.add (root, status.winner->hash ()); // Broadcasts vote to the network
 		}
 	}
@@ -716,4 +743,46 @@ nano::stat::detail nano::to_stat_detail (nano::election_behavior behavior)
 nano::election_behavior nano::election::behavior () const
 {
 	return behavior_m;
+}
+
+// TODO: Remove the need for .to_string () calls
+void nano::election::operator() (nano::object_stream & obs) const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	obs.write ("id", id);
+
+	obs.write ("root", qualified_root.to_string ());
+	obs.write ("behaviour", behavior_m);
+	obs.write ("state", state_m);
+	obs.write ("confirmed", confirmed ());
+
+	obs.write ("winner", status.winner->hash ().to_string ());
+	obs.write ("tally_amount", status.tally.to_string_dec ());
+	obs.write ("final_tally_amount", status.final_tally.to_string_dec ());
+
+	obs.write ("blocks", std::views::transform (last_blocks, [] (auto const & entry) {
+		auto [hash, block] = entry;
+		return block;
+	}));
+
+	obs.write ("votes", std::views::transform (last_votes, [] (auto const & entry) {
+		return [&entry] (nano::object_stream & obs) {
+			auto & [account, info] = entry;
+			obs.write ("account", account.to_account ());
+			obs.write ("time", info.time.time_since_epoch ().count ());
+			obs.write ("timestamp", info.timestamp);
+			obs.write ("hash", info.hash.to_string ());
+		};
+	}));
+
+	auto tally = tally_impl ();
+
+	obs.write ("tally", std::views::transform (tally, [] (auto const & entry) {
+		return [&entry] (nano::object_stream & obs) {
+			auto & [amount, block] = entry;
+			obs.write ("amount", amount);
+			obs.write ("hash", block->hash ().to_string ());
+		};
+	}));
 }
