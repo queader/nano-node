@@ -167,16 +167,16 @@ void nano::election::transition_active ()
 	state_change (nano::election::state_t::passive, nano::election::state_t::active);
 }
 
-bool nano::election::confirmed_locked (nano::unique_lock<nano::mutex> & lock) const
+bool nano::election::confirmed_locked () const
 {
-	debug_assert (lock.owns_lock ());
+	debug_assert (!mutex.try_lock ());
 	return state_m == nano::election::state_t::confirmed || state_m == nano::election::state_t::expired_confirmed;
 }
 
 bool nano::election::confirmed () const
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	return confirmed_locked (lock);
+	return confirmed_locked ();
 }
 
 bool nano::election::failed () const
@@ -247,7 +247,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 	}
 
-	if (!confirmed_locked (lock) && time_to_live () < std::chrono::steady_clock::now () - election_start)
+	if (!confirmed_locked () && time_to_live () < std::chrono::steady_clock::now () - election_start)
 	{
 		// It is possible the election confirmed while acquiring the mutex
 		// state_change returning true would indicate it
@@ -398,7 +398,7 @@ boost::optional<nano::election_status_type> nano::election::try_confirm (nano::b
 	if (winner && winner->hash () == hash)
 	{
 		// Determine if the block was confirmed explicitly via election confirmation or implicitly via confirmation height
-		if (!confirmed_locked (election_lock))
+		if (!confirmed_locked ())
 		{
 			confirm_once (election_lock, nano::election_status_type::active_confirmation_height);
 			status_type = nano::election_status_type::active_confirmation_height;
@@ -481,7 +481,7 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 
 	node.stats.inc (nano::stat::type::election, vote_source_a == vote_source::live ? nano::stat::detail::vote_new : nano::stat::detail::vote_cached);
 
-	if (!confirmed_locked (lock))
+	if (!confirmed_locked ())
 	{
 		confirm_if_quorum (lock);
 	}
@@ -493,7 +493,7 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	// Do not insert new blocks if already confirmed
-	auto result (confirmed_locked (lock));
+	auto result (confirmed_locked ());
 	if (!result && last_blocks.size () >= max_blocks && last_blocks.find (block_a->hash ()) == last_blocks.end ())
 	{
 		if (!replace_by_weight (lock, block_a->hash ()))
@@ -560,7 +560,7 @@ void nano::election::broadcast_vote_locked (nano::unique_lock<nano::mutex> & loc
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote);
 
-		if (confirmed_locked (lock) || have_quorum (tally_impl ()))
+		if (confirmed_locked () || have_quorum (tally_impl ()))
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote_final);
 			node.logger.trace (nano::log::type::election, nano::log::detail::broadcast_vote,
@@ -755,7 +755,7 @@ void nano::election::operator() (nano::object_stream & obs) const
 	obs.write ("root", qualified_root.to_string ());
 	obs.write ("behaviour", behavior_m);
 	obs.write ("state", state_m);
-	obs.write ("confirmed", confirmed ());
+	obs.write ("confirmed", confirmed_locked ());
 
 	obs.write ("winner", status.winner->hash ().to_string ());
 	obs.write ("tally_amount", status.tally.to_string_dec ());
