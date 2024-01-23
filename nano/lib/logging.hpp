@@ -90,7 +90,7 @@ public:
 	logger (logger const &) = delete;
 
 public:
-	static void initialize (nano::log_config fallback, std::optional<std::filesystem::path> data_path = std::nullopt, std::vector<std::string> const & config_overrides = std::vector<std::string> ());
+	static void initialize (nano::log_config fallback, std::optional<std::filesystem::path> data_path = std::nullopt, std::vector<std::string> const & config_overrides = {});
 	static void initialize_for_tests (nano::log_config fallback);
 	static void flush ();
 
@@ -140,19 +140,6 @@ public:
 	}
 
 public:
-	template <class T>
-	struct arg
-	{
-		std::string_view name;
-		T const & value;
-
-		arg (std::string_view name_a, T const & value_a) :
-			name{ name_a },
-			value{ value_a }
-		{
-		}
-	};
-
 	template <typename... Args>
 	void trace (nano::log::type type, nano::log::detail detail, Args &&... args)
 	{

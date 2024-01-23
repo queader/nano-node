@@ -43,7 +43,6 @@ namespace
 /// Takes a qualified identifier in the form `node_identifier::tag` and splits it into a pair of `identifier` and `tag`
 /// It is a limitation of spldlog that we cannot attach additional data to the logger, so we have to encode the node identifier in the logger name
 /// @returns <node identifier, tag>
-
 std::pair<std::string_view, std::string_view> split_qualified_identifier (std::string_view qualified_identifier)
 {
 	auto pos = qualified_identifier.find ("::");
