@@ -363,38 +363,6 @@ inline void nano::root_object_stream::write_range (Container const & container)
 	});
 }
 
-/**
- * Wraps {name,value} args and provides a `<< (std::ostream &, ...)` operator that writes the arguments to the stream in a lazy manner.
- */
-template <class... Args>
-struct object_stream_formatter
-{
-	object_stream_config const & config;
-	std::tuple<Args...> args;
-
-	explicit object_stream_formatter (object_stream_config const & config, Args &&... args) :
-		config{ config },
-		args{ std::forward<Args> (args)... }
-	{
-	}
-
-	friend std::ostream & operator<< (std::ostream & os, object_stream_formatter<Args...> const & self)
-	{
-		nano::object_stream obs{ os, self.config };
-		std::apply ([&obs] (auto &&... args) {
-			((obs.write (args.name, args.value)), ...);
-		},
-		self.args);
-		return os;
-	}
-
-	// Needed for fmt formatting, uses the ostream operator under the hood
-	friend auto format_as (object_stream_formatter<Args...> const & val)
-	{
-		return fmt::streamed (val);
-	}
-};
-
 /*
  * Writers
  */

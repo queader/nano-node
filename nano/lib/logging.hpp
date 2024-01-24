@@ -2,6 +2,7 @@
 
 #include <nano/lib/logging_enums.hpp>
 #include <nano/lib/object_stream.hpp>
+#include <nano/lib/object_stream_ostream.hpp>
 #include <nano/lib/tomlconfig.hpp>
 
 #include <initializer_list>
@@ -159,7 +160,7 @@ public:
 		if constexpr (is_tracing_enabled ())
 		{
 			auto logger = get_logger (type, detail);
-			logger.trace ("<{}> {}", to_string (detail), nano::object_stream_formatter{ global_tracing_config, std::forward<Args> (args)... });
+			logger.trace ("{}", nano::object_streamed_args (global_tracing_config, nano::log::arg{ "event", detail }, std::forward<Args> (args)...));
 		}
 	}
 
