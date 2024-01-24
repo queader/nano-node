@@ -200,27 +200,4 @@ inline void stream_as (std::optional<Value> const & value, object_stream_context
 {
 	stream_as_optional (value, ctx);
 }
-
-template <class Str>
-inline void stream_as_string (const Str & str, object_stream_context & ctx)
-{
-	ctx.begin_string ();
-	ctx.os << str;
-	ctx.end_string ();
-}
-
-inline void stream_as (std::string const & value, object_stream_context & ctx)
-{
-	stream_as_string (value, ctx);
-}
-
-inline void stream_as (std::string_view const & value, object_stream_context & ctx)
-{
-	stream_as_string (value, ctx);
-}
-
-inline void stream_as (const char * value, object_stream_context & ctx)
-{
-	stream_as_string (value, ctx);
-}
 }

@@ -748,12 +748,12 @@ void nano::election::operator() (nano::object_stream & obs) const
 	obs.write ("tally_amount", status.tally.to_string_dec ());
 	obs.write ("final_tally_amount", status.final_tally.to_string_dec ());
 
-	obs.write ("blocks", last_blocks, [] (auto const & entry) {
+	obs.write_range ("blocks", last_blocks, [] (auto const & entry) {
 		auto [hash, block] = entry;
 		return block;
 	});
 
-	obs.write ("votes", last_votes, [] (auto const & entry, nano::object_stream & obs) {
+	obs.write_range ("votes", last_votes, [] (auto const & entry, nano::object_stream & obs) {
 		auto & [account, info] = entry;
 		obs.write ("account", account.to_account ());
 		obs.write ("time", info.time.time_since_epoch ().count ());
@@ -763,7 +763,7 @@ void nano::election::operator() (nano::object_stream & obs) const
 
 	auto tally = tally_impl ();
 
-	obs.write ("tally", tally, [] (auto const & entry, nano::object_stream & obs) {
+	obs.write_range ("tally", tally, [] (auto const & entry, nano::object_stream & obs) {
 		auto & [amount, block] = entry;
 		obs.write ("amount", amount);
 		obs.write ("hash", block->hash ().to_string ());

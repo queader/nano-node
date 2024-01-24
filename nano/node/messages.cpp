@@ -416,7 +416,7 @@ void nano::keepalive::operator() (nano::object_stream & obs) const
 {
 	nano::message::operator() (obs); // Write common data
 
-	obs.write ("peers", peers);
+	obs.write_range ("peers", peers);
 }
 
 /*
@@ -595,7 +595,7 @@ void nano::confirm_req::operator() (nano::object_stream & obs) const
 	nano::message::operator() (obs); // Write common data
 
 	// Write roots as: [ { root: ##, hash: ## } ,...]
-	obs.write ("roots", roots_hashes, [] (auto const & root_hash, nano::object_stream & obs) {
+	obs.write_range ("roots", roots_hashes, [] (auto const & root_hash, nano::object_stream & obs) {
 		auto [root, hash] = root_hash;
 		obs.write ("root", root);
 		obs.write ("hash", hash);
@@ -1882,7 +1882,7 @@ void nano::asc_pull_ack::blocks_payload::deserialize (nano::stream & stream)
 
 void nano::asc_pull_ack::blocks_payload::operator() (nano::object_stream & obs) const
 {
-	obs.write ("blocks", blocks);
+	obs.write_range ("blocks", blocks);
 }
 
 /*
@@ -1962,7 +1962,7 @@ void nano::asc_pull_ack::frontiers_payload::deserialize (nano::stream & stream)
 
 void nano::asc_pull_ack::frontiers_payload::operator() (nano::object_stream & obs) const
 {
-	obs.write ("frontiers", frontiers, [] (auto const & entry, nano::object_stream & obs) {
+	obs.write_range ("frontiers", frontiers, [] (auto const & entry, nano::object_stream & obs) {
 		auto & [account, hash] = entry;
 		obs.write ("account", account);
 		obs.write ("hash", hash);

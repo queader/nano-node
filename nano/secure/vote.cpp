@@ -186,5 +186,5 @@ void nano::vote::operator() (nano::object_stream & obs) const
 {
 	obs.write ("account", account);
 	obs.write ("timestamp", timestamp_m);
-	obs.write ("hashes", hashes);
+	obs.write_range ("hashes", hashes);
 }
