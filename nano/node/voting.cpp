@@ -197,6 +197,12 @@ bool nano::vote_generator::should_vote (store::write_transaction const & transac
 	{
 		should_vote = block != nullptr && ledger.dependents_confirmed (transaction, *block);
 	}
+
+	logger.trace (nano::log::type::vote_generator, nano::log::detail::should_vote,
+	nano::log::arg{ "should_vote", should_vote },
+	nano::log::arg{ "block", block },
+	nano::log::arg{ "is_final", is_final });
+
 	return should_vote;
 }
 
