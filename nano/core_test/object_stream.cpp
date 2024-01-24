@@ -11,6 +11,8 @@
 #include <limits>
 #include <thread>
 
+#include <fmt/printf.h>
+
 TEST (object_stream, primitive)
 {
 	// Spacing
@@ -287,6 +289,24 @@ TEST (object_stream, ostream_adapter)
 	vote.hashes.push_back (nano::test::random_hash ());
 
 	std::cout << "vote: " << vote << std::endl;
+
+	// Spacing
+	std::cout << std::endl;
+}
+
+TEST (object_stream, fmt_adapter)
+{
+	using namespace nano;
+
+	// Spacing
+	std::cout << std::endl;
+
+	nano::vote vote{};
+	vote.hashes.push_back (nano::test::random_hash ());
+	vote.hashes.push_back (nano::test::random_hash ());
+	vote.hashes.push_back (nano::test::random_hash ());
+
+	fmt::print ("vote: {}\n", vote);
 
 	// Spacing
 	std::cout << std::endl;
