@@ -118,6 +118,7 @@ enum class detail
 
 	// vote_generator
 	candidate_processed,
+	should_vote,
 
 	// bulk pull/push
 	pulled_block,
