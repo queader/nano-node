@@ -171,7 +171,7 @@ public:
 	void write (std::string_view name, Value const & value)
 	{
 		ctx.begin_field (name, std::exchange (first_field, false));
-		stream_as (value, ctx);
+		stream_as_value (value, ctx);
 		ctx.end_field ();
 	}
 
@@ -232,7 +232,7 @@ public:
 	void write (Value const & value)
 	{
 		ctx.begin_array_element (std::exchange (first_element, false));
-		stream_as (value, ctx);
+		stream_as_value (value, ctx);
 		ctx.end_array_element ();
 	}
 
@@ -292,7 +292,7 @@ public:
 	void write (Value const & value)
 	{
 		ctx.os << boost::typeindex::type_id<Value> ().pretty_name ();
-		stream_as (value, ctx);
+		stream_as_value (value, ctx);
 	}
 
 	// Handle `.write_range (container)`
@@ -406,7 +406,7 @@ struct object_stream_formatter
  */
 
 template <class Value>
-inline void stream_as (Value const & value, object_stream_context & ctx)
+inline void stream_as_value (Value const & value, object_stream_context & ctx)
 {
 	using magic_enum::ostream_operators::operator<<; // Support ostream operator for all enums
 
@@ -419,7 +419,7 @@ inline void stream_as (Value const & value, object_stream_context & ctx)
 }
 
 template <object_streamable Value>
-inline void stream_as (Value const & value, object_stream_context & ctx)
+inline void stream_as_value (Value const & value, object_stream_context & ctx)
 {
 	ctx.begin_object ();
 
@@ -431,7 +431,7 @@ inline void stream_as (Value const & value, object_stream_context & ctx)
 }
 
 template <array_streamable Value>
-inline void stream_as (Value const & value, object_stream_context & ctx)
+inline void stream_as_value (Value const & value, object_stream_context & ctx)
 {
 	ctx.begin_array ();
 
@@ -479,57 +479,57 @@ inline void stream_as (Value const & value, array_stream & ars)
 
 namespace nano
 {
-inline void stream_as (bool const & value, object_stream_context & ctx)
+inline void stream_as_value (bool const & value, object_stream_context & ctx)
 {
 	ctx.os << (value ? ctx.config.true_value : ctx.config.false_value);
 }
 
-inline void stream_as (const int8_t & value, object_stream_context & ctx)
+inline void stream_as_value (const int8_t & value, object_stream_context & ctx)
 {
 	ctx.os << static_cast<uint32_t> (value); // Avoid printing as char
 }
 
-inline void stream_as (const uint8_t & value, object_stream_context & ctx)
+inline void stream_as_value (const uint8_t & value, object_stream_context & ctx)
 {
 	ctx.os << static_cast<uint32_t> (value); // Avoid printing as char
 }
 
-inline void stream_as (const int16_t & value, object_stream_context & ctx)
+inline void stream_as_value (const int16_t & value, object_stream_context & ctx)
 {
 	ctx.os << value;
 }
 
-inline void stream_as (const uint16_t & value, object_stream_context & ctx)
+inline void stream_as_value (const uint16_t & value, object_stream_context & ctx)
 {
 	ctx.os << value;
 }
 
-inline void stream_as (const int32_t & value, object_stream_context & ctx)
+inline void stream_as_value (const int32_t & value, object_stream_context & ctx)
 {
 	ctx.os << value;
 }
 
-inline void stream_as (const uint32_t & value, object_stream_context & ctx)
+inline void stream_as_value (const uint32_t & value, object_stream_context & ctx)
 {
 	ctx.os << value;
 }
 
-inline void stream_as (const int64_t & value, object_stream_context & ctx)
+inline void stream_as_value (const int64_t & value, object_stream_context & ctx)
 {
 	ctx.os << value;
 }
 
-inline void stream_as (const uint64_t & value, object_stream_context & ctx)
+inline void stream_as_value (const uint64_t & value, object_stream_context & ctx)
 {
 	ctx.os << value;
 }
 
-inline void stream_as (const float & value, object_stream_context & ctx)
+inline void stream_as_value (const float & value, object_stream_context & ctx)
 {
 	ctx.os << std::fixed << std::setprecision (ctx.config.precision) << value;
 }
 
-inline void stream_as (const double & value, object_stream_context & ctx)
+inline void stream_as_value (const double & value, object_stream_context & ctx)
 {
 	ctx.os << std::fixed << std::setprecision (ctx.config.precision) << value;
 }
@@ -539,7 +539,7 @@ inline void stream_as_optional (const Opt & opt, object_stream_context & ctx)
 {
 	if (opt)
 	{
-		stream_as (*opt, ctx);
+		stream_as_value (*opt, ctx);
 	}
 	else
 	{
@@ -548,25 +548,25 @@ inline void stream_as_optional (const Opt & opt, object_stream_context & ctx)
 }
 
 template <class Value>
-inline void stream_as (std::shared_ptr<Value> const & value, object_stream_context & ctx)
+inline void stream_as_value (std::shared_ptr<Value> const & value, object_stream_context & ctx)
 {
 	stream_as_optional (value, ctx);
 }
 
 template <class Value>
-inline void stream_as (std::unique_ptr<Value> const & value, object_stream_context & ctx)
+inline void stream_as_value (std::unique_ptr<Value> const & value, object_stream_context & ctx)
 {
 	stream_as_optional (value, ctx);
 }
 
 template <class Value>
-inline void stream_as (std::weak_ptr<Value> const & value, object_stream_context & ctx)
+inline void stream_as_value (std::weak_ptr<Value> const & value, object_stream_context & ctx)
 {
 	stream_as_optional (value.lock (), ctx);
 }
 
 template <class Value>
-inline void stream_as (std::optional<Value> const & value, object_stream_context & ctx)
+inline void stream_as_value (std::optional<Value> const & value, object_stream_context & ctx)
 {
 	stream_as_optional (value, ctx);
 }
