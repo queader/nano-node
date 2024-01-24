@@ -495,6 +495,26 @@ nano::log_config nano::load_log_config (nano::log_config fallback, const std::fi
 			}
 		}
 
+		auto tracing_configured = [&] () {
+			if (config.default_level == nano::log::level::trace)
+			{
+				return true;
+			}
+			for (auto const & [logger_id, level] : config.levels)
+			{
+				if (level == nano::log::level::trace)
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+
+		if (tracing_configured () && !is_tracing_enabled ())
+		{
+			std::cerr << "WARNING: Tracing is not enabled in this build, but log level is set to trace" << std::endl;
+		}
+
 		return config;
 	}
 	catch (std::runtime_error const & ex)
