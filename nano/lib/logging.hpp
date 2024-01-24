@@ -35,6 +35,15 @@ logger_id parse_logger_id (std::string const &);
 
 namespace nano
 {
+consteval bool is_tracing_enabled ()
+{
+#ifdef NANO_TRACING
+	return true;
+#else
+	return false;
+#endif
+}
+
 class log_config final
 {
 public:
@@ -144,9 +153,9 @@ public:
 	template <typename... Args>
 	void trace (nano::log::type type, nano::log::detail detail, Args &&... args)
 	{
-		auto logger = get_logger (type, detail);
-		if (logger.should_log (spdlog::level::trace))
+		if constexpr (is_tracing_enabled ())
 		{
+			auto logger = get_logger (type, detail);
 			logger.trace ("\"{}\" {}", to_string (detail), nano::object_stream_formatter{ std::forward<Args> (args)... });
 		}
 	}
