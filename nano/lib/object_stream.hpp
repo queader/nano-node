@@ -17,8 +17,8 @@ namespace nano
 {
 struct object_stream_config
 {
-	std::string field_begin{ "" };
-	std::string field_end{ "" };
+	std::string field_name_begin{ "" };
+	std::string field_name_end{ "" };
 	std::string field_assignment{ ": " };
 	std::string field_separator{ ", " };
 
@@ -63,12 +63,7 @@ struct object_stream_context
 		{
 			os << config.field_separator;
 		}
-		os << config.field_begin << name << config.field_assignment;
-	}
-
-	void end_field ()
-	{
-		os << config.field_end;
+		os << config.field_name_begin << name << config.field_name_end << config.field_assignment;
 	}
 
 	void begin_object ()
@@ -172,7 +167,6 @@ public:
 	{
 		ctx.begin_field (name, std::exchange (first_field, false));
 		stream_as_value (value, ctx);
-		ctx.end_field ();
 	}
 
 	// Handle `.write_range ("name", container)`

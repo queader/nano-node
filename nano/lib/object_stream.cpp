@@ -9,9 +9,9 @@ nano::object_stream_config const & nano::object_stream_config::default_config ()
 nano::object_stream_config const & nano::object_stream_config::json_config ()
 {
 	static object_stream_config const config{
-		.field_begin = "\"",
-		.field_end = "\"",
-		.field_assignment = ":",
+		.field_name_begin = "\"",
+		.field_name_end = "\"",
+		.field_assignment = ": ",
 		.field_separator = ", ",
 		.object_begin = "{",
 		.object_end = "}",
