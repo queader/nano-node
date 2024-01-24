@@ -77,6 +77,8 @@ public:
 	console_config console;
 	file_config file;
 
+	nano::log::tracing_format tracing_format{ nano::log::tracing_format::standard };
+
 public: // Predefined defaults
 	static log_config cli_default ();
 	static log_config daemon_default ();
@@ -109,6 +111,7 @@ private:
 	static nano::log_config global_config;
 	static std::vector<spdlog::sink_ptr> global_sinks;
 	static std::function<std::string (nano::log::logger_id, std::string identifier)> global_name_formatter;
+	static nano::object_stream_config global_tracing_config;
 
 	static void initialize_common (nano::log_config const &, std::optional<std::filesystem::path> data_path);
 
@@ -156,7 +159,7 @@ public:
 		if constexpr (is_tracing_enabled ())
 		{
 			auto logger = get_logger (type, detail);
-			logger.trace ("\"{}\" {}", to_string (detail), nano::object_stream_formatter{ std::forward<Args> (args)... });
+			logger.trace ("\"{}\" {}", to_string (detail), nano::object_stream_formatter{ global_tracing_config, std::forward<Args> (args)... });
 		}
 	}
 

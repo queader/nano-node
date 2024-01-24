@@ -59,6 +59,7 @@ add_library(
   numbers.hpp
   numbers.cpp
   object_stream.hpp
+        object_stream.cpp
   object_stream_ostream.hpp
   observer_set.hpp
   optional_ptr.hpp

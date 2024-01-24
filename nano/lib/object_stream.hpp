@@ -3,6 +3,7 @@
 #include <boost/type_index.hpp>
 
 #include <cstdint>
+#include <iomanip>
 #include <memory>
 #include <ostream>
 #include <ranges>
@@ -41,11 +42,8 @@ struct object_stream_config
 	/** Number of decimal places to show for `float` and `double` */
 	int precision{ 2 };
 
-	static object_stream_config const & default_config ()
-	{
-		static object_stream_config const config{};
-		return config;
-	}
+	static object_stream_config const & default_config ();
+	static object_stream_config const & json_config ();
 };
 
 struct object_stream_context
@@ -377,17 +375,18 @@ inline void nano::root_object_stream::write_range (Container const & container)
 template <class... Args>
 struct object_stream_formatter
 {
+	object_stream_config const & config;
 	std::tuple<Args...> args;
 
-	explicit object_stream_formatter (Args &&... args) :
+	explicit object_stream_formatter (object_stream_config const & config, Args &&... args) :
+		config{ config },
 		args{ std::forward<Args> (args)... }
 	{
 	}
 
 	friend std::ostream & operator<< (std::ostream & os, object_stream_formatter<Args...> const & self)
 	{
-		nano::object_stream_context ctx{ os };
-		nano::object_stream obs{ ctx };
+		nano::object_stream obs{ os, self.config };
 		std::apply ([&obs] (auto &&... args) {
 			((obs.write (args.name, args.value)), ...);
 		},

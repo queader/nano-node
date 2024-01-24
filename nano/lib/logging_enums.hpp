@@ -159,6 +159,12 @@ enum class category
 
 	_last // Must be the last enum
 };
+
+enum class tracing_format
+{
+	standard,
+	json,
+};
 }
 
 namespace nano::log
@@ -178,6 +184,10 @@ nano::log::detail parse_detail (std::string_view);
 
 std::vector<nano::log::level> const & all_levels ();
 std::vector<nano::log::type> const & all_types ();
+
+std::string_view to_string (nano::log::tracing_format);
+nano::log::tracing_format parse_tracing_format (std::string_view);
+std::vector<nano::log::tracing_format> const & all_tracing_formats ();
 }
 
 // Ensure that the enum_range is large enough to hold all values (including future ones)

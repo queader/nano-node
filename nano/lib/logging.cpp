@@ -1,5 +1,6 @@
 #include <nano/lib/config.hpp>
 #include <nano/lib/logging.hpp>
+#include <nano/lib/logging_enums.hpp>
 #include <nano/lib/utility.hpp>
 
 #include <fmt/chrono.h>
@@ -23,6 +24,7 @@ nano::logger & nano::default_logger ()
 bool nano::logger::global_initialized{ false };
 nano::log_config nano::logger::global_config{};
 std::vector<spdlog::sink_ptr> nano::logger::global_sinks{};
+nano::object_stream_config nano::logger::global_tracing_config{};
 
 // By default, use only the tag as the logger name, since only one node is running in the process
 std::function<std::string (nano::log::logger_id, std::string identifier)> nano::logger::global_name_formatter{ [] (nano::log::logger_id logger_id, std::string identifier) {
@@ -183,6 +185,17 @@ void nano::logger::initialize_common (nano::log_config const & config, std::opti
 			auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt> (log_path.string (), config.file.max_size, config.file.rotation_count);
 			global_sinks.push_back (file_sink);
 		}
+	}
+
+	// Tracing setup
+	switch (config.tracing_format)
+	{
+		case nano::log::tracing_format::standard:
+			global_tracing_config = nano::object_stream_config::default_config ();
+			break;
+		case nano::log::tracing_format::json:
+			global_tracing_config = nano::object_stream_config::json_config ();
+			break;
 	}
 }
 
@@ -452,9 +465,10 @@ nano::log_config nano::load_log_config (nano::log_config fallback, const std::fi
 		{
 			try
 			{
-				config.default_level = nano::log::parse_level (*env_level);
+				auto level = nano::log::parse_level (*env_level);
+				config.default_level = level;
 
-				std::cerr << "Using default log level from NANO_LOG environment variable: " << *env_level << std::endl;
+				std::cerr << "Using default log level from NANO_LOG environment variable: " << to_string (level) << std::endl;
 			}
 			catch (std::invalid_argument const & ex)
 			{
@@ -486,7 +500,7 @@ nano::log_config nano::load_log_config (nano::log_config fallback, const std::fi
 
 					levels[logger_id] = logger_level;
 
-					std::cerr << "Using logger log level from NANO_LOG_LEVELS environment variable: " << name_str << "=" << level_str << std::endl;
+					std::cerr << "Using logger log level from NANO_LOG_LEVELS environment variable: " << to_string (logger_id) << "=" << to_string (logger_level) << std::endl;
 				}
 				catch (std::invalid_argument const & ex)
 				{
@@ -498,6 +512,22 @@ nano::log_config nano::load_log_config (nano::log_config fallback, const std::fi
 			for (auto const & [logger_id, level] : levels)
 			{
 				config.levels[logger_id] = level;
+			}
+		}
+
+		auto env_tracing_format = nano::get_env ("NANO_TRACING_FORMAT");
+		if (env_tracing_format)
+		{
+			try
+			{
+				auto tracing_format = nano::log::parse_tracing_format (*env_tracing_format);
+				config.tracing_format = tracing_format;
+
+				std::cerr << "Using tracing format from NANO_TRACING_FORMAT environment variable: " << to_string (tracing_format) << std::endl;
+			}
+			catch (std::invalid_argument const & ex)
+			{
+				std::cerr << "Invalid tracing format from NANO_TRACING_FORMAT environment variable: " << ex.what () << std::endl;
 			}
 		}
 
