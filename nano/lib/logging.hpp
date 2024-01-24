@@ -159,7 +159,7 @@ public:
 		if constexpr (is_tracing_enabled ())
 		{
 			auto logger = get_logger (type, detail);
-			logger.trace ("\"{}\" {}", to_string (detail), nano::object_stream_formatter{ global_tracing_config, std::forward<Args> (args)... });
+			logger.trace ("<{}> {}", to_string (detail), nano::object_stream_formatter{ global_tracing_config, std::forward<Args> (args)... });
 		}
 	}
 

@@ -303,7 +303,7 @@ void nano::message_header::operator() (nano::object_stream & obs) const
 {
 	obs.write ("type", type);
 	obs.write ("network", nano::to_string (network));
-	obs.write ("network_int", static_cast<uint16_t> (network));
+	obs.write ("network_raw", static_cast<uint16_t> (network));
 	obs.write ("version", static_cast<uint16_t> (version_using));
 	obs.write ("version_min", static_cast<uint16_t> (version_min));
 	obs.write ("version_max", static_cast<uint16_t> (version_max));
