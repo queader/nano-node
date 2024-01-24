@@ -292,18 +292,6 @@ inline void stream_as (Value const & value, object_stream_context & ctx)
 	ctx.end_array ();
 }
 
-template <std::ranges::range Range>
-inline void stream_as (Range const & container, object_stream_context & ctx)
-{
-	stream_as ([&container] (nano::array_stream & ars) {
-		for (auto const & el : container)
-		{
-			ars.write (el);
-		}
-	},
-	ctx);
-}
-
 /*
  * Adapters for types implementing convenience `obj(object_stream &)` & `obj(array_stream &)` functions
  */
@@ -332,5 +320,18 @@ template <simple_array_streamable Value>
 inline void stream_as (Value const & value, array_stream & ars)
 {
 	value (ars);
+}
+
+/*
+ * Make ranges automatically streamable as arrays
+ */
+
+template <std::ranges::range Range>
+inline void stream_as (Range const & range, array_stream & ars)
+{
+	for (auto const & el : range)
+	{
+		ars.write (el);
+	}
 }
 }

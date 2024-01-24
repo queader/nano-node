@@ -19,6 +19,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <sstream>
 #include <stdexcept>
@@ -1986,40 +1987,7 @@ nano::stat::detail nano::to_stat_detail (nano::message_type type)
 
 nano::log::detail nano::to_log_detail (nano::message_type type)
 {
-	switch (type)
-	{
-		case nano::message_type::invalid:
-			return nano::log::detail::invalid;
-		case nano::message_type::not_a_type:
-			return nano::log::detail::not_a_type;
-		case nano::message_type::keepalive:
-			return nano::log::detail::keepalive;
-		case nano::message_type::publish:
-			return nano::log::detail::publish;
-		case nano::message_type::confirm_req:
-			return nano::log::detail::confirm_req;
-		case nano::message_type::confirm_ack:
-			return nano::log::detail::confirm_ack;
-		case nano::message_type::bulk_pull:
-			return nano::log::detail::bulk_pull;
-		case nano::message_type::bulk_push:
-			return nano::log::detail::bulk_push;
-		case nano::message_type::frontier_req:
-			return nano::log::detail::frontier_req;
-		case nano::message_type::node_id_handshake:
-			return nano::log::detail::node_id_handshake;
-		case nano::message_type::bulk_pull_account:
-			return nano::log::detail::bulk_pull_account;
-		case nano::message_type::telemetry_req:
-			return nano::log::detail::telemetry_req;
-		case nano::message_type::telemetry_ack:
-			return nano::log::detail::telemetry_ack;
-		case nano::message_type::asc_pull_req:
-			return nano::log::detail::asc_pull_req;
-		case nano::message_type::asc_pull_ack:
-			return nano::log::detail::asc_pull_ack;
-			// default case intentionally omitted to cause warnings for unhandled enums
-	}
-	debug_assert (false);
-	return {};
+	auto value = magic_enum::enum_cast<nano::log::detail> (magic_enum::enum_name (type));
+	debug_assert (value);
+	return value.value_or (nano::log::detail{});
 }
