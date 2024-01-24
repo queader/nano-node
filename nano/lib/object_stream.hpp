@@ -8,6 +8,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include <fmt/ostream.h>
 #include <magic_enum.hpp>
 
 namespace nano
@@ -44,16 +45,14 @@ class array_stream;
  */
 
 template <typename T>
-concept object_streamable = requires (T const & obj, object_stream & obs)
-{
+concept object_streamable = requires (T const & obj, object_stream & obs) {
 	{
 		obj (obs)
 	};
 };
 
 template <typename T>
-concept array_streamable = requires (T const & obj, array_stream & ars)
-{
+concept array_streamable = requires (T const & obj, array_stream & ars) {
 	{
 		obj (ars)
 	};
@@ -180,8 +179,39 @@ public:
 	void write (Value const & value);
 };
 
+/**
+ * Wraps `Args &&... args` and provides a `<< (std::ostream &, ...)` operator that writes the arguments to the stream in a lazy manner.
+ */
+template <class... Args>
+struct object_stream_formatter
+{
+	std::tuple<Args...> args;
+
+	explicit object_stream_formatter (Args &&... args) :
+		args{ std::forward<Args> (args)... }
+	{
+	}
+
+	friend std::ostream & operator<< (std::ostream & os, object_stream_formatter<Args...> const & self)
+	{
+		object_stream obs{ os };
+		std::apply ([&obs] (auto &&... args) {
+			((obs.write (args.name, args.value)), ...);
+		},
+		self.args);
+		return os;
+	}
+};
+
+// Needed for fmt formatting, uses the ostream operator under the hood
+template <class... Args>
+auto format_as (object_stream_formatter<Args...> const & val)
+{
+	return fmt::streamed (val);
+}
+
 /*
- * Impl
+ * implementation
  */
 
 template <class Value>

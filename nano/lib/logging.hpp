@@ -9,6 +9,7 @@
 #include <shared_mutex>
 #include <sstream>
 
+#include <fmt/ostream.h>
 #include <spdlog/spdlog.h>
 
 namespace nano::log
@@ -146,12 +147,7 @@ public:
 		auto logger = get_logger (type, detail);
 		if (logger.should_log (spdlog::level::trace))
 		{
-			std::stringstream ss;
-
-			nano::object_stream obs{ ss };
-			(obs.write (args.name, args.value), ...);
-
-			logger.trace ("\"{}\" {}", to_string (detail), ss.str ());
+			logger.trace ("\"{}\" {}", to_string (detail), nano::object_stream_formatter{ std::forward<Args> (args)... });
 		}
 	}
 
