@@ -58,7 +58,9 @@ add_library(
   memory.cpp
   numbers.hpp
   numbers.cpp
-  object_stream.hpp
+        object_stream.hpp
+        object_stream_adapters.hpp
+        object_stream_writers.hpp
   observer_set.hpp
   optional_ptr.hpp
   processing_queue.hpp

@@ -748,28 +748,24 @@ void nano::election::operator() (nano::object_stream & obs) const
 	obs.write ("tally_amount", status.tally.to_string_dec ());
 	obs.write ("final_tally_amount", status.final_tally.to_string_dec ());
 
-	obs.write ("blocks", std::views::transform (last_blocks, [] (auto const & entry) {
+	obs.write ("blocks", last_blocks, [] (auto const & entry) {
 		auto [hash, block] = entry;
 		return block;
-	}));
+	});
 
-	obs.write ("votes", std::views::transform (last_votes, [] (auto const & entry) {
-		return [&entry] (nano::object_stream & obs) {
-			auto & [account, info] = entry;
-			obs.write ("account", account.to_account ());
-			obs.write ("time", info.time.time_since_epoch ().count ());
-			obs.write ("timestamp", info.timestamp);
-			obs.write ("hash", info.hash.to_string ());
-		};
-	}));
+	obs.write ("votes", last_votes, [] (auto const & entry, nano::object_stream & obs) {
+		auto & [account, info] = entry;
+		obs.write ("account", account.to_account ());
+		obs.write ("time", info.time.time_since_epoch ().count ());
+		obs.write ("timestamp", info.timestamp);
+		obs.write ("hash", info.hash.to_string ());
+	});
 
 	auto tally = tally_impl ();
 
-	obs.write ("tally", std::views::transform (tally, [] (auto const & entry) {
-		return [&entry] (nano::object_stream & obs) {
-			auto & [amount, block] = entry;
-			obs.write ("amount", amount);
-			obs.write ("hash", block->hash ().to_string ());
-		};
-	}));
+	obs.write ("tally", tally, [] (auto const & entry, nano::object_stream & obs) {
+		auto & [amount, block] = entry;
+		obs.write ("amount", amount);
+		obs.write ("hash", block->hash ().to_string ());
+	});
 }

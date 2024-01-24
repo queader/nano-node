@@ -594,13 +594,11 @@ void nano::confirm_req::operator() (nano::object_stream & obs) const
 	nano::message::operator() (obs); // Write common data
 
 	// Write roots as: [ { root: ##, hash: ## } ,...]
-	obs.write ("roots", std::views::transform (roots_hashes, [] (auto const & root_hash) {
-		return [&root_hash] (nano::object_stream & obs) {
-			auto [root, hash] = root_hash;
-			obs.write ("root", root);
-			obs.write ("hash", hash);
-		};
-	}));
+	obs.write ("roots", roots_hashes, [] (auto const & root_hash, nano::object_stream & obs) {
+		auto [root, hash] = root_hash;
+		obs.write ("root", root);
+		obs.write ("hash", hash);
+	});
 }
 
 /*
@@ -1963,13 +1961,11 @@ void nano::asc_pull_ack::frontiers_payload::deserialize (nano::stream & stream)
 
 void nano::asc_pull_ack::frontiers_payload::operator() (nano::object_stream & obs) const
 {
-	obs.write ("frontiers", std::views::transform (frontiers, [] (auto const & entry) {
-		return [&entry] (nano::object_stream & obs) {
-			auto & [account, hash] = entry;
-			obs.write ("account", account);
-			obs.write ("hash", hash);
-		};
-	}));
+	obs.write ("frontiers", frontiers, [] (auto const & entry, nano::object_stream & obs) {
+		auto & [account, hash] = entry;
+		obs.write ("account", account);
+		obs.write ("hash", hash);
+	});
 }
 
 /*
