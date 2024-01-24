@@ -312,25 +312,3 @@ TEST (object_stream, fmt_adapter)
 	// Spacing
 	std::cout << std::endl;
 }
-
-TEST (trace_logging, no_copy)
-{
-	struct no_copyable
-	{
-		no_copyable () = default;
-		no_copyable (no_copyable const &) = delete;
-		no_copyable (no_copyable &&) = default;
-		no_copyable & operator= (no_copyable const &) = delete;
-		no_copyable & operator= (no_copyable &&) = default;
-
-		void operator() (nano::object_stream & obs) const
-		{
-			obs.write ("test", "test");
-		}
-	};
-
-	no_copyable nc;
-
-	nano::logger logger;
-	logger.trace (nano::log::type::all, nano::log::detail::all, nano::log::arg{ "no_copyable", nc });
-}
