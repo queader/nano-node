@@ -515,7 +515,7 @@ nano::log_config nano::load_log_config (nano::log_config fallback, const std::fi
 			}
 		}
 
-		auto env_tracing_format = nano::get_env ("NANO_TRACING_FORMAT");
+		auto env_tracing_format = nano::get_env ("NANO_TRACE_FORMAT");
 		if (env_tracing_format)
 		{
 			try
@@ -523,11 +523,11 @@ nano::log_config nano::load_log_config (nano::log_config fallback, const std::fi
 				auto tracing_format = nano::log::parse_tracing_format (*env_tracing_format);
 				config.tracing_format = tracing_format;
 
-				std::cerr << "Using tracing format from NANO_TRACING_FORMAT environment variable: " << to_string (tracing_format) << std::endl;
+				std::cerr << "Using trace format from NANO_TRACE_FORMAT environment variable: " << to_string (tracing_format) << std::endl;
 			}
 			catch (std::invalid_argument const & ex)
 			{
-				std::cerr << "Invalid tracing format from NANO_TRACING_FORMAT environment variable: " << ex.what () << std::endl;
+				std::cerr << "Invalid trace format from NANO_TRACE_FORMAT environment variable: " << ex.what () << std::endl;
 			}
 		}
 
