@@ -26,7 +26,7 @@ add_executable(
   ipc.cpp
   ledger.cpp
   locks.cpp
-  logger.cpp
+  logging.cpp
   message.cpp
   message_deserializer.cpp
   memory_pool.cpp

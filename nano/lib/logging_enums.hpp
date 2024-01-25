@@ -21,8 +21,6 @@ enum class level
 
 enum class type
 {
-	all = 0, // reserved
-
 	generic,
 	init,
 	config,
