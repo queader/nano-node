@@ -63,3 +63,12 @@ TEST (enums, log_category)
 	ASSERT_NO_THROW (std::string{ to_string (nano::log::type::_last) });
 	ASSERT_EQ (to_string (nano::log::type::_last), "_last");
 }
+
+TEST (log_enums, parse_level)
+{
+	ASSERT_EQ (nano::log::parse_level ("error"), nano::log::level::error);
+	ASSERT_EQ (nano::log::parse_level ("off"), nano::log::level::off);
+	ASSERT_THROW (nano::log::parse_level ("invalid"), std::invalid_argument);
+	ASSERT_THROW (nano::log::parse_level (""), std::invalid_argument);
+	ASSERT_THROW (nano::log::parse_level ("_error"), std::invalid_argument);
+}
