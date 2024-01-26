@@ -1,83 +1,132 @@
-#include <nano/lib/logging.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/object_stream.hpp>
 #include <nano/lib/object_stream_ostream.hpp>
-#include <nano/secure/utility.hpp>
 #include <nano/test_common/testutil.hpp>
 
 #include <gtest/gtest.h>
 
-#include <chrono>
 #include <cstdint>
 #include <limits>
+#include <sstream>
 #include <thread>
 
 #include <fmt/printf.h>
 
-TEST (object_stream, primitive)
+TEST (object_stream, primitive_string)
 {
-	// Spacing
-	std::cout << std::endl;
+	std::stringstream ss;
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("field_name", "field_value");
+	nano::object_stream obs{ ss };
+	obs.write ("field_name_1", "field_value");
 
-		std::cout << std::endl;
-	}
+	auto expected = R"(field_name_1: "field_value")";
+	ASSERT_EQ (ss.str (), expected);
+}
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("bool_field", true);
-		obs.write ("bool_field", false);
+TEST (object_stream, primitive_bool)
+{
+	std::stringstream ss;
 
-		std::cout << std::endl;
-	}
+	nano::object_stream obs{ ss };
+	obs.write ("bool_field_1", true);
+	obs.write ("bool_field_2", false);
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("int_field", 1234);
-		obs.write ("int_field", -1234);
-		obs.write ("int_field", std::numeric_limits<int>::max ());
-		obs.write ("int_field", std::numeric_limits<int>::min ());
+	auto expected = R"(bool_field_1: true, bool_field_2: false)";
+	ASSERT_EQ (ss.str (), expected);
+}
 
-		std::cout << std::endl;
-	}
+TEST (object_stream, primitive_int)
+{
+	std::stringstream ss;
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("uint64_field", (uint64_t)1234);
-		obs.write ("uint64_field", (uint64_t)-1234);
-		obs.write ("uint64_field", std::numeric_limits<uint64_t>::max ());
-		obs.write ("uint64_field", std::numeric_limits<uint64_t>::min ());
+	nano::object_stream obs{ ss };
+	obs.write ("int_field_1", 1234);
+	obs.write ("int_field_2", -1234);
+	obs.write ("int_field_3", std::numeric_limits<int>::max ());
+	obs.write ("int_field_4", std::numeric_limits<int>::min ());
 
-		std::cout << std::endl;
-	}
+	auto expected = R"(int_field_1: 1234, int_field_2: -1234, int_field_3: 2147483647, int_field_4: -2147483648)";
+	ASSERT_EQ (ss.str (), expected);
+}
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("float_field", 1234.5678f);
-		obs.write ("float_field", -1234.5678f);
-		obs.write ("float_field", std::numeric_limits<float>::max ());
-		obs.write ("float_field", std::numeric_limits<float>::min ());
-		obs.write ("float_field", std::numeric_limits<float>::lowest ());
+TEST (object_stream, primitive_uint)
+{
+	std::stringstream ss;
 
-		std::cout << std::endl;
-	}
+	nano::object_stream obs{ ss };
+	obs.write ("uint_field_1", static_cast<unsigned int> (1234));
+	obs.write ("uint_field_2", static_cast<unsigned int> (-1234));
+	obs.write ("uint_field_3", std::numeric_limits<unsigned int>::max ());
+	obs.write ("uint_field_4", std::numeric_limits<unsigned int>::min ());
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("double_field", 1234.5678f);
-		obs.write ("double_field", -1234.5678f);
-		obs.write ("double_field", std::numeric_limits<double>::max ());
-		obs.write ("double_field", std::numeric_limits<double>::min ());
-		obs.write ("double_field", std::numeric_limits<double>::lowest ());
+	auto expected = R"(uint_field_1: 1234, uint_field_2: 4294966062, uint_field_3: 4294967295, uint_field_4: 0)";
+	ASSERT_EQ (ss.str (), expected);
+}
 
-		std::cout << std::endl;
-	}
+TEST (object_stream, primitive_uint64)
+{
+	std::stringstream ss;
 
-	// Spacing
-	std::cout << std::endl;
+	nano::object_stream obs{ ss };
+	obs.write ("uint64_field_1", static_cast<uint64_t> (1234));
+	obs.write ("uint64_field_2", static_cast<uint64_t> (-1234));
+	obs.write ("uint64_field_3", std::numeric_limits<uint64_t>::max ());
+	obs.write ("uint64_field_4", std::numeric_limits<uint64_t>::min ());
+
+	auto expected = R"(uint64_field_1: 1234, uint64_field_2: 18446744073709550382, uint64_field_3: 18446744073709551615, uint64_field_4: 0)";
+	ASSERT_EQ (ss.str (), expected);
+}
+
+TEST (object_stream, primitive_int8)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("int8_field_1", static_cast<int8_t> (123));
+
+	auto expected = R"(int8_field_1: 123)";
+	ASSERT_EQ (ss.str (), expected);
+}
+
+TEST (object_stream, primitive_uint8)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("uint8_field_1", static_cast<uint8_t> (123));
+
+	auto expected = R"(uint8_field_1: 123)";
+	ASSERT_EQ (ss.str (), expected);
+}
+
+TEST (object_stream, primitive_float)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("float_field_1", 1234.5678f);
+	obs.write ("float_field_2", -1234.5678f);
+	obs.write ("float_field_3", std::numeric_limits<float>::max ());
+	obs.write ("float_field_4", std::numeric_limits<float>::min ());
+	obs.write ("float_field_5", std::numeric_limits<float>::lowest ());
+
+	auto expected = R"(float_field_1: 1234.57, float_field_2: -1234.57, float_field_3: 340282346638528859811704183484516925440.00, float_field_4: 0.00, float_field_5: -340282346638528859811704183484516925440.00)";
+	ASSERT_EQ (ss.str (), expected);
+}
+
+TEST (object_stream, primitive_double)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("double_field_1", 1234.5678f);
+	obs.write ("double_field_2", -1234.5678f);
+	obs.write ("double_field_3", std::numeric_limits<double>::max ());
+	obs.write ("double_field_4", std::numeric_limits<double>::min ());
+	obs.write ("double_field_5", std::numeric_limits<double>::lowest ());
+
+	auto expected = R"(double_field_1: 1234.57, double_field_2: -1234.57, double_field_3: 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00, double_field_4: 0.00, double_field_5: -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00)";
+	ASSERT_EQ (ss.str (), expected);
 }
 
 TEST (object_stream, object_writer_basic)
