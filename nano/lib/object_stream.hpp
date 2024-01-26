@@ -11,7 +11,7 @@
 #include <type_traits>
 
 #include <fmt/ostream.h>
-#include <magic_enum.hpp>
+#include <magic_enum_iostream.hpp>
 
 namespace nano
 {
@@ -370,7 +370,8 @@ inline void nano::root_object_stream::write_range (Container const & container)
 template <class Value>
 inline void stream_as_value (Value const & value, object_stream_context & ctx)
 {
-	using magic_enum::ostream_operators::operator<<; // Support ostream operator for all enums
+	// Automatically support printing all enums
+	using magic_enum::iostream_operators::operator<<;
 
 	ctx.begin_string ();
 
