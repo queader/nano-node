@@ -24,6 +24,7 @@ enum class type
 	all = 0, // reserved
 
 	generic,
+	test,
 	init,
 	config,
 	logging,
@@ -89,6 +90,8 @@ enum class type
 enum class detail
 {
 	all = 0, // reserved
+
+	test,
 
 	// node
 	process_confirmed,
