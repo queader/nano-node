@@ -84,13 +84,7 @@ auto streamed_args (nano::object_stream_config const & config, Args &&... args)
  */
 namespace nano::ostream_operators
 {
-template <nano::object_streamable Value>
-std::ostream & operator<< (std::ostream & os, Value const & value)
-{
-	return os << nano::streamed (value);
-}
-
-template <nano::array_streamable Value>
+template <nano::object_or_array_streamable Value>
 std::ostream & operator<< (std::ostream & os, Value const & value)
 {
 	return os << nano::streamed (value);
@@ -100,16 +94,7 @@ std::ostream & operator<< (std::ostream & os, Value const & value)
 /*
  * Adapters that allow for printing using fmt library for all classes that implement object streaming
  */
-template <nano::object_streamable Streamable>
-struct fmt::formatter<Streamable> : fmt::ostream_formatter
-{
-	auto format (Streamable const & value, format_context & ctx)
-	{
-		return fmt::ostream_formatter::format (nano::streamed (value), ctx);
-	}
-};
-
-template <nano::array_streamable Streamable>
+template <nano::object_or_array_streamable Streamable>
 struct fmt::formatter<Streamable> : fmt::ostream_formatter
 {
 	auto format (Streamable const & value, format_context & ctx)

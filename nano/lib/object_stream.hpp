@@ -188,6 +188,9 @@ concept array_streamable = requires (T const & obj, array_stream & ars) {
 	};
 };
 
+template <typename T>
+concept object_or_array_streamable = object_streamable<T> || array_streamable<T>;
+
 class object_stream_base
 {
 public:
