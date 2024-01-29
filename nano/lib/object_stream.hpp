@@ -1,7 +1,5 @@
 #pragma once
 
-#include <boost/type_index.hpp>
-
 #include <cstdint>
 #include <iomanip>
 #include <memory>
@@ -331,8 +329,7 @@ private:
 
 /**
  * Used for human readable object serialization. Should be used to serialize a single object.
- * Includes the type of the value before writing the value itself.
- * Outputs: `type_name{ field1: value1, field2: value2, ... }`
+ * Outputs: `{ field1: value1, field2: value2, ... }`
  */
 class root_object_stream : private object_stream_base
 {
@@ -344,8 +341,9 @@ public:
 	template <class Value>
 	void write (Value const & value)
 	{
-		//		ctx.os << boost::typeindex::type_id<Value> ().pretty_name ();
+		ctx.begin_object ();
 		stream_as_value (value, ctx);
+		ctx.end_object ();
 	}
 
 	// Handle `.write_range (container)`
