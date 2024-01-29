@@ -60,7 +60,7 @@ add_library(
   numbers.cpp
   object_stream.hpp
   object_stream.cpp
-  object_stream_ostream.hpp
+  object_stream_adapters.hpp
   observer_set.hpp
   optional_ptr.hpp
   processing_queue.hpp

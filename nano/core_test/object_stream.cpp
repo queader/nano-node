@@ -1,6 +1,6 @@
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/object_stream.hpp>
-#include <nano/lib/object_stream_ostream.hpp>
+#include <nano/lib/object_stream_adapters.hpp>
 #include <nano/test_common/testutil.hpp>
 
 #include <gtest/gtest.h>
