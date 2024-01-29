@@ -132,7 +132,7 @@ public: // Keep these defined in the header for inlining
 		}
 		if (std::exchange (needs_newline, false))
 		{
-			os << "\n";
+			os << config.newline;
 		}
 		indent ();
 		os << config.array_element_begin;
