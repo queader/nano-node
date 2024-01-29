@@ -482,32 +482,36 @@ TEST (object_stream, ostream_adapter)
 {
 	using namespace nano::ostream_operators;
 
-	std::stringstream ss;
+	std::stringstream ss1, ss2;
 
 	streamable_object test_object;
-	ss << "object: " << test_object;
+	ss1 << test_object; // Using automatic ostream adapter (in `nano::ostream_operators`)
+	ss2 << nano::streamed (test_object); // Using explicit ostream adapter
 
 	auto expected = trim (R"(
-object: {
+{
 	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
 	block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
 }
 )");
 
-	ASSERT_EQ (ss.str (), expected);
+	ASSERT_EQ (ss1.str (), expected);
+	ASSERT_EQ (ss2.str (), expected);
 }
 
 TEST (object_stream, fmt_adapter)
 {
 	streamable_object test_object;
-	auto str = fmt::format ("object: {}", test_object);
+	auto str1 = fmt::format ("{}", test_object); // Using automatic fmt adapter
+	auto str2 = fmt::format ("{}", nano::streamed (test_object)); // Using explicit fmt adapter
 
 	auto expected = trim (R"(
-object: {
+{
 	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
 	block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
 }
 )");
 
-	ASSERT_EQ (str, expected);
+	ASSERT_EQ (str1, expected);
+	ASSERT_EQ (str2, expected);
 }
