@@ -131,9 +131,6 @@ TEST (object_stream, primitive_double)
 
 TEST (object_stream, object_writer_basic)
 {
-	// Spacing
-	std::cout << std::endl;
-
 	{
 		nano::object_stream obs{ std::cout };
 		obs.write ("object_field", [] (nano::object_stream & obs) {
@@ -145,9 +142,6 @@ TEST (object_stream, object_writer_basic)
 
 		std::cout << std::endl;
 	}
-
-	// Spacing
-	std::cout << std::endl;
 }
 
 TEST (object_stream, object_writer_nested)

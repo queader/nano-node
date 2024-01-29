@@ -20,17 +20,17 @@ struct object_stream_config
 	std::string field_name_begin{ "" };
 	std::string field_name_end{ "" };
 	std::string field_assignment{ ": " };
-	std::string field_separator{ ", " };
+	std::string field_separator{ "," };
 
-	std::string object_begin{ "{ " };
-	std::string object_end{ " }" };
+	std::string object_begin{ "{" };
+	std::string object_end{ "}" };
 
-	std::string array_begin{ "[ " };
-	std::string array_end{ " ]" };
+	std::string array_begin{ "[" };
+	std::string array_end{ "]" };
 
 	std::string array_element_begin{ "" };
 	std::string array_element_end{ "" };
-	std::string array_element_separator{ ", " };
+	std::string array_element_separator{ "," };
 
 	std::string string_begin{ "\"" };
 	std::string string_end{ "\"" };
@@ -39,6 +39,9 @@ struct object_stream_config
 	std::string false_value{ "false" };
 	std::string null_value{ "null" };
 
+	std::string indent{ "  " };
+	std::string newline{ "\n" };
+
 	/** Number of decimal places to show for `float` and `double` */
 	int precision{ 2 };
 
@@ -46,15 +49,34 @@ struct object_stream_config
 	static object_stream_config const & json_config ();
 };
 
-struct object_stream_context
+class object_stream_context
 {
+public:
 	object_stream_config const & config;
-	std::ostream & os;
 
 	explicit object_stream_context (std::ostream & os, object_stream_config const & config = object_stream_config::default_config ()) :
 		os{ os },
 		config{ config }
 	{
+	}
+
+	// Bump indent level when nesting objects
+	object_stream_context (object_stream_context const & other) :
+		os{ other.os },
+		config{ other.config },
+		indent_level{ other.indent_level + 1 }
+	{
+	}
+
+private:
+	std::ostream & os;
+	int indent_level{ 0 };
+	bool needs_newline{ false };
+
+public: // Keep these defined in the header for inlining
+	std::ostream & begin_stream ()
+	{
+		return os;
 	}
 
 	void begin_field (std::string_view name, bool first)
@@ -63,27 +85,45 @@ struct object_stream_context
 		{
 			os << config.field_separator;
 		}
+		if (std::exchange (needs_newline, false))
+		{
+			os << config.newline;
+		}
+		indent ();
 		os << config.field_name_begin << name << config.field_name_end << config.field_assignment;
+	}
+
+	void end_field ()
+	{
+		needs_newline = true;
 	}
 
 	void begin_object ()
 	{
 		os << config.object_begin;
+		os << config.newline;
 	}
 
 	void end_object ()
 	{
+		os << config.newline;
+		indent ();
 		os << config.object_end;
+		needs_newline = true;
 	}
 
 	void begin_array ()
 	{
 		os << config.array_begin;
+		os << config.newline;
 	}
 
 	void end_array ()
 	{
+		os << config.newline;
+		indent ();
 		os << config.array_end;
+		needs_newline = true;
 	}
 
 	void begin_array_element (bool first)
@@ -92,12 +132,18 @@ struct object_stream_context
 		{
 			os << config.array_element_separator;
 		}
+		if (std::exchange (needs_newline, false))
+		{
+			os << "\n";
+		}
+		indent ();
 		os << config.array_element_begin;
 	}
 
 	void end_array_element ()
 	{
 		os << config.array_element_end;
+		needs_newline = true;
 	}
 
 	void begin_string ()
@@ -109,6 +155,18 @@ struct object_stream_context
 	{
 		os << config.string_end;
 	}
+
+private:
+	void indent ()
+	{
+		if (!config.indent.empty ())
+		{
+			for (int i = 0; i < indent_level; ++i)
+			{
+				os << config.indent;
+			}
+		}
+	}
 };
 
 class object_stream;
@@ -119,16 +177,14 @@ class array_stream;
  */
 
 template <typename T>
-concept object_streamable = requires (T const & obj, object_stream & obs)
-{
+concept object_streamable = requires (T const & obj, object_stream & obs) {
 	{
 		stream_as (obj, obs)
 	};
 };
 
 template <typename T>
-concept array_streamable = requires (T const & obj, array_stream & ars)
-{
+concept array_streamable = requires (T const & obj, array_stream & ars) {
 	{
 		stream_as (obj, ars)
 	};
@@ -137,7 +193,7 @@ concept array_streamable = requires (T const & obj, array_stream & ars)
 class object_stream_base
 {
 public:
-	explicit object_stream_base (object_stream_context & ctx) :
+	explicit object_stream_base (object_stream_context const & ctx) :
 		ctx{ ctx }
 	{
 	}
@@ -169,6 +225,7 @@ public:
 	{
 		ctx.begin_field (name, std::exchange (first_field, false));
 		stream_as_value (value, ctx);
+		ctx.end_field ();
 	}
 
 	// Handle `.write_range ("name", container)`
@@ -177,14 +234,16 @@ public:
 
 	// Handle `.write_range ("name", container, [] (auto const & entry) { ... })`
 	template <class Container, class Transform>
-	requires (std::is_invocable_v<Transform, typename Container::value_type>) void write_range (std::string_view name, Container const & container, Transform transform)
+		requires (std::is_invocable_v<Transform, typename Container::value_type>)
+	void write_range (std::string_view name, Container const & container, Transform transform)
 	{
 		write_range (name, std::views::transform (container, transform));
 	}
 
 	// Handle `.write_range ("name", container, [] (auto const & entry, nano::object_stream &) { ... })`
 	template <class Container, class Writer>
-	requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>) void write_range (std::string_view name, Container const & container, Writer writer)
+		requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>)
+	void write_range (std::string_view name, Container const & container, Writer writer)
 	{
 		write_range (name, container, [&writer] (auto const & el) {
 			return [&writer, &el] (object_stream & obs) {
@@ -195,7 +254,8 @@ public:
 
 	// Handle `.write_range ("name", container, [] (auto const & entry, nano::array_stream &) { ... })`
 	template <class Container, class Writer>
-	requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>) void write_range (std::string_view name, Container const & container, Writer writer)
+		requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>)
+	void write_range (std::string_view name, Container const & container, Writer writer)
 	{
 		write_range (name, container, [&writer] (auto const & el) {
 			return [&writer, &el] (array_stream & obs) {
@@ -235,14 +295,16 @@ public:
 
 	// Handle `.write_range (container, [] (auto const & entry) { ... })`
 	template <class Container, class Transform>
-	requires (std::is_invocable_v<Transform, typename Container::value_type>) void write_range (Container const & container, Transform transform)
+		requires (std::is_invocable_v<Transform, typename Container::value_type>)
+	void write_range (Container const & container, Transform transform)
 	{
 		write_range (std::views::transform (container, transform));
 	}
 
 	// Handle `.write_range (container, [] (auto const & entry, nano::object_stream &) { ... })`
 	template <class Container, class Writer>
-	requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>) void write_range (Container const & container, Writer writer)
+		requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>)
+	void write_range (Container const & container, Writer writer)
 	{
 		write_range (container, [&writer] (auto const & el) {
 			return [&writer, &el] (object_stream & obs) {
@@ -253,7 +315,8 @@ public:
 
 	// Handle `.write_range (container, [] (auto const & entry, nano::array_stream &) { ... })`
 	template <class Container, class Writer>
-	requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>) void write_range (Container const & container, Writer writer)
+		requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>)
+	void write_range (Container const & container, Writer writer)
 	{
 		write_range (container, [&writer] (auto const & el) {
 			return [&writer, &el] (array_stream & obs) {
@@ -281,7 +344,7 @@ public:
 	template <class Value>
 	void write (Value const & value)
 	{
-		ctx.os << boost::typeindex::type_id<Value> ().pretty_name ();
+		//		ctx.os << boost::typeindex::type_id<Value> ().pretty_name ();
 		stream_as_value (value, ctx);
 	}
 
@@ -291,14 +354,16 @@ public:
 
 	// Handle `.write_range (container, [] (auto const & entry) { ... })`
 	template <class Container, class Transform>
-	requires (std::is_invocable_v<Transform, typename Container::value_type>) void write_range (Container const & container, Transform transform)
+		requires (std::is_invocable_v<Transform, typename Container::value_type>)
+	void write_range (Container const & container, Transform transform)
 	{
 		write_range (std::views::transform (container, transform));
 	}
 
 	// Handle `.write_range (container, [] (auto const & entry, nano::object_stream &) { ... })`
 	template <class Container, class Writer>
-	requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>) void write_range (Container const & container, Writer writer)
+		requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>)
+	void write_range (Container const & container, Writer writer)
 	{
 		write_range (container, [&writer] (auto const & el) {
 			return [&writer, &el] (object_stream & obs) {
@@ -309,7 +374,8 @@ public:
 
 	// Handle `.write_range (container, [] (auto const & entry, nano::array_stream &) { ... })`
 	template <class Container, class Writer>
-	requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>) void write_range (Container const & container, Writer writer)
+		requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>)
+	void write_range (Container const & container, Writer writer)
 	{
 		write_range (container, [&writer] (auto const & el) {
 			return [&writer, &el] (array_stream & obs) {
@@ -367,10 +433,7 @@ inline void stream_as_value (Value const & value, object_stream_context & ctx)
 	using magic_enum::iostream_operators::operator<<;
 
 	ctx.begin_string ();
-
-	// Write using type specific ostream operator
-	ctx.os << value;
-
+	ctx.begin_stream () << value; // Write using type specific ostream operator
 	ctx.end_string ();
 }
 
@@ -403,16 +466,14 @@ inline void stream_as_value (Value const & value, object_stream_context & ctx)
  */
 
 template <typename T>
-concept simple_object_streamable = requires (T const & obj, object_stream & obs)
-{
+concept simple_object_streamable = requires (T const & obj, object_stream & obs) {
 	{
 		obj (obs)
 	};
 };
 
 template <typename T>
-concept simple_array_streamable = requires (T const & obj, array_stream & ars)
-{
+concept simple_array_streamable = requires (T const & obj, array_stream & ars) {
 	{
 		obj (ars)
 	};
@@ -439,57 +500,57 @@ namespace nano
 {
 inline void stream_as_value (bool const & value, object_stream_context & ctx)
 {
-	ctx.os << (value ? ctx.config.true_value : ctx.config.false_value);
+	ctx.begin_stream () << (value ? ctx.config.true_value : ctx.config.false_value);
 }
 
 inline void stream_as_value (const int8_t & value, object_stream_context & ctx)
 {
-	ctx.os << static_cast<uint32_t> (value); // Avoid printing as char
+	ctx.begin_stream () << static_cast<uint32_t> (value); // Avoid printing as char
 }
 
 inline void stream_as_value (const uint8_t & value, object_stream_context & ctx)
 {
-	ctx.os << static_cast<uint32_t> (value); // Avoid printing as char
+	ctx.begin_stream () << static_cast<uint32_t> (value); // Avoid printing as char
 }
 
 inline void stream_as_value (const int16_t & value, object_stream_context & ctx)
 {
-	ctx.os << value;
+	ctx.begin_stream () << value;
 }
 
 inline void stream_as_value (const uint16_t & value, object_stream_context & ctx)
 {
-	ctx.os << value;
+	ctx.begin_stream () << value;
 }
 
 inline void stream_as_value (const int32_t & value, object_stream_context & ctx)
 {
-	ctx.os << value;
+	ctx.begin_stream () << value;
 }
 
 inline void stream_as_value (const uint32_t & value, object_stream_context & ctx)
 {
-	ctx.os << value;
+	ctx.begin_stream () << value;
 }
 
 inline void stream_as_value (const int64_t & value, object_stream_context & ctx)
 {
-	ctx.os << value;
+	ctx.begin_stream () << value;
 }
 
 inline void stream_as_value (const uint64_t & value, object_stream_context & ctx)
 {
-	ctx.os << value;
+	ctx.begin_stream () << value;
 }
 
 inline void stream_as_value (const float & value, object_stream_context & ctx)
 {
-	ctx.os << std::fixed << std::setprecision (ctx.config.precision) << value;
+	ctx.begin_stream () << std::fixed << std::setprecision (ctx.config.precision) << value;
 }
 
 inline void stream_as_value (const double & value, object_stream_context & ctx)
 {
-	ctx.os << std::fixed << std::setprecision (ctx.config.precision) << value;
+	ctx.begin_stream () << std::fixed << std::setprecision (ctx.config.precision) << value;
 }
 
 template <class Opt>
@@ -501,7 +562,7 @@ inline void stream_as_optional (const Opt & opt, object_stream_context & ctx)
 	}
 	else
 	{
-		ctx.os << ctx.config.null_value;
+		ctx.begin_stream () << ctx.config.null_value;
 	}
 }
 
