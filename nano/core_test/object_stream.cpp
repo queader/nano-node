@@ -5,12 +5,23 @@
 
 #include <gtest/gtest.h>
 
+#include <boost/algorithm/string.hpp>
+
 #include <cstdint>
 #include <limits>
 #include <sstream>
-#include <thread>
+#include <string>
+#include <string_view>
 
 #include <fmt/printf.h>
+
+namespace
+{
+std::string trim (std::string_view str)
+{
+	return boost::trim_copy (std::string{ str });
+}
+}
 
 TEST (object_stream, primitive_string)
 {
@@ -31,7 +42,11 @@ TEST (object_stream, primitive_bool)
 	obs.write ("bool_field_1", true);
 	obs.write ("bool_field_2", false);
 
-	auto expected = R"(bool_field_1: true, bool_field_2: false)";
+	auto expected = trim (R"(
+bool_field_1: true,
+bool_field_2: false
+)");
+
 	ASSERT_EQ (ss.str (), expected);
 }
 
@@ -45,7 +60,13 @@ TEST (object_stream, primitive_int)
 	obs.write ("int_field_3", std::numeric_limits<int>::max ());
 	obs.write ("int_field_4", std::numeric_limits<int>::min ());
 
-	auto expected = R"(int_field_1: 1234, int_field_2: -1234, int_field_3: 2147483647, int_field_4: -2147483648)";
+	auto expected = trim (R"(
+int_field_1: 1234,
+int_field_2: -1234,
+int_field_3: 2147483647,
+int_field_4: -2147483648
+)");
+
 	ASSERT_EQ (ss.str (), expected);
 }
 
@@ -59,7 +80,13 @@ TEST (object_stream, primitive_uint)
 	obs.write ("uint_field_3", std::numeric_limits<unsigned int>::max ());
 	obs.write ("uint_field_4", std::numeric_limits<unsigned int>::min ());
 
-	auto expected = R"(uint_field_1: 1234, uint_field_2: 4294966062, uint_field_3: 4294967295, uint_field_4: 0)";
+	auto expected = trim (R"(
+uint_field_1: 1234,
+uint_field_2: 4294966062,
+uint_field_3: 4294967295,
+uint_field_4: 0
+)");
+
 	ASSERT_EQ (ss.str (), expected);
 }
 
@@ -73,7 +100,13 @@ TEST (object_stream, primitive_uint64)
 	obs.write ("uint64_field_3", std::numeric_limits<uint64_t>::max ());
 	obs.write ("uint64_field_4", std::numeric_limits<uint64_t>::min ());
 
-	auto expected = R"(uint64_field_1: 1234, uint64_field_2: 18446744073709550382, uint64_field_3: 18446744073709551615, uint64_field_4: 0)";
+	auto expected = trim (R"(
+uint64_field_1: 1234,
+uint64_field_2: 18446744073709550382,
+uint64_field_3: 18446744073709551615,
+uint64_field_4: 0
+)");
+
 	ASSERT_EQ (ss.str (), expected);
 }
 
@@ -110,7 +143,14 @@ TEST (object_stream, primitive_float)
 	obs.write ("float_field_4", std::numeric_limits<float>::min ());
 	obs.write ("float_field_5", std::numeric_limits<float>::lowest ());
 
-	auto expected = R"(float_field_1: 1234.57, float_field_2: -1234.57, float_field_3: 340282346638528859811704183484516925440.00, float_field_4: 0.00, float_field_5: -340282346638528859811704183484516925440.00)";
+	auto expected = trim (R"(
+float_field_1: 1234.57,
+float_field_2: -1234.57,
+float_field_3: 340282346638528859811704183484516925440.00,
+float_field_4: 0.00,
+float_field_5: -340282346638528859811704183484516925440.00
+)");
+
 	ASSERT_EQ (ss.str (), expected);
 }
 
@@ -125,7 +165,14 @@ TEST (object_stream, primitive_double)
 	obs.write ("double_field_4", std::numeric_limits<double>::min ());
 	obs.write ("double_field_5", std::numeric_limits<double>::lowest ());
 
-	auto expected = R"(double_field_1: 1234.57, double_field_2: -1234.57, double_field_3: 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00, double_field_4: 0.00, double_field_5: -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00)";
+	auto expected = trim (R"(
+double_field_1: 1234.57,
+double_field_2: -1234.57,
+double_field_3: 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00,
+double_field_4: 0.00,
+double_field_5: -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00
+)");
+
 	ASSERT_EQ (ss.str (), expected);
 }
 
