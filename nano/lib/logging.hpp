@@ -168,7 +168,7 @@ public:
 			// TODO: Improve code indentation config
 			auto logger = get_logger (type, detail);
 			logger.trace ("{}",
-			nano::object_streamed_args (global_tracing_config,
+			nano::streamed_args (global_tracing_config,
 			nano::log::arg{ "event", to_string (std::make_pair (type, detail)) },
 			nano::log::arg{ "time", now_micros },
 			std::forward<Args> (args)...));

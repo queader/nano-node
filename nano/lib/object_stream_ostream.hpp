@@ -73,7 +73,7 @@ struct object_stream_args_formatter
 };
 
 template <class... Args>
-auto object_streamed_args (nano::object_stream_config const & config, Args &&... args)
+auto streamed_args (nano::object_stream_config const & config, Args &&... args)
 {
 	return object_stream_args_formatter<Args...>{ config, std::forward<Args> (args)... };
 }
