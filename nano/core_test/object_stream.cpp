@@ -34,6 +34,17 @@ TEST (object_stream, primitive_string)
 	ASSERT_EQ (ss.str (), expected);
 }
 
+TEST (object_stream, primitive_string_view)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("field_name_1", std::string_view{ "field_value" });
+
+	auto expected = R"(field_name_1: "field_value")";
+	ASSERT_EQ (ss.str (), expected);
+}
+
 TEST (object_stream, primitive_bool)
 {
 	std::stringstream ss;
@@ -178,50 +189,87 @@ double_field_5: -179769313486231570814527423731704356798070567525844996598917476
 
 TEST (object_stream, object_writer_basic)
 {
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("object_field", [] (nano::object_stream & obs) {
-			obs.write ("field1", "value1");
-			obs.write ("field2", "value2");
-			obs.write ("field3", true);
-			obs.write ("field4", 1234);
-		});
+	std::stringstream ss;
 
-		std::cout << std::endl;
-	}
+	nano::object_stream obs{ ss };
+	obs.write ("object_field", [] (nano::object_stream & obs) {
+		obs.write ("field1", "value1");
+		obs.write ("field2", "value2");
+		obs.write ("field3", true);
+		obs.write ("field4", 1234);
+	});
+
+	auto expected = trim (R"(
+object_field: {
+	field1: "value1",
+	field2: "value2",
+	field3: true,
+	field4: 1234
+}
+)");
+
+	ASSERT_EQ (ss.str (), expected);
 }
 
 TEST (object_stream, object_writer_nested)
 {
-	// Spacing
-	std::cout << std::endl;
+	std::stringstream ss;
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("object_field", [] (nano::object_stream & obs) {
-			obs.write ("field1", "value1");
+	nano::object_stream obs{ ss };
+	obs.write ("object_field", [] (nano::object_stream & obs) {
+		obs.write ("field1", "value1");
 
-			obs.write ("nested_object", [] (nano::object_stream & obs) {
-				obs.write ("nested_field1", "nested_value1");
-				obs.write ("nested_field2", false);
-				obs.write ("nested_field3", -1234);
-			});
-
-			obs.write ("field2", "value2");
-			obs.write ("field3", true);
-			obs.write ("field4", 1234);
+		obs.write ("nested_object", [] (nano::object_stream & obs) {
+			obs.write ("nested_field1", "nested_value1");
+			obs.write ("nested_field2", false);
+			obs.write ("nested_field3", -1234);
 		});
 
-		std::cout << std::endl;
-	}
+		obs.write ("field2", "value2");
+		obs.write ("field3", true);
+		obs.write ("field4", 1234);
+	});
 
-	// Spacing
-	std::cout << std::endl;
+	auto expected = trim (R"(
+object_field: {
+	field1: "value1",
+	nested_object: {
+		nested_field1: "nested_value1",
+		nested_field2: false,
+		nested_field3: -1234
+	},
+	field2: "value2",
+	field3: true,
+	field4: 1234
+}
+)");
+
+	ASSERT_EQ (ss.str (), expected);
+}
+
+TEST (object_stream, array_writer_basic)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("array_field", [] (nano::array_stream & ars) {
+		ars.write (std::views::iota (0, 3));
+	});
+
+	auto expected = trim (R"(
+array_field: [
+	0,
+	1,
+	2
+]
+)");
+
+	ASSERT_EQ (ss.str (), expected);
 }
 
 namespace
 {
-class test_class_basic
+class object_basic
 {
 public:
 	nano::uint256_union uint256_union_field{ 0 };
@@ -237,168 +285,229 @@ public:
 
 TEST (object_stream, object_basic)
 {
-	// Spacing
-	std::cout << std::endl;
+	std::stringstream ss;
 
+	nano::object_stream obs{ ss };
+	object_basic test_object;
+	obs.write ("test_object", test_object);
+
+	auto expected = trim (R"(
+test_object: {
+	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+	block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
+}
+)");
+
+	ASSERT_EQ (ss.str (), expected);
+}
+
+TEST (object_stream, array_writer_objects)
+{
+	std::stringstream ss;
+
+	std::vector<object_basic> objects;
+	objects.push_back ({ .block_hash = 0 });
+	objects.push_back ({ .block_hash = 1 });
+	objects.push_back ({ .block_hash = 2 });
+
+	nano::object_stream obs{ ss };
+	obs.write ("array_field", [&objects] (nano::array_stream & ars) {
+		ars.write (objects);
+	});
+
+	auto expected = trim (R"(
+array_field: [
 	{
-		nano::object_stream obs{ std::cout };
-
-		test_class_basic test_object{};
-		obs.write ("test_object", test_object);
-
-		std::cout << std::endl;
+		uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+		block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
+	},
+	{
+		uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+		block_hash: "0000000000000000000000000000000000000000000000000000000000000001"
+	},
+	{
+		uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+		block_hash: "0000000000000000000000000000000000000000000000000000000000000002"
 	}
+]
+)");
 
-	// Spacing
-	std::cout << std::endl;
+	ASSERT_EQ (ss.str (), expected);
 }
 
 namespace
 {
-class test_class_nested
+class object_array_basic
+{
+public:
+	std::vector<int> values{ 1, 2, 3 };
+
+	void operator() (nano::array_stream & ars) const
+	{
+		ars.write (values);
+	}
+};
+}
+
+TEST (object_stream, object_array_basic)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	object_array_basic test_object;
+	obs.write ("test_object_array", test_object);
+
+	auto expected = trim (R"(
+test_object_array: [
+	1,
+	2,
+	3
+]
+)");
+
+	ASSERT_EQ (ss.str (), expected);
+}
+
+namespace
+{
+class object_nested
 {
 public:
 	nano::uint256_union uint256_union_field{ 0 };
 	nano::block_hash block_hash{ 0 };
 
-	test_class_basic nested_object;
+	object_basic nested_object;
+	object_array_basic nested_array_object;
 
 	void operator() (nano::object_stream & obs) const
 	{
 		obs.write ("uint256_union_field", uint256_union_field);
 		obs.write ("block_hash", block_hash);
 		obs.write ("nested_object", nested_object);
+		obs.write ("nested_array_object", nested_array_object);
 	}
 };
 }
 
 TEST (object_stream, object_nested)
 {
-	// Spacing
-	std::cout << std::endl;
+	std::stringstream ss;
 
-	{
-		nano::object_stream obs{ std::cout };
+	nano::object_stream obs{ ss };
+	object_nested test_object;
+	obs.write ("test_object", test_object);
 
-		test_class_nested test_object{};
-		obs.write ("test_object", test_object);
+	auto expected = trim (R"(
+test_object: {
+	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+	block_hash: "0000000000000000000000000000000000000000000000000000000000000000",
+	nested_object: {
+		uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+		block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
+	},
+	nested_array_object: [
+		1,
+		2,
+		3
+	]
+}
+)");
 
-		std::cout << std::endl;
-	}
-
-	// Spacing
-	std::cout << std::endl;
+	ASSERT_EQ (ss.str (), expected);
 }
 
-TEST (object_stream, array_writer_basic)
+namespace nano
 {
-	// Spacing
-	std::cout << std::endl;
+using builtin_array_with_pair = std::vector<std::pair<nano::block_hash, int>>;
 
-	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("array_field", [] (nano::array_stream & ars) {
-			for (int n = 0; n < 10; ++n)
-			{
-				ars.write (n);
-			}
-		});
-
-		std::cout << std::endl;
-	}
-
-	// Spacing
-	std::cout << std::endl;
+void stream_as (std::pair<nano::block_hash, int> const & entry, nano::object_stream & obs)
+{
+	auto const & [hash, value] = entry;
+	obs.write ("hash", hash);
+	obs.write ("value", value);
+}
 }
 
-TEST (object_stream, array_writer_objects)
+TEST (object_stream, builtin_array)
 {
-	// Spacing
-	std::cout << std::endl;
+	using namespace nano;
 
+	std::stringstream ss;
+
+	builtin_array_with_pair array;
+	array.push_back ({ nano::block_hash{ 1 }, 1 });
+	array.push_back ({ nano::block_hash{ 2 }, 2 });
+	array.push_back ({ nano::block_hash{ 3 }, 3 });
+
+	nano::object_stream obs{ ss };
+	obs.write_range ("array_field", array);
+
+	auto expected = trim (R"(
+array_field: [
 	{
-		nano::object_stream obs{ std::cout };
-		obs.write ("array_field", [] (nano::array_stream & ars) {
-			for (int n = 0; n < 3; ++n)
-			{
-				test_class_basic test_object{};
-				ars.write (test_object);
-			}
-		});
-
-		std::cout << std::endl;
+		hash: "0000000000000000000000000000000000000000000000000000000000000001",
+		value: 1
+	},
+	{
+		hash: "0000000000000000000000000000000000000000000000000000000000000002",
+		value: 2
+	},
+	{
+		hash: "0000000000000000000000000000000000000000000000000000000000000003",
+		value: 3
 	}
+]
+)");
 
-	// Spacing
-	std::cout << std::endl;
+	ASSERT_EQ (ss.str (), expected);
 }
 
-TEST (object_stream, vote)
+namespace
 {
-	// Spacing
-	std::cout << std::endl;
+class streamable_object
+{
+public:
+	nano::uint256_union uint256_union_field{ 0 };
+	nano::block_hash block_hash{ 0 };
 
+	void operator() (nano::object_stream & obs) const
 	{
-		nano::object_stream obs{ std::cout };
-
-		nano::vote vote{};
-		vote.hashes.push_back (nano::test::random_hash ());
-		vote.hashes.push_back (nano::test::random_hash ());
-		vote.hashes.push_back (nano::test::random_hash ());
-
-		obs.write ("vote", vote);
+		obs.write ("uint256_union_field", uint256_union_field);
+		obs.write ("block_hash", block_hash);
 	}
-
-	// Spacing
-	std::cout << std::endl;
-}
-
-TEST (object_stream, string_view)
-{
-	// Spacing
-	std::cout << std::endl;
-
-	nano::object_stream obs{ std::cout };
-
-	nano::networks network{ nano::networks::nano_live_network };
-	obs.write ("network", nano::to_string (network));
-
-	// Spacing
-	std::cout << std::endl;
+};
 }
 
 TEST (object_stream, ostream_adapter)
 {
-	using namespace nano;
+	using namespace nano::ostream_operators;
 
-	// Spacing
-	std::cout << std::endl;
+	std::stringstream ss;
 
-	nano::vote vote{};
-	vote.hashes.push_back (nano::test::random_hash ());
-	vote.hashes.push_back (nano::test::random_hash ());
-	vote.hashes.push_back (nano::test::random_hash ());
+	streamable_object test_object;
+	ss << "object: " << test_object;
 
-	std::cout << "vote: " << vote << std::endl;
+	auto expected = trim (R"(
+object: {
+	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+	block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
+}
+)");
 
-	// Spacing
-	std::cout << std::endl;
+	ASSERT_EQ (ss.str (), expected);
 }
 
 TEST (object_stream, fmt_adapter)
 {
-	using namespace nano;
+	streamable_object test_object;
+	auto str = fmt::format ("object: {}", test_object);
 
-	// Spacing
-	std::cout << std::endl;
+	auto expected = trim (R"(
+object: {
+	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+	block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
+}
+)");
 
-	nano::vote vote{};
-	vote.hashes.push_back (nano::test::random_hash ());
-	vote.hashes.push_back (nano::test::random_hash ());
-	vote.hashes.push_back (nano::test::random_hash ());
-
-	fmt::print ("vote: {}\n", vote);
-
-	// Spacing
-	std::cout << std::endl;
+	ASSERT_EQ (str, expected);
 }

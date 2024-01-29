@@ -37,7 +37,7 @@ struct object_stream_config
 	std::string false_value{ "false" };
 	std::string null_value{ "null" };
 
-	std::string indent{ "  " };
+	std::string indent{ "\t" };
 	std::string newline{ "\n" };
 
 	/** Number of decimal places to show for `float` and `double` */
@@ -278,33 +278,40 @@ public:
 
 	array_stream (array_stream const &) = delete; // Disallow copying
 
-public:
+private:
 	template <class Value>
-	void write (Value const & value)
+	void write_single (Value const & value)
 	{
 		ctx.begin_array_element (std::exchange (first_element, false));
 		stream_as_value (value, ctx);
 		ctx.end_array_element ();
 	}
 
-	// Handle `.write_range (container)`
+public:
+	// Handle `.write (container)`
 	template <class Container>
-	inline void write_range (Container const & container);
-
-	// Handle `.write_range (container, [] (auto const & entry) { ... })`
-	template <class Container, class Transform>
-		requires (std::is_invocable_v<Transform, typename Container::value_type>)
-	void write_range (Container const & container, Transform transform)
+	void write (Container const & container)
 	{
-		write_range (std::views::transform (container, transform));
+		for (auto const & el : container)
+		{
+			write_single (el);
+		};
 	}
 
-	// Handle `.write_range (container, [] (auto const & entry, nano::object_stream &) { ... })`
+	// Handle `.write (container, [] (auto const & entry) { ... })`
+	template <class Container, class Transform>
+		requires (std::is_invocable_v<Transform, typename Container::value_type>)
+	void write (Container const & container, Transform transform)
+	{
+		write (std::views::transform (container, transform));
+	}
+
+	// Handle `.write (container, [] (auto const & entry, nano::object_stream &) { ... })`
 	template <class Container, class Writer>
 		requires (std::is_invocable_v<Writer, typename Container::value_type, object_stream &>)
-	void write_range (Container const & container, Writer writer)
+	void write (Container const & container, Writer writer)
 	{
-		write_range (container, [&writer] (auto const & el) {
+		write (container, [&writer] (auto const & el) {
 			return [&writer, &el] (object_stream & obs) {
 				writer (el, obs);
 			};
@@ -314,9 +321,9 @@ public:
 	// Handle `.write_range (container, [] (auto const & entry, nano::array_stream &) { ... })`
 	template <class Container, class Writer>
 		requires (std::is_invocable_v<Writer, typename Container::value_type, array_stream &>)
-	void write_range (Container const & container, Writer writer)
+	void write (Container const & container, Writer writer)
 	{
-		write_range (container, [&writer] (auto const & el) {
+		write (container, [&writer] (auto const & el) {
 			return [&writer, &el] (array_stream & obs) {
 				writer (el, obs);
 			};
@@ -341,9 +348,7 @@ public:
 	template <class Value>
 	void write (Value const & value)
 	{
-		ctx.begin_object ();
 		stream_as_value (value, ctx);
-		ctx.end_object ();
 	}
 
 	// Handle `.write_range (container)`
@@ -391,21 +396,7 @@ template <class Container>
 inline void nano::object_stream::write_range (std::string_view name, Container const & container)
 {
 	write (name, [&container] (array_stream & ars) {
-		for (auto const & el : container)
-		{
-			ars.write (el);
-		}
-	});
-}
-
-template <class Container>
-inline void nano::array_stream::write_range (Container const & container)
-{
-	write ([&container] (array_stream & ars) {
-		for (auto const & el : container)
-		{
-			ars.write (el);
-		}
+		ars.write (container);
 	});
 }
 
@@ -413,10 +404,7 @@ template <class Container>
 inline void nano::root_object_stream::write_range (Container const & container)
 {
 	write ([&container] (array_stream & ars) {
-		for (auto const & el : container)
-		{
-			ars.write (el);
-		}
+		ars.write (container);
 	});
 }
 

@@ -14,8 +14,7 @@ namespace nano
 template <nano::object_streamable Value>
 std::ostream & operator<< (std::ostream & os, Value const & value)
 {
-	nano::object_stream_context ctx{ os };
-	nano::root_object_stream obs{ ctx };
+	nano::root_object_stream obs{ os };
 	obs.write (value);
 	return os;
 }
@@ -23,8 +22,7 @@ std::ostream & operator<< (std::ostream & os, Value const & value)
 template <nano::array_streamable Value>
 std::ostream & operator<< (std::ostream & os, Value const & value)
 {
-	nano::object_stream_context ctx{ os };
-	nano::root_object_stream obs{ ctx };
+	nano::root_object_stream obs{ os };
 	obs.write (value);
 	return os;
 }
