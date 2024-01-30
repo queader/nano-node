@@ -487,6 +487,20 @@ inline void stream_as (Value const & value, array_stream & ars)
 
 namespace nano
 {
+template <class Value>
+	requires (std::is_integral_v<Value> && sizeof (Value) > 1) // Exclude bool, char, etc.
+inline void stream_as_value (const Value & value, object_stream_context & ctx)
+{
+	ctx.begin_stream () << value;
+}
+
+template <class Value>
+	requires (std::is_floating_point_v<Value>)
+inline void stream_as_value (const Value & value, object_stream_context & ctx)
+{
+	ctx.begin_stream () << std::fixed << std::setprecision (ctx.config.precision) << value;
+}
+
 inline void stream_as_value (bool const & value, object_stream_context & ctx)
 {
 	ctx.begin_stream () << (value ? ctx.config.true_value : ctx.config.false_value);
@@ -494,52 +508,12 @@ inline void stream_as_value (bool const & value, object_stream_context & ctx)
 
 inline void stream_as_value (const int8_t & value, object_stream_context & ctx)
 {
-	ctx.begin_stream () << static_cast<uint32_t> (value); // Avoid printing as char
+	ctx.begin_stream () << static_cast<int32_t> (value); // Avoid printing as char
 }
 
 inline void stream_as_value (const uint8_t & value, object_stream_context & ctx)
 {
 	ctx.begin_stream () << static_cast<uint32_t> (value); // Avoid printing as char
-}
-
-inline void stream_as_value (const int16_t & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << value;
-}
-
-inline void stream_as_value (const uint16_t & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << value;
-}
-
-inline void stream_as_value (const int32_t & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << value;
-}
-
-inline void stream_as_value (const uint32_t & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << value;
-}
-
-inline void stream_as_value (const int64_t & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << value;
-}
-
-inline void stream_as_value (const uint64_t & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << value;
-}
-
-inline void stream_as_value (const float & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << std::fixed << std::setprecision (ctx.config.precision) << value;
-}
-
-inline void stream_as_value (const double & value, object_stream_context & ctx)
-{
-	ctx.begin_stream () << std::fixed << std::setprecision (ctx.config.precision) << value;
 }
 
 template <class Opt>
