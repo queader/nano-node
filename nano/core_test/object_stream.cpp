@@ -480,7 +480,7 @@ public:
 
 TEST (object_stream, ostream_adapter)
 {
-	using namespace nano::ostream_operators;
+	using namespace nano::object_stream_adapters;
 
 	std::stringstream ss1, ss2;
 
@@ -514,4 +514,35 @@ TEST (object_stream, fmt_adapter)
 
 	ASSERT_EQ (str1, expected);
 	ASSERT_EQ (str2, expected);
+}
+
+TEST (object_stream, to_string)
+{
+	using namespace nano::object_stream_adapters;
+
+	streamable_object test_object;
+	auto str = to_string (test_object); // Using automatic to_string adapter
+
+	auto expected = trim (R"(
+{
+	uint256_union_field: "0000000000000000000000000000000000000000000000000000000000000000",
+	block_hash: "0000000000000000000000000000000000000000000000000000000000000000"
+}
+)");
+
+	ASSERT_EQ (str, expected);
+}
+
+TEST (object_stream, to_json)
+{
+	using namespace nano::object_stream_adapters;
+
+	streamable_object test_object;
+	auto str = to_json (test_object); // Using automatic to_string adapter
+
+	auto expected = trim (R"(
+{"uint256_union_field":"0000000000000000000000000000000000000000000000000000000000000000","block_hash":"0000000000000000000000000000000000000000000000000000000000000000"}
+)");
+
+	ASSERT_EQ (str, expected);
 }

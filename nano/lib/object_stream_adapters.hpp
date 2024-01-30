@@ -3,6 +3,7 @@
 #include <nano/lib/object_stream.hpp>
 
 #include <ostream>
+#include <sstream>
 
 #include <fmt/ostream.h>
 
@@ -35,9 +36,15 @@ struct object_stream_formatter
 };
 
 template <class Streamable>
-auto streamed (Streamable const & value, nano::object_stream_config const & config = nano::object_stream_config::default_config ())
+auto streamed (Streamable const & value)
 {
-	return object_stream_formatter{ value, config };
+	return object_stream_formatter{ value, nano::object_stream_config::default_config () };
+}
+
+template <class Streamable>
+auto streamed_as_json (Streamable const & value)
+{
+	return object_stream_formatter{ value, nano::object_stream_config::json_config () };
 }
 
 /**
@@ -80,19 +87,35 @@ auto streamed_args (nano::object_stream_config const & config, Args &&... args)
 }
 
 /*
- * Adapters that allow for printing using '<<' operator for all classes that implement object streaming
+ * Adapter that allows for printing using '<<' operator for all classes that implement object streaming
  */
-namespace nano::ostream_operators
+namespace nano::object_stream_adapters
 {
 template <nano::object_or_array_streamable Value>
 std::ostream & operator<< (std::ostream & os, Value const & value)
 {
 	return os << nano::streamed (value);
 }
+
+template <nano::object_or_array_streamable Value>
+std::string to_string (Value const & value)
+{
+	std::stringstream ss;
+	ss << nano::streamed (value);
+	return ss.str ();
+}
+
+template <nano::object_or_array_streamable Value>
+std::string to_json (Value const & value)
+{
+	std::stringstream ss;
+	ss << nano::streamed_as_json (value);
+	return ss.str ();
+}
 }
 
 /*
- * Adapters that allow for printing using fmt library for all classes that implement object streaming
+ * Adapter that allows for printing using fmt library for all classes that implement object streaming
  */
 template <nano::object_or_array_streamable Streamable>
 struct fmt::formatter<Streamable> : fmt::ostream_formatter
