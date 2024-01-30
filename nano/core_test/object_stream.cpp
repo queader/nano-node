@@ -45,6 +45,17 @@ TEST (object_stream, primitive_string_view)
 	ASSERT_EQ (ss.str (), expected);
 }
 
+TEST (object_stream, primitive_char)
+{
+	std::stringstream ss;
+
+	nano::object_stream obs{ ss };
+	obs.write ("field_name_1", 'a');
+
+	auto expected = R"(field_name_1: "a")";
+	ASSERT_EQ (ss.str (), expected);
+}
+
 TEST (object_stream, primitive_bool)
 {
 	std::stringstream ss;
