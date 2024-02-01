@@ -254,6 +254,8 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 	}
 
+	debug_assert (confirmed_locked() || !node.block_confirmed (status.winner->hash ()));
+
 	if (!confirmed_locked () && time_to_live () < std::chrono::steady_clock::now () - election_start)
 	{
 		// It is possible the election confirmed while acquiring the mutex
