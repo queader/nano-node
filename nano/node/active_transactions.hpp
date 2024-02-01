@@ -103,9 +103,8 @@ public: // Container info
 class active_transactions final
 {
 private: // Elections
-	class conflict_info final
+	struct entry
 	{
-	public:
 		nano::qualified_root root;
 		std::shared_ptr<nano::election> election;
 	};
@@ -120,11 +119,11 @@ private: // Elections
 	class tag_arrival {};
 	class tag_hash {};
 
-	using ordered_roots = boost::multi_index_container<conflict_info,
+	using ordered_roots = boost::multi_index_container<entry,
 	mi::indexed_by<
 		mi::sequenced<mi::tag<tag_sequenced>>,
 		mi::hashed_unique<mi::tag<tag_root>,
-			mi::member<conflict_info, nano::qualified_root, &conflict_info::root>>
+			mi::member<entry, nano::qualified_root, &entry::root>>
 	>>;
 	// clang-format on
 	ordered_roots roots;

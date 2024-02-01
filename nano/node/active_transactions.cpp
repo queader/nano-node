@@ -452,7 +452,8 @@ nano::election_insertion_result nano::active_transactions::insert (std::shared_p
 				node.online_reps.observe (rep_a);
 			};
 			result.election = nano::make_shared<nano::election> (node, block_a, nullptr, observe_rep_cb, election_behavior_a);
-			roots.get<tag_root> ().emplace (nano::active_transactions::conflict_info{ root, result.election });
+
+			roots.emplace_back (root, result.election);
 			blocks.emplace (hash, result.election);
 
 			// Keep track of election count by election type
