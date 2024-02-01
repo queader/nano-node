@@ -1,4 +1,5 @@
 #include <nano/lib/jsonconfig.hpp>
+#include <nano/lib/object_stream_adapters.hpp>
 #include <nano/node/election.hpp>
 #include <nano/node/scheduler/component.hpp>
 #include <nano/node/scheduler/manual.hpp>
@@ -486,6 +487,12 @@ TEST (active_transactions, inactive_votes_cache_election_start)
 				 .sign (key2.prv, key2.pub)
 				 .work (*system.work.generate (key2.pub))
 				 .build_shared ();
+
+	system.logger.debug (nano::log::type::test, "send1: {}", *send1);
+	system.logger.debug (nano::log::type::test, "send2: {}", *send2);
+	system.logger.debug (nano::log::type::test, "open1: {}", *open1);
+	system.logger.debug (nano::log::type::test, "open2: {}", *open2);
+
 	ASSERT_EQ (nano::process_result::progress, node.process (*send1).code);
 	ASSERT_EQ (nano::process_result::progress, node.process (*send2).code);
 	ASSERT_EQ (nano::process_result::progress, node.process (*open1).code);
@@ -493,6 +500,7 @@ TEST (active_transactions, inactive_votes_cache_election_start)
 	ASSERT_TIMELY_EQ (5s, 5, node.ledger.cache.block_count);
 	ASSERT_TRUE (node.active.empty ());
 	ASSERT_EQ (1, node.ledger.cache.cemented_count);
+
 	// These blocks will be processed later
 	auto send3 = send_block_builder.make_block ()
 				 .previous (send2->hash ())
@@ -508,6 +516,9 @@ TEST (active_transactions, inactive_votes_cache_election_start)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*system.work.generate (send3->hash ()))
 				 .build_shared ();
+
+	system.logger.debug (nano::log::type::test, "send3: {}", *send3);
+	system.logger.debug (nano::log::type::test, "send4: {}", *send4);
 
 	// Inactive votes
 	auto vote1 = nano::test::make_vote (key1, { open1, open2, send4 });
