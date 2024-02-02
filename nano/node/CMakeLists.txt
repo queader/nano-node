@@ -134,6 +134,8 @@ add_library(
   scheduler/buckets.hpp
   scheduler/component.hpp
   scheduler/component.cpp
+        scheduler/election_set.cpp
+        scheduler/election_set.hpp
   scheduler/hinted.hpp
   scheduler/hinted.cpp
   scheduler/manual.hpp

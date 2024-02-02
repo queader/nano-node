@@ -1,4 +1,5 @@
 #pragma once
+
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/utility.hpp>
 
@@ -14,6 +15,7 @@ class block;
 namespace nano::scheduler
 {
 class bucket;
+
 /** A container for holding blocks and their arrival/creation time.
  *
  *  The container consists of a number of buckets. Each bucket holds an ordered set of 'value_type' items.

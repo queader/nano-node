@@ -333,12 +333,22 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 		debug_assert (erased == 1);
 	}
 
-	roots.get<tag_root> ().erase (roots.get<tag_root> ().find (election->qualified_root));
+	// Erase root info
+	auto it = roots.get<tag_root> ().find (election->qualified_root);
+	release_assert (it != roots.get<tag_root> ().end ());
+	entry entry = *it;
+	roots.get<tag_root> ().erase (it);
 
 	node.stats.inc (completion_type (*election), to_stat_detail (election->behavior ()));
 	node.logger.trace (nano::log::type::active_transactions, nano::log::detail::active_stopped, nano::log::arg{ "election", election });
 
 	lock_a.unlock ();
+
+	// Let election sets update before notifying about vacancy
+	if (entry.erased_callback)
+	{
+		entry.erased_callback (election);
+	}
 
 	vacancy_update ();
 
@@ -415,19 +425,15 @@ void nano::active_transactions::request_loop ()
 
 void nano::active_transactions::trim ()
 {
-	/*
-	 * Both normal and hinted election schedulers are well-behaved, meaning they first check for AEC vacancy before inserting new elections.
-	 * However, it is possible that AEC will be temporarily overfilled in case it's running at full capacity and election hinting or manual queue kicks in.
-	 * That case will lead to unwanted churning of elections, so this allows for AEC to be overfilled to 125% until erasing of elections happens.
-	 */
-	while (vacancy () < -(limit () / 4))
+	// Allow for a hard limit of 2x the configured soft limit
+	while (vacancy () < -limit ())
 	{
 		node.stats.inc (nano::stat::type::active, nano::stat::detail::erase_oldest);
 		erase_oldest ();
 	}
 }
 
-nano::election_insertion_result nano::active_transactions::insert (std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a)
+nano::election_insertion_result nano::active_transactions::insert (std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, erased_callback_t erased_callback)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	debug_assert (block_a);
@@ -453,7 +459,7 @@ nano::election_insertion_result nano::active_transactions::insert (std::shared_p
 			};
 			result.election = nano::make_shared<nano::election> (node, block_a, nullptr, observe_rep_cb, election_behavior_a);
 
-			roots.emplace_back (root, result.election);
+			roots.emplace_back (entry{ root, result.election, std::move (erased_callback) });
 			blocks.emplace (hash, result.election);
 
 			// Keep track of election count by election type
@@ -495,7 +501,9 @@ nano::election_insertion_result nano::active_transactions::insert (std::shared_p
 	{
 		result.election->broadcast_vote ();
 	}
+
 	trim ();
+
 	return result;
 }
 

@@ -5,6 +5,7 @@
 
 #include <unordered_set>
 
+/*
 nano::keypair & keyzero ()
 {
 	static nano::keypair result;
@@ -251,3 +252,4 @@ TEST (buckets, trim_even)
 	buckets.pop ();
 	ASSERT_EQ (block1 (), buckets.top ());
 }
+*/

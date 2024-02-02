@@ -129,6 +129,8 @@ bool nano::election::valid_change (nano::election::state_t expected_a, nano::ele
 
 bool nano::election::state_change (nano::election::state_t expected_a, nano::election::state_t desired_a)
 {
+	debug_assert (!mutex.try_lock ());
+
 	bool result = true;
 	if (valid_change (expected_a, desired_a))
 	{
@@ -170,8 +172,14 @@ void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_
 
 void nano::election::transition_active ()
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
+	nano::lock_guard<nano::mutex> guard{ mutex };
 	state_change (nano::election::state_t::passive, nano::election::state_t::active);
+}
+
+void nano::election::cancel ()
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	state_change (state_m, nano::election::state_t::expired_unconfirmed);
 }
 
 bool nano::election::confirmed_locked () const

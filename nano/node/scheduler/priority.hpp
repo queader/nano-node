@@ -20,7 +20,8 @@ class node;
 
 namespace nano::scheduler
 {
-class buckets;
+class bucket;
+
 class priority final
 {
 public:
@@ -49,8 +50,10 @@ private:
 	void run ();
 	bool empty_locked () const;
 	bool predicate () const;
+	bucket & find_bucket (nano::uint128_t priority);
 
-	std::unique_ptr<nano::scheduler::buckets> buckets;
+private:
+	std::vector<std::unique_ptr<bucket>> buckets;
 
 	bool stopped{ false };
 	nano::condition_variable condition;

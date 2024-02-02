@@ -32,29 +32,29 @@ void nano::scheduler::buckets::seek ()
 nano::scheduler::buckets::buckets (uint64_t maximum) :
 	maximum{ maximum }
 {
-	auto build_region = [this] (uint128_t const & begin, uint128_t const & end, size_t count) {
-		auto width = (end - begin) / count;
-		for (auto i = 0; i < count; ++i)
-		{
-			minimums.push_back (begin + i * width);
-		}
-	};
-	minimums.push_back (uint128_t{ 0 });
-	build_region (uint128_t{ 1 } << 88, uint128_t{ 1 } << 92, 2);
-	build_region (uint128_t{ 1 } << 92, uint128_t{ 1 } << 96, 4);
-	build_region (uint128_t{ 1 } << 96, uint128_t{ 1 } << 100, 8);
-	build_region (uint128_t{ 1 } << 100, uint128_t{ 1 } << 104, 16);
-	build_region (uint128_t{ 1 } << 104, uint128_t{ 1 } << 108, 16);
-	build_region (uint128_t{ 1 } << 108, uint128_t{ 1 } << 112, 8);
-	build_region (uint128_t{ 1 } << 112, uint128_t{ 1 } << 116, 4);
-	build_region (uint128_t{ 1 } << 116, uint128_t{ 1 } << 120, 2);
-	minimums.push_back (uint128_t{ 1 } << 120);
-	auto bucket_max = std::max<size_t> (1u, maximum / minimums.size ());
-	for (size_t i = 0u, n = minimums.size (); i < n; ++i)
-	{
-		buckets_m.push_back (std::make_unique<scheduler::bucket> (bucket_max));
-	}
-	current = buckets_m.begin ();
+//	auto build_region = [this] (uint128_t const & begin, uint128_t const & end, size_t count) {
+//		auto width = (end - begin) / count;
+//		for (auto i = 0; i < count; ++i)
+//		{
+//			minimums.push_back (begin + i * width);
+//		}
+//	};
+//	minimums.push_back (uint128_t{ 0 });
+//	build_region (uint128_t{ 1 } << 88, uint128_t{ 1 } << 92, 2);
+//	build_region (uint128_t{ 1 } << 92, uint128_t{ 1 } << 96, 4);
+//	build_region (uint128_t{ 1 } << 96, uint128_t{ 1 } << 100, 8);
+//	build_region (uint128_t{ 1 } << 100, uint128_t{ 1 } << 104, 16);
+//	build_region (uint128_t{ 1 } << 104, uint128_t{ 1 } << 108, 16);
+//	build_region (uint128_t{ 1 } << 108, uint128_t{ 1 } << 112, 8);
+//	build_region (uint128_t{ 1 } << 112, uint128_t{ 1 } << 116, 4);
+//	build_region (uint128_t{ 1 } << 116, uint128_t{ 1 } << 120, 2);
+//	minimums.push_back (uint128_t{ 1 } << 120);
+//	auto bucket_max = std::max<size_t> (1u, maximum / minimums.size ());
+//	for (size_t i = 0u, n = minimums.size (); i < n; ++i)
+//	{
+//		buckets_m.push_back (std::make_unique<scheduler::bucket> (bucket_max));
+//	}
+//	current = buckets_m.begin ();
 }
 
 nano::scheduler::buckets::~buckets ()

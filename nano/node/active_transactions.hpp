@@ -102,11 +102,15 @@ public: // Container info
  */
 class active_transactions final
 {
+public:
+	using erased_callback_t = std::function<void (std::shared_ptr<nano::election>)>;
+
 private: // Elections
 	struct entry
 	{
 		nano::qualified_root root;
 		std::shared_ptr<nano::election> election;
+		erased_callback_t erased_callback;
 	};
 
 	friend class nano::election;
@@ -139,7 +143,7 @@ public:
 	/**
 	 * Starts new election with a specified behavior type
 	 */
-	nano::election_insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal);
+	nano::election_insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::normal, erased_callback_t = nullptr);
 	// Distinguishes replay votes, cannot be determined if the block is not in any election
 	nano::vote_code vote (std::shared_ptr<nano::vote> const &);
 	// Is the root of this block in the roots container

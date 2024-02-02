@@ -1,12 +1,44 @@
 #include <nano/node/node.hpp>
+#include <nano/node/scheduler/bucket.hpp>
 #include <nano/node/scheduler/buckets.hpp>
 #include <nano/node/scheduler/priority.hpp>
 
 nano::scheduler::priority::priority (nano::node & node_a, nano::stats & stats_a) :
 	node{ node_a },
 	stats{ stats_a },
-	buckets{ std::make_unique<scheduler::buckets> () }
+	buckets{}
 {
+	std::vector<nano::uint128_t> minimums;
+
+	auto build_region = [&minimums] (uint128_t const & begin, uint128_t const & end, size_t count) {
+		auto width = (end - begin) / count;
+		for (auto i = 0; i < count; ++i)
+		{
+			minimums.push_back (begin + i * width);
+		}
+	};
+
+	minimums.push_back (uint128_t{ 0 });
+	build_region (uint128_t{ 1 } << 88, uint128_t{ 1 } << 92, 2);
+	build_region (uint128_t{ 1 } << 92, uint128_t{ 1 } << 96, 4);
+	build_region (uint128_t{ 1 } << 96, uint128_t{ 1 } << 100, 8);
+	build_region (uint128_t{ 1 } << 100, uint128_t{ 1 } << 104, 16);
+	build_region (uint128_t{ 1 } << 104, uint128_t{ 1 } << 108, 16);
+	build_region (uint128_t{ 1 } << 108, uint128_t{ 1 } << 112, 8);
+	build_region (uint128_t{ 1 } << 112, uint128_t{ 1 } << 116, 4);
+	build_region (uint128_t{ 1 } << 116, uint128_t{ 1 } << 120, 2);
+	minimums.push_back (uint128_t{ 1 } << 120);
+
+	const int reserved_elections = node.config.active_elections_size / minimums.size ();
+
+	node.logger.info (nano::log::type::election_scheduler, "Number of buckets: {}", minimums.size ());
+	node.logger.info (nano::log::type::election_scheduler, "Reserved elections per bucket: {}", reserved_elections);
+
+	for (size_t i = 0u, n = minimums.size (); i < n; ++i)
+	{
+		auto bucket = std::make_unique<scheduler::bucket> (minimums[i], reserved_elections, node.active);
+		buckets.emplace_back (std::move (bucket));
+	}
 }
 
 nano::scheduler::priority::~priority ()
@@ -62,8 +94,12 @@ bool nano::scheduler::priority::activate (nano::account const & account_a, store
 				nano::log::arg{ "time", info->modified },
 				nano::log::arg{ "priority", balance_priority });
 
-				nano::lock_guard<nano::mutex> lock{ mutex };
-				buckets->push (info->modified, block, balance_priority);
+				{
+					nano::lock_guard<nano::mutex> lock{ mutex };
+					auto & bucket = find_bucket (balance_priority);
+					bucket.push (info->modified, block);
+				}
+
 				notify ();
 
 				return true; // Activated
@@ -81,23 +117,21 @@ void nano::scheduler::priority::notify ()
 std::size_t nano::scheduler::priority::size () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	return buckets->size ();
-}
-
-bool nano::scheduler::priority::empty_locked () const
-{
-	return buckets->empty ();
+	return std::accumulate (buckets.begin (), buckets.end (), std::size_t{ 0 }, [] (auto const & sum, auto const & bucket) {
+		return sum + bucket->size ();
+	});
 }
 
 bool nano::scheduler::priority::empty () const
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	return empty_locked ();
+	return size () == 0;
 }
 
 bool nano::scheduler::priority::predicate () const
 {
-	return node.active.vacancy () > 0 && !buckets->empty ();
+	return std::any_of (buckets.begin (), buckets.end (), [] (auto const & bucket) {
+		return bucket->available ();
+	});
 }
 
 void nano::scheduler::priority::run ()
@@ -113,30 +147,47 @@ void nano::scheduler::priority::run ()
 		{
 			stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
 
-			if (predicate ())
+			for (auto & bucket : buckets)
 			{
-				auto block = buckets->top ();
-				buckets->pop ();
-				lock.unlock ();
-				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
-				auto result = node.active.insert (block);
-				if (result.inserted)
+				if (bucket->available ())
 				{
-					stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority_success);
-				}
-				if (result.election != nullptr)
-				{
-					result.election->transition_active ();
+					bucket->activate ();
 				}
 			}
-			else
-			{
-				lock.unlock ();
-			}
-			notify ();
-			lock.lock ();
+
+			//				auto block = buckets.top ();
+			//				buckets.pop ();
+			//				lock.unlock ();
+			//				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
+			//				auto result = node.active.insert (block);
+			//				if (result.inserted)
+			//				{
+			//					stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority_success);
+			//				}
+			//				if (result.election != nullptr)
+			//				{
+			//					result.election->transition_active ();
+			//				}
+			//			}
+			//			else
+			//			{
+			//				lock.unlock ();
+			//			}
+			//			notify ();
+			//			lock.lock ();
 		}
 	}
+}
+
+auto nano::scheduler::priority::find_bucket (nano::uint128_t priority) -> bucket &
+{
+	auto it = std::upper_bound (buckets.begin (), buckets.end (), priority, [] (nano::uint128_t const & priority, std::unique_ptr<bucket> const & bucket) {
+		return priority < bucket->minimum_balance;
+	});
+	release_assert (it != buckets.begin ()); // There should always be a bucket with a minimum_balance of 0
+	it = std::prev (it);
+
+	return **it; // TODO: Revisit this
 }
 
 std::unique_ptr<nano::container_info_component> nano::scheduler::priority::collect_container_info (std::string const & name)
@@ -144,6 +195,6 @@ std::unique_ptr<nano::container_info_component> nano::scheduler::priority::colle
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (buckets->collect_container_info ("buckets"));
+	//	composite->add_component (buckets.collect_container_info ("buckets"));
 	return composite;
 }
