@@ -66,8 +66,7 @@ void nano::block_processor::add (std::shared_ptr<nano::block> const & block, blo
 		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::insufficient_work);
 		return;
 	}
-	add_impl (block, source);
-	return;
+	add_impl (block, context{ source });
 }
 
 std::optional<nano::process_return> nano::block_processor::add_blocking (std::shared_ptr<nano::block> const & block, block_source const source)
@@ -128,7 +127,7 @@ void nano::block_processor::force (std::shared_ptr<nano::block> const & block_a)
 {
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
-		forced.emplace_back (block_a, context{ block_source::forced });
+		forced.emplace_back (entry{ block_a, /* forced */ true, context{ block_source::forced } });
 	}
 	condition.notify_all ();
 }
@@ -144,7 +143,9 @@ void nano::block_processor::process_blocks ()
 			lock.unlock ();
 
 			auto processed = process_batch (lock);
+			debug_assert (!lock.owns_lock ());
 
+			// Set results for futures when not holding the lock
 			for (auto & [result, block, context] : processed)
 			{
 				context.set_result (result);
@@ -191,12 +192,12 @@ void nano::block_processor::add_impl (std::shared_ptr<nano::block> block, contex
 {
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		blocks.emplace_back (block, std::move (ctx));
+		blocks.emplace_back (entry{ block, /* not forced */ false, std::move (ctx) });
 	}
 	condition.notify_all ();
 }
 
-auto nano::block_processor::next_block () -> std::pair<entry_t, bool>
+auto nano::block_processor::next () -> entry
 {
 	debug_assert (!mutex.try_lock ());
 
@@ -204,15 +205,17 @@ auto nano::block_processor::next_block () -> std::pair<entry_t, bool>
 	{
 		release_assert (!blocks.empty ()); // Checked before calling this function
 
-		auto entry = std::move (blocks.front ());
+		entry entry = std::move (blocks.front ());
+		release_assert (!entry.forced);
 		blocks.pop_front ();
-		return { std::move (entry), false }; // Not forced
+		return entry;
 	}
 	else
 	{
-		auto entry = std::move (forced.front ());
+		entry entry = std::move (forced.front ());
+		release_assert (entry.forced);
 		forced.pop_front ();
-		return { std::move (entry), true }; // Forced
+		return entry;
 	}
 }
 
@@ -241,9 +244,11 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 			node.logger.debug (nano::log::type::blockprocessor, "{} blocks (+ {} forced) in processing queue", blocks.size (), forced.size ());
 		}
 
-		auto [entry, force] = next_block ();
-		auto & [block, context] = entry;
+		auto entry = next ();
+		auto const block = entry.block;
 		auto const hash = block->hash ();
+		bool const force = entry.forced;
+		auto context = std::move (entry.context);
 
 		lock_a.unlock ();
 
@@ -259,7 +264,7 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 
 		number_of_blocks_processed++;
 
-		auto result = process_one (transaction, block, force);
+		auto result = process_one (transaction, block, context, force);
 		processed.emplace_back (result, block, std::move (context));
 
 		lock_a.lock ();
@@ -275,7 +280,7 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 	return processed;
 }
 
-nano::process_return nano::block_processor::process_one (store::write_transaction const & transaction_a, std::shared_ptr<nano::block> block, bool const forced_a)
+nano::process_return nano::block_processor::process_one (store::write_transaction const & transaction_a, std::shared_ptr<nano::block> block, context const & context, bool const forced_a)
 {
 	nano::process_return result;
 	auto hash (block->hash ());

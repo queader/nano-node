@@ -37,12 +37,12 @@ public: // Context
 		forced,
 	};
 
-	class context final
+	class context
 	{
 	public:
 		using result_t = nano::process_return;
 
-		context (block_source);
+		explicit context (block_source);
 
 		block_source const source;
 		std::chrono::steady_clock::time_point const arrival;
@@ -58,7 +58,12 @@ public: // Context
 		static std::chrono::seconds constexpr recent_arrival_cutoff{ 60 * 5 };
 	};
 
-	using entry_t = std::pair<std::shared_ptr<nano::block>, context>;
+	struct entry
+	{
+		std::shared_ptr<nano::block> block;
+		bool forced;
+		block_processor::context context;
+	};
 
 public:
 	block_processor (nano::node &, nano::write_database_queue &);
@@ -89,10 +94,10 @@ public: // Events
 private:
 	// Roll back block in the ledger that conflicts with 'block'
 	std::vector<std::shared_ptr<nano::block>> rollback_competitor (store::write_transaction const &, nano::block const & block);
-	nano::process_return process_one (store::write_transaction const &, std::shared_ptr<nano::block> block, bool forced = false);
+	nano::process_return process_one (store::write_transaction const &, std::shared_ptr<nano::block> block, context const &, bool forced = false);
 	void queue_unchecked (store::write_transaction const &, nano::hash_or_account const &);
 	processed_batch_t process_batch (nano::unique_lock<nano::mutex> &);
-	std::pair<entry_t, bool> next_block (); /// @returns <next block entry, forced>
+	entry next ();
 	void add_impl (std::shared_ptr<nano::block> block, context);
 
 private: // Dependencies
@@ -103,8 +108,8 @@ private:
 	bool stopped{ false };
 	bool active{ false };
 	std::chrono::steady_clock::time_point next_log;
-	std::deque<entry_t> blocks;
-	std::deque<entry_t> forced;
+	std::deque<entry> blocks;
+	std::deque<entry> forced;
 	nano::condition_variable condition;
 	nano::mutex mutex{ mutex_identifier (mutexes::block_processor) };
 	std::thread processing_thread;
