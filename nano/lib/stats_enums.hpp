@@ -101,6 +101,7 @@ enum class detail : uint8_t
 	old,
 	gap_previous,
 	gap_source,
+	rollback,
 	rollback_failed,
 	progress,
 	bad_signature,
@@ -112,7 +113,7 @@ enum class detail : uint8_t
 	representative_mismatch,
 	block_position,
 
-	// blockprocessor result
+	// block source
 	live,
 	bootstrap,
 	bootstrap_legacy,
