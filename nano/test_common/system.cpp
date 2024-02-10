@@ -570,6 +570,7 @@ void nano::test::system::stop ()
 	{
 		i->stop ();
 	}
+	stats.stop ();
 	work.stop ();
 }
 
