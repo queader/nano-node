@@ -323,6 +323,13 @@ enum class dir
 
 	_last // Must be the last enum
 };
+
+enum class sample
+{
+	active_duration,
+
+	_last // Must be the last enum
+};
 }
 
 namespace nano
@@ -330,6 +337,7 @@ namespace nano
 std::string_view to_string (stat::type);
 std::string_view to_string (stat::detail);
 std::string_view to_string (stat::dir);
+std::string_view to_string (stat::sample);
 }
 
 // Ensure that the enum_range is large enough to hold all values (including future ones)
