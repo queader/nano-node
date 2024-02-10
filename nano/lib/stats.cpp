@@ -218,12 +218,14 @@ void nano::stats::update_counter (nano::stats::counter_key key, std::function<vo
 		{
 			updater (*it->second);
 
-			if (key != all_key) // Also update the `all` counter
+			if (key != all_key)
 			{
 				auto it_all = counters.find (all_key);
 				release_assert (it_all != counters.end ()); // The `all` counter should always be created together
-				updater (*it_all->second);
+				updater (*it_all->second); // Also update the `all` counter
 			}
+
+			return;
 		}
 	}
 	// Not found, create a new entry
@@ -235,7 +237,11 @@ void nano::stats::update_counter (nano::stats::counter_key key, std::function<vo
 		auto [it_all, inserted_all] = counters.emplace (all_key, std::make_unique<counter_entry> ());
 
 		updater (*it->second);
-		updater (*it_all->second);
+
+		if (key != all_key)
+		{
+			updater (*it_all->second); // Also update the `all` counter
+		}
 	}
 }
 
@@ -249,6 +255,8 @@ void nano::stats::update_sampler (nano::stats::sampler_key key, std::function<vo
 		if (auto it = samplers.find (key); it != samplers.end ())
 		{
 			updater (*it->second);
+
+			return;
 		}
 	}
 	// Not found, create a new entry

@@ -192,6 +192,7 @@ private:
 		mutable nano::mutex mutex;
 	};
 
+	// Wrap in unique_ptrs because mutex members are not movable
 	std::map<counter_key, std::unique_ptr<counter_entry>> counters;
 	std::map<sampler_key, std::unique_ptr<sampler_entry>> samplers;
 
