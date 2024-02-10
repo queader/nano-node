@@ -86,6 +86,9 @@ public:
 	/** Stop stats being output */
 	void stop ();
 
+	/** Clear all stats */
+	void clear ();
+
 	/** Increments the given counter */
 	void inc (stat::type type, stat::dir dir = stat::dir::in)
 	{
@@ -114,13 +117,13 @@ public:
 	void add (stat::type type, stat::detail detail, stat::dir dir, counter_value_t value);
 
 	/** Returns current value for the given counter at the type level */
-	counter_value_t count (stat::type type, stat::dir dir = stat::dir::in)
+	counter_value_t count (stat::type type, stat::dir dir = stat::dir::in) const
 	{
 		return count (type, stat::detail::all, dir);
 	}
 
 	/** Returns current value for the given counter at the detail level */
-	counter_value_t count (stat::type type, stat::detail detail, stat::dir dir = stat::dir::in);
+	counter_value_t count (stat::type type, stat::detail detail, stat::dir dir = stat::dir::in) const;
 
 	/** Adds a sample to the given sampler */
 	void sample (stat::type type, stat::sample sample, sampler_value_t value);
@@ -130,9 +133,6 @@ public:
 
 	/** Returns the number of seconds since clear() was last called, or node startup if it's never called. */
 	std::chrono::seconds last_reset ();
-
-	/** Clear all stats */
-	void clear ();
 
 	/** Log counters to the given log link */
 	void log_counters (stat_log_sink & sink);
@@ -205,8 +205,8 @@ private:
 	std::map<sampler_key, std::unique_ptr<sampler_entry>> samplers;
 
 private:
-	std::pair<counter_entry &, counter_entry &> get_counters (counter_key key); /// @returns <counter, counter for all>
-	sampler_entry & get_sampler (sampler_key key);
+	void update_counter (counter_key key, std::function<void (counter_entry &)> const & updater);
+	void update_sampler (sampler_key key, std::function<void (sampler_entry &)> const & updater);
 
 private:
 	/**

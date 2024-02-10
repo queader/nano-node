@@ -189,6 +189,14 @@ void nano::stats::stop ()
 	stopped = true;
 }
 
+void nano::stats::clear ()
+{
+	std::lock_guard guard{ mutex };
+	counters.clear ();
+	samplers.clear ();
+	timestamp = std::chrono::steady_clock::now ();
+}
+
 void nano::stats::add (stat::type type, stat::detail detail, stat::dir dir, counter_value_t value)
 {
 	if (value == 0)
@@ -196,38 +204,40 @@ void nano::stats::add (stat::type type, stat::detail detail, stat::dir dir, coun
 		return;
 	}
 
-	auto counter_pair = get_counters (counter_key{ type, detail, dir });
-	auto & counter = counter_pair.first;
-	auto & counter_all = counter_pair.second;
-
-	counter.value += value;
-
-	if (detail != stat::detail::all)
-	{
-		counter_all.value += value;
-	}
+	update_counter (counter_key{ type, detail, dir }, [value] (counter_entry & counter) {
+		counter.value += value;
+	});
 }
 
-auto nano::stats::count (stat::type type, stat::detail detail, stat::dir dir) -> counter_value_t
+auto nano::stats::count (stat::type type, stat::detail detail, stat::dir dir) const -> counter_value_t
 {
-	auto counter_pair = get_counters (counter_key{ type, detail, dir });
-	auto & counter = counter_pair.first;
-	return counter.value;
+	std::shared_lock lock{ mutex };
+	if (auto it = counters.find (counter_key{ type, detail, dir }); it != counters.end ())
+	{
+		return it->second->value;
+	}
+	return 0;
 }
 
 void nano::stats::sample (stat::type type, stat::sample sample, nano::stats::sampler_value_t value)
 {
-	auto & sampler = get_sampler (sampler_key{ type, sample });
-	sampler.add (value, config.capacity);
+	update_sampler (sampler_key{ type, sample }, [this, value] (sampler_entry & sampler) {
+		sampler.add (value, config.capacity);
+	});
 }
 
 auto nano::stats::samples (stat::type type, stat::sample sample) -> std::vector<sampler_value_t>
 {
-	auto & sampler = get_sampler (sampler_key{ type, sample });
-	return sampler.collect ();
+	std::shared_lock lock{ mutex };
+	if (auto it = samplers.find (sampler_key{ type, sample }); it != samplers.end ())
+	{
+		return it->second->collect ();
+	}
+	return {};
 }
 
-auto nano::stats::get_counters (nano::stats::counter_key key) -> std::pair<counter_entry &, counter_entry &>
+// Updates need to happen while holding the mutex
+void nano::stats::update_counter (nano::stats::counter_key key, std::function<void (counter_entry &)> const & updater)
 {
 	counter_key all_key{ key.type, stat::detail::all, key.dir };
 
@@ -237,9 +247,14 @@ auto nano::stats::get_counters (nano::stats::counter_key key) -> std::pair<count
 
 		if (auto it = counters.find (key); it != counters.end ())
 		{
-			auto it_all = counters.find (all_key);
-			release_assert (it_all != counters.end ()); // The `all` counter should always be created together
-			return { *it->second, *it_all->second };
+			updater (*it->second);
+
+			if (key != all_key) // Also update the `all` counter
+			{
+				auto it_all = counters.find (all_key);
+				release_assert (it_all != counters.end ()); // The `all` counter should always be created together
+				updater (*it_all->second);
+			}
 		}
 	}
 	// Not found, create a new entry
@@ -249,11 +264,14 @@ auto nano::stats::get_counters (nano::stats::counter_key key) -> std::pair<count
 		// Insertions will be ignored if the key already exists
 		auto [it, inserted] = counters.emplace (key, std::make_unique<counter_entry> ());
 		auto [it_all, inserted_all] = counters.emplace (all_key, std::make_unique<counter_entry> ());
-		return { *it->second, *it_all->second };
+
+		updater (*it->second);
+		updater (*it_all->second);
 	}
 }
 
-auto nano::stats::get_sampler (nano::stats::sampler_key key) -> sampler_entry &
+// Updates need to happen while holding the mutex
+void nano::stats::update_sampler (nano::stats::sampler_key key, std::function<void (sampler_entry &)> const & updater)
 {
 	// This is a two-step process to avoid exclusively locking the mutex in the common case
 	{
@@ -261,15 +279,16 @@ auto nano::stats::get_sampler (nano::stats::sampler_key key) -> sampler_entry &
 
 		if (auto it = samplers.find (key); it != samplers.end ())
 		{
-			return *it->second;
+			updater (*it->second);
 		}
 	}
 	// Not found, create a new entry
 	{
 		std::unique_lock lock{ mutex };
 
+		// Insertions will be ignored if the key already exists
 		auto [it, inserted] = samplers.emplace (key, std::make_unique<sampler_entry> ());
-		return *it->second;
+		updater (*it->second);
 	}
 }
 
@@ -425,15 +444,6 @@ std::string nano::stats::dump (category category)
 			break;
 	}
 	return sink->to_string ();
-}
-
-// TODO: This is not safe, stat entries should be append-only
-void nano::stats::clear ()
-{
-	std::lock_guard guard{ mutex };
-	counters.clear ();
-	samplers.clear ();
-	timestamp = std::chrono::steady_clock::now ();
 }
 
 /*
