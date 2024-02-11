@@ -14,3 +14,4 @@ get_exec_extension() {
             ;;
     esac
 }
+
