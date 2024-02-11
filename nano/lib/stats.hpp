@@ -194,10 +194,6 @@ private:
 	std::map<sampler_key, std::unique_ptr<sampler_entry>> samplers;
 
 private:
-	void update_counter (counter_key key, std::function<void (counter_entry &)> const & updater);
-	void update_sampler (sampler_key key, std::function<void (sampler_entry &)> const & updater);
-
-private:
 	void run ();
 	void run_one (std::unique_lock<std::shared_mutex> & lock);
 	std::chrono::milliseconds calculate_run_interval () const;

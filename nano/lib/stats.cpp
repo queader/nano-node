@@ -72,6 +72,45 @@ void nano::stats::add (stat::type type, stat::detail detail, stat::dir dir, coun
 		return;
 	}
 
+	// Updates need to happen while holding the mutex
+	auto update_counter = [this] (nano::stats::counter_key key, auto && updater) {
+		counter_key all_key{ key.type, stat::detail::all, key.dir };
+
+		// This is a two-step process to avoid exclusively locking the mutex in the common case
+		{
+			std::shared_lock lock{ mutex };
+
+			if (auto it = counters.find (key); it != counters.end ())
+			{
+				updater (*it->second);
+
+				if (key != all_key)
+				{
+					auto it_all = counters.find (all_key);
+					release_assert (it_all != counters.end ()); // The `all` counter should always be created together
+					updater (*it_all->second); // Also update the `all` counter
+				}
+
+				return;
+			}
+		}
+		// Not found, create a new entry
+		{
+			std::unique_lock lock{ mutex };
+
+			// Insertions will be ignored if the key already exists
+			auto [it, inserted] = counters.emplace (key, std::make_unique<counter_entry> ());
+			auto [it_all, inserted_all] = counters.emplace (all_key, std::make_unique<counter_entry> ());
+
+			updater (*it->second);
+
+			if (key != all_key)
+			{
+				updater (*it_all->second); // Also update the `all` counter
+			}
+		}
+	};
+
 	update_counter (counter_key{ type, detail, dir }, [value] (counter_entry & counter) {
 		counter.value += value;
 	});
@@ -89,6 +128,28 @@ auto nano::stats::count (stat::type type, stat::detail detail, stat::dir dir) co
 
 void nano::stats::sample (stat::type type, stat::sample sample, nano::stats::sampler_value_t value)
 {
+	// Updates need to happen while holding the mutex
+	auto update_sampler = [this] (nano::stats::sampler_key key, auto && updater) {
+		// This is a two-step process to avoid exclusively locking the mutex in the common case
+		{
+			std::shared_lock lock{ mutex };
+
+			if (auto it = samplers.find (key); it != samplers.end ())
+			{
+				updater (*it->second);
+				return;
+			}
+		}
+		// Not found, create a new entry
+		{
+			std::unique_lock lock{ mutex };
+
+			// Insertions will be ignored if the key already exists
+			auto [it, inserted] = samplers.emplace (key, std::make_unique<sampler_entry> ());
+			updater (*it->second);
+		}
+	};
+
 	update_sampler (sampler_key{ type, sample }, [this, value] (sampler_entry & sampler) {
 		sampler.add (value, config.max_samples);
 	});
@@ -102,70 +163,6 @@ auto nano::stats::samples (stat::type type, stat::sample sample) -> std::vector<
 		return it->second->collect ();
 	}
 	return {};
-}
-
-// Updates need to happen while holding the mutex
-void nano::stats::update_counter (nano::stats::counter_key key, std::function<void (counter_entry &)> const & updater)
-{
-	counter_key all_key{ key.type, stat::detail::all, key.dir };
-
-	// This is a two-step process to avoid exclusively locking the mutex in the common case
-	{
-		std::shared_lock lock{ mutex };
-
-		if (auto it = counters.find (key); it != counters.end ())
-		{
-			updater (*it->second);
-
-			if (key != all_key)
-			{
-				auto it_all = counters.find (all_key);
-				release_assert (it_all != counters.end ()); // The `all` counter should always be created together
-				updater (*it_all->second); // Also update the `all` counter
-			}
-
-			return;
-		}
-	}
-	// Not found, create a new entry
-	{
-		std::unique_lock lock{ mutex };
-
-		// Insertions will be ignored if the key already exists
-		auto [it, inserted] = counters.emplace (key, std::make_unique<counter_entry> ());
-		auto [it_all, inserted_all] = counters.emplace (all_key, std::make_unique<counter_entry> ());
-
-		updater (*it->second);
-
-		if (key != all_key)
-		{
-			updater (*it_all->second); // Also update the `all` counter
-		}
-	}
-}
-
-// Updates need to happen while holding the mutex
-void nano::stats::update_sampler (nano::stats::sampler_key key, std::function<void (sampler_entry &)> const & updater)
-{
-	// This is a two-step process to avoid exclusively locking the mutex in the common case
-	{
-		std::shared_lock lock{ mutex };
-
-		if (auto it = samplers.find (key); it != samplers.end ())
-		{
-			updater (*it->second);
-
-			return;
-		}
-	}
-	// Not found, create a new entry
-	{
-		std::unique_lock lock{ mutex };
-
-		// Insertions will be ignored if the key already exists
-		auto [it, inserted] = samplers.emplace (key, std::make_unique<sampler_entry> ());
-		updater (*it->second);
-	}
 }
 
 void nano::stats::log_counters (stat_log_sink & sink)
