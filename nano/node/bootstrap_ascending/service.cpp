@@ -360,6 +360,10 @@ void nano::bootstrap_ascending::service::process (nano::asc_pull_ack const & mes
 		auto iterator = tags_by_id.find (message.id);
 		auto tag = *iterator;
 		tags_by_id.erase (iterator);
+
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::reply);
+		stats.sample (nano::stat::type::bootstrap_ascending, nano::stat::sample::tag_duration, nano::milliseconds_since_epoch () - tag.time);
+
 		scoring.received_message (channel);
 
 		lock.unlock ();
@@ -377,7 +381,7 @@ void nano::bootstrap_ascending::service::process (nano::asc_pull_ack const & mes
 
 void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::blocks_payload & response, const nano::bootstrap_ascending::service::async_tag & tag)
 {
-	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::reply);
+	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::process);
 
 	auto result = verify (response, tag);
 	switch (result)

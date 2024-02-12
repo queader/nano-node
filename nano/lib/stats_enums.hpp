@@ -38,6 +38,7 @@ enum class type
 	blockprocessor,
 	bootstrap_server,
 	active,
+	active_transactions,
 	active_started,
 	active_confirmed,
 	active_dropped,
@@ -327,6 +328,7 @@ enum class dir
 enum class sample
 {
 	active_duration,
+	tag_duration,
 
 	_last // Must be the last enum
 };
