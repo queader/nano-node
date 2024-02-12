@@ -284,8 +284,6 @@ void nano::stats::run_one (std::unique_lock<std::shared_mutex> & lock)
 	debug_assert (!mutex.try_lock ());
 	debug_assert (lock.owns_lock ());
 
-	auto now = std::chrono::steady_clock::now (); // Only sample clock if necessary as this impacts node performance due to frequent usage
-
 	// TODO: Replace with a proper std::chrono time
 	std::time_t time = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now ());
 	tm local_tm = *localtime (&time);
@@ -293,20 +291,18 @@ void nano::stats::run_one (std::unique_lock<std::shared_mutex> & lock)
 	// Counters
 	if (config.log_counters_interval.count () > 0)
 	{
-		if (nano::elapsed (log_last_count_writeout, config.log_counters_interval))
+		if (nano::elapse (log_last_count_writeout, config.log_counters_interval))
 		{
 			log_counters_impl (log_count, local_tm);
-			log_last_count_writeout = now;
 		}
 	}
 
 	// Samples
 	if (config.log_samples_interval.count () > 0)
 	{
-		if (nano::elapsed (log_last_sample_writeout, config.log_samples_interval))
+		if (nano::elapse (log_last_sample_writeout, config.log_samples_interval))
 		{
 			log_samples_impl (log_sample, local_tm);
-			log_last_sample_writeout = now;
 		}
 	}
 }
