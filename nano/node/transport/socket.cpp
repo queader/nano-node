@@ -36,7 +36,7 @@ nano::transport::socket::socket (nano::node & node_a, endpoint_type_t endpoint_t
 
 nano::transport::socket::~socket ()
 {
-	close_internal ();
+	//	close_internal ();
 }
 
 void nano::transport::socket::start ()
@@ -320,6 +320,8 @@ void nano::transport::socket::close ()
 // This must be called from a strand or the destructor
 void nano::transport::socket::close_internal ()
 {
+	debug_assert (strand.running_in_this_thread ());
+
 	if (closed.exchange (true))
 	{
 		return;
@@ -432,6 +434,10 @@ bool nano::transport::socket::write_queue::empty () const
 		return que.second.empty ();
 	});
 }
+
+/*
+ * socket_functions
+ */
 
 boost::asio::ip::network_v6 nano::transport::socket_functions::get_ipv6_subnet_address (boost::asio::ip::address_v6 const & ip_address, std::size_t network_prefix)
 {
