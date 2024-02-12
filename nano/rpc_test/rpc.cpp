@@ -5821,6 +5821,35 @@ TEST (rpc, memory_stats)
 	}
 }
 
+TEST (rpc, stats_counters)
+{
+	nano::test::system system;
+	auto node = add_ipc_enabled_node (system);
+	auto const rpc_ctx = add_rpc (system, node);
+
+	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 1);
+	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 2);
+	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 3);
+	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 4);
+
+	node->stats.sample (nano::stat::type::message, nano::stat::sample::tag_duration, 5);
+	node->stats.sample (nano::stat::type::message, nano::stat::sample::tag_duration, 6);
+
+	boost::property_tree::ptree request;
+	request.put ("action", "stats");
+	request.put ("type", "samples");
+
+	auto response (wait_response (system, rpc_ctx, request));
+
+	{
+		std::stringstream ss;
+		boost::property_tree::json_parser::write_json (ss, response);
+		std::cout << ss.str () << std::endl;
+	}
+
+	//		ASSERT_EQ (response.get_child ("node").get_child ("vote_uniquer").get_child ("cache").get<std::string> ("count"), "1");
+}
+
 TEST (rpc, block_confirmed)
 {
 	nano::test::system system;
