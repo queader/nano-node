@@ -48,7 +48,7 @@ esac
 
 # Run the test
 executable=./${target}$(get_exec_extension)
-"${executable}"
+"${executable}" "${GTEST_FLAGS-}"
 status=$?
 
 if [ $status -ne 0 ]; then

@@ -153,7 +153,12 @@ private:
 
 protected:
 	boost::asio::strand<boost::asio::io_context::executor_type> strand;
-	boost::asio::ip::tcp::socket tcp_socket;
+
+	std::array<uint8_t, 8> poison1;
+	std::unique_ptr<boost::asio::ip::tcp::socket> tcp_socket_ptr;
+	boost::asio::ip::tcp::socket & tcp_socket;
+	std::array<uint8_t, 8> poison2;
+
 	nano::node & node;
 
 	/** The other end of the connection */
