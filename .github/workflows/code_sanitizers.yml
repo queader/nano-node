@@ -69,9 +69,9 @@ jobs:
         BACKEND: [ lmdb, rocksdb ]
         COMPILER: [ clang ]
         SANITIZER:
-          - { name: UBSAN, ignore_errors: false }
+          #          - { name: UBSAN, ignore_errors: false }
           - { name: ASAN, ignore_errors: true }
-          - { name: TSAN, ignore_errors: true }
+    #          - { name: TSAN, ignore_errors: true }
     runs-on: macos-14
     env:
       COMPILER: ${{ matrix.COMPILER }}
@@ -80,9 +80,9 @@ jobs:
       IGNORE_ERRORS: ${{ matrix.SANITIZER.ignore_errors }}
       TEST_USE_ROCKSDB: ${{ matrix.BACKEND == 'rocksdb' && '1' || '0' }}
       DEADLINE_SCALE_FACTOR: ${{ matrix.BACKEND == 'rocksdb' && '2' || '1' }}
-      ASAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:suppressions=../asan_suppressions
-      TSAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:suppressions=../tsan_suppressions
-      UBSAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:print_stacktrace=1
+    #      ASAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:suppressions=../asan_suppressions
+    #      TSAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:suppressions=../tsan_suppressions
+    #      UBSAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:print_stacktrace=1
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
@@ -100,14 +100,16 @@ jobs:
       - name: Core Tests
         if: steps.build.outcome == 'success' && (success() || failure())
         continue-on-error: true
-        run: timeout -sKILL 45m ../ci/tests/run-core-tests.sh
+        run: ../ci/tests/run-core-tests.sh
         working-directory: build
+        env:
+          GTEST_FLAGS: --gtest_repeat=1000
 
-      - name: RPC Tests
-        if: steps.build.outcome == 'success' && (success() || failure())
-        continue-on-error: true
-        run: timeout -sKILL 20m ../ci/tests/run-rpc-tests.sh
-        working-directory: build
+      #      - name: RPC Tests
+      #        if: steps.build.outcome == 'success' && (success() || failure())
+      #        continue-on-error: true
+      #        run: timeout -sKILL 20m ../ci/tests/run-rpc-tests.sh
+      #        working-directory: build
 
       - name: Reports
         if: steps.build.outcome == 'success' && (success() || failure())

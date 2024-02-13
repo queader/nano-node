@@ -15,6 +15,8 @@
 
 #include <magic_enum.hpp>
 
+#include <sanitizer/asan_interface.h>
+
 /*
  * socket
  */
@@ -22,7 +24,8 @@
 nano::transport::socket::socket (nano::node & node_a, endpoint_type_t endpoint_type_a, std::size_t max_queue_size_a) :
 	send_queue{ max_queue_size_a },
 	strand{ node_a.io_ctx.get_executor () },
-	tcp_socket{ node_a.io_ctx },
+	tcp_socket_ptr{ std::make_unique<boost::asio::ip::tcp::socket> (node_a.io_ctx) },
+	tcp_socket{ *tcp_socket_ptr },
 	node{ node_a },
 	endpoint_type_m{ endpoint_type_a },
 	timeout{ std::numeric_limits<uint64_t>::max () },
@@ -32,6 +35,8 @@ nano::transport::socket::socket (nano::node & node_a, endpoint_type_t endpoint_t
 	silent_connection_tolerance_time{ node_a.network_params.network.silent_connection_tolerance_time },
 	max_queue_size{ max_queue_size_a }
 {
+	__asan_poison_memory_region (poison1.data (), poison1.size ());
+	__asan_poison_memory_region (poison2.data (), poison2.size ());
 }
 
 nano::transport::socket::~socket ()
