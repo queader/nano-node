@@ -32,11 +32,12 @@ nano::transport::socket::socket (nano::node & node_a, endpoint_type_t endpoint_t
 	silent_connection_tolerance_time{ node_a.network_params.network.silent_connection_tolerance_time },
 	max_queue_size{ max_queue_size_a }
 {
+	created = true;
 }
 
 nano::transport::socket::~socket ()
 {
-	//	close_internal ();
+	created = false;
 }
 
 void nano::transport::socket::start ()

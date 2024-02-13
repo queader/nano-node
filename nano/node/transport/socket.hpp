@@ -205,6 +205,8 @@ private:
 	type_t type_m{ type_t::undefined };
 	endpoint_type_t endpoint_type_m;
 
+	bool created{ false };
+
 public:
 	std::size_t const max_queue_size;
 
