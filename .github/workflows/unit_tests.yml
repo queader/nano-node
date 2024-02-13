@@ -5,6 +5,7 @@ on: [push, pull_request]
 jobs:
   macos_test:
     name: macOS [${{ matrix.BACKEND }}]
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +31,9 @@ jobs:
       - name: Build Tests
         id: build
         run: ci/build-tests.sh
+
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
 
       - name: Core Tests
         if: steps.build.outcome == 'success' && (success() || failure())
