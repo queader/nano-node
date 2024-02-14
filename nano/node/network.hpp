@@ -74,12 +74,15 @@ private:
 class network final
 {
 public:
+	nano::networks const id;
+
+public:
 	network (nano::node &, uint16_t);
 	~network ();
 
-	nano::networks id;
 	void start ();
 	void stop ();
+	
 	void flood_message (nano::message &, nano::transport::buffer_drop_policy const = nano::transport::buffer_drop_policy::limiter, float const = 1.0f);
 	void flood_keepalive (float const scale_a = 1.0f);
 	void flood_keepalive_self (float const scale_a = 0.5f);
