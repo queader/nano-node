@@ -327,8 +327,8 @@ enum class dir
 
 enum class sample
 {
-	active_duration,
-	tag_duration,
+	active_election_duration,
+	bootstrap_tag_duration,
 
 	_last // Must be the last enum
 };

@@ -340,7 +340,7 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 
 	lock_a.unlock ();
 
-	node.stats.sample (nano::stat::type::active_transactions, nano::stat::sample::active_duration, election->duration ().count ());
+	node.stats.sample (nano::stat::sample::active_election_duration, election->duration ().count ());
 
 	vacancy_update ();
 

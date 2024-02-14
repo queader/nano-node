@@ -5827,13 +5827,13 @@ TEST (rpc, stats_counters)
 	auto node = add_ipc_enabled_node (system);
 	auto const rpc_ctx = add_rpc (system, node);
 
-	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 1);
-	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 2);
-	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 3);
-	node->stats.sample (nano::stat::type::message, nano::stat::sample::active_duration, 4);
+	node->stats.sample (nano::stat::sample::active_election_duration, 1);
+	node->stats.sample (nano::stat::sample::active_election_duration, 2);
+	node->stats.sample (nano::stat::sample::active_election_duration, 3);
+	node->stats.sample (nano::stat::sample::active_election_duration, 4);
 
-	node->stats.sample (nano::stat::type::message, nano::stat::sample::tag_duration, 5);
-	node->stats.sample (nano::stat::type::message, nano::stat::sample::tag_duration, 6);
+	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, 5);
+	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, 5);
 
 	boost::property_tree::ptree request;
 	request.put ("action", "stats");
