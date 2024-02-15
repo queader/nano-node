@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/locks.hpp>
 #include <nano/node/transport/channel.hpp>
 #include <nano/node/transport/transport.hpp>
 
@@ -13,6 +14,7 @@
 
 #include <chrono>
 #include <memory>
+#include <thread>
 #include <unordered_set>
 
 namespace mi = boost::multi_index;
@@ -57,9 +59,10 @@ class rep_crawler final
 
 public:
 	explicit rep_crawler (nano::node & node_a);
+	~rep_crawler ();
 
-	/** Start crawling */
 	void start ();
+	void stop ();
 
 	/** Remove block hash from list of active rep queries */
 	void remove (nano::block_hash const &);
@@ -68,10 +71,10 @@ public:
 	void throttled_remove (nano::block_hash const &, uint64_t target_finished_processed);
 
 	/** Attempt to determine if the peer manages one or more representative accounts */
-	void query (std::vector<std::shared_ptr<nano::transport::channel>> const & channels_a);
+	void query (std::vector<std::shared_ptr<nano::transport::channel>> const & target_channels);
 
 	/** Attempt to determine if the peer manages one or more representative accounts */
-	void query (std::shared_ptr<nano::transport::channel> const & channel_a);
+	void query (std::shared_ptr<nano::transport::channel> const & target_channel);
 
 	/** Query if a peer manages a principle representative */
 	bool is_pr (nano::transport::channel const &) const;
@@ -101,22 +104,21 @@ public:
 
 private: // Dependencies
 	nano::node & node;
+	nano::stats & stats;
+	nano::network_constants & network_constants;
 
 private:
-	// Validate responses to see if they're reps
-	void validate_and_process ();
-
-	/** Called continuously to crawl for representatives */
-	void ongoing_crawl ();
+	void run ();
+	void cleanup ();
+	void validate_and_process (nano::unique_lock<nano::mutex> &);
 
 	/** Returns a list of endpoints to crawl. The total weight is passed in to avoid computing it twice. */
-	std::vector<std::shared_ptr<nano::transport::channel>> get_crawl_targets (nano::uint128_t total_weight_a) const;
+	std::vector<std::shared_ptr<nano::transport::channel>> get_crawl_targets (nano::uint128_t current_total_weight) const;
 
 	/** When a rep request is made, this is called to update the last-request timestamp. */
 	void on_rep_request (std::shared_ptr<nano::transport::channel> const & channel_a);
 
-	/** Clean representatives with inactive channels */
-	void cleanup_reps ();
+	std::optional<std::pair<nano::block_hash, nano::block_hash>> prepare_query_target ();
 
 private:
 	// clang-format off
@@ -144,7 +146,10 @@ private:
 	/** We have solicted votes for these random blocks */
 	std::unordered_set<nano::block_hash> active;
 
+	bool stopped{ false };
+	nano::condition_variable condition;
 	mutable nano::mutex mutex;
+	std::thread thread;
 
 public: // Testing
 	void force_add_rep (nano::account const & account, std::shared_ptr<nano::transport::channel> const & channel);
