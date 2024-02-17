@@ -6,7 +6,8 @@
 nano::rep_crawler::rep_crawler (nano::node & node_a) :
 	node{ node_a },
 	stats{ node_a.stats },
-	network_constants{ node_a.network_params.network }
+	network_constants{ node_a.network_params.network },
+	active{ node_a.active }
 {
 	if (!node.flags.disable_rep_crawler)
 	{
@@ -48,7 +49,7 @@ void nano::rep_crawler::stop ()
 void nano::rep_crawler::remove (nano::block_hash const & hash)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	active.erase (hash);
+	queries.erase (hash);
 }
 
 void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & lock)
@@ -93,9 +94,9 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 
 		lock.lock ();
 
-		if (auto existing = probable_reps.find (vote->account); existing != probable_reps.end ())
+		if (auto existing = reps.find (vote->account); existing != reps.end ())
 		{
-			probable_reps.modify (existing, [rep_weight, &updated, &vote, &channel, &prev_channel] (nano::representative & info) {
+			reps.modify (existing, [rep_weight, &updated, &vote, &channel, &prev_channel] (nano::representative & info) {
 				info.last_response = std::chrono::steady_clock::now ();
 
 				// Update if representative channel was changed
@@ -110,7 +111,7 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 		}
 		else
 		{
-			probable_reps.emplace (nano::representative (vote->account, channel));
+			reps.emplace (nano::representative (vote->account, channel));
 			inserted = true;
 		}
 
@@ -170,7 +171,7 @@ void nano::rep_crawler::cleanup ()
 {
 	debug_assert (!mutex.try_lock ());
 
-	erase_if (probable_reps, [this] (representative const & rep) {
+	erase_if (reps, [this] (representative const & rep) {
 		if (!rep.channel->alive ())
 		{
 			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::channel_dead);
@@ -215,7 +216,7 @@ std::optional<std::pair<nano::block_hash, nano::block_hash>> nano::rep_crawler::
 		hash_root = node.ledger.hash_root_random (transaction);
 
 		// Rebroadcasted votes for recently confirmed blocks might confuse the rep crawler
-		if (node.active.recently_confirmed.exists (hash_root->first))
+		if (active.recently_confirmed.exists (hash_root->first))
 		{
 			hash_root = std::nullopt;
 		}
@@ -231,7 +232,7 @@ std::optional<std::pair<nano::block_hash, nano::block_hash>> nano::rep_crawler::
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 
-		for (auto i = 0; active.count (hash_root->first) != 0 && i < 4; ++i)
+		for (auto i = 0; queries.count (hash_root->first) != 0 && i < 4; ++i)
 		{
 			hash_root = node.ledger.hash_root_random (transaction);
 		}
@@ -244,7 +245,7 @@ std::optional<std::pair<nano::block_hash, nano::block_hash>> nano::rep_crawler::
 
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
-		active.insert (hash_root->first);
+		queries.insert (hash_root->first);
 	}
 
 	return hash_root;
@@ -305,8 +306,8 @@ void nano::rep_crawler::throttled_remove (nano::block_hash const & hash_a, uint6
 bool nano::rep_crawler::is_pr (nano::transport::channel const & channel_a) const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	auto existing = probable_reps.get<tag_channel_ref> ().find (channel_a);
-	if (existing != probable_reps.get<tag_channel_ref> ().end ())
+	auto existing = reps.get<tag_channel_ref> ().find (channel_a);
+	if (existing != reps.get<tag_channel_ref> ().end ())
 	{
 		return node.ledger.weight (existing->account) > node.minimum_principal_weight ();
 	}
@@ -320,7 +321,7 @@ bool nano::rep_crawler::response (std::shared_ptr<nano::transport::channel> cons
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	for (auto const & hash : vote->hashes)
 	{
-		if (force || active.count (hash) != 0)
+		if (force || queries.count (hash) != 0)
 		{
 			responses.emplace_back (channel, vote);
 			error = false;
@@ -334,7 +335,7 @@ nano::uint128_t nano::rep_crawler::total_weight () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	nano::uint128_t result = 0;
-	for (const auto & rep : probable_reps)
+	for (const auto & rep : reps)
 	{
 		if (rep.channel->alive ())
 		{
@@ -349,7 +350,7 @@ void nano::rep_crawler::on_rep_request (std::shared_ptr<nano::transport::channel
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	if (channel_a->get_tcp_endpoint ().address () != boost::asio::ip::address_v6::any ())
 	{
-		auto & channel_ref_index = probable_reps.get<tag_channel_ref> ();
+		auto & channel_ref_index = reps.get<tag_channel_ref> ();
 
 		// Find and update the timestamp on all reps available on the endpoint (a single host may have multiple reps)
 		auto itr_pair = channel_ref_index.equal_range (*channel_a);
@@ -369,7 +370,7 @@ std::vector<nano::representative> nano::rep_crawler::representatives (std::size_
 
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	for (const auto & i : probable_reps.get<tag_account> ())
+	for (const auto & i : reps.get<tag_account> ())
 	{
 		auto weight = node.ledger.weight (i.account);
 		if (weight > weight_a && i.channel->get_network_version () >= version_min)
@@ -405,7 +406,7 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::repres
 std::size_t nano::rep_crawler::representative_count ()
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	return probable_reps.size ();
+	return reps.size ();
 }
 
 // Only for tests
@@ -413,7 +414,7 @@ void nano::rep_crawler::force_add_rep (const nano::account & account, const std:
 {
 	release_assert (node.network_params.network.is_dev_network ());
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	probable_reps.emplace (nano::representative (account, channel));
+	reps.emplace (nano::representative (account, channel));
 }
 
 // Only for tests
@@ -428,11 +429,11 @@ void nano::rep_crawler::force_response (const std::shared_ptr<nano::transport::c
 }
 
 // Only for tests
-void nano::rep_crawler::force_active (const nano::block_hash & hash)
+void nano::rep_crawler::force_active_query (const nano::block_hash & hash)
 {
 	release_assert (node.network_params.network.is_dev_network ());
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	active.insert (hash);
+	queries.insert (hash);
 }
 
 std::unique_ptr<nano::container_info_component> nano::collect_container_info (rep_crawler & rep_crawler, std::string const & name)
@@ -440,11 +441,11 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (re
 	std::size_t count;
 	{
 		nano::lock_guard<nano::mutex> guard{ rep_crawler.mutex };
-		count = rep_crawler.active.size ();
+		count = rep_crawler.queries.size ();
 	}
 
-	auto const sizeof_element = sizeof (decltype (rep_crawler.active)::value_type);
+	auto const sizeof_element = sizeof (decltype (rep_crawler.queries)::value_type);
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "active", count, sizeof_element }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queries", count, sizeof_element }));
 	return composite;
 }

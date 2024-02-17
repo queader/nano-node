@@ -22,6 +22,7 @@ namespace mi = boost::multi_index;
 namespace nano
 {
 class node;
+class active_transactions;
 
 /**
  * A representative picked up during repcrawl.
@@ -106,6 +107,7 @@ private: // Dependencies
 	nano::node & node;
 	nano::stats & stats;
 	nano::network_constants & network_constants;
+	nano::active_transactions & active;
 
 private:
 	void run ();
@@ -124,27 +126,24 @@ private:
 	// clang-format off
 	class tag_account {};
 	class tag_channel_ref {};
-	class tag_last_request {};
 	class tag_sequenced {};
 
-	using ordered_probable_reps = boost::multi_index_container<representative,
+	using ordered_reps = boost::multi_index_container<representative,
 	mi::indexed_by<
-		mi::hashed_unique<mi::tag<tag_account>, mi::member<representative, nano::account, &representative::account>>,
+		mi::hashed_unique<mi::tag<tag_account>,
+			mi::member<representative, nano::account, &representative::account>>,
 		mi::sequenced<mi::tag<tag_sequenced>>,
-		mi::ordered_non_unique<mi::tag<tag_last_request>,
-			mi::member<representative, std::chrono::steady_clock::time_point, &representative::last_request>>,
 		mi::hashed_non_unique<mi::tag<tag_channel_ref>,
 			mi::const_mem_fun<representative, std::reference_wrapper<nano::transport::channel const>, &representative::channel_ref>>>>;
 	// clang-format on
 
-	/** Probable representatives */
-	ordered_probable_reps probable_reps;
+	ordered_reps reps;
 
 private:
-	std::deque<std::pair<std::shared_ptr<nano::transport::channel>, std::shared_ptr<nano::vote>>> responses;
+	/** We have solicited votes for these random blocks */
+	std::unordered_set<nano::block_hash> queries;
 
-	/** We have solicted votes for these random blocks */
-	std::unordered_set<nano::block_hash> active;
+	std::deque<std::pair<std::shared_ptr<nano::transport::channel>, std::shared_ptr<nano::vote>>> responses;
 
 	bool stopped{ false };
 	nano::condition_variable condition;
@@ -154,7 +153,7 @@ private:
 public: // Testing
 	void force_add_rep (nano::account const & account, std::shared_ptr<nano::transport::channel> const & channel);
 	void force_response (std::shared_ptr<nano::transport::channel> const & channel, std::shared_ptr<nano::vote> const & vote);
-	void force_active (nano::block_hash const & hash);
+	void force_active_query (nano::block_hash const & hash);
 };
 
 std::unique_ptr<container_info_component> collect_container_info (rep_crawler & rep_crawler, std::string const & name);
