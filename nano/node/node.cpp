@@ -161,7 +161,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	tcp_listener{ std::make_shared<nano::transport::tcp_listener> (network.port, *this, config.tcp_incoming_connections_max) },
 	application_path (application_path_a),
 	port_mapping (*this),
-	rep_crawler (*this),
+	rep_crawler (config.rep_crawler, *this),
 	vote_processor (active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params),
 	warmed_up (0),
 	block_processor (*this, write_database_queue),

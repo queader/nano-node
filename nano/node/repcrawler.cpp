@@ -3,7 +3,8 @@
 
 #include <boost/format.hpp>
 
-nano::rep_crawler::rep_crawler (nano::node & node_a) :
+nano::rep_crawler::rep_crawler (nano::rep_crawler_config const & config_a, nano::node & node_a) :
+	config{ config_a },
 	node{ node_a },
 	stats{ node_a.stats },
 	network_constants{ node_a.network_params.network },
@@ -46,12 +47,6 @@ void nano::rep_crawler::stop ()
 	}
 }
 
-void nano::rep_crawler::remove (nano::block_hash const & hash)
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	queries.erase (hash);
-}
-
 void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & lock)
 {
 	debug_assert (!mutex.try_lock ());
@@ -70,7 +65,8 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 	{
 		auto & vote = response.second;
 		auto & channel = response.first;
-		debug_assert (channel != nullptr);
+		release_assert (vote != nullptr);
+		release_assert (channel != nullptr);
 
 		if (channel->get_type () == nano::transport::transport_type::loopback)
 		{
@@ -96,7 +92,7 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 
 		if (auto existing = reps.find (vote->account); existing != reps.end ())
 		{
-			reps.modify (existing, [rep_weight, &updated, &vote, &channel, &prev_channel] (representative_entry & info) {
+			reps.modify (existing, [rep_weight, &updated, &vote, &channel, &prev_channel] (rep_entry & info) {
 				info.last_response = std::chrono::steady_clock::now ();
 
 				// Update if representative channel was changed
@@ -111,7 +107,7 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 		}
 		else
 		{
-			reps.emplace (representative_entry{ vote->account, channel });
+			reps.emplace (rep_entry{ vote->account, channel });
 			inserted = true;
 		}
 
@@ -160,7 +156,7 @@ void nano::rep_crawler::run ()
 		validate_and_process (lock);
 		debug_assert (!lock.owns_lock ());
 
-		auto targets = get_crawl_targets (current_total_weight);
+		auto targets = prepare_crawl_targets (current_total_weight);
 		query (targets);
 
 		lock.lock ();
@@ -171,17 +167,41 @@ void nano::rep_crawler::cleanup ()
 {
 	debug_assert (!mutex.try_lock ());
 
-	erase_if (reps, [this] (representative_entry const & rep) {
+	// Evict reps with dead channels
+	erase_if (reps, [this] (rep_entry const & rep) {
 		if (!rep.channel->alive ())
 		{
+			node.logger.debug (nano::log::type::repcrawler, "Evicting representative {} with dead channel at {}", rep.account.to_account (), rep.channel->to_string ());
 			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::channel_dead);
+			return true; // Erase
+		}
+		return false;
+	});
+
+	// Evict reps that haven't responded in a while
+	erase_if (reps, [this] (rep_entry const & rep) {
+		if (nano::elapsed (rep.last_response, config.rep_timeout))
+		{
+			node.logger.debug (nano::log::type::repcrawler, "Evicting unresponsive representative {} at {}", rep.account.to_account (), rep.channel->to_string ());
+			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::rep_timeout);
+			return true; // Erase
+		}
+		return false;
+	});
+
+	// Evict queries that haven't been responded to in a while
+	erase_if (queries, [this] (query_entry const & query) {
+		if (nano::elapsed (query.time, config.query_timeout))
+		{
+			node.logger.debug (nano::log::type::repcrawler, "Evicting unresponsive query for block {} from {}", query.hash.to_string (), query.channel->to_string ());
+			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_timeout);
 			return true; // Erase
 		}
 		return false;
 	});
 }
 
-std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::get_crawl_targets (nano::uint128_t current_total_weight) const
+std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepare_crawl_targets (nano::uint128_t current_total_weight) const
 {
 	// TODO: Make these values configurable
 	constexpr std::size_t conservative_count = 10;
@@ -190,6 +210,8 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::get_cr
 	// Crawl more aggressively if we lack sufficient total peer weight.
 	bool sufficient_weight = current_total_weight > node.online_reps.delta ();
 	auto required_peer_count = sufficient_weight ? conservative_count : aggressive_count;
+
+	stats.inc (nano::stat::type::rep_crawler, sufficient_weight ? nano::stat::detail::crawl_normal : nano::stat::detail::crawl_aggressive);
 
 	// Add random peers. We do this even if we have enough weight, in order to pick up reps
 	// that didn't respond when first observed. If the current total weight isn't sufficient, this
@@ -202,7 +224,7 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::get_cr
 	return { random_peers.begin (), random_peers.end () };
 }
 
-std::optional<std::pair<nano::block_hash, nano::block_hash>> nano::rep_crawler::prepare_query_target ()
+auto nano::rep_crawler::prepare_query_target () -> std::optional<hash_root_t>
 {
 	constexpr int max_attempts = 4;
 
@@ -232,23 +254,37 @@ std::optional<std::pair<nano::block_hash, nano::block_hash>> nano::rep_crawler::
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 
-		for (auto i = 0; queries.count (hash_root->first) != 0 && i < 4; ++i)
+		for (auto i = 0; queries.get<tag_hash> ().count (hash_root->first) != 0 && i < max_attempts; ++i)
 		{
 			hash_root = node.ledger.hash_root_random (transaction);
 		}
 	}
 
-	if (!hash_root)
-	{
-		return std::nullopt;
-	}
-
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		queries.insert (hash_root->first);
-	}
-
 	return hash_root;
+}
+
+void nano::rep_crawler::track_rep_request (hash_root_t hash_root, std::shared_ptr<nano::transport::channel> const & channel)
+{
+	debug_assert (!mutex.try_lock ());
+
+	if (channel->get_tcp_endpoint ().address () != boost::asio::ip::address_v6::any ())
+	{
+		// TODO: Previous version of the code had this branch, but is it possible to have a channel with 'any' IPv4 address?
+		return;
+	}
+
+	debug_assert (queries.count (channel) == 0); // Only a single query should be active per channel
+	queries.emplace (query_entry{ hash_root.first, channel });
+
+	// Find and update the timestamp on all reps available on the endpoint (a single host may have multiple reps)
+	auto & index = reps.get<tag_channel> ();
+	auto [begin, end] = index.equal_range (channel);
+	for (auto it = begin; it != end; ++it)
+	{
+		index.modify (it, [] (rep_entry & info) {
+			info.last_request = std::chrono::steady_clock::now ();
+		});
+	}
 }
 
 void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::channel>> const & target_channels)
@@ -256,51 +292,35 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 	auto maybe_hash_root = prepare_query_target ();
 	if (!maybe_hash_root)
 	{
+		stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_target_failed);
 		return;
 	}
 	auto hash_root = *maybe_hash_root;
 
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
 	for (const auto & channel : target_channels)
 	{
 		debug_assert (channel != nullptr);
-		on_rep_request (channel);
-		node.network.send_confirm_req (channel, hash_root);
-	}
 
-	// TODO: Use a thread+timeout instead of a timer
-	// A representative must respond with a vote within the deadline
-	std::weak_ptr<nano::node> node_w (node.shared ());
-	node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w, hash = hash_root.first] () {
-		if (auto node_l = node_w.lock ())
+		// Only a single query should be active per channel
+		if (queries.find (channel) == queries.end ())
 		{
-			auto target_finished_processed (node_l->vote_processor.total_processed + node_l->vote_processor.size ());
-			node_l->rep_crawler.throttled_remove (hash, target_finished_processed);
+			track_rep_request (hash_root, channel);
+			node.network.send_confirm_req (channel, hash_root);
+
+			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_sent);
 		}
-	});
+		else
+		{
+			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_channel_busy);
+		}
+	}
 }
 
 void nano::rep_crawler::query (std::shared_ptr<nano::transport::channel> const & target_channel)
 {
 	query (std::vector{ target_channel });
-}
-
-// TODO: Use a thread+timeout instead of a timer
-void nano::rep_crawler::throttled_remove (nano::block_hash const & hash_a, uint64_t const target_finished_processed)
-{
-	if (node.vote_processor.total_processed >= target_finished_processed)
-	{
-		remove (hash_a);
-	}
-	else
-	{
-		std::weak_ptr<nano::node> node_w (node.shared ());
-		node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w, hash_a, target_finished_processed] () {
-			if (auto node_l = node_w.lock ())
-			{
-				node_l->rep_crawler.throttled_remove (hash_a, target_finished_processed);
-			}
-		});
-	}
 }
 
 bool nano::rep_crawler::is_pr (std::shared_ptr<nano::transport::channel> const & channel) const
@@ -317,13 +337,11 @@ bool nano::rep_crawler::is_pr (std::shared_ptr<nano::transport::channel> const &
 bool nano::rep_crawler::process (std::shared_ptr<nano::vote> const & vote, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	for (auto const & hash : vote->hashes) // TODO: This most likely should be a single hash vote
+	if (auto info = queries.find (channel); info != queries.end ())
 	{
-		if (queries.count (hash) != 0)
-		{
-			responses.emplace_back (channel, vote);
-			return true; // Processed
-		}
+		responses.push_back ({ channel, vote });
+		queries.erase (info);
+		return true;
 	}
 	return false;
 }
@@ -342,30 +360,13 @@ nano::uint128_t nano::rep_crawler::total_weight () const
 	return result;
 }
 
-void nano::rep_crawler::on_rep_request (std::shared_ptr<nano::transport::channel> const & channel)
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	if (channel->get_tcp_endpoint ().address () != boost::asio::ip::address_v6::any ())
-	{
-		// Find and update the timestamp on all reps available on the endpoint (a single host may have multiple reps)
-		auto & index = reps.get<tag_channel> ();
-		auto [begin, end] = index.equal_range (channel);
-		for (auto it = begin; it != end; ++it)
-		{
-			index.modify (it, [] (representative_entry & info) {
-				info.last_request = std::chrono::steady_clock::now ();
-			});
-		}
-	}
-}
-
 std::vector<nano::representative> nano::rep_crawler::representatives (std::size_t count_a, nano::uint128_t const weight_a, boost::optional<decltype (nano::network_constants::protocol_version)> const & opt_version_min_a)
 {
 	auto const version_min = opt_version_min_a.value_or (node.network_params.network.protocol_version_min);
 
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	std::multimap<nano::amount, representative_entry, std::greater<>> ordered;
+	std::multimap<nano::amount, rep_entry, std::greater<>> ordered;
 	for (const auto & i : reps.get<tag_account> ())
 	{
 		auto weight = node.ledger.weight (i.account);
@@ -400,7 +401,7 @@ void nano::rep_crawler::force_add_rep (const nano::account & account, const std:
 {
 	release_assert (node.network_params.network.is_dev_network ());
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	reps.emplace (representative_entry{ account, channel });
+	reps.emplace (rep_entry{ account, channel });
 }
 
 // Only for tests
@@ -408,18 +409,7 @@ void nano::rep_crawler::force_process (const std::shared_ptr<nano::vote> & vote,
 {
 	release_assert (node.network_params.network.is_dev_network ());
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	for (auto const & hash : vote->hashes)
-	{
-		responses.emplace_back (channel, vote);
-	}
-}
-
-// Only for tests
-void nano::rep_crawler::force_active_query (const nano::block_hash & hash)
-{
-	release_assert (node.network_params.network.is_dev_network ());
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	queries.insert (hash);
+	responses.push_back ({ channel, vote });
 }
 
 std::unique_ptr<nano::container_info_component> nano::collect_container_info (rep_crawler & rep_crawler, std::string const & name)
@@ -434,4 +424,38 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (re
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queries", count, sizeof_element }));
 	return composite;
+}
+
+/*
+ * rep_crawler_config
+ */
+
+nano::rep_crawler_config::rep_crawler_config (nano::network_constants const & network_constants)
+{
+	if (network_constants.is_dev_network ())
+	{
+		rep_timeout = std::chrono::milliseconds{ 1000 * 3 };
+		query_timeout = std::chrono::milliseconds{ 1000 };
+	}
+}
+
+nano::error nano::rep_crawler_config::serialize (nano::tomlconfig & toml) const
+{
+	toml.put ("rep_timeout", rep_timeout.count ());
+	toml.put ("query_timeout", query_timeout.count ());
+
+	return toml.get_error ();
+}
+
+nano::error nano::rep_crawler_config::deserialize (nano::tomlconfig & toml)
+{
+	auto rep_timeout_l = rep_timeout.count ();
+	toml.get ("rep_timeout", rep_timeout_l);
+	rep_timeout = std::chrono::milliseconds{ rep_timeout_l };
+
+	auto query_timeout_l = query_timeout.count ();
+	toml.get ("query_timeout", query_timeout_l);
+	query_timeout = std::chrono::milliseconds{ query_timeout_l };
+
+	return toml.get_error ();
 }
