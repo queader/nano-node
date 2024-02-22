@@ -100,11 +100,13 @@ private:
 	void run ();
 	void cleanup ();
 	void validate_and_process (nano::unique_lock<nano::mutex> &);
+	bool query_predicate (bool sufficient_weight) const;
+	std::chrono::milliseconds query_interval (bool sufficient_weight) const;
 
 	using hash_root_t = std::pair<nano::block_hash, nano::root>;
 
 	/** Returns a list of endpoints to crawl. The total weight is passed in to avoid computing it twice. */
-	std::vector<std::shared_ptr<nano::transport::channel>> prepare_crawl_targets (nano::uint128_t current_total_weight) const;
+	std::vector<std::shared_ptr<nano::transport::channel>> prepare_crawl_targets (bool sufficient_weight) const;
 	std::optional<hash_root_t> prepare_query_target ();
 	void track_rep_request (hash_root_t hash_root, std::shared_ptr<nano::transport::channel> const & channel_a);
 
@@ -125,7 +127,7 @@ private:
 		std::shared_ptr<nano::transport::channel> channel;
 
 		std::chrono::steady_clock::time_point last_request{};
-		std::chrono::steady_clock::time_point last_response{};
+		std::chrono::steady_clock::time_point last_response{ std::chrono::steady_clock::now () };
 
 		nano::account get_account () const
 		{
@@ -169,15 +171,16 @@ private:
 	ordered_queries queries;
 
 private:
+	static size_t constexpr max_responses{ 1024 * 4 };
 	using response_t = std::pair<std::shared_ptr<nano::transport::channel>, std::shared_ptr<nano::vote>>;
 	boost::circular_buffer<response_t> responses{ max_responses };
+
+	std::chrono::steady_clock::time_point last_query{};
 
 	std::atomic<bool> stopped{ false };
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;
-
-	static size_t constexpr max_responses{ 1024 * 4 };
 
 public: // Testing
 	void force_add_rep (nano::account const & account, std::shared_ptr<nano::transport::channel> const & channel);

@@ -52,8 +52,9 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 {
 	debug_assert (!mutex.try_lock ());
 	debug_assert (lock.owns_lock ());
+	debug_assert (!responses.empty ()); // Should be checked before calling this function
 
-	decltype (responses) responses_l;
+	decltype (responses) responses_l{ responses.capacity () };
 	responses_l.swap (responses);
 
 	lock.unlock ();
@@ -62,6 +63,7 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 	// reps with less weight by setting rep_crawler_weight_minimum to a low value
 	auto const minimum = std::min (node.minimum_principal_weight (), node.config.rep_crawler_weight_minimum.number ());
 
+	// TODO: Is it really faster to repeatedly lock/unlock the mutex for each response?
 	for (auto const & response : responses_l)
 	{
 		auto & vote = response.second;
@@ -93,16 +95,16 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 
 		if (auto existing = reps.find (vote->account); existing != reps.end ())
 		{
-			reps.modify (existing, [rep_weight, &updated, &vote, &channel, &prev_channel] (rep_entry & info) {
-				info.last_response = std::chrono::steady_clock::now ();
+			reps.modify (existing, [rep_weight, &updated, &vote, &channel, &prev_channel] (rep_entry & rep) {
+				rep.last_response = std::chrono::steady_clock::now ();
 
 				// Update if representative channel was changed
-				if (info.channel->get_endpoint () != channel->get_endpoint ())
+				if (rep.channel->get_endpoint () != channel->get_endpoint ())
 				{
-					debug_assert (info.account == vote->account);
+					debug_assert (rep.account == vote->account);
 					updated = true;
-					prev_channel = info.channel;
-					info.channel = channel;
+					prev_channel = rep.channel;
+					rep.channel = channel;
 				}
 			});
 		}
@@ -125,6 +127,16 @@ void nano::rep_crawler::validate_and_process (nano::unique_lock<nano::mutex> & l
 	}
 }
 
+std::chrono::milliseconds nano::rep_crawler::query_interval (bool sufficient_weight) const
+{
+	return sufficient_weight ? network_constants.rep_crawler_normal_interval : network_constants.rep_crawler_warmup_interval;
+}
+
+bool nano::rep_crawler::query_predicate (bool sufficient_weight) const
+{
+	return nano::elapsed (last_query, query_interval (sufficient_weight));
+}
+
 void nano::rep_crawler::run ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
@@ -144,7 +156,10 @@ void nano::rep_crawler::run ()
 
 		lock.lock ();
 
-		condition.wait_for (lock, sufficient_weight ? network_constants.rep_crawler_normal_interval : network_constants.rep_crawler_warmup_interval);
+		condition.wait_for (lock, query_interval (sufficient_weight), [this, sufficient_weight] {
+			return stopped || query_predicate (sufficient_weight) || !responses.empty ();
+		});
+
 		if (stopped)
 		{
 			return;
@@ -152,15 +167,28 @@ void nano::rep_crawler::run ()
 
 		stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::loop);
 
+		if (!responses.empty ())
+		{
+			validate_and_process (lock);
+			debug_assert (!lock.owns_lock ());
+			lock.lock ();
+		}
+
 		cleanup ();
 
-		validate_and_process (lock);
-		debug_assert (!lock.owns_lock ());
+		if (query_predicate (sufficient_weight))
+		{
+			last_query = std::chrono::steady_clock::now ();
 
-		auto targets = prepare_crawl_targets (current_total_weight);
-		query (targets);
+			lock.unlock ();
 
-		lock.lock ();
+			auto targets = prepare_crawl_targets (sufficient_weight);
+			query (targets);
+
+			lock.lock ();
+		}
+
+		debug_assert (lock.owns_lock ());
 	}
 }
 
@@ -202,14 +230,13 @@ void nano::rep_crawler::cleanup ()
 	});
 }
 
-std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepare_crawl_targets (nano::uint128_t current_total_weight) const
+std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepare_crawl_targets (bool sufficient_weight) const
 {
 	// TODO: Make these values configurable
 	constexpr std::size_t conservative_count = 10;
 	constexpr std::size_t aggressive_count = 40;
 
 	// Crawl more aggressively if we lack sufficient total peer weight.
-	bool sufficient_weight = current_total_weight > node.online_reps.delta ();
 	auto required_peer_count = sufficient_weight ? conservative_count : aggressive_count;
 
 	stats.inc (nano::stat::type::rep_crawler, sufficient_weight ? nano::stat::detail::crawl_normal : nano::stat::detail::crawl_aggressive);
@@ -268,12 +295,6 @@ void nano::rep_crawler::track_rep_request (hash_root_t hash_root, std::shared_pt
 {
 	debug_assert (!mutex.try_lock ());
 
-	if (channel->get_tcp_endpoint ().address () != boost::asio::ip::address_v6::any ())
-	{
-		// TODO: Previous version of the code had this branch, but is it possible to have a channel with 'any' IPv4 address?
-		return;
-	}
-
 	debug_assert (queries.count (channel) == 0); // Only a single query should be active per channel
 	queries.emplace (query_entry{ hash_root.first, channel });
 
@@ -310,6 +331,7 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 			track_rep_request (hash_root, channel);
 			node.network.send_confirm_req (channel, hash_root);
 
+			logger.debug (nano::log::type::repcrawler, "Sending query for block {} to {}", hash_root.first.to_string (), channel->to_string ());
 			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_sent);
 		}
 		else
@@ -340,9 +362,23 @@ bool nano::rep_crawler::process (std::shared_ptr<nano::vote> const & vote, std::
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	if (auto info = queries.find (channel); info != queries.end ())
 	{
-		responses.push_back ({ channel, vote });
-		queries.erase (info);
-		return true;
+		// TODO: This linear search could be slow, especially with large votes.
+		auto const target_hash = info->hash;
+		bool found = std::any_of (vote->hashes.begin (), vote->hashes.end (), [&target_hash] (nano::block_hash const & hash) {
+			return hash == target_hash;
+		});
+
+		if (found)
+		{
+			logger.debug (nano::log::type::repcrawler, "Processing response for block {} from {}", target_hash.to_string (), channel->to_string ());
+			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::response);
+			// TODO: Track query response time
+
+			responses.push_back ({ channel, vote });
+
+			queries.erase (info);
+			return true;
+		}
 	}
 	return false;
 }
