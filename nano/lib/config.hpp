@@ -251,8 +251,8 @@ public:
 			telemetry_request_interval = 500ms;
 			telemetry_broadcast_interval = 500ms;
 			optimistic_activation_delay = 2s;
-			rep_crawler_normal_interval = 100ms;
-			rep_crawler_warmup_interval = 100ms;
+			rep_crawler_normal_interval = 500ms;
+			rep_crawler_warmup_interval = 500ms;
 		}
 	}
 
