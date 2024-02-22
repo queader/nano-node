@@ -92,6 +92,7 @@ private: // Dependencies
 	rep_crawler_config const & config;
 	nano::node & node;
 	nano::stats & stats;
+	nano::logger & logger;
 	nano::network_constants & network_constants;
 	nano::active_transactions & active;
 
