@@ -9,7 +9,7 @@ nano::vote_storage::vote_storage (nano::node & node_a, nano::store::component & 
 	ledger{ ledger_a },
 	stats{ stats_a },
 	store_queue{ stats, nano::stat::type::vote_storage_write, nano::thread_role::name::vote_storage, /* single threaded */ 1, 1024 * 64, 1024 },
-	broadcast_queue{ stats, nano::stat::type::vote_storage_broadcast, nano::thread_role::name::vote_storage, /* threads */ 4, 512, 128 }
+	broadcast_queue{ stats, nano::stat::type::vote_storage_broadcast, nano::thread_role::name::vote_storage, /* threads */ 6, 512, 128 }
 {
 	store_queue.process_batch = [this] (auto & batch) {
 		process_batch (batch);
@@ -66,8 +66,8 @@ void nano::vote_storage::process_batch (decltype (store_queue)::batch_t & batch)
 
 void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & batch)
 {
-	auto ledger_transaction = ledger.store.tx_begin_read ();
 	auto vote_transaction = vote_store.tx_begin_read ();
+	//	auto ledger_transaction = ledger.store.tx_begin_read ();
 
 	for (auto & [hash, channel] : batch)
 	{
@@ -92,43 +92,43 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 		}
 
 		// Check votes for frontier
-		if (enable_query_frontier)
-		{
-			auto [frontier_votes, frontier_hash] = query_frontier (ledger_transaction, vote_transaction, hash);
-			if (!frontier_votes.empty ())
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier);
-
-				reply (frontier_votes, channel);
-
-				if (enable_broadcast)
-				{
-					broadcast (frontier_votes, frontier_hash);
-				}
-			}
-			else
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier_empty);
-			}
-		}
+		//		if (enable_query_frontier)
+		//		{
+		//			auto [frontier_votes, frontier_hash] = query_frontier (ledger_transaction, vote_transaction, hash);
+		//			if (!frontier_votes.empty ())
+		//			{
+		//				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier);
+		//
+		//				reply (frontier_votes, channel);
+		//
+		//				if (enable_broadcast)
+		//				{
+		//					broadcast (frontier_votes, frontier_hash);
+		//				}
+		//			}
+		//			else
+		//			{
+		//				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::frontier_empty);
+		//			}
+		//		}
 	}
 }
 
 void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, const std::shared_ptr<nano::transport::channel> & channel)
 {
-	if (channel->max ())
+	if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 	{
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::channel_full, nano::stat::dir::out);
 		return;
 	}
 
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply, nano::stat::dir::out);
+	stats.add (nano::stat::type::vote_storage, nano::stat::detail::reply_vote, nano::stat::dir::out, votes.size ());
 
 	for (auto & vote : votes)
 	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_vote, nano::stat::dir::out);
-
 		nano::confirm_ack message{ node.network_params.network, vote };
+
 		channel->send (
 		message, [this] (auto & ec, auto size) {
 			if (ec)
@@ -136,19 +136,19 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::out);
 			}
 		},
-		nano::transport::buffer_drop_policy::no_limiter_drop, nano::transport::traffic_type::vote_storage);
+		nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
 	}
 }
 
 void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
+
 	if (recently_broadcasted.count (hash) > 0)
 	{
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
 		return;
 	}
-
 	recently_broadcasted.insert (hash);
 	if (recently_broadcasted.size () > 1024)
 	{
@@ -163,23 +163,21 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t & votes)
 {
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast);
+	stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
 
 	auto pr_nodes = node.rep_crawler.principal_representatives ();
-	auto random_nodes = network.list (network.fanout ());
+	auto random_nodes = enable_random_broadcast ? network.list (network.fanout ()) : std::deque<std::shared_ptr<nano::transport::channel>>{};
 
-	for (auto & vote : votes)
+	if (enable_pr_broadcast)
 	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote);
+		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep, nano::stat::dir::in, pr_nodes.size () * votes.size ());
 
-		nano::confirm_ack message{ node.network_params.network, vote };
-
-		// Send to all representatives
-		if (enable_pr_broadcast)
+		for (auto & vote : votes)
 		{
+			nano::confirm_ack message{ node.network_params.network, vote };
+
 			for (auto const & rep : pr_nodes)
 			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep);
-
 				rep.channel->send (
 				message, [this] (auto & ec, auto size) {
 					if (ec)
@@ -187,17 +185,21 @@ void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t &
 						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::in);
 					}
 				},
-				nano::transport::buffer_drop_policy::no_limiter_drop, nano::transport::traffic_type::vote_storage);
+				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
 			}
 		}
+	}
 
-		// Send to some random nodes
-		if (enable_random_broadcast)
+	if (enable_random_broadcast)
+	{
+		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random, nano::stat::dir::in, random_nodes.size () * votes.size ());
+
+		for (auto & vote : votes)
 		{
+			nano::confirm_ack message{ node.network_params.network, vote };
+
 			for (auto const & channel : random_nodes)
 			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random);
-
 				channel->send (
 				message, [this] (auto & ec, auto size) {
 					if (ec)
