@@ -218,6 +218,10 @@ nano::keypair::keypair (std::string const & prv_a)
 	ed25519_publickey (prv.bytes.data (), pub.bytes.data ());
 }
 
+/*
+ * account_info
+ */
+
 nano::account_info::account_info (nano::block_hash const & head_a, nano::account const & representative_a, nano::block_hash const & open_block_a, nano::amount const & balance_a, nano::seconds_t modified_a, uint64_t block_count_a, nano::epoch epoch_a) :
 	head (head_a),
 	representative (representative_a),
@@ -276,6 +280,21 @@ nano::epoch nano::account_info::epoch () const
 {
 	return epoch_m;
 }
+
+void nano::account_info::operator() (nano::object_stream & obs) const
+{
+	obs.write ("head", head.to_string ());
+	obs.write ("representative", representative.to_account ());
+	obs.write ("open_block", open_block.to_string ());
+	obs.write ("balance", balance.to_string_dec ());
+	obs.write ("modified", std::to_string (modified));
+	obs.write ("block_count", std::to_string (block_count));
+	obs.write ("epoch", epoch_m);
+}
+
+/*
+ * pending_info
+ */
 
 nano::pending_info::pending_info (nano::account const & source_a, nano::amount const & amount_a, nano::epoch epoch_a) :
 	source (source_a),

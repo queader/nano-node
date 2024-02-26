@@ -13,7 +13,9 @@ enum class bandwidth_limit_type
 	/** For all message */
 	standard,
 	/** For bootstrap (asc_pull_ack, asc_pull_req) traffic */
-	bootstrap
+	bootstrap,
+	/** For vote storage broadcasts and replies */
+	vote_storage,
 };
 
 nano::bandwidth_limit_type to_bandwidth_limit_type (nano::transport::traffic_type const &);
@@ -42,9 +44,14 @@ public: // Config
 		// standard
 		std::size_t standard_limit;
 		double standard_burst_ratio;
+
 		// bootstrap
 		std::size_t bootstrap_limit;
 		double bootstrap_burst_ratio;
+
+		// vote storage
+		std::size_t vote_storage_limit;
+		double vote_storage_burst_ratio;
 	};
 
 public:
@@ -72,5 +79,6 @@ private:
 private:
 	bandwidth_limiter limiter_standard;
 	bandwidth_limiter limiter_bootstrap;
+	bandwidth_limiter limiter_vote_storage;
 };
 }

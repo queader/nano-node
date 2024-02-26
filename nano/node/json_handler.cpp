@@ -3713,6 +3713,223 @@ void nano::json_handler::republish ()
 	response_errors ();
 }
 
+void nano::json_handler::republish_dependencies ()
+{
+	auto value_or_throw = [] (auto && opt, auto ec) {
+		if (opt.has_value ())
+		{
+			return opt.value ();
+		}
+		throw std::system_error (make_error_code (ec));
+	};
+
+	auto get = [&, this] (std::string name) -> std::optional<std::string> {
+		auto value = request.get_optional<std::string> (name);
+		if (value.is_initialized ())
+		{
+			return value.get ();
+		}
+		return std::nullopt;
+	};
+
+	auto parse_count = [this] (std::string text) -> uint64_t {
+		uint64_t result;
+		if (decode_unsigned (text, result))
+		{
+			throw std::system_error (make_error_code (nano::error_common::invalid_count));
+		}
+		return result;
+	};
+
+	auto parse_account = [this] (std::string text) -> nano::account {
+		nano::account account;
+		if (account.decode_account (text))
+		{
+			throw std::system_error (make_error_code (nano::error_common::bad_account_number));
+		}
+		return account;
+	};
+
+	try
+	{
+		auto depth = parse_count (get ("depth").value_or ("6"));
+		auto count = parse_count (get ("count").value_or ("1"));
+		auto account = parse_account (value_or_throw (get ("account"), nano::error_common::missing_account));
+
+		bool broadcast_votes = true;
+
+		auto [num_blocks, num_votes] = republish_dependencies_impl (account, depth, count, broadcast_votes);
+
+		response_l.put ("blocks", num_blocks);
+		response_l.put ("votes", num_votes);
+	}
+	catch (std::system_error const & ex)
+	{
+		ec = ex.code ();
+	}
+	response_errors ();
+}
+
+std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano::account account, size_t depth, size_t count, bool broadcast_votes)
+{
+	node.logger.info (nano::log::type::rpc, "Republishing blocks for account: {} with depth: {}, count: {}", account.to_account (), depth, count);
+
+	auto transaction = node.store.tx_begin_read ();
+
+	auto const maybe_account_info = node.ledger.account_info (transaction, account);
+	if (!maybe_account_info)
+	{
+		throw std::system_error (make_error_code (nano::error_common::account_not_found));
+	}
+	auto const account_info = maybe_account_info.value ();
+
+	node.logger.debug (nano::log::type::rpc, "Account info: {}", account_info);
+
+	std::set<nano::block_hash> visited;
+	auto dfs_traversal = [&visited] (size_t max_depth, auto start, auto && visitor) {
+		struct entry
+		{
+			decltype (start) node;
+			size_t depth;
+		};
+
+		std::stack<entry> stack;
+		stack.push (entry{ start, 0 });
+
+		while (!stack.empty ())
+		{
+			auto current = stack.top ();
+			stack.pop ();
+
+			auto deps = visitor (current.node);
+
+			if (current.depth < max_depth)
+			{
+				for (auto & dep : deps)
+				{
+					if (visited.insert (dep->hash ()).second)
+					{
+						stack.push (entry{ dep, current.depth + 1 });
+					}
+				}
+			}
+		}
+	};
+
+	auto block_dependencies = [this] (nano::store::transaction & transaction, std::shared_ptr<nano::block> block) {
+		auto deps_hashes = node.ledger.dependent_blocks (transaction, *block);
+		std::vector<std::shared_ptr<nano::block>> deps;
+		for (auto & hash : deps_hashes)
+		{
+			if (!hash.is_zero ())
+			{
+				auto block = node.ledger.block (transaction, hash);
+				release_assert (block);
+				deps.push_back (std::move (block));
+			}
+		}
+		return deps;
+	};
+
+	auto flood_messages = [this] (auto messages) {
+		release_assert (!messages.empty ());
+
+		auto wait_channels = [] (auto const & channels) {
+			auto busy = [] (auto const & channels) {
+				return std::any_of (channels.begin (), channels.end (), [] (auto const & channel) {
+					return channel->max (nano::transport::traffic_type::vote_storage);
+				});
+			};
+
+			int attempts = 0;
+			while (busy (channels) && attempts++ < 10)
+			{
+				std::this_thread::sleep_for (std::chrono::milliseconds (100));
+			}
+		};
+
+		auto peers = node.network.list ();
+
+		node.logger.debug (nano::log::type::rpc, "Flooding {} {} messages to {} peers",
+		messages.size (),
+		to_string (messages[0].type ()),
+		peers.size ());
+
+		wait_channels (peers);
+
+		for (auto & channel : peers)
+		{
+			for (auto & message : messages)
+			{
+				channel->send (
+				message, [node_s = this->node.shared (), channel] (auto & ec, auto size) {
+					if (ec)
+					{
+						node_s->logger.debug (nano::log::type::rpc, "Error sending to: {} ({})", channel->to_string (), ec.message ());
+					}
+				},
+				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
+			}
+		}
+	};
+
+	int num_blocks = 0;
+	int num_votes = 0;
+
+	auto block_visitor = [&, this] (auto block) {
+		num_blocks++;
+		node.logger.debug (nano::log::type::rpc, "Republishing block: {}", block->hash ().to_string ());
+
+		nano::publish pub{ node.network_params.network, block };
+		flood_messages (std::vector{ pub });
+
+		if (broadcast_votes)
+		{
+			auto votes = node.vote_storage.query_hash (block->hash ());
+			if (!votes.empty ())
+			{
+				++num_votes;
+				node.logger.debug (nano::log::type::rpc, "Republishing {} votes for block: {}", votes.size (), block->hash ().to_string ());
+
+				std::vector<nano::confirm_ack> vote_messages;
+				for (auto & vote : votes)
+				{
+					nano::confirm_ack ack{ node.network_params.network, vote };
+					vote_messages.push_back (ack);
+				}
+
+				flood_messages (vote_messages);
+			}
+			else
+			{
+				node.logger.debug (nano::log::type::rpc, "No votes found for block: {}", block->hash ().to_string ());
+			}
+		}
+
+		return block_dependencies (transaction, block);
+	};
+
+	auto current_block = node.ledger.head_block (transaction, account);
+	debug_assert (current_block);
+
+	std::deque<std::shared_ptr<nano::block>> blocks;
+	for (int n = 0; n < count && current_block; ++n)
+	{
+		blocks.push_front (current_block);
+		current_block = node.ledger.block (transaction, current_block->previous ());
+	}
+
+	for (auto & block : blocks)
+	{
+		node.logger.info (nano::log::type::rpc, "Republishing for block: {} with depth: {}", block->hash ().to_string (), depth);
+		dfs_traversal (depth, block, block_visitor);
+	}
+
+	node.logger.info (nano::log::type::rpc, "Republishing finished");
+
+	return { num_blocks, num_votes };
+}
+
 void nano::json_handler::search_pending ()
 {
 	response_l.put ("deprecated", "1");
@@ -5389,6 +5606,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("representatives", &nano::json_handler::representatives);
 	no_arg_funcs.emplace ("representatives_online", &nano::json_handler::representatives_online);
 	no_arg_funcs.emplace ("republish", &nano::json_handler::republish);
+	no_arg_funcs.emplace ("republish_dependencies", &nano::json_handler::republish_dependencies);
 	no_arg_funcs.emplace ("search_pending", &nano::json_handler::search_pending);
 	no_arg_funcs.emplace ("search_receivable", &nano::json_handler::search_receivable);
 	no_arg_funcs.emplace ("search_pending_all", &nano::json_handler::search_pending_all);

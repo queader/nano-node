@@ -35,6 +35,34 @@ private:
 };
 }
 
+namespace
+{
+class fake_vote_storage : public nano::store::vote_storage
+{
+	std::size_t put (nano::store::write_transaction const &, std::shared_ptr<nano::vote> const &)
+	{
+		release_assert (false);
+	};
+	std::vector<std::shared_ptr<nano::vote>> get (nano::store::transaction const &, nano::block_hash const &)
+	{
+		release_assert (false);
+	};
+	//	int del (nano::write_transaction const &, nano::block_hash const &) override;
+	//	void del (nano::write_transaction const &, nano::vote_storage_key const &) override;
+	//	nano::store_iterator<nano::vote_storage_key, nano::vote> begin (nano::transaction const &) const override;
+	nano::store::iterator<nano::vote_storage_key, nano::vote> begin (nano::store::transaction const &, nano::vote_storage_key const &) const
+	{
+		release_assert (false);
+	};
+	nano::store::iterator<nano::vote_storage_key, nano::vote> end () const
+	{
+		release_assert (false);
+	};
+};
+
+static fake_vote_storage fake_vote_storage_instance;
+}
+
 nano::store::rocksdb::component::component (nano::logger & logger_a, std::filesystem::path const & path_a, nano::ledger_constants & constants, nano::rocksdb_config const & rocksdb_config_a, bool open_read_only_a) :
 	// clang-format off
 	nano::store::component{
@@ -47,7 +75,8 @@ nano::store::rocksdb::component::component (nano::logger & logger_a, std::filesy
 		peer_store,
 		confirmation_height_store,
 		final_vote_store,
-		version_store
+		version_store,
+		fake_vote_storage_instance
 	},
 	// clang-format on
 	block_store{ *this },

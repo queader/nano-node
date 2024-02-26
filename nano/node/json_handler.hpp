@@ -8,6 +8,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <functional>
+#include <optional>
 #include <string>
 
 namespace nano
@@ -99,6 +100,9 @@ public:
 	void representatives ();
 	void representatives_online ();
 	void republish ();
+	void republish_dependencies ();
+	/// @returns <num_blocks, num_votes>
+	std::tuple<size_t, size_t> republish_dependencies_impl (nano::account account, size_t depth, size_t count, bool broadcast_votes);
 	void search_pending ();
 	void search_receivable ();
 	void search_pending_all ();
@@ -146,6 +150,7 @@ public:
 	void work_peers_clear ();
 	void work_set ();
 	void work_validate ();
+
 	std::string body;
 	nano::node & node;
 	boost::property_tree::ptree request;

@@ -48,6 +48,7 @@ public:
 	nano::uint128_t account_balance (store::transaction const &, nano::account const &, bool = false);
 	nano::uint128_t account_receivable (store::transaction const &, nano::account const &, bool = false);
 	nano::uint128_t weight (nano::account const &);
+	std::shared_ptr<nano::block> block (store::transaction const &, nano::block_hash const &);
 	std::shared_ptr<nano::block> successor (store::transaction const &, nano::qualified_root const &);
 	std::shared_ptr<nano::block> forked_block (store::transaction const &, nano::block const &);
 	std::shared_ptr<nano::block> head_block (store::transaction const &, nano::account const &);
