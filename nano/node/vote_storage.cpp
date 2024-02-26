@@ -118,7 +118,7 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 {
 	if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::channel_full, nano::stat::dir::out);
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_channel_full, nano::stat::dir::out);
 		return;
 	}
 
@@ -172,12 +172,18 @@ void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t &
 	{
 		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep, nano::stat::dir::in, pr_nodes.size () * votes.size ());
 
-		for (auto & vote : votes)
+		for (auto const & rep : pr_nodes)
 		{
-			nano::confirm_ack message{ node.network_params.network, vote };
-
-			for (auto const & rep : pr_nodes)
+			if (rep.channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::in);
+				continue;
+			}
+
+			for (auto & vote : votes)
+			{
+				nano::confirm_ack message{ node.network_params.network, vote };
+
 				rep.channel->send (
 				message, [this] (auto & ec, auto size) {
 					if (ec)
@@ -194,12 +200,18 @@ void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t &
 	{
 		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random, nano::stat::dir::in, random_nodes.size () * votes.size ());
 
-		for (auto & vote : votes)
+		for (auto const & channel : random_nodes)
 		{
-			nano::confirm_ack message{ node.network_params.network, vote };
-
-			for (auto const & channel : random_nodes)
+			if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::in);
+				continue;
+			}
+
+			for (auto & vote : votes)
+			{
+				nano::confirm_ack message{ node.network_params.network, vote };
+
 				channel->send (
 				message, [this] (auto & ec, auto size) {
 					if (ec)
@@ -211,6 +223,7 @@ void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t &
 			}
 		}
 	}
+}
 }
 
 nano::uint128_t nano::vote_storage::weight (const nano::vote_storage::vote_list_t & votes) const

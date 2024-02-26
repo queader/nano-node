@@ -344,6 +344,8 @@ enum class detail
 	broadcast_vote_rep,
 	broadcast_vote_random,
 	low_weight,
+	reply_channel_full,
+	broadcast_channel_full,
 
 	_last // Must be the last enum
 };
