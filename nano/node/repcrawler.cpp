@@ -235,9 +235,9 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 	debug_assert (!mutex.try_lock ());
 
 	// TODO: Make these values configurable
-	constexpr std::size_t conservative_count = 20;
-	constexpr std::size_t aggressive_count = 60;
-	constexpr std::size_t conservative_max_attempts = 2;
+	constexpr std::size_t conservative_count = 80;
+	constexpr std::size_t aggressive_count = 160;
+	constexpr std::size_t conservative_max_attempts = 3;
 	constexpr std::size_t aggressive_max_attempts = 8;
 
 	stats.inc (nano::stat::type::rep_crawler, sufficient_weight ? nano::stat::detail::crawl_normal : nano::stat::detail::crawl_aggressive);
