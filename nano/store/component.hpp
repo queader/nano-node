@@ -4,6 +4,7 @@
 #include <nano/lib/memory.hpp>
 #include <nano/lib/stream.hpp>
 #include <nano/secure/common.hpp>
+#include <nano/store/iterator.hpp>
 #include <nano/store/tables.hpp>
 #include <nano/store/transaction.hpp>
 #include <nano/store/versioning.hpp>
@@ -27,6 +28,7 @@ namespace store
 	class pending;
 	class pruned;
 	class version;
+	class vote_storage;
 }
 class ledger_cache;
 
@@ -52,7 +54,8 @@ namespace store
 		nano::store::peer &,
 		nano::store::confirmation_height &,
 		nano::store::final_vote &,
-		nano::store::version &
+		nano::store::version &,
+		nano::store::vote_storage &
 	);
 		// clang-format on
 		virtual ~component () = default;
@@ -78,6 +81,7 @@ namespace store
 		store::confirmation_height & confirmation_height;
 		store::final_vote & final_vote;
 		store::version & version;
+		store::vote_storage & vote_storage;
 
 		virtual unsigned max_block_write_batch_num () const = 0;
 
@@ -100,3 +104,18 @@ namespace store
 	};
 } // namespace store
 } // namespace nano
+
+namespace nano::store
+{
+class vote_storage
+{
+public:
+	virtual std::size_t put (nano::store::write_transaction const &, std::shared_ptr<nano::vote> const &) = 0;
+	virtual std::vector<std::shared_ptr<nano::vote>> get (nano::store::transaction const &, nano::block_hash const &) = 0;
+	//	virtual int del (nano::write_transaction const &, nano::block_hash const &) = 0;
+	//	virtual void del (nano::write_transaction const &, nano::vote_storage_key const &) = 0;
+	//	virtual nano::store_iterator<nano::vote_storage_key, nano::vote> begin (nano::transaction const &) const = 0;
+	virtual nano::store::iterator<nano::vote_storage_key, nano::vote> begin (nano::store::transaction const &, nano::vote_storage_key const &) const = 0;
+	virtual nano::store::iterator<nano::vote_storage_key, nano::vote> end () const = 0;
+};
+}

@@ -27,7 +27,8 @@ void nano::bandwidth_limiter::reset (std::size_t limit_a, double burst_ratio_a)
 nano::outbound_bandwidth_limiter::outbound_bandwidth_limiter (nano::outbound_bandwidth_limiter::config config_a) :
 	config_m{ config_a },
 	limiter_standard (config_m.standard_limit, config_m.standard_burst_ratio),
-	limiter_bootstrap{ config_m.bootstrap_limit, config_m.bootstrap_burst_ratio }
+	limiter_bootstrap{ config_m.bootstrap_limit, config_m.bootstrap_burst_ratio },
+	limiter_vote_storage{ config_m.vote_storage_limit, config_m.vote_storage_burst_ratio }
 {
 }
 
@@ -39,6 +40,8 @@ nano::bandwidth_limiter & nano::outbound_bandwidth_limiter::select_limiter (nano
 			return limiter_bootstrap;
 		case bandwidth_limit_type::standard:
 			break;
+		case bandwidth_limit_type::vote_storage:
+			return limiter_vote_storage;
 		default:
 			debug_assert (false);
 			break;
@@ -67,6 +70,9 @@ nano::bandwidth_limit_type nano::to_bandwidth_limit_type (const nano::transport:
 			break;
 		case nano::transport::traffic_type::bootstrap:
 			return nano::bandwidth_limit_type::bootstrap;
+			break;
+		case nano::transport::traffic_type::vote_storage:
+			return nano::bandwidth_limit_type::vote_storage;
 			break;
 	}
 	debug_assert (false);

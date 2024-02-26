@@ -27,6 +27,8 @@ add_library(
   lmdb/transaction_impl.hpp
   lmdb/version.hpp
   lmdb/wallet_value.hpp
+        lmdb/vote_storage.hpp
+        lmdb/vote_storage.cpp
   online_weight.hpp
   peer.hpp
   pending.hpp

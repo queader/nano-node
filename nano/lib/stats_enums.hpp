@@ -53,6 +53,11 @@ enum class type : uint8_t
 	bootstrap_ascending,
 	bootstrap_ascending_accounts,
 
+	vote_storage,
+	vote_storage_broadcast,
+	vote_storage_replies,
+	vote_storage_write,
+
 	_last // Must be the last enum
 };
 
@@ -74,6 +79,7 @@ enum class detail : uint8_t
 	none,
 	success,
 	unknown,
+	empty,
 
 	// processing queue
 	queue,
@@ -327,6 +333,26 @@ enum class detail : uint8_t
 	priority_erase_overflow,
 	deprioritize,
 	deprioritize_failed,
+
+	// vote storage
+	stored,
+	stored_votes,
+	frontier,
+	frontier_empty,
+	reply_vote,
+	reply_duplicate,
+	broadcast_duplicate,
+	broadcast_vote_rep,
+	broadcast_vote_random,
+	broadcast_rep,
+	broadcast_random,
+	low_weight,
+	reply_channel_full,
+	broadcast_channel_full,
+	rep_broadcast_channel_full,
+	random_broadcast_channel_full,
+	write_error_broadcast,
+	write_error_reply,
 
 	_last // Must be the last enum
 };

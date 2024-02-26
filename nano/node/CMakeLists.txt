@@ -166,6 +166,8 @@ add_library(
   vote_cache.cpp
   vote_processor.hpp
   vote_processor.cpp
+        vote_storage.hpp
+        vote_storage.cpp
   voting.hpp
   voting.cpp
   wallet.hpp
