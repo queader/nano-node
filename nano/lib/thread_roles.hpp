@@ -43,6 +43,7 @@ enum class name
 	scheduler_optimistic,
 	scheduler_priority,
 	vote_storage,
+	stats,
 };
 
 /*

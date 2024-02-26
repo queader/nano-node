@@ -666,6 +666,7 @@ void nano::node::start ()
 	websocket.start ();
 	telemetry.start ();
 	vote_storage.start ();
+	stats.start ();
 }
 
 void nano::node::stop ()

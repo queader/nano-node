@@ -8,7 +8,7 @@
 namespace nano::stat
 {
 /** Primary statistics type */
-enum class type : uint8_t
+enum class type
 {
 	traffic_tcp,
 	error,
@@ -40,6 +40,7 @@ enum class type : uint8_t
 	blockprocessor_result,
 	bootstrap_server,
 	active,
+	active_transactions,
 	active_started,
 	active_confirmed,
 	active_dropped,
@@ -61,7 +62,7 @@ enum class type : uint8_t
 };
 
 /** Optional detail type */
-enum class detail : uint8_t
+enum class detail
 {
 	all = 0,
 
@@ -348,10 +349,18 @@ enum class detail : uint8_t
 };
 
 /** Direction of the stat. If the direction is irrelevant, use in */
-enum class dir : uint8_t
+enum class dir
 {
 	in,
 	out,
+
+	_last // Must be the last enum
+};
+
+enum class sample
+{
+	active_election_duration,
+	bootstrap_tag_duration,
 
 	_last // Must be the last enum
 };
@@ -362,6 +371,7 @@ namespace nano
 std::string_view to_string (stat::type);
 std::string_view to_string (stat::detail);
 std::string_view to_string (stat::dir);
+std::string_view to_string (stat::sample);
 }
 
 // Ensure that the enum_range is large enough to hold all values (including future ones)
