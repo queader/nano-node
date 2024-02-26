@@ -147,6 +147,7 @@ private:
 	private:
 		mutable nano::mutex mutex;
 		std::unordered_map<nano::transport::traffic_type, std::queue<entry>> queues;
+		size_t counter{ 0 };
 	};
 
 	write_queue send_queue;
