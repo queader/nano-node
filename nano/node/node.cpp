@@ -153,6 +153,8 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	distributed_work (*this),
 	store_impl (nano::make_store (logger, application_path_a, network_params.ledger, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, config_a.backup_before_upgrade)),
 	store (*store_impl),
+	vote_store_impl{ nano::make_vote_store (logger, application_path_a, network_params.ledger, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, config_a.backup_before_upgrade) },
+	vote_store{ *vote_store_impl },
 	unchecked{ config.max_unchecked_blocks, stats, flags.disable_block_processor_unchecked_deletion },
 	wallets_store_impl (std::make_unique<nano::mdb_wallets_store> (application_path_a / "wallets.ldb", config_a.lmdb_config)),
 	wallets_store (*wallets_store_impl),
@@ -176,6 +178,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	application_path (application_path_a),
 	port_mapping (*this),
 	rep_crawler (*this),
+	vote_storage{ *this, vote_store, network, ledger, stats },
 	vote_processor (active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params),
 	warmed_up (0),
 	block_processor (*this, write_database_queue),
@@ -216,6 +219,10 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	backlog.activate_callback.add ([this] (store::transaction const & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info) {
 		scheduler.priority.activate (account, transaction);
 		scheduler.optimistic.activate (account, account_info, conf_info);
+	});
+
+	observers.vote.add ([this] (std::shared_ptr<nano::vote> vote, std::shared_ptr<nano::transport::channel> const & channel, nano::vote_code code) {
+		vote_storage.vote (vote);
 	});
 
 	if (!init_error ())
@@ -658,6 +665,7 @@ void nano::node::start ()
 	}
 	websocket.start ();
 	telemetry.start ();
+	vote_storage.start ();
 }
 
 void nano::node::stop ()
@@ -698,6 +706,7 @@ void nano::node::stop ()
 	stats.stop ();
 	epoch_upgrader.stop ();
 	workers.stop ();
+	vote_storage.stop ();
 	// work pool is not stopped on purpose due to testing setup
 }
 

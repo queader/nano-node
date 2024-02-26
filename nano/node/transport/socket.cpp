@@ -395,8 +395,12 @@ std::optional<nano::transport::socket::write_queue::entry> nano::transport::sock
 		}
 		return std::nullopt;
 	};
-
+	
 	// TODO: This is a very basic prioritization, implement something more advanced and configurable
+	if (auto item = try_pop (nano::transport::traffic_type::vote_storage))
+	{
+		return item;
+	}
 	if (auto item = try_pop (nano::transport::traffic_type::generic))
 	{
 		return item;

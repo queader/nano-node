@@ -113,6 +113,21 @@ public:
 		convert_buffer_to_value ();
 	}
 
+	db_val (nano::vote_storage_key const & val_a) :
+		db_val (sizeof (val_a), const_cast<nano::vote_storage_key *> (&val_a))
+	{
+	}
+
+	db_val (nano::vote const & val_a) :
+		buffer (std::make_shared<std::vector<uint8_t>> ())
+	{
+		{
+			nano::vectorstream stream (*buffer);
+			val_a.serialize (stream);
+		}
+		convert_buffer_to_value ();
+	}
+
 	explicit operator nano::account_info () const
 	{
 		nano::account_info result;
@@ -290,6 +305,21 @@ public:
 		debug_assert (!error);
 		boost::endian::big_to_native_inplace (result);
 		return result;
+	}
+
+	explicit operator nano::vote () const
+	{
+		nano::bufferstream stream (reinterpret_cast<uint8_t const *> (data ()), size ());
+		nano::vote result;
+		bool error = result.deserialize (stream);
+		(void)error;
+		debug_assert (!error);
+		return result;
+	}
+
+	explicit operator nano::vote_storage_key () const
+	{
+		return convert<nano::vote_storage_key> ();
 	}
 
 	operator Val * () const

@@ -9,6 +9,7 @@ enum class traffic_type
 {
 	generic,
 	/** For bootstrap (asc_pull_ack, asc_pull_req) traffic */
-	bootstrap
+	bootstrap,
+	vote_storage,
 };
 }
