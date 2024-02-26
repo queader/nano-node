@@ -343,9 +343,13 @@ enum class detail
 	broadcast_duplicate,
 	broadcast_vote_rep,
 	broadcast_vote_random,
+	broadcast_rep,
+	broadcast_random,
 	low_weight,
 	reply_channel_full,
 	broadcast_channel_full,
+	rep_broadcast_channel_full,
+	random_broadcast_channel_full,
 
 	_last // Must be the last enum
 };
