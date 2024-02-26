@@ -71,6 +71,9 @@ nano::bandwidth_limit_type nano::to_bandwidth_limit_type (const nano::transport:
 		case nano::transport::traffic_type::bootstrap:
 			return nano::bandwidth_limit_type::bootstrap;
 			break;
+		case nano::transport::traffic_type::vote_storage:
+			return nano::bandwidth_limit_type::vote_storage;
+			break;
 	}
 	debug_assert (false);
 	return {};
