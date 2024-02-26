@@ -235,9 +235,9 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 	debug_assert (!mutex.try_lock ());
 
 	// TODO: Make these values configurable
-	constexpr std::size_t conservative_count = 10;
-	constexpr std::size_t aggressive_count = 40;
-	constexpr std::size_t conservative_max_attempts = 1;
+	constexpr std::size_t conservative_count = 20;
+	constexpr std::size_t aggressive_count = 60;
+	constexpr std::size_t conservative_max_attempts = 2;
 	constexpr std::size_t aggressive_max_attempts = 8;
 
 	stats.inc (nano::stat::type::rep_crawler, sufficient_weight ? nano::stat::detail::crawl_normal : nano::stat::detail::crawl_aggressive);
@@ -245,15 +245,27 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 	// Crawl more aggressively if we lack sufficient total peer weight.
 	auto const required_peer_count = sufficient_weight ? conservative_count : aggressive_count;
 
-	auto random_peers = node.network.random_set (required_peer_count, 0, /* Include channels with ephemeral remote ports */ true);
+	auto targets = node.network.random_set (required_peer_count, 0, /* Include channels with ephemeral remote ports */ true);
 
 	// Avoid querying the same peer multiple times when rep crawler is warmed up
 	auto const max_attempts = sufficient_weight ? conservative_max_attempts : aggressive_max_attempts;
-	erase_if (random_peers, [this, max_attempts] (std::shared_ptr<nano::transport::channel> const & channel) {
-		return queries.get<tag_channel> ().count (channel) >= max_attempts;
+	erase_if (targets, [this, max_attempts] (std::shared_ptr<nano::transport::channel> const & channel) {
+		return queries.count (channel) >= max_attempts;
 	});
 
-	return { random_peers.begin (), random_peers.end () };
+	// Query currently tracked reps more aggressively
+	for (auto const & rep : reps)
+	{
+		if (nano::elapsed (rep.last_response, config.rep_timeout / 3))
+		{
+			if (queries.count (rep.channel) < aggressive_max_attempts)
+			{
+				targets.emplace (rep.channel);
+			}
+		}
+	}
+
+	return { targets.begin (), targets.end () };
 }
 
 auto nano::rep_crawler::prepare_query_target () -> std::optional<hash_root_t>
