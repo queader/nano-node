@@ -193,12 +193,14 @@ void nano::transport::socket::write_queued_messages ()
 
 bool nano::transport::socket::max (nano::transport::traffic_type traffic_type) const
 {
-	return send_queue.size (traffic_type) >= max_queue_size;
+	//	return send_queue.size (traffic_type) >= max_queue_size;
+	return send_queue.max (traffic_type);
 }
 
 bool nano::transport::socket::full (nano::transport::traffic_type traffic_type) const
 {
-	return send_queue.size (traffic_type) >= 2 * max_queue_size;
+	//	return send_queue.size (traffic_type) >= 2 * max_queue_size;
+	return send_queue.full (traffic_type);
 }
 
 /** Call set_timeout with default_timeout as parameter */
@@ -373,7 +375,7 @@ nano::transport::socket::write_queue::write_queue (std::size_t max_size_a) :
 bool nano::transport::socket::write_queue::insert (const buffer_t & buffer, callback_t callback, nano::transport::traffic_type traffic_type)
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	if (queues[traffic_type].size () < 2 * max_size)
+	if (queues[traffic_type].size () < 2 * calculate_max_size (traffic_type))
 	{
 		queues[traffic_type].push (entry{ buffer, callback });
 		return true; // Queued
@@ -451,6 +453,25 @@ bool nano::transport::socket::write_queue::empty () const
 		return que.second.empty ();
 	});
 }
+
+bool nano::transport::socket::write_queue::max (nano::transport::traffic_type traffic_type) const
+{
+	return size (traffic_type) >= calculate_max_size (traffic_type);
+}
+
+bool nano::transport::socket::write_queue::full (nano::transport::traffic_type traffic_type) const
+{
+	return size (traffic_type) >= 2 * calculate_max_size (traffic_type);
+}
+
+std::size_t nano::transport::socket::write_queue::calculate_max_size (nano::transport::traffic_type traffic_type) const
+{
+	return traffic_type == nano::transport::traffic_type::vote_storage ? max_size * 16 : max_size;
+}
+
+/*
+ *
+ */
 
 boost::asio::ip::network_v6 nano::transport::socket_functions::get_ipv6_subnet_address (boost::asio::ip::address_v6 const & ip_address, std::size_t network_prefix)
 {

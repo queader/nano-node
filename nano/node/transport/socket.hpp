@@ -142,9 +142,13 @@ private:
 		std::size_t size (nano::transport::traffic_type) const;
 		bool empty () const;
 
-		std::size_t const max_size;
+		bool max (nano::transport::traffic_type) const;
+		bool full (nano::transport::traffic_type) const;
+		std::size_t calculate_max_size (nano::transport::traffic_type) const;
 
 	private:
+		std::size_t const max_size;
+
 		mutable nano::mutex mutex;
 		std::unordered_map<nano::transport::traffic_type, std::queue<entry>> queues;
 		size_t counter{ 0 };
