@@ -360,3 +360,19 @@ std::pair<nano::vote_storage::vote_list_t, nano::block_hash> nano::vote_storage:
 
 	return {};
 }
+
+std::unique_ptr<nano::container_info_component> nano::vote_storage::collect_container_info (const std::string & name) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	auto total_size = std::accumulate (recently_broadcasted_map.begin (), recently_broadcasted_map.end (), std::size_t{ 0 }, [] (auto total, auto const & entry) {
+		return total + entry.second.size ();
+	});
+
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "recently_broadcasted", recently_broadcasted_map.size (), sizeof (decltype (recently_broadcasted_map)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "recently_broadcasted_total", total_size, sizeof (decltype (recently_broadcasted_map)::value_type::second_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "store_queue", store_queue.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "broadcast_queue", broadcast_queue.size (), 0 }));
+	return composite;
+}

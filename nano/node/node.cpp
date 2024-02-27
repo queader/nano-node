@@ -558,6 +558,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (collect_container_info (node.final_generator, "vote_generator_final"));
 	composite->add_component (node.ascendboot.collect_container_info ("bootstrap_ascending"));
 	composite->add_component (node.unchecked.collect_container_info ("unchecked"));
+	composite->add_component (node.vote_storage.collect_container_info ("vote_storage"));
 	return composite;
 }
 
