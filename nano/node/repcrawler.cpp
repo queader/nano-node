@@ -115,6 +115,9 @@ void nano::rep_crawler::ongoing_crawl ()
 	{
 		node.keepalive_preconfigured (node.config.preconfigured_peers);
 	}
+
+	sufficient_weight = false;
+
 	// Reduce crawl frequency when there's enough total peer weight
 	unsigned next_run_ms = node.network_params.network.is_dev_network () ? 100 : sufficient_weight ? 7000
 																								   : 3000;
@@ -147,6 +150,11 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::get_cr
 	std::vector<std::shared_ptr<nano::transport::channel>> result;
 	result.insert (result.end (), random_peers.begin (), random_peers.end ());
 	return result;
+}
+
+namespace
+{
+std::chrono::seconds const rep_query_timeout{ 30 };
 }
 
 void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::channel>> const & channels_a)
@@ -186,7 +194,7 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 
 	// A representative must respond with a vote within the deadline
 	std::weak_ptr<nano::node> node_w (node.shared ());
-	node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w, hash = hash_root->first] () {
+	node.workers.add_timed_task (std::chrono::steady_clock::now () + rep_query_timeout, [node_w, hash = hash_root->first] () {
 		if (auto node_l = node_w.lock ())
 		{
 			auto target_finished_processed (node_l->vote_processor.total_processed + node_l->vote_processor.size ());
@@ -211,7 +219,7 @@ void nano::rep_crawler::throttled_remove (nano::block_hash const & hash_a, uint6
 	else
 	{
 		std::weak_ptr<nano::node> node_w (node.shared ());
-		node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w, hash_a, target_finished_processed] () {
+		node.workers.add_timed_task (std::chrono::steady_clock::now () + rep_query_timeout, [node_w, hash_a, target_finished_processed] () {
 			if (auto node_l = node_w.lock ())
 			{
 				node_l->rep_crawler.throttled_remove (hash_a, target_finished_processed);

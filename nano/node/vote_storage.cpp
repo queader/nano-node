@@ -46,7 +46,10 @@ void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
 
 void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
 {
-	broadcast_queue.add (broadcast_entry_t{ hash, channel });
+	if (node.rep_crawler.is_pr (*channel))
+	{
+		broadcast_queue.add (broadcast_entry_t{ hash, channel });
+	}
 }
 
 void nano::vote_storage::process_batch (decltype (store_queue)::batch_t & batch)
