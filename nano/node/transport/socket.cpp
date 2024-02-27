@@ -466,7 +466,7 @@ bool nano::transport::socket::write_queue::full (nano::transport::traffic_type t
 
 std::size_t nano::transport::socket::write_queue::calculate_max_size (nano::transport::traffic_type traffic_type) const
 {
-	return traffic_type == nano::transport::traffic_type::vote_storage ? max_size * 4 : max_size;
+	return traffic_type == nano::transport::traffic_type::vote_storage ? max_size * 16 : max_size;
 }
 
 /*
