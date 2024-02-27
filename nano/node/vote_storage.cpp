@@ -162,19 +162,19 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 {
 	if (recently_broadcasted (hash))
 	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
 		return;
 	}
 
-	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast);
-	stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
+	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast, nano::stat::dir::out);
+	stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::out, votes.size ());
 
 	auto pr_nodes = node.rep_crawler.principal_representatives ();
 	auto random_nodes = enable_random_broadcast ? network.list (network.fanout ()) : std::deque<std::shared_ptr<nano::transport::channel>>{};
 
 	if (enable_pr_broadcast)
 	{
-		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep, nano::stat::dir::in, pr_nodes.size () * votes.size ());
+		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_rep, nano::stat::dir::out, pr_nodes.size () * votes.size ());
 
 		for (auto & vote : votes)
 		{
@@ -196,7 +196,7 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 
 	if (enable_random_broadcast)
 	{
-		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random, nano::stat::dir::in, random_nodes.size () * votes.size ());
+		stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote_random, nano::stat::dir::out, random_nodes.size () * votes.size ());
 
 		for (auto & vote : votes)
 		{
