@@ -73,7 +73,7 @@ private:
 	uint128_t weight (vote_list_t const &) const;
 	vote_list_t filter (vote_list_t const &) const;
 
-	void reply (vote_list_t const &, std::shared_ptr<nano::transport::channel> const &);
+	void reply (vote_list_t const &, nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
 	void broadcast (vote_list_t const &, nano::block_hash const &);
 
 	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &, std::size_t count_threshold = 0);

@@ -340,6 +340,7 @@ enum class detail
 	frontier,
 	frontier_empty,
 	reply_vote,
+	reply_duplicate,
 	broadcast_duplicate,
 	broadcast_vote_rep,
 	broadcast_vote_random,

@@ -81,7 +81,7 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 			{
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply);
 
-				reply (votes, channel);
+				reply (votes, hash, channel);
 
 				if (enable_broadcast)
 				{
@@ -117,11 +117,17 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 	}
 }
 
-void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, const std::shared_ptr<nano::transport::channel> & channel)
+void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
 {
 	if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 	{
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_channel_full, nano::stat::dir::out);
+		return;
+	}
+
+	if (recently_broadcasted (channel, hash))
+	{
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_duplicate, nano::stat::dir::out);
 		return;
 	}
 
