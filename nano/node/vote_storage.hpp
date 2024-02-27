@@ -54,7 +54,7 @@ private:
 	nano::processing_queue<broadcast_entry_t> broadcast_queue;
 
 private:
-	std::unordered_set<nano::block_hash> recently_broadcasted;
+	std::unordered_set<nano::block_hash> recently_broadcasted_m;
 	mutable nano::mutex mutex;
 
 private:
@@ -66,7 +66,7 @@ private:
 
 	void reply (vote_list_t const &, std::shared_ptr<nano::transport::channel> const &);
 	void broadcast (vote_list_t const &, nano::block_hash const &);
-	void broadcast_impl (vote_list_t const &);
+	bool recently_broadcasted (nano::block_hash const &);
 
 	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &, std::size_t count_threshold = 0);
 	/** @returns <votes, votes frontier> */
@@ -75,10 +75,9 @@ private:
 private:
 	// TODO: Use nodeconfig
 	uint128_t const vote_weight_threshold{ 60000 * nano::Gxrb_ratio };
-	//	uint128_t const vote_weight_threshold{ 120000 * nano::Gxrb_ratio }; // Disable
-
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 15 };
+	std::size_t const max_recently_broadcasted{ 1024 };
 
 private: // Flags
 	static bool constexpr enable_broadcast = true;

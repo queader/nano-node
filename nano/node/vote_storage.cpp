@@ -140,28 +140,29 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 	}
 }
 
-void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
+bool nano::vote_storage::recently_broadcasted (const nano::block_hash & hash)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
+	if (recently_broadcasted_m.count (hash) > 0)
+	{
+		return true;
+	}
+	if (recently_broadcasted_m.size () >= max_recently_broadcasted)
+	{
+		recently_broadcasted_m.clear ();
+	}
+	recently_broadcasted_m.insert (hash);
+	return false;
+}
 
-	if (recently_broadcasted.count (hash) > 0)
+void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
+{
+	if (recently_broadcasted (hash))
 	{
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
 		return;
 	}
-	recently_broadcasted.insert (hash);
-	if (recently_broadcasted.size () > 1024)
-	{
-		recently_broadcasted.clear ();
-	}
 
-	lock.unlock ();
-
-	broadcast_impl (votes);
-}
-
-void nano::vote_storage::broadcast_impl (const nano::vote_storage::vote_list_t & votes)
-{
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast);
 	stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
 
