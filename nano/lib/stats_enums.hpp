@@ -350,6 +350,7 @@ enum class detail
 	broadcast_channel_full,
 	rep_broadcast_channel_full,
 	random_broadcast_channel_full,
+	write_error_broadcast,
 
 	_last // Must be the last enum
 };

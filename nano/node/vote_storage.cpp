@@ -162,11 +162,11 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 {
 	if (recently_broadcasted (hash))
 	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate);
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
 		return;
 	}
 
-	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast);
+	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast, nano::stat::dir::out);
 
 	auto pr_nodes = node.rep_crawler.principal_representatives ();
 	auto random_nodes = enable_random_broadcast ? network.list (network.fanout ()) : std::deque<std::shared_ptr<nano::transport::channel>>{};
@@ -177,12 +177,12 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 		{
 			if (rep.channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::in);
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::out);
 				continue;
 			}
 
-			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_rep);
-			stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_rep, nano::stat::dir::out);
+			stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::out, votes.size ());
 
 			for (auto & vote : votes)
 			{
@@ -192,7 +192,7 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 				message, [this] (auto & ec, auto size) {
 					if (ec)
 					{
-						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::in);
+						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error_broadcast, nano::stat::dir::out);
 					}
 				},
 				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
@@ -210,7 +210,7 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 				continue;
 			}
 
-			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_random);
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_random, nano::stat::dir::in);
 			stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
 
 			for (auto & vote : votes)
@@ -221,7 +221,7 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 				message, [this] (auto & ec, auto size) {
 					if (ec)
 					{
-						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::in);
+						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error_broadcast, nano::stat::dir::in);
 					}
 				},
 				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
