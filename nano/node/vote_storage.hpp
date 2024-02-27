@@ -73,6 +73,7 @@ private:
 	void process_batch (decltype (broadcast_queue)::batch_t &);
 
 	uint128_t weight (vote_list_t const &) const;
+	uint128_t weight_final (vote_list_t const &) const;
 	vote_list_t filter (vote_list_t const &) const;
 
 	void reply (vote_list_t const &, nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
@@ -84,7 +85,8 @@ private:
 
 private:
 	// TODO: Use nodeconfig
-	uint128_t const vote_weight_threshold{ 20000 * nano::Gxrb_ratio };
+	uint128_t const vote_weight_threshold{ 40000 * nano::Gxrb_ratio };
+	uint128_t const vote_final_weight_threshold{ 60000 * nano::Gxrb_ratio };
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 0 };
 	std::size_t const max_recently_broadcasted{ 1024 * 64 };

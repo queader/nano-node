@@ -41,7 +41,10 @@ void nano::vote_storage::stop ()
 
 void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
 {
-	store_queue.add (vote);
+	if (ledger.weight (vote->account) >= rep_weight_threshold)
+	{
+		store_queue.add (vote);
+	}
 }
 
 void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
@@ -287,6 +290,19 @@ nano::uint128_t nano::vote_storage::weight (const nano::vote_storage::vote_list_
 	return result;
 }
 
+nano::uint128_t nano::vote_storage::weight_final (const nano::vote_storage::vote_list_t & votes) const
+{
+	nano::uint128_t result = 0;
+	for (auto const & vote : votes)
+	{
+		if (vote->is_final ())
+		{
+			result += ledger.weight (vote->account);
+		}
+	}
+	return result;
+}
+
 nano::vote_storage::vote_list_t nano::vote_storage::filter (const nano::vote_storage::vote_list_t & votes) const
 {
 	nano::vote_storage::vote_list_t result;
@@ -307,7 +323,19 @@ nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::stor
 	{
 		if (count_threshold == 0 || votes.size () >= count_threshold)
 		{
-			if (weight (votes) >= vote_weight_threshold)
+			auto should_pass = [this] (auto const & votes) {
+				if (vote_final_weight_threshold > 0)
+				{
+					return weight_final (votes) >= vote_final_weight_threshold;
+				}
+				if (vote_weight_threshold > 0)
+				{
+					return weight (votes) >= vote_weight_threshold;
+				}
+				return true;
+			};
+
+			if (should_pass (votes))
 			{
 				auto filtered = filter (votes);
 				return filtered.size () >= count_threshold ? filtered : votes;
