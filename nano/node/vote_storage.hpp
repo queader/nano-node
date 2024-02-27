@@ -5,6 +5,8 @@
 #include <nano/lib/processing_queue.hpp>
 #include <nano/store/component.hpp>
 
+#include <chrono>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -54,8 +56,15 @@ private:
 	nano::processing_queue<broadcast_entry_t> broadcast_queue;
 
 private:
-	std::unordered_set<nano::block_hash> recently_broadcasted_m;
+	using recently_broadcasted_entries_t = std::unordered_map<nano::block_hash, std::chrono::steady_clock::time_point>;
+	std::unordered_map<std::shared_ptr<nano::transport::channel>, recently_broadcasted_entries_t> recently_broadcasted_map;
+
+	std::chrono::steady_clock::time_point last_cleanup{ std::chrono::steady_clock::now () };
+
+	//	std::unordered_set<nano::block_hash> recently_broadcasted_m;
 	mutable nano::mutex mutex;
+
+	bool recently_broadcasted (std::shared_ptr<nano::transport::channel> const &, nano::block_hash const &);
 
 private:
 	void process_batch (decltype (store_queue)::batch_t &);
@@ -66,7 +75,6 @@ private:
 
 	void reply (vote_list_t const &, std::shared_ptr<nano::transport::channel> const &);
 	void broadcast (vote_list_t const &, nano::block_hash const &);
-	bool recently_broadcasted (nano::block_hash const &);
 
 	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &, std::size_t count_threshold = 0);
 	/** @returns <votes, votes frontier> */

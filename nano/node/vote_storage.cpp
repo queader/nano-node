@@ -143,28 +143,57 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 	}
 }
 
-bool nano::vote_storage::recently_broadcasted (const nano::block_hash & hash)
+bool nano::vote_storage::recently_broadcasted (const std::shared_ptr<nano::transport::channel> & channel, const nano::block_hash & hash)
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	if (recently_broadcasted_m.count (hash) > 0)
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	std::chrono::seconds constexpr cleanup_interval{ 30 };
+	std::chrono::seconds constexpr rebroadcast_interval{ 60 };
+
+	// Cleanup
+	if (nano::elapse (last_cleanup, cleanup_interval))
 	{
-		return true;
+		for (auto & [channel, entries] : recently_broadcasted_map)
+		{
+			erase_if (entries, [&] (auto const & entry) {
+				auto const & [hash, time] = entry;
+				return nano::elapsed (time, rebroadcast_interval);
+			});
+		}
+
+		erase_if (recently_broadcasted_map, [&] (auto const & pair) {
+			auto const & [channel, entries] = pair;
+			if (!channel->alive ())
+			{
+				return true; // Erase
+			}
+			if (entries.empty ())
+			{
+				return true; // Erase
+			}
+			return false;
+		});
 	}
-	if (recently_broadcasted_m.size () >= max_recently_broadcasted)
+
+	if (auto it = recently_broadcasted_map.find (channel); it != recently_broadcasted_map.end ())
 	{
-		recently_broadcasted_m.clear ();
+		auto & entries = it->second;
+		if (entries.contains (hash))
+		{
+			return true;
+		}
 	}
-	recently_broadcasted_m.insert (hash);
+	recently_broadcasted_map[channel].emplace (hash, std::chrono::steady_clock::now ());
 	return false;
 }
 
 void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
 {
-	if (recently_broadcasted (hash))
-	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
-		return;
-	}
+	//	if (recently_broadcasted (hash))
+	//	{
+	//		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
+	//		return;
+	//	}
 
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast, nano::stat::dir::out);
 
@@ -178,6 +207,12 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 			if (rep.channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 			{
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::out);
+				continue;
+			}
+
+			if (recently_broadcasted (rep.channel, hash))
+			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
 				continue;
 			}
 
@@ -207,6 +242,12 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 			if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
 			{
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::in);
+				continue;
+			}
+
+			if (recently_broadcasted (channel, hash))
+			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::in);
 				continue;
 			}
 
