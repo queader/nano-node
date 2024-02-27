@@ -74,10 +74,10 @@ private:
 
 private:
 	// TODO: Use nodeconfig
-	uint128_t const vote_weight_threshold{ 60000 * nano::Gxrb_ratio };
+	uint128_t const vote_weight_threshold{ 40000 * nano::Gxrb_ratio };
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
-	std::size_t const rep_count_threshold{ 15 };
-	std::size_t const max_recently_broadcasted{ 1024 };
+	std::size_t const rep_count_threshold{ 0 };
+	std::size_t const max_recently_broadcasted{ 1024 * 64 };
 
 private: // Flags
 	static bool constexpr enable_broadcast = true;
