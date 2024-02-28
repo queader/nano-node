@@ -41,9 +41,12 @@ void nano::vote_storage::stop ()
 
 void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
 {
-	if (ledger.weight (vote->account) >= rep_weight_threshold)
+	if (!store_final_only || vote->is_final ())
 	{
-		store_queue.add (vote);
+		if (ledger.weight (vote->account) >= rep_weight_threshold)
+		{
+			store_queue.add (vote);
+		}
 	}
 }
 

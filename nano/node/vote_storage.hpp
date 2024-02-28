@@ -90,6 +90,7 @@ private:
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 0 };
 	bool const trigger_pr_only{ true };
+	bool const store_final_only{ true };
 
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_pr_broadcast = true;
