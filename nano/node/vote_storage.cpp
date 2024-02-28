@@ -49,7 +49,7 @@ void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
 
 void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
 {
-	if (node.rep_crawler.is_pr (*channel))
+	if (!trigger_pr_only || node.rep_crawler.is_pr (*channel))
 	{
 		broadcast_queue.add (broadcast_entry_t{ hash, channel });
 	}
@@ -198,19 +198,11 @@ bool nano::vote_storage::recently_broadcasted (const std::shared_ptr<nano::trans
 
 void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
 {
-	//	if (recently_broadcasted (hash))
-	//	{
-	//		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
-	//		return;
-	//	}
-
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast, nano::stat::dir::out);
-
-	auto pr_nodes = node.rep_crawler.principal_representatives ();
-	auto random_nodes = enable_random_broadcast ? network.list (network.fanout ()) : std::deque<std::shared_ptr<nano::transport::channel>>{};
 
 	if (enable_pr_broadcast)
 	{
+		auto pr_nodes = node.rep_crawler.principal_representatives ();
 		for (auto const & rep : pr_nodes)
 		{
 			if (rep.channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
@@ -246,6 +238,7 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 
 	if (enable_random_broadcast)
 	{
+		auto random_nodes = network.list (network.fanout ());
 		for (auto const & channel : random_nodes)
 		{
 			if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this

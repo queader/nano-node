@@ -89,9 +89,8 @@ private:
 	uint128_t const vote_final_weight_threshold{ 60000 * nano::Gxrb_ratio };
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 0 };
-	std::size_t const max_recently_broadcasted{ 1024 * 64 };
+	bool const trigger_pr_only{ true };
 
-private: // Flags
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_pr_broadcast = true;
 	static bool constexpr enable_random_broadcast = false;
