@@ -41,12 +41,18 @@ void nano::vote_storage::stop ()
 
 void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
 {
-	if (!store_final_only || vote->is_final ())
+	if (ignore_255_votes && vote->hashes.size () > 12)
 	{
-		if (ledger.weight (vote->account) >= rep_weight_threshold)
-		{
-			store_queue.add (vote);
-		}
+		return;
+	}
+	if (store_final_only && !vote->is_final ())
+	{
+		return;
+	}
+
+	if (ledger.weight (vote->account) >= rep_weight_threshold)
+	{
+		store_queue.add (vote);
 	}
 }
 
@@ -304,12 +310,20 @@ nano::vote_storage::vote_list_t nano::vote_storage::filter (const nano::vote_sto
 	nano::vote_storage::vote_list_t result;
 	for (auto const & vote : votes)
 	{
-		if (ledger.weight (vote->account) >= rep_weight_threshold)
+		auto should_pass = [this] (auto const & vote) {
+			if (ignore_255_votes && vote->hashes.size () > 12)
+			{
+				return false;
+			}
+			return ledger.weight (vote->account) >= rep_weight_threshold;
+		};
+
+		if (should_pass (vote))
 		{
 			result.push_back (vote);
 		}
 	}
-	return votes;
+	return result;
 }
 
 nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::store::transaction & vote_transaction, const nano::block_hash & hash, std::size_t count_threshold)
@@ -334,7 +348,7 @@ nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::stor
 			if (should_pass (votes))
 			{
 				auto filtered = filter (votes);
-				return filtered.size () >= count_threshold ? filtered : votes;
+				return filtered;
 			}
 			else
 			{

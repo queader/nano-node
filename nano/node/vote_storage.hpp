@@ -91,6 +91,7 @@ private:
 	std::size_t const rep_count_threshold{ 0 };
 	bool const trigger_pr_only{ true };
 	bool const store_final_only{ true };
+	bool const ignore_255_votes{ true };
 
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_pr_broadcast = true;
