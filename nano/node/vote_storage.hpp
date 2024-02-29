@@ -116,7 +116,7 @@ private:
 	>>;
 	// clang-format on
 
-	static size_t constexpr max_requests = 1024 * 64;
+	static size_t constexpr max_requests = 1024 * 512;
 	ordered_requests requests;
 
 private:
@@ -148,7 +148,7 @@ private:
 private:
 	// TODO: Use nodeconfig
 	uint128_t const vote_weight_threshold{ 65600 * nano::Gxrb_ratio }; // Quorum
-	uint128_t const vote_final_weight_threshold{ 60000 * nano::Gxrb_ratio };
+	uint128_t const vote_final_weight_threshold{ 65600 * nano::Gxrb_ratio }; // Quorum
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 0 };
 	bool const trigger_pr_only{ true };
