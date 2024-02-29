@@ -85,10 +85,10 @@ void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shar
 	{
 		return;
 	}
-	//	if (trigger_pr_only && !node.rep_crawler.is_pr (*channel))
-	//	{
-	//		return;
-	//	}
+	if (trigger_pr_only && !node.rep_crawler.is_pr (*channel))
+	{
+		return;
+	}
 
 	std::lock_guard guard{ mutex };
 
@@ -119,9 +119,7 @@ void nano::vote_storage::run ()
 
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::loop);
 
-		erase_if (requests, [this] (auto const & entry) {
-			return recently_broadcasted.check (entry.hash);
-		});
+		cleanup ();
 
 		if (!requests.empty ())
 		{
@@ -141,6 +139,19 @@ void nano::vote_storage::run ()
 	}
 }
 
+void nano::vote_storage::cleanup ()
+{
+	debug_assert (!mutex.try_lock ());
+
+	erase_if (requests, [this] (auto const & entry) {
+		return nano::elapsed (entry.time, request_age_cutoff);
+	});
+
+	erase_if (requests, [this] (auto const & entry) {
+		return recently_broadcasted.check (entry.hash);
+	});
+}
+
 std::unordered_set<nano::block_hash> nano::vote_storage::run_broadcasts (ordered_requests requests_l)
 {
 	debug_assert (!requests_l.empty ());
@@ -151,20 +162,22 @@ std::unordered_set<nano::block_hash> nano::vote_storage::run_broadcasts (ordered
 
 	std::unordered_set<nano::block_hash> broadcasted;
 
-	for (auto & [hash, count] : requests_l.get<tag_count> ())
+	for (auto & entry : requests_l.get<tag_count> ())
 	{
-		auto votes = query_hash (vote_transaction, hash);
+		std::cout << entry.count << std::endl;
+
+		auto votes = query_hash (vote_transaction, entry.hash);
 		if (!votes.empty ())
 		{
-			bool recent = recently_broadcasted.check_and_insert (hash);
+			bool recent = recently_broadcasted.check_and_insert (entry.hash);
 			debug_assert (!recent); // Should be filtered out earlier
 
 			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::process);
 
 			wait_peers ();
-			broadcast (votes, hash);
+			broadcast (votes, entry.hash);
 
-			broadcasted.insert (hash);
+			broadcasted.insert (entry.hash);
 		}
 		else
 		{

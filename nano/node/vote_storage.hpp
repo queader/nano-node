@@ -76,8 +76,8 @@ private:
 
 		std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
 
-		static std::chrono::seconds constexpr rebroadcast_interval{ 30 };
-		static std::chrono::seconds constexpr cleanup_interval{ rebroadcast_interval / 3 };
+		static std::chrono::seconds constexpr rebroadcast_interval{ 10 };
+		static std::chrono::seconds constexpr cleanup_interval{ rebroadcast_interval / 2 };
 
 	private:
 		void cleanup ();
@@ -98,6 +98,7 @@ private:
 	{
 		nano::block_hash hash;
 		size_t count;
+		std::chrono::steady_clock::time_point time;
 	};
 
 	// clang-format off
@@ -121,6 +122,7 @@ private:
 private:
 	void run ();
 	std::unordered_set<nano::block_hash> run_broadcasts (ordered_requests);
+	void cleanup ();
 	void wait_peers ();
 
 	void process_batch (decltype (store_queue)::batch_t &);
@@ -145,7 +147,7 @@ private:
 
 private:
 	// TODO: Use nodeconfig
-	uint128_t const vote_weight_threshold{ 40000 * nano::Gxrb_ratio };
+	uint128_t const vote_weight_threshold{ 60000 * nano::Gxrb_ratio };
 	uint128_t const vote_final_weight_threshold{ 60000 * nano::Gxrb_ratio };
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 0 };
@@ -153,6 +155,7 @@ private:
 	bool const store_final_only{ true };
 	bool const ignore_255_votes{ true };
 	float const max_busy_ratio{ 0.5f };
+	std::chrono::seconds const request_age_cutoff{ 10 };
 
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_replies = false;
