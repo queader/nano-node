@@ -443,21 +443,20 @@ nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::stor
 		if (count_threshold == 0 || votes.size () >= count_threshold)
 		{
 			auto should_pass = [this] (auto const & votes) {
-				if (vote_final_weight_threshold > 0)
+				if (vote_final_weight_threshold > 0 && weight_final (votes) >= vote_final_weight_threshold)
 				{
-					return weight_final (votes) >= vote_final_weight_threshold;
+					return true;
 				}
-				if (vote_weight_threshold > 0)
+				if (vote_weight_threshold > 0 && weight (votes) >= vote_weight_threshold)
 				{
-					return weight (votes) >= vote_weight_threshold;
+					return true;
 				}
-				return true;
+				return false;
 			};
 
 			if (should_pass (votes))
 			{
-				auto filtered = filter (votes);
-				return filtered;
+				return filter (votes);
 			}
 			else
 			{
