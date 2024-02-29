@@ -15,9 +15,9 @@ nano::vote_storage::vote_storage (nano::node & node_a, nano::store::component & 
 		process_batch (batch);
 	};
 
-	broadcast_queue.process_batch = [this] (auto & batch) {
-		process_batch (batch);
-	};
+	//	broadcast_queue.process_batch = [this] (auto & batch) {
+	//		process_batch (batch);
+	//	};
 }
 
 nano::vote_storage::~vote_storage ()
@@ -25,18 +25,41 @@ nano::vote_storage::~vote_storage ()
 	// All threads should be stopped before destruction
 	debug_assert (!store_queue.joinable ());
 	debug_assert (!broadcast_queue.joinable ());
+	debug_assert (!thread.joinable ());
 }
 
 void nano::vote_storage::start ()
 {
 	store_queue.start ();
-	broadcast_queue.start ();
+	//	broadcast_queue.start ();
+
+	debug_assert (!thread.joinable ());
+
+	if (!enable_broadcast)
+	{
+		return;
+	}
+
+	thread = std::thread ([this] {
+		nano::thread_role::set (nano::thread_role::name::vote_storage);
+		run ();
+	});
 }
 
 void nano::vote_storage::stop ()
 {
 	store_queue.stop ();
-	broadcast_queue.stop ();
+	//	broadcast_queue.stop ();
+
+	{
+		nano::unique_lock<nano::mutex> lock{ mutex };
+		stopped = true;
+	}
+	condition.notify_all ();
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
 }
 
 void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
@@ -62,11 +85,122 @@ void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shar
 	{
 		return;
 	}
-	if (trigger_pr_only && !node.rep_crawler.is_pr (*channel))
+	//	if (trigger_pr_only && !node.rep_crawler.is_pr (*channel))
+	//	{
+	//		return;
+	//	}
+
+	std::lock_guard guard{ mutex };
+
+	auto [it, _] = requests.emplace (request_entry{ hash, 0 });
+	requests.modify (it, [] (auto & entry) {
+		++entry.count;
+	});
+
+	while (requests.size () > max_requests)
 	{
-		return;
+		requests.get<tag_sequenced> ().pop_front ();
 	}
-	broadcast_queue.add (broadcast_entry_t{ hash, channel });
+}
+
+void nano::vote_storage::run ()
+{
+	std::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		condition.wait_for (lock, std::chrono::seconds{ 1 }, [this] {
+			return stopped || !requests.empty ();
+		});
+
+		if (stopped)
+		{
+			return;
+		}
+
+		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::loop);
+
+		erase_if (requests, [this] (auto const & entry) {
+			return recently_broadcasted.check (entry.hash);
+		});
+
+		if (!requests.empty ())
+		{
+			auto requests_l = requests; // Copy
+
+			lock.unlock ();
+
+			auto broadcasted = run_broadcasts (requests_l);
+
+			lock.lock ();
+
+			for (auto & hash : broadcasted)
+			{
+				requests.erase (hash);
+			}
+		}
+	}
+}
+
+std::unordered_set<nano::block_hash> nano::vote_storage::run_broadcasts (ordered_requests requests_l)
+{
+	debug_assert (!requests_l.empty ());
+
+	size_t constexpr max_broadcasts = 16;
+
+	auto vote_transaction = vote_store.tx_begin_read ();
+
+	std::unordered_set<nano::block_hash> broadcasted;
+
+	for (auto & [hash, count] : requests_l.get<tag_count> ())
+	{
+		auto votes = query_hash (vote_transaction, hash);
+		if (!votes.empty ())
+		{
+			bool recent = recently_broadcasted.check_and_insert (hash);
+			debug_assert (!recent); // Should be filtered out earlier
+
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::process);
+
+			wait_peers ();
+			broadcast (votes, hash);
+
+			broadcasted.insert (hash);
+		}
+		else
+		{
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::empty);
+		}
+
+		if (broadcasted.size () >= max_broadcasts)
+		{
+			break;
+		}
+	}
+
+	return broadcasted;
+}
+
+void nano::vote_storage::wait_peers ()
+{
+	auto reps = node.rep_crawler.principal_representatives ();
+
+	auto busy_count = [&reps] () {
+		return std::count_if (reps.begin (), reps.end (), [] (auto const & rep) {
+			return rep.channel->max (nano::transport::traffic_type::vote_storage);
+		});
+	};
+
+	float constexpr max_busy_ratio = 0.3f;
+
+	while (busy_count () > reps.size () * max_busy_ratio)
+	{
+		if (stopped)
+		{
+			return;
+		}
+
+		std::this_thread::sleep_for (std::chrono::milliseconds{ 100 });
+	}
 }
 
 void nano::vote_storage::process_batch (decltype (store_queue)::batch_t & batch)
@@ -145,7 +279,7 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 		return;
 	}
 
-	if (recently_broadcasted (channel, hash))
+	if (recently_broadcasted.check_and_insert (hash, channel))
 	{
 		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_duplicate, nano::stat::dir::out);
 		return;
@@ -169,50 +303,6 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 	}
 }
 
-bool nano::vote_storage::recently_broadcasted (const std::shared_ptr<nano::transport::channel> & channel, const nano::block_hash & hash)
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-
-	std::chrono::seconds constexpr cleanup_interval{ 30 };
-	std::chrono::seconds constexpr rebroadcast_interval{ 60 };
-
-	// Cleanup
-	if (nano::elapse (last_cleanup, cleanup_interval))
-	{
-		for (auto & [channel, entries] : recently_broadcasted_map)
-		{
-			erase_if (entries, [&] (auto const & entry) {
-				auto const & [hash, time] = entry;
-				return nano::elapsed (time, rebroadcast_interval);
-			});
-		}
-
-		erase_if (recently_broadcasted_map, [&] (auto const & pair) {
-			auto const & [channel, entries] = pair;
-			if (!channel->alive ())
-			{
-				return true; // Erase
-			}
-			if (entries.empty ())
-			{
-				return true; // Erase
-			}
-			return false;
-		});
-	}
-
-	if (auto it = recently_broadcasted_map.find (channel); it != recently_broadcasted_map.end ())
-	{
-		auto & entries = it->second;
-		if (entries.contains (hash))
-		{
-			return true;
-		}
-	}
-	recently_broadcasted_map[channel].emplace (hash, std::chrono::steady_clock::now ());
-	return false;
-}
-
 void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash)
 {
 	stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast, nano::stat::dir::out);
@@ -222,17 +312,17 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 		auto pr_nodes = node.rep_crawler.principal_representatives ();
 		for (auto const & rep : pr_nodes)
 		{
-			if (rep.channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::out);
-				continue;
-			}
+			//			if (rep.channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
+			//			{
+			//				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::out);
+			//				continue;
+			//			}
 
-			if (recently_broadcasted (rep.channel, hash))
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
-				continue;
-			}
+			//			if (recently_broadcasted (rep.channel, hash))
+			//			{
+			//				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::out);
+			//				continue;
+			//			}
 
 			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_rep, nano::stat::dir::out);
 			stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::out, votes.size ());
@@ -253,41 +343,41 @@ void nano::vote_storage::broadcast (const nano::vote_storage::vote_list_t & vote
 		}
 	}
 
-	if (enable_random_broadcast)
-	{
-		auto random_nodes = network.list (network.fanout ());
-		for (auto const & channel : random_nodes)
-		{
-			if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::in);
-				continue;
-			}
-
-			if (recently_broadcasted (channel, hash))
-			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::in);
-				continue;
-			}
-
-			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_random, nano::stat::dir::in);
-			stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
-
-			for (auto & vote : votes)
-			{
-				nano::confirm_ack message{ node.network_params.network, vote };
-
-				channel->send (
-				message, [this] (auto & ec, auto size) {
-					if (ec)
-					{
-						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error_broadcast, nano::stat::dir::in);
-					}
-				},
-				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
-			}
-		}
-	}
+	//	if (enable_random_broadcast)
+	//	{
+	//		auto random_nodes = network.list (network.fanout ());
+	//		for (auto const & channel : random_nodes)
+	//		{
+	//			if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
+	//			{
+	//				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_channel_full, nano::stat::dir::in);
+	//				continue;
+	//			}
+	//
+	//			if (recently_broadcasted (channel, hash))
+	//			{
+	//				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_duplicate, nano::stat::dir::in);
+	//				continue;
+	//			}
+	//
+	//			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::broadcast_random, nano::stat::dir::in);
+	//			stats.add (nano::stat::type::vote_storage, nano::stat::detail::broadcast_vote, nano::stat::dir::in, votes.size ());
+	//
+	//			for (auto & vote : votes)
+	//			{
+	//				nano::confirm_ack message{ node.network_params.network, vote };
+	//
+	//				channel->send (
+	//				message, [this] (auto & ec, auto size) {
+	//					if (ec)
+	//					{
+	//						stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error_broadcast, nano::stat::dir::in);
+	//					}
+	//				},
+	//				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
+	//			}
+	//		}
+	//	}
 }
 
 nano::uint128_t nano::vote_storage::weight (const nano::vote_storage::vote_list_t & votes) const
@@ -411,14 +501,102 @@ std::unique_ptr<nano::container_info_component> nano::vote_storage::collect_cont
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
+	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (recently_broadcasted.collect_container_info ("recently_broadcasted"));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "requests", requests.size (), sizeof (decltype (requests)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "store_queue", store_queue.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "broadcast_queue", broadcast_queue.size (), 0 }));
+	return composite;
+}
+
+/*
+ * recently_broadcasted
+ */
+
+bool nano::vote_storage::recently_broadcasted::check (const nano::block_hash & hash) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return recently_broadcasted_hashes.contains (hash);
+}
+
+bool nano::vote_storage::recently_broadcasted::check_and_insert (const nano::block_hash & hash)
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	cleanup ();
+
+	if (recently_broadcasted_hashes.contains (hash))
+	{
+		return true;
+	}
+	recently_broadcasted_hashes.emplace (hash, std::chrono::steady_clock::now ());
+	return false;
+}
+
+bool nano::vote_storage::recently_broadcasted::check_and_insert (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	cleanup ();
+
+	if (auto it = recently_broadcasted_map.find (channel); it != recently_broadcasted_map.end ())
+	{
+		auto & entries = it->second;
+		if (entries.contains (hash))
+		{
+			return true;
+		}
+	}
+	recently_broadcasted_map[channel].emplace (hash, std::chrono::steady_clock::now ());
+	return false;
+}
+
+void nano::vote_storage::recently_broadcasted::cleanup ()
+{
+	debug_assert (!mutex.try_lock ());
+
+	// Cleanup
+	if (nano::elapse (last_cleanup, cleanup_interval))
+	{
+		for (auto & [channel, entries] : recently_broadcasted_map)
+		{
+			erase_if (entries, [&] (auto const & entry) {
+				auto const & [hash, time] = entry;
+				return nano::elapsed (time, rebroadcast_interval);
+			});
+		}
+
+		erase_if (recently_broadcasted_map, [&] (auto const & pair) {
+			auto const & [channel, entries] = pair;
+			if (!channel->alive ())
+			{
+				return true; // Erase
+			}
+			if (entries.empty ())
+			{
+				return true; // Erase
+			}
+			return false;
+		});
+
+		erase_if (recently_broadcasted_hashes, [&] (auto const & pair) {
+			auto const & [hash, time] = pair;
+			return nano::elapsed (time, rebroadcast_interval);
+		});
+	}
+}
+
+std::unique_ptr<nano::container_info_component> nano::vote_storage::recently_broadcasted::collect_container_info (const std::string & name) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
 	auto total_size = std::accumulate (recently_broadcasted_map.begin (), recently_broadcasted_map.end (), std::size_t{ 0 }, [] (auto total, auto const & entry) {
 		return total + entry.second.size ();
 	});
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "recently_broadcasted", recently_broadcasted_map.size (), sizeof (decltype (recently_broadcasted_map)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "recently_broadcasted_total", total_size, sizeof (decltype (recently_broadcasted_map)::value_type::second_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "store_queue", store_queue.size (), 0 }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "broadcast_queue", broadcast_queue.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "map", recently_broadcasted_map.size (), sizeof (decltype (recently_broadcasted_map)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "map_total", total_size, sizeof (decltype (recently_broadcasted_map)::value_type::second_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "hashes", recently_broadcasted_hashes.size (), sizeof (decltype (recently_broadcasted_hashes)::value_type) }));
 	return composite;
 }
