@@ -76,8 +76,8 @@ private:
 
 		std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
 
-		static std::chrono::seconds constexpr cleanup_interval{ 30 };
-		static std::chrono::seconds constexpr rebroadcast_interval{ 60 };
+		static std::chrono::seconds constexpr rebroadcast_interval{ 30 };
+		static std::chrono::seconds constexpr cleanup_interval{ rebroadcast_interval / 3 };
 
 	private:
 		void cleanup ();
@@ -152,6 +152,7 @@ private:
 	bool const trigger_pr_only{ true };
 	bool const store_final_only{ true };
 	bool const ignore_255_votes{ true };
+	float const max_busy_ratio{ 0.5f };
 
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_replies = false;

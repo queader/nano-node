@@ -190,8 +190,6 @@ void nano::vote_storage::wait_peers ()
 		});
 	};
 
-	float constexpr max_busy_ratio = 0.3f;
-
 	while (busy_count () > reps.size () * max_busy_ratio)
 	{
 		if (stopped)
