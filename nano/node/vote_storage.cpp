@@ -49,19 +49,24 @@ void nano::vote_storage::vote (std::shared_ptr<nano::vote> vote)
 	{
 		return;
 	}
-
-	if (ledger.weight (vote->account) >= rep_weight_threshold)
+	if (ledger.weight (vote->account) < rep_weight_threshold)
 	{
-		store_queue.add (vote);
+		return;
 	}
+	store_queue.add (vote);
 }
 
 void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
 {
-	if (!trigger_pr_only || node.rep_crawler.is_pr (*channel))
+	if (!enable_broadcast && !enable_replies)
 	{
-		broadcast_queue.add (broadcast_entry_t{ hash, channel });
+		return;
 	}
+	if (trigger_pr_only && !node.rep_crawler.is_pr (*channel))
+	{
+		return;
+	}
+	broadcast_queue.add (broadcast_entry_t{ hash, channel });
 }
 
 void nano::vote_storage::process_batch (decltype (store_queue)::batch_t & batch)
@@ -93,7 +98,10 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 			{
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply);
 
-				reply (votes, hash, channel);
+				if (enable_replies)
+				{
+					reply (votes, hash, channel);
+				}
 
 				if (enable_broadcast)
 				{

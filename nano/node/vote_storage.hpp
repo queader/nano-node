@@ -93,7 +93,8 @@ private:
 	bool const store_final_only{ true };
 	bool const ignore_255_votes{ true };
 
-	static bool constexpr enable_broadcast = true;
+	static bool constexpr enable_broadcast = false;
+	static bool constexpr enable_replies = false;
 	static bool constexpr enable_pr_broadcast = true;
 	static bool constexpr enable_random_broadcast = false;
 	static bool constexpr enable_query_frontier = false;
