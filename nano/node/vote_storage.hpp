@@ -147,15 +147,15 @@ private:
 
 private:
 	// TODO: Use nodeconfig
-	uint128_t const vote_weight_threshold{ 60000 * nano::Gxrb_ratio };
+	uint128_t const vote_weight_threshold{ 65600 * nano::Gxrb_ratio }; // Quorum
 	uint128_t const vote_final_weight_threshold{ 60000 * nano::Gxrb_ratio };
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
 	std::size_t const rep_count_threshold{ 0 };
 	bool const trigger_pr_only{ true };
-	bool const store_final_only{ true };
+	bool const store_final_only{ false };
 	bool const ignore_255_votes{ true };
 	float const max_busy_ratio{ 0.5f };
-	std::chrono::seconds const request_age_cutoff{ 10 };
+	std::chrono::seconds const request_age_cutoff{ 30 };
 
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_replies = false;
