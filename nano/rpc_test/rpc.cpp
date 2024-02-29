@@ -5827,13 +5827,13 @@ TEST (rpc, stats_counters)
 	auto node = add_ipc_enabled_node (system);
 	auto const rpc_ctx = add_rpc (system, node);
 
-	node->stats.sample (nano::stat::sample::active_election_duration, 1);
-	node->stats.sample (nano::stat::sample::active_election_duration, 2);
-	node->stats.sample (nano::stat::sample::active_election_duration, 3);
-	node->stats.sample (nano::stat::sample::active_election_duration, 4);
+	node->stats.sample (nano::stat::sample::active_election_duration, { 0, 10 }, 1);
+	node->stats.sample (nano::stat::sample::active_election_duration, { 0, 10 }, 2);
+	node->stats.sample (nano::stat::sample::active_election_duration, { 0, 10 }, 3);
+	node->stats.sample (nano::stat::sample::active_election_duration, { 0, 10 }, 4);
 
-	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, 5);
-	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, 5);
+	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, 10 }, 5);
+	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, 10 }, 5);
 
 	boost::property_tree::ptree request;
 	request.put ("action", "stats");
@@ -5847,6 +5847,7 @@ TEST (rpc, stats_counters)
 		std::cout << ss.str () << std::endl;
 	}
 
+	// TODO: Assert the response
 	//		ASSERT_EQ (response.get_child ("node").get_child ("vote_uniquer").get_child ("cache").get<std::string> ("count"), "1");
 }
 

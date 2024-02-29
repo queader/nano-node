@@ -362,7 +362,7 @@ void nano::bootstrap_ascending::service::process (nano::asc_pull_ack const & mes
 		tags_by_id.erase (iterator);
 
 		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::reply);
-		stats.sample (nano::stat::sample::bootstrap_tag_duration, nano::milliseconds_since_epoch () - tag.time);
+		stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, config.bootstrap_ascending.timeout }, nano::milliseconds_since_epoch () - tag.time);
 
 		scoring.received_message (channel);
 
