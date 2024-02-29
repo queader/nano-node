@@ -399,7 +399,7 @@ std::optional<nano::transport::socket::write_queue::entry> nano::transport::sock
 	};
 
 	// TODO: This is a very basic prioritization, implement something more advanced and configurable
-	if (counter++ % 2 == 0)
+	if (counter++ % 10 != 0)
 	{
 		if (auto item = try_pop (nano::transport::traffic_type::vote_storage))
 		{
