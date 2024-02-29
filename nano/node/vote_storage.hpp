@@ -70,7 +70,7 @@ private:
 	class recently_broadcasted
 	{
 	public:
-		bool check (nano::block_hash const &) const;
+		bool check (nano::block_hash const &);
 		bool check_and_insert (nano::block_hash const &);
 		bool check_and_insert (nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
 
@@ -98,7 +98,7 @@ private:
 	{
 		nano::block_hash hash;
 		size_t count;
-		std::chrono::steady_clock::time_point time;
+		std::chrono::steady_clock::time_point time{ std::chrono::steady_clock::now () };
 	};
 
 	// clang-format off

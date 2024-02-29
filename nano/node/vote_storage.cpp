@@ -523,9 +523,10 @@ std::unique_ptr<nano::container_info_component> nano::vote_storage::collect_cont
  * recently_broadcasted
  */
 
-bool nano::vote_storage::recently_broadcasted::check (const nano::block_hash & hash) const
+bool nano::vote_storage::recently_broadcasted::check (const nano::block_hash & hash)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
+	cleanup ();
 	return recently_broadcasted_hashes.contains (hash);
 }
 
