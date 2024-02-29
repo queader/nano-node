@@ -20,6 +20,9 @@ std::unique_ptr<nano::store::component> nano::make_vote_store (nano::logger & lo
 	}
 	else
 	{
-		return std::make_unique<nano::store::lmdb::component> (logger, add_db_postfix ? path / "votes.ldb" : path, constants, txn_tracking_config_a, block_processor_batch_max_time_a, lmdb_config_a, backup_before_upgrade);
+		nano::lmdb_config lmdb_config = lmdb_config_a;
+		lmdb_config.sync = nano::lmdb_config::sync_strategy::nosync_unsafe;
+
+		return std::make_unique<nano::store::lmdb::component> (logger, add_db_postfix ? path / "votes.ldb" : path, constants, txn_tracking_config_a, block_processor_batch_max_time_a, lmdb_config, backup_before_upgrade);
 	}
 }

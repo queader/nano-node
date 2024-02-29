@@ -8,7 +8,7 @@ nano::vote_storage::vote_storage (nano::node & node_a, nano::store::component & 
 	network{ network_a },
 	ledger{ ledger_a },
 	stats{ stats_a },
-	store_queue{ stats, nano::stat::type::vote_storage_write, nano::thread_role::name::vote_storage, /* single threaded */ 1, 1024 * 64, 1024 },
+	store_queue{ stats, nano::stat::type::vote_storage_write, nano::thread_role::name::vote_storage, /* single threaded */ 1, 1024 * 4, 1024 },
 	broadcast_queue{ stats, nano::stat::type::vote_storage_broadcast, nano::thread_role::name::vote_storage, /* threads */ 1, 1024 * 4, 512 }
 {
 	store_queue.process_batch = [this] (auto & batch) {
