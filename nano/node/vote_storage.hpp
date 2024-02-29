@@ -32,6 +32,7 @@ namespace transport
 
 class vote_storage final
 {
+public:
 	using vote_list_t = std::vector<std::shared_ptr<nano::vote>>;
 
 public:
@@ -140,6 +141,9 @@ private:
 	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &, bool final_only = false);
 	/** @returns <votes, votes frontier> */
 	std::pair<vote_list_t, nano::block_hash> query_frontier (nano::store::transaction const & ledger_transaction, nano::store::transaction const & vote_transaction, nano::block_hash const &);
+
+public:
+	vote_list_t query_hash (nano::block_hash);
 
 private:
 	std::atomic<bool> stopped{ false };

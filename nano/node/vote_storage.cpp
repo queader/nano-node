@@ -484,6 +484,12 @@ nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::stor
 	return {};
 }
 
+nano::vote_storage::vote_list_t nano::vote_storage::query_hash (nano::block_hash hash)
+{
+	auto vote_transaction = vote_store.tx_begin_read ();
+	return query_hash (vote_transaction, hash);
+}
+
 std::pair<nano::vote_storage::vote_list_t, nano::block_hash> nano::vote_storage::query_frontier (nano::store::transaction const & ledger_transaction, nano::store::transaction const & vote_transaction, const nano::block_hash & hash)
 {
 	auto account = ledger.account_safe (ledger_transaction, hash);

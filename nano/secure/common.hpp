@@ -120,6 +120,8 @@ public:
 	nano::seconds_t modified{ 0 };
 	uint64_t block_count{ 0 };
 	nano::epoch epoch_m{ nano::epoch::epoch_0 };
+
+	void operator() (nano::object_stream &) const;
 };
 
 /**

@@ -1453,6 +1453,11 @@ std::shared_ptr<nano::block> nano::ledger::forked_block (store::transaction cons
 	return result;
 }
 
+std::shared_ptr<nano::block> nano::ledger::block (store::transaction const & transaction_a, nano::block_hash const & hash_a)
+{
+	return store.block.get (transaction_a, hash_a);
+}
+
 std::shared_ptr<nano::block> nano::ledger::head_block (store::transaction const & transaction, nano::account const & account)
 {
 	auto info = store.account.get (transaction, account);
