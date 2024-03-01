@@ -435,33 +435,33 @@ nano::vote_storage::vote_list_t nano::vote_storage::filter (const nano::vote_sto
 	return result;
 }
 
-nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::store::transaction & vote_transaction, const nano::block_hash & hash, std::size_t count_threshold)
+nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::store::transaction & vote_transaction, const nano::block_hash & hash)
 {
 	auto votes = vote_store.vote_storage.get (vote_transaction, hash);
 	if (!votes.empty ())
 	{
-		if (count_threshold == 0 || votes.size () >= count_threshold)
-		{
-			auto should_pass = [this] (auto const & votes) {
-				if (vote_final_weight_threshold > 0 && weight_final (votes) >= vote_final_weight_threshold)
-				{
-					return true;
-				}
-				if (vote_weight_threshold > 0 && weight (votes) >= vote_weight_threshold)
-				{
-					return true;
-				}
-				return false;
-			};
+		auto const quorum = node.online_reps.delta ();
 
-			if (should_pass (votes))
+		auto should_pass = [this] (auto const & votes) {
+			if (vote_final_weight_threshold > 0 && weight_final (votes) >= vote_final_weight_threshold)
 			{
-				return filter (votes);
+				return true;
 			}
-			else
+			if (vote_weight_threshold > 0 && weight (votes) >= vote_weight_threshold)
 			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::low_weight);
+				return true;
 			}
+			return false;
+		};
+
+		//		if (should_pass (votes))
+		if (weight (votes) >= quorum)
+		{
+			return filter (votes);
+		}
+		else
+		{
+			stats.inc (nano::stat::type::vote_storage, nano::stat::detail::low_weight);
 		}
 	}
 	return {};
@@ -486,7 +486,7 @@ std::pair<nano::vote_storage::vote_list_t, nano::block_hash> nano::vote_storage:
 	const int max_retries = 128;
 	for (int n = 0; n < max_retries && !frontier.is_zero () && frontier != hash; ++n)
 	{
-		auto votes = query_hash (vote_transaction, frontier, /* needed for v23 vote hinting */ rep_count_threshold);
+		auto votes = query_hash (vote_transaction, frontier);
 		if (!votes.empty ())
 		{
 			return { votes, frontier };

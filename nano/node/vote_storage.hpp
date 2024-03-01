@@ -135,7 +135,7 @@ private:
 	void reply (vote_list_t const &, nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
 	void broadcast (vote_list_t const &, nano::block_hash const &);
 
-	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &, std::size_t count_threshold = 0);
+	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &);
 	/** @returns <votes, votes frontier> */
 	std::pair<vote_list_t, nano::block_hash> query_frontier (nano::store::transaction const & ledger_transaction, nano::store::transaction const & vote_transaction, nano::block_hash const &);
 
@@ -150,7 +150,6 @@ private:
 	uint128_t const vote_weight_threshold{ 65600 * nano::Gxrb_ratio }; // Quorum
 	uint128_t const vote_final_weight_threshold{ 65600 * nano::Gxrb_ratio }; // Quorum
 	uint128_t const rep_weight_threshold{ 100 * nano::Gxrb_ratio };
-	std::size_t const rep_count_threshold{ 0 };
 	bool const trigger_pr_only{ true };
 	bool const store_final_only{ false };
 	bool const ignore_255_votes{ true };
