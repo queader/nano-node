@@ -30,6 +30,8 @@ namespace transport
 	class tcp_server;
 	class tcp_channels;
 
+	void set_buffer_sizes (boost::asio::ip::tcp::socket &);
+
 	class channel_tcp : public nano::transport::channel
 	{
 		friend class nano::transport::tcp_channels;

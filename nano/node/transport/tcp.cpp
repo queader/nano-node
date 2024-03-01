@@ -7,6 +7,33 @@
 
 #include <boost/format.hpp>
 
+void nano::transport::set_buffer_sizes (boost::asio::ip::tcp::socket & socket)
+{
+	// Set socket option to increase receive buffer size
+	//	boost::asio::ip::tcp::socket::receive_buffer_size receive_option;
+	//	socket.get_option (receive_option);
+	//	std::cout << "Default receive buffer size: " << receive_option.value () << std::endl;
+	//
+	//	receive_option = 10000; // Set receive buffer size to 8192 bytes
+	//	socket.set_option (receive_option);
+	//
+	//	// Get the current receive buffer size
+	//	socket.get_option (receive_option);
+	//	// std::cout << "New receive buffer size: " << option.value() << std::endl;
+
+	// Set socket option to increase send buffer size
+	boost::asio::ip::tcp::socket::send_buffer_size send_option;
+	socket.get_option (send_option);
+	std::cout << "Default send buffer size: " << send_option.value () << std::endl;
+
+	send_option = 100000; // Set send buffer size to 100 KB
+	socket.set_option (send_option);
+
+	// Get the current send buffer size
+	socket.get_option (send_option);
+	std::cout << "New send buffer size: " << send_option.value () << std::endl;
+}
+
 /*
  * channel_tcp
  */
@@ -555,6 +582,8 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 		{
 			if (!ec && channel)
 			{
+				nano::transport::set_buffer_sizes (socket->tcp_socket);
+
 				// TCP node ID handshake
 				auto query = node_l->network.prepare_handshake_query (endpoint_a);
 				nano::node_id_handshake message{ node_l->network_params.network, query };

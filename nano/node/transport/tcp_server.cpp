@@ -241,6 +241,8 @@ void nano::transport::tcp_listener::accept_action (boost::system::error_code con
 {
 	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
+		nano::transport::set_buffer_sizes (socket_a->tcp_socket);
+
 		auto server = std::make_shared<nano::transport::tcp_server> (socket_a, node.shared (), true);
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		connections[server.get ()] = server;
