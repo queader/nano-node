@@ -256,7 +256,7 @@ void nano::vote_storage::process_batch (decltype (reply_queue)::batch_t & batch)
 	{
 		// Check votes for specific hash
 		{
-			auto votes = query_hash (vote_transaction, hash);
+			auto votes = query_hash (vote_transaction, hash, /* final only */ true);
 			if (!votes.empty ())
 			{
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply);
@@ -450,27 +450,29 @@ nano::vote_storage::vote_list_t nano::vote_storage::filter (const nano::vote_sto
 	return result;
 }
 
-nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::store::transaction & vote_transaction, const nano::block_hash & hash)
+nano::vote_storage::vote_list_t nano::vote_storage::query_hash (const nano::store::transaction & vote_transaction, const nano::block_hash & hash, bool final_only)
 {
 	auto votes = vote_store.vote_storage.get (vote_transaction, hash);
 	if (!votes.empty ())
 	{
 		auto const quorum = node.online_reps.delta ();
 
-		auto should_pass = [this] (auto const & votes) {
-			if (vote_final_weight_threshold > 0 && weight_final (votes) >= vote_final_weight_threshold)
-			{
-				return true;
-			}
-			if (vote_weight_threshold > 0 && weight (votes) >= vote_weight_threshold)
-			{
-				return true;
-			}
-			return false;
-		};
+		//		auto should_pass = [this] (auto const & votes) {
+		//			if (vote_final_weight_threshold > 0 && weight_final (votes) >= vote_final_weight_threshold)
+		//			{
+		//				return true;
+		//			}
+		//			if (vote_weight_threshold > 0 && weight (votes) >= vote_weight_threshold)
+		//			{
+		//				return true;
+		//			}
+		//			return false;
+		//		};
 
 		//		if (should_pass (votes))
-		if (weight (votes) >= quorum)
+
+		auto const wgt = final_only ? weight_final (votes) : weight (votes);
+		if (wgt >= quorum)
 		{
 			return filter (votes);
 		}

@@ -137,7 +137,7 @@ private:
 	void reply (vote_list_t const &, nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
 	void broadcast (vote_list_t const &, nano::block_hash const &);
 
-	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &);
+	vote_list_t query_hash (nano::store::transaction const & vote_transaction, nano::block_hash const &, bool final_only = false);
 	/** @returns <votes, votes frontier> */
 	std::pair<vote_list_t, nano::block_hash> query_frontier (nano::store::transaction const & ledger_transaction, nano::store::transaction const & vote_transaction, nano::block_hash const &);
 
