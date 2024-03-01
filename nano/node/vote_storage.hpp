@@ -33,7 +33,6 @@ namespace transport
 class vote_storage final
 {
 	using vote_list_t = std::vector<std::shared_ptr<nano::vote>>;
-	using broadcast_entry_t = std::pair<nano::block_hash, std::shared_ptr<nano::transport::channel>>;
 
 public:
 	vote_storage (nano::node &, nano::store::component & vote_store, nano::network &, nano::ledger &, nano::stats &);
@@ -63,8 +62,10 @@ public: // Dependencies
 	nano::stats & stats;
 
 private:
+	using reply_entry_t = std::pair<nano::block_hash, std::shared_ptr<nano::transport::channel>>;
+
 	nano::processing_queue<std::shared_ptr<nano::vote>> store_queue;
-	nano::processing_queue<broadcast_entry_t> broadcast_queue;
+	nano::processing_queue<reply_entry_t> reply_queue;
 
 private:
 	class recently_broadcasted
@@ -72,6 +73,7 @@ private:
 	public:
 		bool check (nano::block_hash const &);
 		bool check_and_insert (nano::block_hash const &);
+		bool check (nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
 		bool check_and_insert (nano::block_hash const &, std::shared_ptr<nano::transport::channel> const &);
 
 		std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
@@ -126,7 +128,7 @@ private:
 	void wait_peers ();
 
 	void process_batch (decltype (store_queue)::batch_t &);
-	void process_batch (decltype (broadcast_queue)::batch_t &);
+	void process_batch (decltype (reply_queue)::batch_t &);
 
 	uint128_t weight (vote_list_t const &) const;
 	uint128_t weight_final (vote_list_t const &) const;
@@ -157,7 +159,7 @@ private:
 	std::chrono::seconds const request_age_cutoff{ 30 };
 
 	static bool constexpr enable_broadcast = true;
-	static bool constexpr enable_replies = false;
+	static bool constexpr enable_replies = true;
 	static bool constexpr enable_pr_broadcast = true;
 	static bool constexpr enable_random_broadcast = false;
 	static bool constexpr enable_query_frontier = false;

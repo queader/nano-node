@@ -9,29 +9,29 @@ nano::vote_storage::vote_storage (nano::node & node_a, nano::store::component & 
 	ledger{ ledger_a },
 	stats{ stats_a },
 	store_queue{ stats, nano::stat::type::vote_storage_write, nano::thread_role::name::vote_storage, /* single threaded */ 1, 1024 * 16, 1024 },
-	broadcast_queue{ stats, nano::stat::type::vote_storage_broadcast, nano::thread_role::name::vote_storage, /* threads */ 1, 1024 * 4, 512 }
+	reply_queue{ stats, nano::stat::type::vote_storage_replies, nano::thread_role::name::vote_storage, /* threads */ 1, 1024 * 4, 512 }
 {
 	store_queue.process_batch = [this] (auto & batch) {
 		process_batch (batch);
 	};
 
-	//	broadcast_queue.process_batch = [this] (auto & batch) {
-	//		process_batch (batch);
-	//	};
+	reply_queue.process_batch = [this] (auto & batch) {
+		process_batch (batch);
+	};
 }
 
 nano::vote_storage::~vote_storage ()
 {
 	// All threads should be stopped before destruction
 	debug_assert (!store_queue.joinable ());
-	debug_assert (!broadcast_queue.joinable ());
+	debug_assert (!reply_queue.joinable ());
 	debug_assert (!thread.joinable ());
 }
 
 void nano::vote_storage::start ()
 {
 	store_queue.start ();
-	//	broadcast_queue.start ();
+	reply_queue.start ();
 
 	debug_assert (!thread.joinable ());
 
@@ -49,7 +49,7 @@ void nano::vote_storage::start ()
 void nano::vote_storage::stop ()
 {
 	store_queue.stop ();
-	//	broadcast_queue.stop ();
+	reply_queue.stop ();
 
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
@@ -85,21 +85,39 @@ void nano::vote_storage::trigger (const nano::block_hash & hash, const std::shar
 	{
 		return;
 	}
-	if (trigger_pr_only && !node.rep_crawler.is_pr (*channel))
+
+	bool const is_pr = node.rep_crawler.is_pr (*channel);
+
+	if (enable_broadcast)
 	{
-		return;
+		if (!trigger_pr_only || is_pr)
+		{
+			std::lock_guard guard{ mutex };
+
+			auto [it, _] = requests.emplace (request_entry{ hash, 0 });
+			requests.modify (it, [] (auto & entry) {
+				++entry.count;
+			});
+
+			while (requests.size () > max_requests)
+			{
+				requests.get<tag_sequenced> ().pop_front ();
+			}
+		}
 	}
 
-	std::lock_guard guard{ mutex };
-
-	auto [it, _] = requests.emplace (request_entry{ hash, 0 });
-	requests.modify (it, [] (auto & entry) {
-		++entry.count;
-	});
-
-	while (requests.size () > max_requests)
+	if (enable_replies)
 	{
-		requests.get<tag_sequenced> ().pop_front ();
+		if (!is_pr)
+		{
+			if (!channel->max (nano::transport::traffic_type::vote_storage))
+			{
+				if (!recently_broadcasted.check (hash, channel))
+				{
+					reply_queue.add (reply_entry_t{ hash, channel });
+				}
+			}
+		}
 	}
 }
 
@@ -229,7 +247,7 @@ void nano::vote_storage::process_batch (decltype (store_queue)::batch_t & batch)
 	}
 }
 
-void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & batch)
+void nano::vote_storage::process_batch (decltype (reply_queue)::batch_t & batch)
 {
 	auto vote_transaction = vote_store.tx_begin_read ();
 	//	auto ledger_transaction = ledger.store.tx_begin_read ();
@@ -243,15 +261,12 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 			{
 				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply);
 
-				if (enable_replies)
-				{
-					reply (votes, hash, channel);
-				}
+				reply (votes, hash, channel);
 
-				if (enable_broadcast)
-				{
-					broadcast (votes, hash);
-				}
+				//				if (enable_broadcast)
+				//				{
+				//					broadcast (votes, hash);
+				//				}
 			}
 			else
 			{
@@ -284,11 +299,11 @@ void nano::vote_storage::process_batch (decltype (broadcast_queue)::batch_t & ba
 
 void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
 {
-	if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
-	{
-		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_channel_full, nano::stat::dir::out);
-		return;
-	}
+	//	if (channel->max (nano::transport::traffic_type::vote_storage)) // TODO: Scrutinize this
+	//	{
+	//		stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_channel_full, nano::stat::dir::out);
+	//		return;
+	//	}
 
 	if (recently_broadcasted.check_and_insert (hash, channel))
 	{
@@ -307,7 +322,7 @@ void nano::vote_storage::reply (const nano::vote_storage::vote_list_t & votes, c
 		message, [this] (auto & ec, auto size) {
 			if (ec)
 			{
-				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error, nano::stat::dir::out);
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::write_error_reply, nano::stat::dir::out);
 			}
 		},
 		nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
@@ -515,7 +530,7 @@ std::unique_ptr<nano::container_info_component> nano::vote_storage::collect_cont
 	composite->add_component (recently_broadcasted.collect_container_info ("recently_broadcasted"));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "requests", requests.size (), sizeof (decltype (requests)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "store_queue", store_queue.size (), 0 }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "broadcast_queue", broadcast_queue.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "broadcast_queue", reply_queue.size (), 0 }));
 	return composite;
 }
 
@@ -533,7 +548,6 @@ bool nano::vote_storage::recently_broadcasted::check (const nano::block_hash & h
 bool nano::vote_storage::recently_broadcasted::check_and_insert (const nano::block_hash & hash)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-
 	cleanup ();
 
 	if (recently_broadcasted_hashes.contains (hash))
@@ -544,10 +558,22 @@ bool nano::vote_storage::recently_broadcasted::check_and_insert (const nano::blo
 	return false;
 }
 
+bool nano::vote_storage::recently_broadcasted::check (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	cleanup ();
+
+	if (auto it = recently_broadcasted_map.find (channel); it != recently_broadcasted_map.end ())
+	{
+		auto & entries = it->second;
+		return entries.contains (hash);
+	}
+	return false;
+}
+
 bool nano::vote_storage::recently_broadcasted::check_and_insert (const nano::block_hash & hash, const std::shared_ptr<nano::transport::channel> & channel)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-
 	cleanup ();
 
 	if (auto it = recently_broadcasted_map.find (channel); it != recently_broadcasted_map.end ())

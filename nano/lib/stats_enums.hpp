@@ -56,6 +56,7 @@ enum class type
 
 	vote_storage,
 	vote_storage_broadcast,
+	vote_storage_replies,
 	vote_storage_write,
 
 	_last // Must be the last enum
@@ -352,6 +353,7 @@ enum class detail
 	rep_broadcast_channel_full,
 	random_broadcast_channel_full,
 	write_error_broadcast,
+	write_error_reply,
 
 	_last // Must be the last enum
 };
