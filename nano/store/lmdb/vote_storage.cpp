@@ -23,8 +23,8 @@ std::size_t nano::store::lmdb::vote_storage::put (const nano::store::write_trans
 			debug_assert (existing_vote.account == vote->account);
 			debug_assert (!existing_vote.validate ());
 
-			// Replace with newer vote
-			if (vote->timestamp () > existing_vote.timestamp ())
+			// Replace with final vote
+			if (!existing_vote.is_final () && vote->is_final ())
 			{
 				auto status2 = store.put (transaction, tables::vote_storage, key, *vote);
 				store.release_assert_success (status2);
