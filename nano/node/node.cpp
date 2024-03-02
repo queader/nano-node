@@ -222,7 +222,10 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	});
 
 	observers.vote.add ([this] (std::shared_ptr<nano::vote> vote, std::shared_ptr<nano::transport::channel> const & channel, nano::vote_code code) {
-		vote_storage.vote (vote);
+		if (code != nano::vote_code::invalid)
+		{
+			vote_storage.vote (vote);
+		}
 	});
 
 	if (!init_error ())
