@@ -3872,7 +3872,7 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 				message, [node_s = this->node.shared (), channel] (auto & ec, auto size) {
 					if (ec)
 					{
-						node_s->logger.error (nano::log::type::rpc, "Error sending flooding to: {} ({})", channel->to_string (), ec.message ());
+						node_s->logger.debug (nano::log::type::rpc, "Error sending to: {} ({})", channel->to_string (), ec.message ());
 					}
 				},
 				nano::transport::buffer_drop_policy::no_socket_drop, nano::transport::traffic_type::vote_storage);
@@ -3919,13 +3919,17 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 	auto current_block = node.ledger.head_block (transaction, account);
 	debug_assert (current_block);
 
+	std::deque<std::shared_ptr<nano::block>> blocks;
 	for (int n = 0; n < count && current_block; ++n)
 	{
-		node.logger.info (nano::log::type::rpc, "Republishing for block: {} with depth: {}", current_block->hash ().to_string (), depth);
-
-		dfs_traversal (depth, current_block, block_visitor);
-
+		blocks.push_front (current_block);
 		current_block = node.ledger.block (transaction, current_block->previous ());
+	}
+
+	for (auto & block : blocks)
+	{
+		node.logger.info (nano::log::type::rpc, "Republishing for block: {} with depth: {}", block->hash ().to_string (), depth);
+		dfs_traversal (depth, block, block_visitor);
 	}
 
 	node.logger.info (nano::log::type::rpc, "Republishing finished");
