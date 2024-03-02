@@ -51,6 +51,7 @@ enum class type : uint8_t
 	handshake,
 	rep_crawler,
 	local_block_broadcaster,
+	priority_accounts,
 
 	bootstrap_ascending,
 	bootstrap_ascending_accounts,
@@ -82,6 +83,7 @@ enum class detail : uint8_t
 	success,
 	unknown,
 	empty,
+	erased,
 
 	// processing queue
 	queue,
@@ -362,6 +364,8 @@ enum class detail : uint8_t
 	frontier_empty,
 	reply_vote,
 	reply_duplicate,
+	reply_account_not_found,
+	reply_not_a_priority,
 	broadcast_duplicate,
 	broadcast_vote_rep,
 	broadcast_vote_random,

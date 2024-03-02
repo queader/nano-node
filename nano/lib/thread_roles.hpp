@@ -45,6 +45,7 @@ enum class name
 	rep_crawler,
 	local_block_broadcasting,
 	vote_storage,
+	priority_accounts,
 };
 
 /*

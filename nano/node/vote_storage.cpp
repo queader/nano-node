@@ -10,7 +10,7 @@ nano::vote_storage::vote_storage (nano::node & node_a, nano::store::component & 
 	ledger{ ledger_a },
 	stats{ stats_a },
 	store_queue{ stats, nano::stat::type::vote_storage_write, nano::thread_role::name::vote_storage, /* single threaded */ 1, 1024 * 16, 1024 },
-	reply_queue{ stats, nano::stat::type::vote_storage_replies, nano::thread_role::name::vote_storage, /* threads */ 1, 1024 * 4, 512 }
+	reply_queue{ stats, nano::stat::type::vote_storage_replies, nano::thread_role::name::vote_storage, /* threads */ 2, 1024 * 32, 1024 }
 {
 	store_queue.process_batch = [this] (auto & batch) {
 		process_batch (batch);
@@ -251,10 +251,25 @@ void nano::vote_storage::process_batch (decltype (store_queue)::batch_t & batch)
 void nano::vote_storage::process_batch (decltype (reply_queue)::batch_t & batch)
 {
 	auto vote_transaction = vote_store.tx_begin_read ();
-	//	auto ledger_transaction = ledger.store.tx_begin_read ();
+	auto ledger_transaction = ledger.store.tx_begin_read ();
 
 	for (auto & [hash, channel] : batch)
 	{
+		if (reply_priority_accounts_only)
+		{
+			auto account = ledger.account (ledger_transaction, hash);
+			if (!account)
+			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_account_not_found);
+				continue;
+			}
+			if (!node.priority_accounts.is_priority (account.value ()))
+			{
+				stats.inc (nano::stat::type::vote_storage, nano::stat::detail::reply_not_a_priority);
+				continue;
+			}
+		}
+
 		// Check votes for specific hash
 		{
 			auto votes = query_hash (vote_transaction, hash, /* final only */ true);

@@ -24,6 +24,7 @@
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/online_reps.hpp>
 #include <nano/node/portmapping.hpp>
+#include <nano/node/priority_accounts.hpp>
 #include <nano/node/process_live_dispatcher.hpp>
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/request_aggregator.hpp>
@@ -165,6 +166,7 @@ public:
 	nano::port_mapping port_mapping;
 	nano::online_reps online_reps;
 	nano::rep_crawler rep_crawler;
+	nano::priority_accounts priority_accounts;
 	nano::vote_storage vote_storage;
 	nano::vote_processor vote_processor;
 	unsigned warmed_up;
