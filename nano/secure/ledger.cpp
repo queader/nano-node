@@ -842,6 +842,10 @@ nano::uint128_t nano::ledger::balance (store::transaction const & transaction, n
 	}
 	auto block = store.block.get (transaction, hash);
 	debug_assert (block != nullptr);
+	if (block == nullptr)
+	{
+		return 0;
+	}
 	return balance (*block);
 }
 
