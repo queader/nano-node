@@ -161,6 +161,7 @@ private:
 	bool const ignore_255_votes{ true };
 	float const max_busy_ratio{ 0.5f };
 	std::chrono::seconds const request_age_cutoff{ 30 };
+	bool const reply_priority_accounts_only{ true };
 
 	static bool constexpr enable_broadcast = true;
 	static bool constexpr enable_replies = true;

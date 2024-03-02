@@ -344,6 +344,8 @@ enum class detail
 	frontier_empty,
 	reply_vote,
 	reply_duplicate,
+	reply_account_not_found,
+	reply_not_a_priority,
 	broadcast_duplicate,
 	broadcast_vote_rep,
 	broadcast_vote_random,
