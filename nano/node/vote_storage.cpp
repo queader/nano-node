@@ -182,7 +182,7 @@ std::unordered_set<nano::block_hash> nano::vote_storage::run_broadcasts (ordered
 
 	for (auto & entry : requests_l.get<tag_count> ())
 	{
-		std::cout << entry.count << std::endl;
+		//		std::cout << entry.count << std::endl;
 
 		auto votes = query_hash (vote_transaction, entry.hash);
 		if (!votes.empty ())

@@ -102,7 +102,7 @@ public:
 	void republish ();
 	void republish_dependencies ();
 	/// @returns <num_blocks, num_votes>
-	std::tuple<size_t, size_t> republish_dependencies_impl (nano::account account, size_t depth, bool broadcast_votes);
+	std::tuple<size_t, size_t> republish_dependencies_impl (nano::account account, size_t depth, size_t count, bool broadcast_votes);
 	void search_pending ();
 	void search_receivable ();
 	void search_pending_all ();

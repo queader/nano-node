@@ -3760,11 +3760,12 @@ void nano::json_handler::republish_dependencies ()
 	try
 	{
 		auto depth = parse_count (get ("depth").value_or ("6"));
+		auto count = parse_count (get ("count").value_or ("1"));
 		auto account = parse_account (value_or_throw (get ("account"), nano::error_common::missing_account));
 
 		bool broadcast_votes = true;
 
-		auto [num_blocks, num_votes] = republish_dependencies_impl (account, depth, broadcast_votes);
+		auto [num_blocks, num_votes] = republish_dependencies_impl (account, depth, count, broadcast_votes);
 
 		response_l.put ("blocks", num_blocks);
 		response_l.put ("votes", num_votes);
@@ -3776,9 +3777,9 @@ void nano::json_handler::republish_dependencies ()
 	response_errors ();
 }
 
-std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano::account account, size_t depth, bool broadcast_votes)
+std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano::account account, size_t depth, size_t count, bool broadcast_votes)
 {
-	node.logger.info (nano::log::type::rpc, "Republishing blocks for account: {} with depth: {}, broadcast_votes: {}", account.to_account (), depth, broadcast_votes);
+	node.logger.info (nano::log::type::rpc, "Republishing blocks for account: {} with depth: {}, count: {}", account.to_account (), depth, count);
 
 	auto transaction = node.store.tx_begin_read ();
 
@@ -3791,17 +3792,14 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 
 	node.logger.debug (nano::log::type::rpc, "Account info: {}", account_info);
 
-	auto head_block = node.ledger.head_block (transaction, account);
-	release_assert (head_block);
-
-	auto dfs_traversal = [] (size_t max_depth, auto start, auto && visitor) {
+	std::set<nano::block_hash> visited;
+	auto dfs_traversal = [&visited] (size_t max_depth, auto start, auto && visitor) {
 		struct entry
 		{
 			decltype (start) node;
 			size_t depth;
 		};
 
-		std::set<decltype (start)> visited;
 		std::stack<entry> stack;
 		stack.push (entry{ start, 0 });
 
@@ -3816,7 +3814,7 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 			{
 				for (auto & dep : deps)
 				{
-					if (visited.insert (dep).second)
+					if (visited.insert (dep->hash ()).second)
 					{
 						stack.push (entry{ dep, current.depth + 1 });
 					}
@@ -3885,7 +3883,7 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 	int num_blocks = 0;
 	int num_votes = 0;
 
-	dfs_traversal (depth, head_block, [&, this] (auto block) {
+	auto block_visitor = [&, this] (auto block) {
 		num_blocks++;
 		node.logger.debug (nano::log::type::rpc, "Republishing block: {}", block->hash ().to_string ());
 
@@ -3916,7 +3914,19 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 		}
 
 		return block_dependencies (transaction, block);
-	});
+	};
+
+	auto current_block = node.ledger.head_block (transaction, account);
+	debug_assert (current_block);
+
+	for (int n = 0; n < count && current_block; ++n)
+	{
+		node.logger.info (nano::log::type::rpc, "Republishing for block: {} with depth: {}", current_block->hash ().to_string (), depth);
+
+		dfs_traversal (depth, current_block, block_visitor);
+
+		current_block = node.ledger.block (transaction, current_block->previous ());
+	}
 
 	node.logger.info (nano::log::type::rpc, "Republishing finished");
 
