@@ -44,6 +44,7 @@ enum class name
 	scheduler_priority,
 	vote_storage,
 	stats,
+	priority_accounts,
 };
 
 /*

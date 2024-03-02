@@ -50,6 +50,7 @@ enum class type
 	election_scheduler,
 	optimistic_scheduler,
 	handshake,
+	priority_accounts,
 
 	bootstrap_ascending,
 	bootstrap_ascending_accounts,
@@ -81,6 +82,7 @@ enum class detail
 	success,
 	unknown,
 	empty,
+	erased,
 
 	// processing queue
 	queue,

@@ -178,6 +178,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, std::filesystem::path cons
 	application_path (application_path_a),
 	port_mapping (*this),
 	rep_crawler (*this),
+	priority_accounts{ *this },
 	vote_storage{ *this, vote_store, network, ledger, stats },
 	vote_processor (active, observers, stats, config, flags, logger, online_reps, rep_crawler, ledger, network_params),
 	warmed_up (0),
@@ -562,6 +563,7 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (node.ascendboot.collect_container_info ("bootstrap_ascending"));
 	composite->add_component (node.unchecked.collect_container_info ("unchecked"));
 	composite->add_component (node.vote_storage.collect_container_info ("vote_storage"));
+	composite->add_component (node.priority_accounts.collect_container_info ("priority_accounts"));
 	return composite;
 }
 
@@ -669,6 +671,7 @@ void nano::node::start ()
 	}
 	websocket.start ();
 	telemetry.start ();
+	priority_accounts.start ();
 	vote_storage.start ();
 	stats.start ();
 }
@@ -712,6 +715,7 @@ void nano::node::stop ()
 	epoch_upgrader.stop ();
 	workers.stop ();
 	vote_storage.stop ();
+	priority_accounts.stop ();
 	// work pool is not stopped on purpose due to testing setup
 }
 

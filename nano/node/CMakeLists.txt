@@ -122,6 +122,8 @@ add_library(
   peer_exclusion.cpp
   portmapping.hpp
   portmapping.cpp
+        priority_accounts.hpp
+        priority_accounts.cpp
   process_live_dispatcher.cpp
   process_live_dispatcher.hpp
   repcrawler.hpp
