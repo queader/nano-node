@@ -2,6 +2,7 @@
 
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/logging.hpp>
+#include <nano/node/fair_queue.hpp>
 #include <nano/secure/common.hpp>
 
 #include <chrono>
@@ -65,15 +66,14 @@ public:
 	block_processor (nano::node &, nano::write_database_queue &);
 
 	void stop ();
-	std::size_t size ();
-	bool full ();
-	bool half_full ();
+	std::size_t size () const;
+	std::size_t size (block_source) const;
+	bool full () const;
+	bool half_full () const;
 	void add (std::shared_ptr<nano::block> const &, block_source = block_source::live);
 	std::optional<nano::block_status> add_blocking (std::shared_ptr<nano::block> const & block, block_source);
 	void force (std::shared_ptr<nano::block> const &);
 	bool should_log ();
-	bool have_blocks_ready ();
-	bool have_blocks ();
 	void process_blocks ();
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
 
@@ -105,12 +105,12 @@ private:
 	bool stopped{ false };
 	bool active{ false };
 
-	std::deque<context> blocks;
-	std::deque<context> forced;
+	nano::fair_queue<block_source, context> queue;
 
 	std::chrono::steady_clock::time_point next_log;
+
 	nano::condition_variable condition;
-	nano::mutex mutex{ mutex_identifier (mutexes::block_processor) };
+	mutable nano::mutex mutex{ mutex_identifier (mutexes::block_processor) };
 	std::thread processing_thread;
 };
 }
