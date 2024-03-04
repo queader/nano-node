@@ -125,17 +125,12 @@ bool nano::block_processor::half_full () const
 	return size () >= node.flags.block_processor_full_size / 2;
 }
 
-void nano::block_processor::add (std::shared_ptr<nano::block> const & block, block_source const source, std::shared_ptr<nano::transport::channel> channel)
+bool nano::block_processor::add (std::shared_ptr<nano::block> const & block, block_source const source, std::shared_ptr<nano::transport::channel> channel)
 {
-	if (full ())
-	{
-		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::overfill);
-		return;
-	}
 	if (node.network_params.work.validate_entry (*block)) // true => error
 	{
 		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::insufficient_work);
-		return;
+		return false; // Not added
 	}
 
 	node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::process);
@@ -144,7 +139,7 @@ void nano::block_processor::add (std::shared_ptr<nano::block> const & block, blo
 	to_string (source),
 	channel ? channel->to_string () : "<unknown>"); // TODO: Lazy eval
 
-	add_impl (context{ block, source }, channel);
+	return add_impl (context{ block, source }, channel);
 }
 
 std::optional<nano::block_status> nano::block_processor::add_blocking (std::shared_ptr<nano::block> const & block, block_source const source)
@@ -182,17 +177,23 @@ void nano::block_processor::force (std::shared_ptr<nano::block> const & block_a)
 	add_impl (context{ block_a, block_source::forced });
 }
 
-void nano::block_processor::add_impl (context ctx, std::shared_ptr<nano::transport::channel> channel)
+bool nano::block_processor::add_impl (context ctx, std::shared_ptr<nano::transport::channel> channel)
 {
+	bool added = false;
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		bool overflow = queue.push (std::move (ctx), ctx.source, channel);
-		if (overflow)
-		{
-			node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::queue_overflow);
-		}
+		added = queue.push (std::move (ctx), ctx.source, channel);
 	}
-	condition.notify_all ();
+	if (added)
+	{
+		condition.notify_all ();
+	}
+	else
+	{
+		node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::overfill);
+		node.stats.inc (nano::stat::type::blockprocessor_overfill, to_stat_detail (ctx.source));
+	}
+	return added;
 }
 
 void nano::block_processor::rollback_competitor (store::write_transaction const & transaction, nano::block const & block)

@@ -38,6 +38,7 @@ enum class type : uint8_t
 	blockprocessor,
 	blockprocessor_source,
 	blockprocessor_result,
+	blockprocessor_overfill,
 	bootstrap_server,
 	active,
 	active_started,

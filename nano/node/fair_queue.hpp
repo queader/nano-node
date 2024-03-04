@@ -52,13 +52,12 @@ private:
 
 		bool push (Request request)
 		{
-			requests.push_back (std::move (request));
-			if (requests.size () > max_size)
+			if (requests.size () < max_size)
 			{
-				requests.pop_front ();
-				return true; // Overflow
+				requests.push_back (std::move (request));
+				return true; // Added
 			}
-			return false; // No overflow
+			return false; // Dropped
 		}
 
 		bool empty () const
@@ -111,11 +110,9 @@ public:
 	}
 
 	/// Should be called periodically to clean up stale channels
-	void periodic_cleanup ()
+	void periodic_cleanup (std::chrono::milliseconds interval = std::chrono::milliseconds{ 1000 * 30 })
 	{
-		std::chrono::seconds const cleanup_interval{ 30 };
-
-		if (elapsed (last_cleanup, cleanup_interval))
+		if (elapsed (last_cleanup, interval))
 		{
 			last_cleanup = std::chrono::steady_clock::now ();
 			cleanup ();
@@ -143,7 +140,7 @@ public:
 		release_assert (it != queues.end ());
 
 		auto & queue = it->second;
-		return queue.push (std::move (request));
+		return queue.push (std::move (request)); // True if added, false if dropped
 	}
 
 public:
