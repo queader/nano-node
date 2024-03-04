@@ -3708,7 +3708,30 @@ void nano::json_handler::republish ()
 				}
 				hash = node.store.block.successor (transaction, hash);
 			}
-			node.network.flood_block_many (std::move (republish_bundle), nullptr, 25);
+			//			node.network.flood_block_many (std::move (republish_bundle), nullptr, 25);
+
+			int num_blocks = 0;
+			int num_votes = 0;
+
+			for (auto const & block : republish_bundle)
+			{
+				++num_blocks;
+				node.network.flood_block_initial (block);
+
+				auto votes = node.vote_storage.query_hash (block->hash ());
+				for (auto const & vote : votes)
+				{
+					++num_votes;
+					node.network.flood_vote_pr (vote);
+					node.network.flood_vote (vote, 2.0f);
+				}
+
+				std::this_thread::sleep_for (std::chrono::seconds{ 1 });
+			}
+
+			response_l.put ("num_blocks", num_blocks);
+			response_l.put ("num_votes", num_votes);
+
 			response_l.put ("success", ""); // obsolete
 			response_l.add_child ("blocks", blocks);
 		}
