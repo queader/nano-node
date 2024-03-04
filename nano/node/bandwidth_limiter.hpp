@@ -21,11 +21,11 @@ nano::bandwidth_limit_type to_bandwidth_limit_type (nano::transport::traffic_typ
 /**
  * Class that tracks and manages bandwidth limits for IO operations
  */
-class bandwidth_limiter final
+class bandwidth_limiter_st final // Single-threaded
 {
 public:
 	// initialize with limit 0 = unbounded
-	bandwidth_limiter (std::size_t limit, double burst_ratio);
+	bandwidth_limiter_st (std::size_t limit, double burst_ratio);
 
 	bool should_pass (std::size_t buffer_size);
 	void reset (std::size_t limit, double burst_ratio);
@@ -33,6 +33,22 @@ public:
 private:
 	nano::rate::token_bucket bucket;
 };
+
+class bandwidth_limiter_mt final // Multi-threaded
+{
+public:
+	// initialize with limit 0 = unbounded
+	bandwidth_limiter_mt (std::size_t limit, double burst_ratio);
+
+	bool should_pass (std::size_t buffer_size);
+	void reset (std::size_t limit, double burst_ratio);
+
+private:
+	nano::rate::token_bucket bucket;
+	nano::mutex mutex;
+};
+
+using bandwidth_limiter = bandwidth_limiter_mt;
 
 class outbound_bandwidth_limiter final
 {
