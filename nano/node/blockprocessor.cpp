@@ -45,11 +45,45 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 			block_processed.notify (result, context);
 		}
 	});
-	
+
 	processing_thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::block_processing);
 		this->process_blocks ();
 	});
+
+	queue.max_size_query = [this] (auto const & origin) {
+		switch (origin.source)
+		{
+			case nano::block_source::live:
+				return 128;
+			default:
+				return 1024 * 16;
+		}
+	};
+
+	queue.priority_query = [this] (auto const & origin) {
+		switch (origin.source)
+		{
+			case nano::block_source::live:
+				return 1;
+			case nano::block_source::local:
+				return 16;
+			case nano::block_source::bootstrap:
+				return 8;
+			default:
+				return 1;
+		}
+	};
+
+	queue.rate_limit_query = [this] (auto const & origin) -> std::pair<size_t, double> {
+		switch (origin.source)
+		{
+			case nano::block_source::live:
+				return { 100, 3.0 };
+			default:
+				return { 0, 1.0 }; // Unlimited
+		}
+	};
 }
 
 void nano::block_processor::stop ()
@@ -85,7 +119,7 @@ bool nano::block_processor::half_full () const
 	return size () >= node.flags.block_processor_full_size / 2;
 }
 
-void nano::block_processor::add (std::shared_ptr<nano::block> const & block, block_source const source)
+void nano::block_processor::add (std::shared_ptr<nano::block> const & block, block_source const source, std::shared_ptr<nano::transport::channel> channel)
 {
 	if (full ())
 	{
@@ -99,9 +133,12 @@ void nano::block_processor::add (std::shared_ptr<nano::block> const & block, blo
 	}
 
 	node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::process);
-	node.logger.debug (nano::log::type::blockprocessor, "Processing block (async): {} (source: {})", block->hash ().to_string (), to_string (source));
+	node.logger.debug (nano::log::type::blockprocessor, "Processing block (async): {} (source: {} {})",
+	block->hash ().to_string (),
+	to_string (source),
+	channel ? channel->to_string () : "<unknown>"); // TODO: Lazy eval
 
-	add_impl (context{ block, source });
+	add_impl (context{ block, source }, channel);
 }
 
 std::optional<nano::block_status> nano::block_processor::add_blocking (std::shared_ptr<nano::block> const & block, block_source const source)
@@ -136,10 +173,18 @@ void nano::block_processor::force (std::shared_ptr<nano::block> const & block_a)
 	node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::force);
 	node.logger.debug (nano::log::type::blockprocessor, "Forcing block: {}", block_a->hash ().to_string ());
 
+	add_impl (context{ block_a, block_source::forced });
+}
+
+void nano::block_processor::add_impl (context ctx, std::shared_ptr<nano::transport::channel> channel)
+{
 	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		//		forced.emplace_back (context{ block_a, block_source::forced });
-		queue.push (context{ block_a, block_source::forced }, block_source::forced);
+		nano::lock_guard<nano::mutex> guard{ mutex };
+		bool overflow = queue.push (std::move (ctx), ctx.source, channel);
+		if (overflow)
+		{
+			node.stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::queue_overflow);
+		}
 	}
 	condition.notify_all ();
 }
@@ -224,16 +269,6 @@ bool nano::block_processor::should_log ()
 	return result;
 }
 
-void nano::block_processor::add_impl (context ctx)
-{
-	release_assert (ctx.source != nano::block_source::forced);
-	{
-		nano::lock_guard<nano::mutex> guard{ mutex };
-		//		blocks.emplace_back (std::move (ctx));
-	}
-	condition.notify_all ();
-}
-
 auto nano::block_processor::next () -> context
 {
 	debug_assert (!mutex.try_lock ());
@@ -258,6 +293,8 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 	nano::timer<std::chrono::milliseconds> timer_l;
 
 	lock_a.lock ();
+
+	queue.periodic_cleanup ();
 
 	timer_l.start ();
 

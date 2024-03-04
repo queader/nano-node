@@ -75,6 +75,7 @@ enum class detail : uint8_t
 	none,
 	success,
 	unknown,
+	queue_overflow,
 
 	// processing queue
 	queue,
