@@ -12,6 +12,7 @@
 #include <boost/circular_buffer.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -28,20 +29,43 @@ class fair_queue final
 private:
 	struct entry
 	{
-		//		using queue_t = boost::circular_buffer<Request>;
 		using queue_t = std::deque<Request>;
 
 		queue_t requests;
-		nano::bandwidth_limiter limiter;
+		nano::bandwidth_limiter_st limiter;
 		size_t const priority;
 		size_t const max_size;
 
 		entry (size_t max_size, size_t priority, size_t max_rate, double max_burst_ratio) :
-			//			requests{ max_size },
 			limiter{ max_rate, max_burst_ratio },
 			priority{ priority },
 			max_size{ max_size }
 		{
+		}
+
+		Request pop ()
+		{
+			release_assert (!requests.empty ());
+
+			auto request = std::move (requests.front ());
+			requests.pop_front ();
+			return request;
+		}
+
+		bool push (Request request)
+		{
+			requests.push_back (std::move (request));
+			if (requests.size () > max_size)
+			{
+				requests.pop_front ();
+				return true; // Overflow
+			}
+			return false; // No overflow
+		}
+
+		bool empty () const
+		{
+			return requests.empty ();
 		}
 	};
 
@@ -58,8 +82,6 @@ public:
 	using value_type = std::pair<Request, source_type>;
 
 public:
-	explicit fair_queue () = default;
-
 	size_t size (Source source, std::shared_ptr<nano::transport::channel> channel = nullptr) const
 	{
 		auto it = queues.find (source_type{ source, channel });
@@ -75,8 +97,8 @@ public:
 
 	bool empty () const
 	{
-		return std::any_of (queues.begin (), queues.end (), [] (auto const & queue) {
-			return !queue.second.requests.empty ();
+		return std::all_of (queues.begin (), queues.end (), [] (auto const & queue) {
+			return queue.second.requests.empty ();
 		});
 	}
 
@@ -91,14 +113,18 @@ public:
 	}
 
 	/// Should be called periodically to clean up stale channels
-	void cleanup ()
+	void periodic_cleanup ()
 	{
-		erase_if (queues, [] (auto const & entry) {
-			return !entry.first.second.alive ();
-		});
+		std::chrono::seconds const cleanup_interval{ 30 };
+
+		if (elapsed (last_cleanup, cleanup_interval))
+		{
+			last_cleanup = std::chrono::steady_clock::now ();
+			cleanup ();
+		}
 	}
 
-	void push (Request request, Source source, std::shared_ptr<nano::transport::channel> channel = nullptr)
+	bool push (Request request, Source source, std::shared_ptr<nano::transport::channel> channel = nullptr)
 	{
 		auto const source_key = source_type{ source, channel };
 
@@ -109,18 +135,18 @@ public:
 		{
 			auto max_size = max_size_query (source_key);
 			auto priority = priority_query (source_key);
-			auto [max_rate, max_burst_ratio] = rate_query (source_key);
+			auto [max_rate, max_burst_ratio] = rate_limit_query (source_key);
+
+			debug_assert (max_size > 0);
+			debug_assert (priority > 0);
 
 			entry new_entry{ max_size, priority, max_rate, max_burst_ratio };
-
-			//			it = queues.emplace (std::make_pair (source_key, entry{ max_size, priority, max_rate, max_burst_ratio })).first;
+			it = queues.emplace (source_type{ source, channel }, std::move (new_entry)).first;
 		}
+		release_assert (it != queues.end ());
 
 		auto & queue = it->second;
-
-		//		queue.requests.push_back (std::move (request));
-
-		//		queue.requests.push_back (std::move (request));
+		return queue.push (std::move (request));
 	}
 
 public:
@@ -130,23 +156,96 @@ public:
 
 	query_size_t max_size_query{ [] (auto const & origin) { debug_assert (false, "max_size_query callback empty"); return 0; } };
 	query_priority_t priority_query{ [] (auto const & origin) { debug_assert (false, "priority_query callback empty"); return 0; } };
-	query_rate_t rate_query{ [] (auto const & origin) { debug_assert (false, "rate_query callback empty"); return std::pair<size_t, double>{ 0, 1.0 }; } };
+	query_rate_t rate_limit_query{ [] (auto const & origin) { debug_assert (false, "rate_query callback empty"); return std::pair<size_t, double>{ 0, 1.0 }; } };
 
 public:
 	value_type next ()
 	{
+		debug_assert (!empty ()); // Should be checked before calling next
+
+		auto should_seek = [&, this] () {
+			if (current_queue == queues.end ())
+			{
+				return true;
+			}
+			auto & queue = current_queue->second;
+			if (queue.empty ())
+			{
+				return true;
+			}
+			// Allow up to `queue.priority` requests to be processed before moving to the next queue
+			if (current_queue_counter >= queue.priority)
+			{
+				return true;
+			}
+			return false;
+		};
+
+		if (should_seek ())
+		{
+			seek_next ();
+		}
+
+		release_assert (current_queue != queues.end ());
+
+		auto & source = current_queue->first;
+		auto & queue = current_queue->second;
+
+		++current_queue_counter;
+		auto request = queue.pop ();
+		return { std::move (request), source };
 	}
 
-	std::deque<value_type> next_batch (size_t max_count);
+	std::deque<value_type> next_batch (size_t max_count)
+	{
+		// TODO: Naive implementation, could be optimized
+		std::deque<value_type> result;
+		while (!empty () && result.size () < max_count)
+		{
+			result.emplace_back (next ());
+		}
+		return result;
+	}
+
+private:
+	void seek_next ()
+	{
+		do
+		{
+			if (current_queue != queues.end ())
+			{
+				++current_queue;
+			}
+			if (current_queue == queues.end ())
+			{
+				current_queue = queues.begin ();
+			}
+			release_assert (current_queue != queues.end ());
+		} while (current_queue->second.empty ());
+	}
+
+	void cleanup ()
+	{
+		current_queue = queues.end (); // Invalidate current iterator
+
+		erase_if (queues, [] (auto const & entry) {
+			return !entry.first.channel->alive ();
+		});
+	}
 
 private:
 	std::map<source_type, entry> queues;
+	decltype (queues)::iterator current_queue{ queues.end () };
+	size_t current_queue_counter{ 0 };
+
+	std::chrono::steady_clock::time_point last_cleanup{};
 
 public:
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name)
 	{
 		auto composite = std::make_unique<container_info_composite> (name);
-		//		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queue", queue.size (), sizeof (typename decltype (queue)::value_type) }));
+		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queues", queues.size (), sizeof (typename decltype (queues)::value_type) }));
+		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "total_size", total_size (), sizeof (typename decltype (queues)::value_type) }));
 		return composite;
 	}
 };

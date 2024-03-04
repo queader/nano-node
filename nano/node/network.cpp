@@ -255,6 +255,7 @@ public:
 	{
 		if (!node.block_processor.full ())
 		{
+			// TODO: Pass channel source
 			node.process_active (message_a.block);
 		}
 		else
