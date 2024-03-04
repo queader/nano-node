@@ -646,6 +646,7 @@ void nano::node::start ()
 		port_mapping.start ();
 	}
 	wallets.start ();
+	block_processor.start ();
 	active.start ();
 	generator.start ();
 	final_generator.start ();
