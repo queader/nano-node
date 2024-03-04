@@ -163,7 +163,7 @@ private:
 	std::chrono::seconds const request_age_cutoff{ 30 };
 	bool const reply_priority_accounts_only{ true };
 
-	static bool constexpr enable_broadcast = true;
+	static bool constexpr enable_broadcast = false;
 	static bool constexpr enable_replies = true;
 	static bool constexpr enable_pr_broadcast = true;
 	static bool constexpr enable_random_broadcast = false;
