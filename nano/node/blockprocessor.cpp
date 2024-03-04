@@ -46,6 +46,7 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 		}
 	});
 
+	// TODO: Make these configurable
 	queue.max_size_query = [this] (auto const & origin) {
 		switch (origin.source)
 		{
@@ -56,6 +57,7 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 		}
 	};
 
+	// TODO: Make these configurable
 	queue.priority_query = [this] (auto const & origin) {
 		switch (origin.source)
 		{
@@ -67,16 +69,6 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 				return 8;
 			default:
 				return 1;
-		}
-	};
-
-	queue.rate_limit_query = [this] (auto const & origin) -> std::pair<size_t, double> {
-		switch (origin.source)
-		{
-			case nano::block_source::live:
-				return { 100, 3.0 };
-			default:
-				return { 0, 1.0 }; // Unlimited
 		}
 	};
 }

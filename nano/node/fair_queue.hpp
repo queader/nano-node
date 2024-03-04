@@ -32,12 +32,10 @@ private:
 		using queue_t = std::deque<Request>;
 
 		queue_t requests;
-		nano::bandwidth_limiter_st limiter;
 		size_t const priority;
 		size_t const max_size;
 
-		entry (size_t max_size, size_t priority, size_t max_rate, double max_burst_ratio) :
-			limiter{ max_rate, max_burst_ratio },
+		entry (size_t max_size, size_t priority) :
 			priority{ priority },
 			max_size{ max_size }
 		{
@@ -135,13 +133,12 @@ public:
 		{
 			auto max_size = max_size_query (source_key);
 			auto priority = priority_query (source_key);
-			auto [max_rate, max_burst_ratio] = rate_limit_query (source_key);
 
 			debug_assert (max_size > 0);
 			debug_assert (priority > 0);
 
-			entry new_entry{ max_size, priority, max_rate, max_burst_ratio };
-			it = queues.emplace (source_type{ source, channel }, std::move (new_entry)).first;
+			// It's safe to not invalidate current iterator, since std::map container guarantees that iterators are not invalidated by insert operations
+			it = queues.emplace (source_type{ source, channel }, entry{ max_size, priority }).first;
 		}
 		release_assert (it != queues.end ());
 
@@ -150,13 +147,11 @@ public:
 	}
 
 public:
-	using query_size_t = std::function<size_t (source_type const &)>;
-	using query_priority_t = std::function<size_t (source_type const &)>;
-	using query_rate_t = std::function<std::pair<size_t, double> (source_type const &)>;
+	using max_size_query_t = std::function<size_t (source_type const &)>;
+	using priority_query_t = std::function<size_t (source_type const &)>;
 
-	query_size_t max_size_query{ [] (auto const & origin) { debug_assert (false, "max_size_query callback empty"); return 0; } };
-	query_priority_t priority_query{ [] (auto const & origin) { debug_assert (false, "priority_query callback empty"); return 0; } };
-	query_rate_t rate_limit_query{ [] (auto const & origin) { debug_assert (false, "rate_query callback empty"); return std::pair<size_t, double>{ 0, 1.0 }; } };
+	max_size_query_t max_size_query{ [] (auto const & origin) { debug_assert (false, "max_size_query callback empty"); return 0; } };
+	priority_query_t priority_query{ [] (auto const & origin) { debug_assert (false, "priority_query callback empty"); return 0; } };
 
 public:
 	value_type next ()
@@ -192,8 +187,7 @@ public:
 		auto & queue = current_queue->second;
 
 		++current_queue_counter;
-		auto request = queue.pop ();
-		return { std::move (request), source };
+		return { queue.pop (), source };
 	}
 
 	std::deque<value_type> next_batch (size_t max_count)
@@ -226,7 +220,8 @@ private:
 
 	void cleanup ()
 	{
-		current_queue = queues.end (); // Invalidate current iterator
+		// Invalidate the current iterator
+		current_queue = queues.end ();
 
 		erase_if (queues, [] (auto const & entry) {
 			return !entry.first.channel->alive ();
