@@ -204,6 +204,7 @@ public:
 private:
 	void seek_next ()
 	{
+		current_queue_counter = 0;
 		do
 		{
 			if (current_queue != queues.end ())
@@ -224,7 +225,12 @@ private:
 		current_queue = queues.end ();
 
 		erase_if (queues, [] (auto const & entry) {
-			return !entry.first.channel->alive ();
+			if (entry.first.channel)
+			{
+				return !entry.first.channel->alive ();
+			}
+			// Some sources (eg. local RPC) don't have an associated channel, never remove their queue
+			return false;
 		});
 	}
 

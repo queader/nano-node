@@ -450,16 +450,8 @@ void nano::block_processor::queue_unchecked (store::write_transaction const & tr
 
 std::unique_ptr<nano::container_info_component> nano::block_processor::collect_container_info (std::string const & name)
 {
-	//	std::size_t blocks_count;
-	//	{
-	//		nano::lock_guard<nano::mutex> guard{ mutex };
-	//		blocks_count = queue.total_size ();
-	//	}
-
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (queue.collect_container_info ("queue"));
-	//	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks", blocks_count, sizeof (decltype (blocks)::value_type) }));
-	//	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "forced", forced_count, sizeof (decltype (forced)::value_type) }));
 	return composite;
 }
 
