@@ -204,6 +204,10 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	vote_cache.serialize (vote_cache_l);
 	toml.put_child ("vote_cache", vote_cache_l);
 
+	nano::tomlconfig block_processor_l;
+	block_processor.serialize (block_processor_l);
+	toml.put_child ("block_processor", block_processor_l);
+
 	return toml.get_error ();
 }
 
@@ -271,6 +275,12 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 		{
 			auto config_l = toml.get_required_child ("vote_cache");
 			vote_cache.deserialize (config_l);
+		}
+
+		if (toml.has_key ("block_processor"))
+		{
+			auto config_l = toml.get_required_child ("block_processor");
+			block_processor.deserialize (config_l);
 		}
 
 		if (toml.has_key ("work_peers"))

@@ -35,6 +35,24 @@ enum class block_source
 std::string_view to_string (block_source);
 nano::stat::detail to_stat_detail (block_source);
 
+class block_processor_config final
+{
+public:
+	nano::error deserialize (nano::tomlconfig & toml);
+	nano::error serialize (nano::tomlconfig & toml) const;
+
+public:
+	// Maximum number of blocks to queue from network peers
+	size_t max_peer_queue{ 128 };
+	// Maximum number of blocks to queue from system components (local RPC, bootstrap)
+	size_t max_system_queue{ 16 * 1024 };
+
+	// Higher priority gets processed more frequently
+	size_t priority_live{ 1 };
+	size_t priority_bootstrap{ 8 };
+	size_t priority_local{ 16 };
+};
+
 /**
  * Processing blocks is a potentially long IO operation.
  * This class isolates block insertion from other operations like servicing network operations
@@ -102,6 +120,7 @@ private:
 	bool add_impl (context, std::shared_ptr<nano::transport::channel> channel = nullptr);
 
 private: // Dependencies
+	block_processor_config const & config;
 	nano::node & node;
 	nano::write_database_queue & write_database_queue;
 

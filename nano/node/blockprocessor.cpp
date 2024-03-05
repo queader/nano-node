@@ -34,6 +34,7 @@ void nano::block_processor::context::set_result (result_t const & result)
  */
 
 nano::block_processor::block_processor (nano::node & node_a, nano::write_database_queue & write_database_queue_a) :
+	config{ node_a.config.block_processor },
 	node (node_a),
 	write_database_queue (write_database_queue_a),
 	next_log (std::chrono::steady_clock::now ())
@@ -51,9 +52,9 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 		switch (origin.source)
 		{
 			case nano::block_source::live:
-				return 128;
+				return config.max_peer_queue;
 			default:
-				return 1024 * 16;
+				return config.max_system_queue;
 		}
 	};
 
@@ -62,13 +63,15 @@ nano::block_processor::block_processor (nano::node & node_a, nano::write_databas
 		switch (origin.source)
 		{
 			case nano::block_source::live:
-				return 1;
-			case nano::block_source::local:
-				return 16;
+				return config.priority_live;
 			case nano::block_source::bootstrap:
-				return 8;
+			case nano::block_source::bootstrap_legacy:
+			case nano::block_source::unchecked:
+				return config.priority_bootstrap;
+			case nano::block_source::local:
+				return config.priority_local;
 			default:
-				return 1;
+				return size_t{ 1 };
 		}
 	};
 }
@@ -466,4 +469,30 @@ nano::stat::detail nano::to_stat_detail (nano::block_source type)
 	auto value = magic_enum::enum_cast<nano::stat::detail> (magic_enum::enum_name (type));
 	debug_assert (value);
 	return value.value_or (nano::stat::detail{});
+}
+
+/*
+ * block_processor_config
+ */
+
+nano::error nano::block_processor_config::serialize (nano::tomlconfig & toml) const
+{
+	toml.put ("max_peer_queue", max_peer_queue, "Maximum number of blocks to queue from network peers. \ntype:uint64");
+	toml.put ("max_system_queue", max_system_queue, "Maximum number of blocks to queue from system components (local RPC, bootstrap). \ntype:uint64");
+	toml.put ("priority_live", priority_live, "Priority for live network blocks. Higher priority gets processed more frequently. \ntype:uint64");
+	toml.put ("priority_bootstrap", priority_bootstrap, "Priority for bootstrap blocks. Higher priority gets processed more frequently. \ntype:uint64");
+	toml.put ("priority_local", priority_local, "Priority for local RPC blocks. Higher priority gets processed more frequently. \ntype:uint64");
+
+	return toml.get_error ();
+}
+
+nano::error nano::block_processor_config::deserialize (nano::tomlconfig & toml)
+{
+	toml.get ("max_peer_queue", max_peer_queue);
+	toml.get ("max_system_queue", max_system_queue);
+	toml.get ("priority_live", priority_live);
+	toml.get ("priority_bootstrap", priority_bootstrap);
+	toml.get ("priority_local", priority_local);
+
+	return toml.get_error ();
 }
