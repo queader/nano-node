@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <map>
+#include <ranges>
 #include <tuple>
 #include <utility>
 
@@ -5832,8 +5833,8 @@ TEST (rpc, stats_counters)
 	node->stats.sample (nano::stat::sample::active_election_duration, { 0, 10 }, 3);
 	node->stats.sample (nano::stat::sample::active_election_duration, { 0, 10 }, 4);
 
-	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, 10 }, 5);
-	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, 10 }, 5);
+	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, 999 }, 5);
+	node->stats.sample (nano::stat::sample::bootstrap_tag_duration, { 0, 999 }, 5);
 
 	boost::property_tree::ptree request;
 	request.put ("action", "stats");
@@ -5841,14 +5842,34 @@ TEST (rpc, stats_counters)
 
 	auto response (wait_response (system, rpc_ctx, request));
 
+	std::vector<boost::property_tree::ptree> entries;
+	for (auto & entry : response.get_child ("entries"))
 	{
-		std::stringstream ss;
-		boost::property_tree::json_parser::write_json (ss, response);
-		std::cout << ss.str () << std::endl;
+		entries.push_back (entry.second);
 	}
+	ASSERT_EQ (entries.size (), 2);
+	{
+		auto entry = entries[0];
+		ASSERT_EQ ("active_election_duration", entry.get<std::string> ("sample"));
+		ASSERT_EQ ("0", entry.get<std::string> ("min"));
+		ASSERT_EQ ("10", entry.get<std::string> ("max"));
 
-	// TODO: Assert the response
-	//		ASSERT_EQ (response.get_child ("node").get_child ("vote_uniquer").get_child ("cache").get<std::string> ("count"), "1");
+		std::vector<std::string> expected_values = { "1", "2", "3", "4" };
+		auto values = entry.get_child ("values") | std::views::transform ([] (auto const & v) { return v.second.template get_value<std::string> (); });
+
+		ASSERT_TRUE (std::ranges::equal (expected_values, values));
+	}
+	{
+		auto entry = entries[1];
+		ASSERT_EQ ("bootstrap_tag_duration", entry.get<std::string> ("sample"));
+		ASSERT_EQ ("0", entry.get<std::string> ("min"));
+		ASSERT_EQ ("999", entry.get<std::string> ("max"));
+
+		std::vector<std::string> expected_values = { "5", "5" };
+		auto values = entry.get_child ("values") | std::views::transform ([] (auto const & v) { return v.second.template get_value<std::string> (); });
+
+		ASSERT_TRUE (std::ranges::equal (expected_values, values));
+	}
 }
 
 TEST (rpc, block_confirmed)
