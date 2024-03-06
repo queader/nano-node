@@ -24,14 +24,14 @@ enum class source_enum
 
 TEST (fair_queue, construction)
 {
-	nano::fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	ASSERT_EQ (queue.total_size (), 0);
 	ASSERT_TRUE (queue.empty ());
 }
 
 TEST (fair_queue, process_one)
 {
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 1; };
 
@@ -51,7 +51,7 @@ TEST (fair_queue, process_one)
 
 TEST (fair_queue, fifo)
 {
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 999; };
 
@@ -83,7 +83,7 @@ TEST (fair_queue, fifo)
 
 TEST (fair_queue, process_many)
 {
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 1; };
 
@@ -117,7 +117,7 @@ TEST (fair_queue, process_many)
 
 TEST (fair_queue, max_queue_size)
 {
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 2; };
 
@@ -144,7 +144,7 @@ TEST (fair_queue, max_queue_size)
 
 TEST (fair_queue, round_robin_with_priority)
 {
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const & origin) {
 		switch (origin.source)
 		{
@@ -189,7 +189,7 @@ TEST (fair_queue, source_channel)
 {
 	nano::test::system system{ 1 };
 
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 999; };
 
@@ -242,7 +242,7 @@ TEST (fair_queue, cleanup)
 {
 	nano::test::system system{ 1 };
 
-	nano::per_peer_fair_queue<source_enum, int> queue;
+	nano::fair_queue_per_peer<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 999; };
 

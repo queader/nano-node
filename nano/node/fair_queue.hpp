@@ -72,7 +72,7 @@ struct source_by_type_and_channel
 namespace nano
 {
 template <typename Source, typename Request>
-class fair_queue final
+class fair_queue_base final
 {
 private:
 	struct entry
@@ -281,8 +281,8 @@ public:
 };
 
 template <typename Type, typename Request>
-using per_peer_fair_queue = fair_queue<fair_queue_sources::source_by_type_and_channel<Type>, Request>;
+using fair_queue_per_peer = fair_queue_base<fair_queue_sources::source_by_type_and_channel<Type>, Request>;
 
 template <typename Type, typename Request>
-using per_type_fair_queue = fair_queue<fair_queue_sources::source_by_type<Type>, Request>;
+using fair_queue_per_type = fair_queue_base<fair_queue_sources::source_by_type<Type>, Request>;
 }
