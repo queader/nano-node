@@ -115,7 +115,7 @@ std::size_t nano::block_processor::size () const
 std::size_t nano::block_processor::size (nano::block_source source) const
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	return queue.size (source);
+	return queue.size ({ source });
 }
 
 bool nano::block_processor::full () const
@@ -185,7 +185,7 @@ bool nano::block_processor::add_impl (context ctx, std::shared_ptr<nano::transpo
 	bool added = false;
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		added = queue.push (std::move (ctx), ctx.source, channel);
+		added = queue.push (std::move (ctx), { ctx.source, channel });
 	}
 	if (added)
 	{

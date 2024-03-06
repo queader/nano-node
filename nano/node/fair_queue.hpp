@@ -21,6 +21,54 @@
 #include <utility>
 #include <vector>
 
+namespace nano::fair_queue_sources
+{
+template <typename Type>
+struct source_by_type
+{
+	Type source;
+
+	// Keep implicit for better ergonomics
+	source_by_type (Type source) :
+		source{ source }
+	{
+	}
+
+	bool alive () const
+	{
+		return true;
+	}
+
+	auto operator<=> (source_by_type const &) const = default;
+};
+
+template <typename Type>
+struct source_by_type_and_channel
+{
+	Type source;
+	std::shared_ptr<nano::transport::channel> channel;
+
+	// Keep implicit for better ergonomics
+	source_by_type_and_channel (Type source, std::shared_ptr<nano::transport::channel> channel = nullptr) :
+		source{ source },
+		channel{ channel }
+	{
+	}
+
+	bool alive () const
+	{
+		if (channel)
+		{
+			return channel->alive ();
+		}
+		// Some sources (eg. local RPC) don't have an associated channel, never remove their queue
+		return true;
+	}
+
+	auto operator<=> (source_by_type_and_channel const &) const = default;
+};
+}
+
 namespace nano
 {
 template <typename Source, typename Request>
@@ -67,21 +115,13 @@ private:
 	};
 
 public:
-	//	using source_type = std::pair<Source, std::shared_ptr<nano::transport::channel>>;
-	struct source_type
-	{
-		Source source;
-		std::shared_ptr<nano::transport::channel> channel;
-
-		auto operator<=> (source_type const &) const = default;
-	};
-
-	using value_type = std::pair<Request, source_type>;
+	using source_type = Source;
+	using value_type = std::pair<Request, Source>;
 
 public:
-	size_t size (Source source, std::shared_ptr<nano::transport::channel> channel = nullptr) const
+	size_t size (Source source) const
 	{
-		auto it = queues.find (source_type{ source, channel });
+		auto it = queues.find (source);
 		return it == queues.end () ? 0 : it->second.requests.size ();
 	}
 
@@ -121,23 +161,21 @@ public:
 		return false; // Not cleaned up
 	}
 
-	bool push (Request request, Source source, std::shared_ptr<nano::transport::channel> channel = nullptr)
+	bool push (Request request, Source source)
 	{
-		auto const source_key = source_type{ source, channel };
-
-		auto it = queues.find (source_key);
+		auto it = queues.find (source);
 
 		// Create a new queue if it doesn't exist
 		if (it == queues.end ())
 		{
-			auto max_size = max_size_query (source_key);
-			auto priority = priority_query (source_key);
+			auto max_size = max_size_query (source);
+			auto priority = priority_query (source);
 
 			debug_assert (max_size > 0);
 			debug_assert (priority > 0);
 
 			// It's safe to not invalidate current iterator, since std::map container guarantees that iterators are not invalidated by insert operations
-			it = queues.emplace (source_type{ source, channel }, entry{ max_size, priority }).first;
+			it = queues.emplace (source, entry{ max_size, priority }).first;
 		}
 		release_assert (it != queues.end ());
 
@@ -224,12 +262,7 @@ private:
 		current_queue = queues.end ();
 
 		erase_if (queues, [] (auto const & entry) {
-			if (entry.first.channel)
-			{
-				return !entry.first.channel->alive ();
-			}
-			// Some sources (eg. local RPC) don't have an associated channel, never remove their queue
-			return false;
+			return !entry.first.alive ();
 		});
 	}
 
@@ -249,4 +282,10 @@ public:
 		return composite;
 	}
 };
+
+template <typename Type, typename Request>
+using per_peer_fair_queue = fair_queue<fair_queue_sources::source_by_type_and_channel<Type>, Request>;
+
+template <typename Type, typename Request>
+using per_type_fair_queue = fair_queue<fair_queue_sources::source_by_type<Type>, Request>;
 }

@@ -29,7 +29,7 @@ TEST (fair_queue, construction)
 
 TEST (fair_queue, process_one)
 {
-	nano::fair_queue<source_enum, int> queue;
+	nano::per_peer_fair_queue<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 1; };
 
@@ -49,7 +49,7 @@ TEST (fair_queue, process_one)
 
 TEST (fair_queue, process_many)
 {
-	nano::fair_queue<source_enum, int> queue;
+	nano::per_peer_fair_queue<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 1; };
 
@@ -83,7 +83,7 @@ TEST (fair_queue, process_many)
 
 TEST (fair_queue, max_queue_size)
 {
-	nano::fair_queue<source_enum, int> queue;
+	nano::per_peer_fair_queue<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 2; };
 
@@ -110,7 +110,7 @@ TEST (fair_queue, max_queue_size)
 
 TEST (fair_queue, round_robin_with_priority)
 {
-	nano::fair_queue<source_enum, int> queue;
+	nano::per_peer_fair_queue<source_enum, int> queue;
 	queue.priority_query = [] (auto const & origin) {
 		switch (origin.source)
 		{
@@ -155,7 +155,7 @@ TEST (fair_queue, source_channel)
 {
 	nano::test::system system{ 1 };
 
-	nano::fair_queue<source_enum, int> queue;
+	nano::per_peer_fair_queue<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 999; };
 
@@ -163,16 +163,16 @@ TEST (fair_queue, source_channel)
 	auto channel2 = nano::test::fake_channel (system.node (0));
 	auto channel3 = nano::test::fake_channel (system.node (0));
 
-	queue.push (7, source_enum::live, channel1);
-	queue.push (8, source_enum::live, channel2);
-	queue.push (9, source_enum::live, channel3);
-	queue.push (10, source_enum::live, channel1); // Channel 1 has multiple entries
+	queue.push (7, { source_enum::live, channel1 });
+	queue.push (8, { source_enum::live, channel2 });
+	queue.push (9, { source_enum::live, channel3 });
+	queue.push (4, { source_enum::live, channel1 }); // Channel 1 has multiple entries
 	ASSERT_EQ (queue.total_size (), 4);
 	ASSERT_EQ (queue.queues_size (), 3); // Each <source, channel> pair is a separate queue
 
-	ASSERT_EQ (queue.size (source_enum::live, channel1), 2);
-	ASSERT_EQ (queue.size (source_enum::live, channel2), 1);
-	ASSERT_EQ (queue.size (source_enum::live, channel3), 1);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel1 }), 2);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel2 }), 1);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel3 }), 1);
 
 	{
 		auto [result, origin] = queue.next ();
@@ -194,7 +194,7 @@ TEST (fair_queue, source_channel)
 	}
 	{
 		auto [result, origin] = queue.next ();
-		ASSERT_EQ (result, 10);
+		ASSERT_EQ (result, 4);
 		ASSERT_EQ (origin.source, source_enum::live);
 		ASSERT_EQ (origin.channel, channel1);
 	}
@@ -206,7 +206,7 @@ TEST (fair_queue, cleanup)
 {
 	nano::test::system system{ 1 };
 
-	nano::fair_queue<source_enum, int> queue;
+	nano::per_peer_fair_queue<source_enum, int> queue;
 	queue.priority_query = [] (auto const &) { return 1; };
 	queue.max_size_query = [] (auto const &) { return 999; };
 
@@ -214,15 +214,15 @@ TEST (fair_queue, cleanup)
 	auto channel2 = nano::test::fake_channel (system.node (0));
 	auto channel3 = nano::test::fake_channel (system.node (0));
 
-	queue.push (7, source_enum::live, channel1);
-	queue.push (8, source_enum::live, channel2);
-	queue.push (9, source_enum::live, channel3);
+	queue.push (7, { source_enum::live, channel1 });
+	queue.push (8, { source_enum::live, channel2 });
+	queue.push (9, { source_enum::live, channel3 });
 	ASSERT_EQ (queue.total_size (), 3);
 	ASSERT_EQ (queue.queues_size (), 3);
 
-	ASSERT_EQ (queue.size (source_enum::live, channel1), 1);
-	ASSERT_EQ (queue.size (source_enum::live, channel2), 1);
-	ASSERT_EQ (queue.size (source_enum::live, channel3), 1);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel1 }), 1);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel2 }), 1);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel3 }), 1);
 
 	channel1->close ();
 	channel2->close ();
@@ -233,7 +233,7 @@ TEST (fair_queue, cleanup)
 	ASSERT_EQ (queue.total_size (), 1);
 	ASSERT_EQ (queue.queues_size (), 1);
 
-	ASSERT_EQ (queue.size (source_enum::live, channel1), 0);
-	ASSERT_EQ (queue.size (source_enum::live, channel2), 0);
-	ASSERT_EQ (queue.size (source_enum::live, channel3), 1);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel1 }), 0);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel2 }), 0);
+	ASSERT_EQ (queue.size ({ source_enum::live, channel3 }), 1);
 }

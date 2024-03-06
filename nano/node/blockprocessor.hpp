@@ -128,7 +128,7 @@ private:
 	bool stopped{ false };
 	bool active{ false };
 
-	nano::fair_queue<block_source, context> queue;
+	nano::per_peer_fair_queue<block_source, context> queue;
 
 	std::chrono::steady_clock::time_point next_log;
 
