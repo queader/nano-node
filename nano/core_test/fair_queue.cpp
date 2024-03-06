@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <ranges>
+
 using namespace std::chrono_literals;
 
 namespace
@@ -43,6 +45,38 @@ TEST (fair_queue, process_one)
 	ASSERT_EQ (result, 7);
 	ASSERT_EQ (origin.source, source_enum::live);
 	ASSERT_EQ (origin.channel, nullptr);
+
+	ASSERT_TRUE (queue.empty ());
+}
+
+TEST (fair_queue, fifo)
+{
+	nano::per_peer_fair_queue<source_enum, int> queue;
+	queue.priority_query = [] (auto const &) { return 1; };
+	queue.max_size_query = [] (auto const &) { return 999; };
+
+	queue.push (7, source_enum::live);
+	queue.push (8, source_enum::live);
+	queue.push (9, source_enum::live);
+	ASSERT_EQ (queue.total_size (), 3);
+	ASSERT_EQ (queue.queues_size (), 1);
+	ASSERT_EQ (queue.size (source_enum::live), 3);
+
+	{
+		auto [result, origin] = queue.next ();
+		ASSERT_EQ (result, 7);
+		ASSERT_EQ (origin.source, source_enum::live);
+	}
+	{
+		auto [result, origin] = queue.next ();
+		ASSERT_EQ (result, 8);
+		ASSERT_EQ (origin.source, source_enum::live);
+	}
+	{
+		auto [result, origin] = queue.next ();
+		ASSERT_EQ (result, 9);
+		ASSERT_EQ (origin.source, source_enum::live);
+	}
 
 	ASSERT_TRUE (queue.empty ());
 }
@@ -163,10 +197,10 @@ TEST (fair_queue, source_channel)
 	auto channel2 = nano::test::fake_channel (system.node (0));
 	auto channel3 = nano::test::fake_channel (system.node (0));
 
-	queue.push (7, { source_enum::live, channel1 });
-	queue.push (8, { source_enum::live, channel2 });
-	queue.push (9, { source_enum::live, channel3 });
-	queue.push (4, { source_enum::live, channel1 }); // Channel 1 has multiple entries
+	queue.push (6, { source_enum::live, channel1 });
+	queue.push (7, { source_enum::live, channel2 });
+	queue.push (8, { source_enum::live, channel3 });
+	queue.push (9, { source_enum::live, channel1 }); // Channel 1 has multiple entries
 	ASSERT_EQ (queue.total_size (), 4);
 	ASSERT_EQ (queue.queues_size (), 3); // Each <source, channel> pair is a separate queue
 
@@ -174,27 +208,29 @@ TEST (fair_queue, source_channel)
 	ASSERT_EQ (queue.size ({ source_enum::live, channel2 }), 1);
 	ASSERT_EQ (queue.size ({ source_enum::live, channel3 }), 1);
 
+	auto all = queue.next_batch (999);
+	ASSERT_EQ (all.size (), 4);
+
+	auto filtered = [&] (auto const & channel) {
+		auto r = all | std::views::filter ([&] (auto const & entry) {
+			return entry.second.channel == channel;
+		});
+		std::vector vec (r.begin (), r.end ());
+		return vec;
+	};
+
+	auto channel1_results = filtered (channel1);
+	ASSERT_EQ (channel1_results.size (), 2);
+
 	{
-		auto [result, origin] = queue.next ();
-		ASSERT_EQ (result, 7);
+		auto [result, origin] = channel1_results[0];
+		ASSERT_EQ (result, 6);
 		ASSERT_EQ (origin.source, source_enum::live);
 		ASSERT_EQ (origin.channel, channel1);
 	}
 	{
-		auto [result, origin] = queue.next ();
-		ASSERT_EQ (result, 8);
-		ASSERT_EQ (origin.source, source_enum::live);
-		ASSERT_EQ (origin.channel, channel2);
-	}
-	{
-		auto [result, origin] = queue.next ();
+		auto [result, origin] = channel1_results[1];
 		ASSERT_EQ (result, 9);
-		ASSERT_EQ (origin.source, source_enum::live);
-		ASSERT_EQ (origin.channel, channel3);
-	}
-	{
-		auto [result, origin] = queue.next ();
-		ASSERT_EQ (result, 4);
 		ASSERT_EQ (origin.source, source_enum::live);
 		ASSERT_EQ (origin.channel, channel1);
 	}

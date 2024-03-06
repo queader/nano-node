@@ -171,9 +171,6 @@ public:
 			auto max_size = max_size_query (source);
 			auto priority = priority_query (source);
 
-			debug_assert (max_size > 0);
-			debug_assert (priority > 0);
-
 			// It's safe to not invalidate current iterator, since std::map container guarantees that iterators are not invalidated by insert operations
 			it = queues.emplace (source, entry{ max_size, priority }).first;
 		}
