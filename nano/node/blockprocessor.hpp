@@ -38,6 +38,8 @@ nano::stat::detail to_stat_detail (block_source);
 class block_processor_config final
 {
 public:
+	explicit block_processor_config (nano::network_constants const &);
+
 	nano::error deserialize (nano::tomlconfig & toml);
 	nano::error serialize (nano::tomlconfig & toml) const;
 

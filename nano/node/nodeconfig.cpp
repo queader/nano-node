@@ -31,7 +31,8 @@ nano::node_config::node_config (const std::optional<uint16_t> & peering_port_a, 
 	hinted_scheduler{ network_params.network },
 	websocket_config{ network_params.network },
 	ipc_config{ network_params.network },
-	external_address{ boost::asio::ip::address_v6{}.to_string () }
+	external_address{ boost::asio::ip::address_v6{}.to_string () },
+	block_processor{ network_params.network }
 {
 	if (peering_port == 0)
 	{

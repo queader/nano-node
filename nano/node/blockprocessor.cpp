@@ -473,6 +473,15 @@ nano::stat::detail nano::to_stat_detail (nano::block_source type)
  * block_processor_config
  */
 
+nano::block_processor_config::block_processor_config (const nano::network_constants & network_constants)
+{
+	if (network_constants.is_beta_network ())
+	{
+		// Bump max queue sizes for beta network to allow for more aggressive block propagation for saturation testing
+		max_peer_queue = 1024;
+	}
+}
+
 nano::error nano::block_processor_config::serialize (nano::tomlconfig & toml) const
 {
 	toml.put ("max_peer_queue", max_peer_queue, "Maximum number of blocks to queue from network peers. \ntype:uint64");
