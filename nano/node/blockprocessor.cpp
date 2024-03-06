@@ -242,7 +242,6 @@ void nano::block_processor::run ()
 	{
 		if (!queue.empty ())
 		{
-			active = true;
 			lock.unlock ();
 
 			auto processed = process_batch (lock);
@@ -257,7 +256,6 @@ void nano::block_processor::run ()
 			batch_processed.notify (processed);
 
 			lock.lock ();
-			active = false;
 		}
 		else
 		{

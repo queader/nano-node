@@ -125,13 +125,11 @@ private: // Dependencies
 	nano::write_database_queue & write_database_queue;
 
 private:
-	bool stopped{ false };
-	bool active{ false };
-
 	nano::fair_queue_per_peer<block_source, context> queue;
 
 	std::chrono::steady_clock::time_point next_log;
 
+	bool stopped{ false };
 	nano::condition_variable condition;
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::block_processor) };
 	std::thread thread;
