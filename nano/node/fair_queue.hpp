@@ -89,6 +89,11 @@ private:
 		{
 			return requests.empty ();
 		}
+
+		size_t size () const
+		{
+			return requests.size ();
+		}
 	};
 
 public:
@@ -99,20 +104,20 @@ public:
 	size_t size (source_type source) const
 	{
 		auto it = queues.find (source);
-		return it == queues.end () ? 0 : it->second.requests.size ();
+		return it == queues.end () ? 0 : it->second.size ();
 	}
 
 	size_t total_size () const
 	{
 		return std::accumulate (queues.begin (), queues.end (), 0, [] (size_t total, auto const & queue) {
-			return total + queue.second.requests.size ();
+			return total + queue.second.size ();
 		});
 	};
 
 	bool empty () const
 	{
 		return std::all_of (queues.begin (), queues.end (), [] (auto const & queue) {
-			return queue.second.requests.empty ();
+			return queue.second.empty ();
 		});
 	}
 
