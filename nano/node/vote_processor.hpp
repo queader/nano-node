@@ -2,6 +2,7 @@
 
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/utility.hpp>
+#include <nano/node/fair_queue.hpp>
 #include <nano/secure/common.hpp>
 
 #include <deque>
@@ -11,7 +12,6 @@
 
 namespace nano
 {
-class signature_checker;
 class active_transactions;
 namespace store
 {
@@ -35,6 +35,13 @@ namespace transport
 
 class vote_processor final
 {
+public:
+	enum class vote_source
+	{
+		live,
+		cache,
+	};
+
 public:
 	vote_processor (nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stats & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger &, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a);
 	~vote_processor ();
@@ -70,6 +77,22 @@ private: // Dependencies
 
 private:
 	void run ();
+
+private:
+	// Higher number means higher priority
+	enum class rep_tier
+	{
+		tier_none, // Not a principal representative
+		tier_1, // (0.1-1%)
+		tier_2, // (1-5%)
+		tier_3, // (> 5%)
+	};
+
+	rep_tier representative_tier (nano::account const & representative) const;
+
+private:
+	// Two-level fair queue: first group by origin (live or cache), then by representative tier
+	nano::fair_queue<std::shared_ptr<nano::vote>, vote_source, rep_tier> queue;
 
 	std::size_t const max_votes;
 	std::deque<std::pair<std::shared_ptr<nano::vote>, std::shared_ptr<nano::transport::channel>>> votes;
