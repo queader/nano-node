@@ -21,59 +21,36 @@
 #include <utility>
 #include <vector>
 
-namespace nano::fair_queue_sources
-{
-template <typename Type>
-struct source_by_type
-{
-	Type source;
-
-	// Keep implicit for better ergonomics
-	source_by_type (Type source) :
-		source{ source }
-	{
-	}
-
-	bool alive () const
-	{
-		return true;
-	}
-
-	auto operator<=> (source_by_type const &) const = default;
-};
-
-template <typename Type>
-struct source_by_type_and_channel
-{
-	Type source;
-	std::shared_ptr<nano::transport::channel> channel;
-
-	// Keep implicit for better ergonomics
-	source_by_type_and_channel (Type source, std::shared_ptr<nano::transport::channel> channel = nullptr) :
-		source{ source },
-		channel{ channel }
-	{
-	}
-
-	bool alive () const
-	{
-		if (channel)
-		{
-			return channel->alive ();
-		}
-		// Some sources (eg. local RPC) don't have an associated channel, never remove their queue
-		return true;
-	}
-
-	auto operator<=> (source_by_type_and_channel const &) const = default;
-};
-}
-
 namespace nano
 {
-template <typename Source, typename Request>
-class fair_queue_base final
+template <typename Request, typename... Sources>
+class fair_queue final
 {
+public:
+	struct source
+	{
+		std::tuple<Sources...> sources;
+		std::shared_ptr<nano::transport::channel> channel;
+
+		source (std::tuple<Sources...> sources, std::shared_ptr<nano::transport::channel> channel = nullptr) :
+			sources{ sources },
+			channel{ channel }
+		{
+		}
+
+		bool alive () const
+		{
+			if (channel)
+			{
+				return channel->alive ();
+			}
+			// Some sources (eg. local RPC) don't have an associated channel, never remove their queue
+			return true;
+		}
+
+		auto operator<=> (source const &) const = default;
+	};
+
 private:
 	struct entry
 	{
@@ -115,11 +92,11 @@ private:
 	};
 
 public:
-	using source_type = Source;
-	using value_type = std::pair<Request, Source>;
+	using source_type = source;
+	using value_type = std::pair<Request, source_type>;
 
 public:
-	size_t size (Source source) const
+	size_t size (source_type source) const
 	{
 		auto it = queues.find (source);
 		return it == queues.end () ? 0 : it->second.requests.size ();
@@ -161,13 +138,14 @@ public:
 		return false; // Not cleaned up
 	}
 
-	bool push (Request request, Source source)
+	bool push (Request request, source_type source)
 	{
 		auto it = queues.find (source);
 
 		// Create a new queue if it doesn't exist
 		if (it == queues.end ())
 		{
+			// TODO: Right now this is constant and initialized when the queue is created, but it could be made dynamic
 			auto max_size = max_size_query (source);
 			auto priority = priority_query (source);
 
@@ -279,10 +257,4 @@ public:
 		return composite;
 	}
 };
-
-template <typename Type, typename Request>
-using fair_queue_per_peer = fair_queue_base<fair_queue_sources::source_by_type_and_channel<Type>, Request>;
-
-template <typename Type, typename Request>
-using fair_queue_per_type = fair_queue_base<fair_queue_sources::source_by_type<Type>, Request>;
 }

@@ -127,7 +127,7 @@ private: // Dependencies
 	nano::write_database_queue & write_database_queue;
 
 private:
-	nano::fair_queue_per_peer<block_source, context> queue;
+	nano::fair_queue<context, block_source> queue;
 
 	std::chrono::steady_clock::time_point next_log;
 
