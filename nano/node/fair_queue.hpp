@@ -193,17 +193,17 @@ public:
 		debug_assert (!empty ()); // Should be checked before calling next
 
 		auto should_seek = [&, this] () {
-			if (current_queue == queues.end ())
+			if (iterator == queues.end ())
 			{
 				return true;
 			}
-			auto & queue = current_queue->second;
+			auto & queue = iterator->second;
 			if (queue.empty ())
 			{
 				return true;
 			}
 			// Allow up to `queue.priority` requests to be processed before moving to the next queue
-			if (current_queue_counter >= queue.priority)
+			if (counter >= queue.priority)
 			{
 				return true;
 			}
@@ -215,12 +215,12 @@ public:
 			seek_next ();
 		}
 
-		release_assert (current_queue != queues.end ());
+		release_assert (iterator != queues.end ());
 
-		auto & source = current_queue->first;
-		auto & queue = current_queue->second;
+		auto & source = iterator->first;
+		auto & queue = iterator->second;
 
-		++current_queue_counter;
+		++counter;
 		return { queue.pop (), source };
 	}
 
@@ -238,25 +238,25 @@ public:
 private:
 	void seek_next ()
 	{
-		current_queue_counter = 0;
+		counter = 0;
 		do
 		{
-			if (current_queue != queues.end ())
+			if (iterator != queues.end ())
 			{
-				++current_queue;
+				++iterator;
 			}
-			if (current_queue == queues.end ())
+			if (iterator == queues.end ())
 			{
-				current_queue = queues.begin ();
+				iterator = queues.begin ();
 			}
-			release_assert (current_queue != queues.end ());
-		} while (current_queue->second.empty ());
+			release_assert (iterator != queues.end ());
+		} while (iterator->second.empty ());
 	}
 
 	void cleanup ()
 	{
 		// Invalidate the current iterator
-		current_queue = queues.end ();
+		iterator = queues.end ();
 
 		erase_if (queues, [] (auto const & entry) {
 			return !entry.first.alive ();
@@ -265,8 +265,8 @@ private:
 
 private:
 	std::map<source_type, entry> queues;
-	decltype (queues)::iterator current_queue{ queues.end () };
-	size_t current_queue_counter{ 0 };
+	std::map<source_type, entry>::iterator iterator{ queues.end () };
+	size_t counter{ 0 };
 
 	std::chrono::steady_clock::time_point last_cleanup{};
 
