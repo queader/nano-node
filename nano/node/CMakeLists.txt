@@ -168,6 +168,8 @@ add_library(
   vote_cache.cpp
   vote_processor.hpp
   vote_processor.cpp
+  vote_rebroadcaster.hpp
+  vote_rebroadcaster.cpp
   voting.hpp
   voting.cpp
   wallet.hpp

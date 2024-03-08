@@ -14,6 +14,7 @@ enum class name
 	work,
 	packet_processing,
 	vote_processing,
+	vote_rebroadcasting,
 	block_processing,
 	request_loop,
 	wallet_actions,

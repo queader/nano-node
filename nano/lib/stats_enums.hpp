@@ -34,6 +34,7 @@ enum class type : uint8_t
 	telemetry,
 	vote_generator,
 	vote_cache,
+	vote_rebroadcaster,
 	hinting,
 	blockprocessor,
 	blockprocessor_source,
@@ -339,6 +340,9 @@ enum class detail : uint8_t
 	broadcast_aggressive,
 	erase_old,
 	erase_confirmed,
+
+	// vote rebroadcaster
+	new_hashes,
 
 	_last // Must be the last enum
 };
