@@ -591,7 +591,7 @@ void nano::node::start ()
 		rep_crawler.start ();
 	}
 	ongoing_peer_store ();
-	ongoing_online_weight_calculation_queue ();
+	ongoing_online_weight_calculation ();
 
 	bool tcp_enabled = false;
 	if (config.tcp_incoming_connections_max > 0 && !(flags.disable_bootstrap_listener && flags.disable_tcp_realtime))
@@ -1145,12 +1145,13 @@ bool nano::node::block_confirmed_or_being_confirmed (nano::block_hash const & ha
 	return block_confirmed_or_being_confirmed (store.tx_begin_read (), hash_a);
 }
 
-void nano::node::ongoing_online_weight_calculation_queue ()
+void nano::node::ongoing_online_weight_calculation ()
 {
 	std::weak_ptr<nano::node> node_w (shared_from_this ());
-	workers.add_timed_task (std::chrono::steady_clock::now () + (std::chrono::seconds (network_params.node.weight_period)), [node_w] () {
+	workers.add_timed_task (std::chrono::steady_clock::now () + (network_params.node.weight_period), [node_w] () {
 		if (auto node_l = node_w.lock ())
 		{
+			node_l->online_reps.sample ();
 			node_l->ongoing_online_weight_calculation ();
 		}
 	});
@@ -1159,12 +1160,6 @@ void nano::node::ongoing_online_weight_calculation_queue ()
 bool nano::node::online () const
 {
 	return rep_crawler.total_weight () > online_reps.delta ();
-}
-
-void nano::node::ongoing_online_weight_calculation ()
-{
-	online_reps.sample ();
-	ongoing_online_weight_calculation_queue ();
 }
 
 void nano::node::receive_confirmed (store::transaction const & block_transaction_a, nano::block_hash const & hash_a, nano::account const & destination_a)

@@ -151,9 +151,20 @@ TEST (vote_processor, weights)
 	system.wallet (0)->send_sync (nano::dev::genesis_key.pub, key1.pub, level1);
 	system.wallet (0)->send_sync (nano::dev::genesis_key.pub, key2.pub, level2);
 
+	while (true)
+	{
+		std::cout << "*******************" << std::endl;
+		std::cout << "total: " << total << std::endl;
+		std::cout << "online: " << node.online_reps.online () << std::endl;
+		std::cout << "trended: " << node.online_reps.trended () << std::endl;
+		std::cout << "reps: " << node.rep_crawler.representative_count () << std::endl;
+		std::cout << "*******************" << std::endl;
+		WAIT (1s);
+	}
+
 	// Wait for representatives
 	ASSERT_TIMELY_EQ (10s, node.ledger.cache.rep_weights.get_rep_amounts ().size (), 4);
-	ASSERT_TIMELY_EQ (5s, node.online_reps.online (), total);
+	ASSERT_TIMELY_EQ (5s, node.online_reps.trended (), total);
 
 	// Wait for rep tiers to be updated
 	node.stats.clear ();

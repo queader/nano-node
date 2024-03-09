@@ -345,7 +345,7 @@ public:
 
 	/** The maximum amount of samples for a 2 week period on live or 1 day on beta */
 	uint64_t max_weight_samples;
-	uint64_t weight_period;
+	std::chrono::seconds weight_period;
 };
 
 /** Voting related constants whose value depends on the active network */

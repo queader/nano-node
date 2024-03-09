@@ -119,7 +119,6 @@ public:
 	bool block_confirmed_or_being_confirmed (nano::block_hash const &);
 	void do_rpc_callback (boost::asio::ip::tcp::resolver::iterator i_a, std::string const &, uint16_t, std::shared_ptr<std::string> const &, std::shared_ptr<std::string> const &, std::shared_ptr<boost::asio::ip::tcp::resolver> const &);
 	void ongoing_online_weight_calculation ();
-	void ongoing_online_weight_calculation_queue ();
 	bool online () const;
 	bool init_error () const;
 	std::pair<uint64_t, decltype (nano::ledger::bootstrap_weights)> get_bootstrap_weights () const;

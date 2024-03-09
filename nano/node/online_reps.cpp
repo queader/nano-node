@@ -23,7 +23,7 @@ void nano::online_reps::observe (nano::account const & rep_a)
 		auto now = std::chrono::steady_clock::now ();
 		auto new_insert = reps.get<tag_account> ().erase (rep_a) == 0;
 		reps.insert ({ now, rep_a });
-		auto cutoff = reps.get<tag_time> ().lower_bound (now - std::chrono::seconds (config.network_params.node.weight_period));
+		auto cutoff = reps.get<tag_time> ().lower_bound (now - config.network_params.node.weight_period);
 		auto trimmed = reps.get<tag_time> ().begin () != cutoff;
 		reps.get<tag_time> ().erase (reps.get<tag_time> ().begin (), cutoff);
 		if (new_insert || trimmed)
