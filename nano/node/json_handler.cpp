@@ -3781,7 +3781,7 @@ void nano::json_handler::republish_dependencies ()
 
 		bool broadcast_votes = true;
 
-		auto [num_blocks, num_votes] = republish_dependencies_impl (account, depth, count, broadcast_votes);
+		auto [num_blocks, num_votes] = republish_dependencies_impl (account, depth, count);
 
 		response_l.put ("blocks", num_blocks);
 		response_l.put ("votes", num_votes);
@@ -3793,8 +3793,12 @@ void nano::json_handler::republish_dependencies ()
 	response_errors ();
 }
 
-std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano::account account, size_t depth, size_t count, bool broadcast_votes)
+std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano::account account, size_t depth, size_t count)
 {
+	bool const broadcast_votes = true;
+	bool const republish_receivable = true;
+	uint128_t const receivable_threshold = 1 * nano::Mxrb_ratio;
+
 	node.logger.info (nano::log::type::rpc, "Republishing blocks for account: {} with depth: {}, count: {}", account.to_account (), depth, count);
 
 	auto transaction = node.store.tx_begin_read ();
@@ -3944,8 +3948,26 @@ std::tuple<size_t, size_t> nano::json_handler::republish_dependencies_impl (nano
 
 	for (auto & block : blocks)
 	{
-		node.logger.info (nano::log::type::rpc, "Republishing for block: {} with depth: {}", block->hash ().to_string (), depth);
+		node.logger.info (nano::log::type::rpc, "Republishing block: {} with depth: {}", block->hash ().to_string (), depth);
 		dfs_traversal (depth, block, block_visitor);
+	}
+
+	if (republish_receivable)
+	{
+		auto receivable = node.ledger.account_receivable_blocks (transaction, account, receivable_threshold);
+
+		node.logger.info (nano::log::type::rpc, "Found {} receivable blocks for account: {} (threshold: {})",
+		receivable.size (),
+		account.to_account (),
+		receivable_threshold.convert_to<std::string> ());
+
+		for (auto & hash : receivable)
+		{
+			auto block = node.ledger.block (transaction, hash);
+			release_assert (block);
+			node.logger.info (nano::log::type::rpc, "Republishing receivable block: {}", block->hash ().to_string ());
+			dfs_traversal (depth, block, block_visitor);
+		}
 	}
 
 	node.logger.info (nano::log::type::rpc, "Republishing finished");

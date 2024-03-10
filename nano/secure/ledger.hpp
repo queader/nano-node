@@ -47,6 +47,7 @@ public:
 	bool block_exists (store::transaction const & transaction, nano::block_hash const & hash) const;
 	nano::uint128_t account_balance (store::transaction const &, nano::account const &, bool = false);
 	nano::uint128_t account_receivable (store::transaction const &, nano::account const &, bool = false);
+	std::vector<nano::block_hash> account_receivable_blocks (store::transaction const &, nano::account const &, nano::uint128_t threshold);
 	nano::uint128_t weight (nano::account const &);
 	std::shared_ptr<nano::block> block (store::transaction const &, nano::block_hash const &);
 	std::shared_ptr<nano::block> successor (store::transaction const &, nano::qualified_root const &);

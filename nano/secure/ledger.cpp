@@ -900,6 +900,21 @@ nano::uint128_t nano::ledger::account_receivable (store::transaction const & tra
 	return result;
 }
 
+std::vector<nano::block_hash> nano::ledger::account_receivable_blocks (const store::transaction & transaction, const nano::account & account, nano::uint128_t threshold)
+{
+	std::vector<nano::block_hash> result;
+	nano::account end{ account.number () + 1 };
+	for (auto i (store.pending.begin (transaction, nano::pending_key (account, 0))), n (store.pending.begin (transaction, nano::pending_key{ end, 0 })); i != n; ++i)
+	{
+		nano::pending_info const & info = i->second;
+		if (info.amount.number () >= threshold)
+		{
+			result.push_back (i->first.hash);
+		}
+	}
+	return result;
+}
+
 std::optional<nano::pending_info> nano::ledger::pending_info (store::transaction const & transaction, nano::pending_key const & key) const
 {
 	nano::pending_info result;
