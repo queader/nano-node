@@ -49,6 +49,23 @@ public:
 		}
 
 		auto operator<=> (source const &) const = default;
+
+		friend std::ostream & operator<< (std::ostream & os, source const & source)
+		{
+			os << "sources: ";
+			std::apply ([&os] (auto const &... sources) {
+				((os << to_string (sources) << ", "), ...);
+			},
+			source.sources);
+			if (source.channel)
+			{
+				os << " channel: " << source.channel->to_string ()
+				   << " (" << source.channel->get_node_id () << ")"
+				   << " [" << source.channel.get () << "]"
+				   << " ( use_count: " << source.channel.use_count () << ", alive: " << source.channel->alive () << ")";
+			}
+			return os;
+		}
 	};
 
 private:
@@ -155,9 +172,27 @@ public:
 			cleanup ();
 			update ();
 
+			std::cout << "fair_queue:\n"
+					  << *this
+					  << std::endl;
+
 			return true; // Updated
 		}
 		return false; // Not updated
+	}
+
+	void dump (std::ostream & os) const
+	{
+		for (auto const & [source, queue] : queues)
+		{
+			os << "queue: " << source << " - " << queue.size () << " / " << queue.max_size << " (priority: " << queue.priority << ")\n";
+		}
+	}
+
+	friend std::ostream & operator<< (std::ostream & os, fair_queue const & queue)
+	{
+		queue.dump (os);
+		return os;
 	}
 
 	/**
