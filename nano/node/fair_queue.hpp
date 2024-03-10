@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nano/lib/object_stream.hpp>
+#include <nano/lib/object_stream_adapters.hpp>
 #include <nano/lib/utility.hpp>
 #include <nano/node/transport/channel.hpp>
 
@@ -43,6 +45,18 @@ public:
 		}
 
 		auto operator<=> (origin const &) const = default;
+
+		void operator() (nano::object_stream & obs) const
+		{
+			obs.write ("source", source);
+
+			if (channel)
+			{
+				obs.write ("channel", channel);
+				obs.write ("channel_ptr", channel.get ());
+				obs.write ("channel_ref_count", channel.use_count ());
+			}
+		}
 	};
 
 private:
@@ -87,6 +101,13 @@ private:
 		size_t size () const
 		{
 			return requests.size ();
+		}
+
+		void operator() (nano::object_stream & obs) const
+		{
+			obs.write ("priority", priority);
+			obs.write ("max_size", max_size);
+			obs.write ("requests", requests.size ());
 		}
 	};
 
@@ -285,6 +306,14 @@ public:
 		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queues", queues.size (), sizeof (typename decltype (queues)::value_type) }));
 		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "total_size", total_size (), sizeof (typename decltype (queues)::value_type) }));
 		return composite;
+	}
+
+	void operator() (nano::object_stream & obs) const
+	{
+		obs.write_range ("queues", queues, [] (auto const & entry, nano::object_stream & obs) {
+			obs.write ("source", entry.first);
+			obs.write ("queue", entry.second);
+		});
 	}
 };
 }
