@@ -139,7 +139,6 @@ namespace transport
 		nano::node & node;
 
 	private:
-		//		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		bool check (nano::tcp_endpoint const &, nano::account const & node_id);
 
 	private:

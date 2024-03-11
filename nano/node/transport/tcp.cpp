@@ -155,35 +155,6 @@ void nano::transport::tcp_channels::stop ()
 	channels.clear ();
 }
 
-/*
-bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::transport::socket> const & socket_a, std::shared_ptr<nano::transport::tcp_server> const & server_a)
-{
-	auto endpoint (channel_a->get_tcp_endpoint ());
-	debug_assert (endpoint.address ().is_v6 ());
-	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
-	bool error (true);
-	if (!node.network.not_a_peer (udp_endpoint, node.config.allow_local_peers) && !stopped)
-	{
-		nano::unique_lock<nano::mutex> lock{ mutex };
-		auto existing (channels.get<endpoint_tag> ().find (endpoint));
-		if (existing == channels.get<endpoint_tag> ().end ())
-		{
-			auto node_id (channel_a->get_node_id ());
-			if (!channel_a->temporary)
-			{
-				channels.get<node_id_tag> ().erase (node_id);
-			}
-			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, server_a);
-			attempts.get<endpoint_tag> ().erase (endpoint);
-			error = false;
-			lock.unlock ();
-			node.network.channel_observer (channel_a);
-		}
-	}
-	return error;
-}
-*/
-
 bool nano::transport::tcp_channels::check (const nano::tcp_endpoint & endpoint, const nano::account & node_id)
 {
 	debug_assert (!mutex.try_lock ());

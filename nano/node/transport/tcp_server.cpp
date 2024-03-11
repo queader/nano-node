@@ -302,7 +302,7 @@ nano::transport::tcp_server::~tcp_server ()
 	}
 
 	node->logger.debug (nano::log::type::tcp_server, "Exiting TCP server ({})", nano::util::to_str (remote_endpoint));
-	
+
 	switch (socket->type ())
 	{
 		case nano::transport::socket::type_t::bootstrap:
@@ -312,8 +312,7 @@ nano::transport::tcp_server::~tcp_server ()
 			--node->tcp_listener->realtime_count;
 			break;
 		default:
-			debug_assert (false);
-			break;
+			break; // Ignore
 	}
 
 	stop ();
