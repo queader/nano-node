@@ -302,22 +302,18 @@ nano::transport::tcp_server::~tcp_server ()
 	}
 
 	node->logger.debug (nano::log::type::tcp_server, "Exiting TCP server ({})", nano::util::to_str (remote_endpoint));
-
-	if (socket->type () == nano::transport::socket::type_t::bootstrap)
+	
+	switch (socket->type ())
 	{
-		--node->tcp_listener->bootstrap_count;
-	}
-	else if (socket->type () == nano::transport::socket::type_t::realtime)
-	{
-		--node->tcp_listener->realtime_count;
-
-		// Clear temporary channel
-		auto exisiting_response_channel (node->network.tcp_channels.find_channel (remote_endpoint));
-		if (exisiting_response_channel != nullptr)
-		{
-			exisiting_response_channel->temporary = false;
-			node->network.tcp_channels.erase (remote_endpoint);
-		}
+		case nano::transport::socket::type_t::bootstrap:
+			--node->tcp_listener->bootstrap_count;
+			break;
+		case nano::transport::socket::type_t::realtime:
+			--node->tcp_listener->realtime_count;
+			break;
+		default:
+			debug_assert (false);
+			break;
 	}
 
 	stop ();
