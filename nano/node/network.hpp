@@ -16,12 +16,19 @@ namespace nano
 {
 class node;
 
-class tcp_message_manager final
+class message_manager final
 {
 public:
-	tcp_message_manager (unsigned incoming_connections_max_a);
-	void put_message (nano::tcp_message_item const & item_a);
-	nano::tcp_message_item get_message ();
+	struct entry
+	{
+		std::unique_ptr<nano::message> message;
+		std::shared_ptr<nano::transport::channel> channel;
+	};
+
+public:
+	message_manager (unsigned incoming_connections_max_a);
+	void put_message (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
+	entry get_message ();
 	// Stop container and notify waiting threads
 	void stop ();
 
@@ -29,7 +36,7 @@ private:
 	nano::mutex mutex;
 	nano::condition_variable producer_condition;
 	nano::condition_variable consumer_condition;
-	std::deque<nano::tcp_message_item> entries;
+	std::deque<entry> entries;
 	unsigned max_entries;
 	static unsigned const max_entries_per_connection = 16;
 	bool stopped{ false };
@@ -155,7 +162,7 @@ public:
 	std::atomic<bool> stopped{ false };
 
 private:
-	nano::tcp_message_manager tcp_message_manager;
+	nano::message_manager message_manager;
 
 public:
 	static unsigned const broadcast_interval_ms = 10;

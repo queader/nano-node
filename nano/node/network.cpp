@@ -17,7 +17,7 @@ nano::network::network (nano::node & node_a, uint16_t port_a) :
 	id (nano::network_constants::active_network),
 	syn_cookies (node_a.network_params.network.max_peers_per_ip),
 	resolver (node_a.io_ctx),
-	tcp_message_manager (node_a.config.tcp_incoming_connections_max),
+	message_manager (node_a.config.tcp_incoming_connections_max),
 	node (node_a),
 	publish_filter (256 * 1024),
 	tcp_channels (node_a),
@@ -84,7 +84,7 @@ void nano::network::stop ()
 
 	tcp_channels.stop ();
 	resolver.cancel ();
-	tcp_message_manager.stop ();
+	message_manager.stop ();
 	port = 0;
 
 	for (auto & thread : packet_processing_threads)
@@ -97,7 +97,7 @@ void nano::network::process_messages ()
 {
 	while (!stopped)
 	{
-		auto item = tcp_message_manager.get_message ();
+		auto item = message_manager.get_message ();
 		if (item.message != nullptr)
 		{
 			release_assert (item.channel != nullptr);
@@ -677,13 +677,13 @@ nano::node_id_handshake::response_payload nano::network::prepare_handshake_respo
  * tcp_message_manager
  */
 
-nano::tcp_message_manager::tcp_message_manager (unsigned incoming_connections_max_a) :
-	max_entries (incoming_connections_max_a * nano::tcp_message_manager::max_entries_per_connection + 1)
+nano::message_manager::message_manager (unsigned incoming_connections_max_a) :
+	max_entries (incoming_connections_max_a * nano::message_manager::max_entries_per_connection + 1)
 {
 	debug_assert (max_entries > 0);
 }
 
-void nano::tcp_message_manager::put_message (nano::tcp_message_item const & item_a)
+void nano::message_manager::put_message (std::unique_ptr<nano::message> message, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
@@ -691,14 +691,14 @@ void nano::tcp_message_manager::put_message (nano::tcp_message_item const & item
 		{
 			producer_condition.wait (lock);
 		}
-		entries.push_back (item_a);
+		entries.emplace_back (entry{ std::move (message), channel });
 	}
 	consumer_condition.notify_one ();
 }
 
-nano::tcp_message_item nano::tcp_message_manager::get_message ()
+nano::message_manager::entry nano::message_manager::get_message ()
 {
-	nano::tcp_message_item result;
+	entry result;
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (entries.empty () && !stopped)
 	{
@@ -711,14 +711,14 @@ nano::tcp_message_item nano::tcp_message_manager::get_message ()
 	}
 	else
 	{
-		result = nano::tcp_message_item{ nullptr, nano::tcp_endpoint (boost::asio::ip::address_v6::any (), 0), 0, nullptr };
+		result = entry{ nullptr, nullptr };
 	}
 	lock.unlock ();
 	producer_condition.notify_one ();
 	return result;
 }
 
-void nano::tcp_message_manager::stop ()
+void nano::message_manager::stop ()
 {
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };

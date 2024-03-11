@@ -17,14 +17,6 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
-class tcp_message_item final
-{
-public:
-	std::shared_ptr<nano::message> message;
-	nano::tcp_endpoint endpoint;
-	nano::account node_id;
-	std::shared_ptr<nano::transport::socket> socket;
-};
 namespace transport
 {
 	class tcp_server;

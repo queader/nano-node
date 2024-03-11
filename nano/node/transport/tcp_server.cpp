@@ -278,9 +278,9 @@ std::unique_ptr<nano::container_info_component> nano::transport::collect_contain
  * tcp_server
  */
 
-nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
-	socket{ std::move (socket_a) },
+nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::node> node_a, std::shared_ptr<nano::transport::socket> socket_a, bool allow_bootstrap_a) :
 	node{ std::move (node_a) },
+	socket{ std::move (socket_a) },
 	allow_bootstrap{ allow_bootstrap_a },
 	message_deserializer{
 		std::make_shared<nano::transport::message_deserializer> (node_a->network_params.network, node_a->network.publish_filter, node_a->block_uniquer, node_a->vote_uniquer,
