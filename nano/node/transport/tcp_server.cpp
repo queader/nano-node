@@ -550,7 +550,12 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 	{
 		if (node->network.verify_handshake_response (*message.response, nano::transport::map_tcp_to_endpoint (server->remote_endpoint)))
 		{
-			server->to_realtime_connection (message.response->node_id);
+			bool success = server->to_realtime_connection (message.response->node_id);
+			if (!success)
+			{
+				server->stop ();
+				return;
+			}
 		}
 		else
 		{
@@ -879,13 +884,18 @@ bool nano::transport::tcp_server::to_realtime_connection (nano::account const & 
 	}
 	if (socket->type () == nano::transport::socket::type_t::undefined && !node->flags.disable_tcp_realtime)
 	{
-		remote_node_id = node_id;
-		++node->tcp_listener->realtime_count;
-		socket->type_set (nano::transport::socket::type_t::realtime);
+		auto channel_l = node->network.tcp_channels.create (socket, shared_from_this (), node_id);
+		if (channel_l)
+		{
+			channel = channel_l;
+			remote_node_id = node_id;
+			++node->tcp_listener->realtime_count;
+			socket->type_set (nano::transport::socket::type_t::realtime);
 
-		node->logger.debug (nano::log::type::tcp_server, "Switched to realtime mode ({})", nano::util::to_str (remote_endpoint));
+			node->logger.debug (nano::log::type::tcp_server, "Switched to realtime mode ({})", nano::util::to_str (remote_endpoint));
 
-		return true;
+			return true;
+		}
 	}
 	return false;
 }

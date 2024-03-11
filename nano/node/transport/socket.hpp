@@ -6,6 +6,7 @@
 #include <nano/lib/locks.hpp>
 #include <nano/lib/logging.hpp>
 #include <nano/lib/timer.hpp>
+#include <nano/node/common.hpp>
 #include <nano/node/transport/traffic_type.hpp>
 
 #include <chrono>
@@ -72,13 +73,13 @@ public:
 
 	void start ();
 
-	void async_connect (boost::asio::ip::tcp::endpoint const &, std::function<void (boost::system::error_code const &)>);
+	void async_connect (nano::tcp_endpoint const &, std::function<void (boost::system::error_code const &)>);
 	void async_read (std::shared_ptr<std::vector<uint8_t>> const &, std::size_t, std::function<void (boost::system::error_code const &, std::size_t)>);
 	void async_write (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> callback = {}, nano::transport::traffic_type = nano::transport::traffic_type::generic);
 
 	void close ();
-	boost::asio::ip::tcp::endpoint remote_endpoint () const;
-	boost::asio::ip::tcp::endpoint local_endpoint () const;
+	nano::tcp_endpoint remote_endpoint () const;
+	nano::tcp_endpoint local_endpoint () const;
 	/** Returns true if the socket has timed out */
 	bool has_timed_out () const;
 	/** This can be called to change the maximum idle time, e.g. based on the type of traffic detected. */

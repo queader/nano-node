@@ -129,6 +129,33 @@ nano::transport::tcp_channels::tcp_channels (nano::node & node) :
 {
 }
 
+void nano::transport::tcp_channels::start ()
+{
+	ongoing_keepalive ();
+	ongoing_merge (0);
+}
+
+void nano::transport::tcp_channels::stop ()
+{
+	stopped = true;
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	// Close all TCP sockets
+	for (auto const & channel : channels)
+	{
+		if (channel.socket)
+		{
+			channel.socket->close ();
+		}
+		// Remove response server
+		if (channel.response_server)
+		{
+			channel.response_server->stop ();
+		}
+	}
+	channels.clear ();
+}
+
+/*
 bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::transport::socket> const & socket_a, std::shared_ptr<nano::transport::tcp_server> const & server_a)
 {
 	auto endpoint (channel_a->get_tcp_endpoint ());
@@ -154,6 +181,61 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 		}
 	}
 	return error;
+}
+*/
+
+bool nano::transport::tcp_channels::check (const nano::tcp_endpoint & endpoint, const nano::account & node_id)
+{
+	if (auto existing = channels.get<endpoint_tag> ().find (endpoint); existing != channels.get<endpoint_tag> ().end ())
+	{
+		return false; // Duplicate peer
+	}
+
+	// Check if we aren't already connected to the peer with node ID on the same IP
+	// Allow same node ID on different IPs to make it resilient to spoofing
+	auto [begin, end] = channels.get<ip_address_tag> ().equal_range (nano::transport::ipv4_address_or_ipv6_subnet (endpoint.address ()));
+	for (auto i = begin; i != end; ++i)
+	{
+		if (i->node_id () == node_id)
+		{
+			return false; // Duplicate peer
+		}
+	}
+	return true; // OK
+}
+
+std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::create (const std::shared_ptr<nano::transport::socket> & socket, const std::shared_ptr<nano::transport::tcp_server> & server, const nano::account & node_id)
+{
+	auto const endpoint = socket->remote_endpoint ();
+	debug_assert (endpoint.address ().is_v6 ());
+
+	if (!node.network.not_a_peer (nano::transport::map_tcp_to_endpoint (endpoint), node.config.allow_local_peers) && !stopped)
+	{
+		nano::unique_lock<nano::mutex> lock{ mutex };
+
+		if (check (endpoint, node_id))
+		{
+			auto channel = std::make_shared<nano::transport::channel_tcp> (node, socket);
+			channel->set_endpoint ();
+			channel->set_node_id (node_id);
+
+			attempts.get<endpoint_tag> ().erase (endpoint);
+
+			auto [_, inserted] = channels.get<endpoint_tag> ().emplace (channel, socket, server);
+			debug_assert (inserted);
+
+			lock.unlock ();
+
+			node.network.channel_observer (channel);
+
+			return channel;
+		}
+		else
+		{
+			// TODO: Stat & log
+		}
+	}
+	return nullptr;
 }
 
 void nano::transport::tcp_channels::erase (nano::tcp_endpoint const & endpoint_a)
@@ -288,32 +370,6 @@ nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
 		}
 	}
 	return result;
-}
-
-void nano::transport::tcp_channels::start ()
-{
-	ongoing_keepalive ();
-	ongoing_merge (0);
-}
-
-void nano::transport::tcp_channels::stop ()
-{
-	stopped = true;
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	// Close all TCP sockets
-	for (auto const & channel : channels)
-	{
-		if (channel.socket)
-		{
-			channel.socket->close ();
-		}
-		// Remove response server
-		if (channel.response_server)
-		{
-			channel.response_server->stop ();
-		}
-	}
-	channels.clear ();
 }
 
 bool nano::transport::tcp_channels::max_ip_connections (nano::tcp_endpoint const & endpoint_a)
@@ -567,6 +623,7 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 			}
 			else
 			{
+				// TODO: Track in tcp_listener.connections[...]
 				auto server = std::make_shared<nano::transport::tcp_server> (node_l, socket, false);
 				server->start ();
 				server->send_handshake_query ();
