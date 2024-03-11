@@ -186,6 +186,8 @@ bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::cha
 
 bool nano::transport::tcp_channels::check (const nano::tcp_endpoint & endpoint, const nano::account & node_id)
 {
+	debug_assert (!mutex.try_lock ());
+
 	if (auto existing = channels.get<endpoint_tag> ().find (endpoint); existing != channels.get<endpoint_tag> ().end ())
 	{
 		return false; // Duplicate peer

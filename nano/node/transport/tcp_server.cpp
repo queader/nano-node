@@ -451,15 +451,14 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 	{
 		handshake_message_visitor handshake_visitor{ shared_from_this () };
 		message->visit (handshake_visitor);
-		if (handshake_visitor.process)
-		{
-			queue_realtime (std::move (message));
-			return true;
-		}
-		else if (handshake_visitor.bootstrap)
+		if (handshake_visitor.bootstrap)
 		{
 			if (!to_bootstrap_connection ())
 			{
+				node->logger.debug (nano::log::type::tcp_server, "Error switching to bootstrap mode: {} ({})",
+				to_string (message->type ()),
+				nano::util::to_str (remote_endpoint));
+
 				stop ();
 				return false;
 			}
@@ -468,7 +467,7 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 		{
 			// Neither handshake nor bootstrap received when in handshake mode
 			node->logger.debug (nano::log::type::tcp_server, "Neither handshake nor bootstrap received when in handshake mode: {} ({})",
-			nano::to_string (message->header.type),
+			to_string (message->type ()),
 			nano::util::to_str (remote_endpoint));
 
 			return true;
@@ -484,7 +483,7 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 		}
 		return true;
 	}
-	// the server will switch to bootstrap mode immediately after processing the first bootstrap message, thus no `else if`
+	// The server will switch to bootstrap mode immediately after processing the first bootstrap message, thus no `else if`
 	if (is_bootstrap_connection ())
 	{
 		bootstrap_message_visitor bootstrap_visitor{ shared_from_this () };
@@ -499,7 +498,6 @@ void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message>
 {
 	if (auto node_l = node.lock ())
 	{
-		release_assert (channel != nullptr);
 		node_l->network.queue (std::move (message), channel);
 	}
 }
@@ -564,8 +562,6 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 			return;
 		}
 	}
-
-	process = true;
 }
 
 void nano::transport::tcp_server::send_handshake_query ()

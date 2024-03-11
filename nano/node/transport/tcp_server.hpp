@@ -101,7 +101,6 @@ private:
 	class handshake_message_visitor : public nano::message_visitor
 	{
 	public:
-		bool process{ false };
 		bool bootstrap{ false };
 
 		explicit handshake_message_visitor (std::shared_ptr<tcp_server>);

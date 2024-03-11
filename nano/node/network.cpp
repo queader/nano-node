@@ -330,7 +330,7 @@ public:
 
 	void node_id_handshake (nano::node_id_handshake const & message_a) override
 	{
-		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+		debug_assert (false); // This should only be exchanged during initial channel setup
 	}
 
 	void telemetry_req (nano::telemetry_req const & message_a) override
