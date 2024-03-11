@@ -16,7 +16,7 @@ namespace nano
 {
 class node;
 
-class message_manager final
+class message_queue final
 {
 public:
 	struct entry
@@ -26,7 +26,7 @@ public:
 	};
 
 public:
-	message_manager (unsigned incoming_connections_max_a);
+	message_queue (unsigned incoming_connections_max_a);
 	void put_message (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
 	entry get_message ();
 	// Stop container and notify waiting threads
@@ -162,7 +162,7 @@ public:
 	std::atomic<bool> stopped{ false };
 
 private:
-	nano::message_manager message_manager;
+	nano::message_queue message_queue;
 
 public:
 	static unsigned const broadcast_interval_ms = 10;

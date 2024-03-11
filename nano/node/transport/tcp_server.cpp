@@ -241,7 +241,7 @@ void nano::transport::tcp_listener::accept_action (boost::system::error_code con
 {
 	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
-		auto server = std::make_shared<nano::transport::tcp_server> (socket_a, node.shared (), true);
+		auto server = std::make_shared<nano::transport::tcp_server> (node.shared (), socket_a, true);
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		connections[server.get ()] = server;
 		server->start ();
@@ -493,6 +493,7 @@ void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message>
 {
 	if (auto node_l = node.lock ())
 	{
+		release_assert (channel != nullptr);
 		node_l->network.queue (std::move (message), channel);
 	}
 }
