@@ -78,8 +78,10 @@ public:
 	~network ();
 
 	nano::networks id;
+
 	void start ();
 	void stop ();
+
 	void flood_message (nano::message &, nano::transport::buffer_drop_policy const = nano::transport::buffer_drop_policy::limiter, float const = 1.0f);
 	void flood_keepalive (float const scale_a = 1.0f);
 	void flood_keepalive_self (float const scale_a = 0.5f);
@@ -130,15 +132,19 @@ public:
 	std::optional<nano::node_id_handshake::query_payload> prepare_handshake_query (nano::endpoint const & remote_endpoint);
 	nano::node_id_handshake::response_payload prepare_handshake_response (nano::node_id_handshake::query_payload const & query, bool v2) const;
 
+	void queue (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
+
+	// Should be used only for testing
+	void inbound (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
+
 private:
+	void process_messages ();
 	void process_message (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
 
 public:
-	std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> inbound;
 	boost::asio::ip::udp::resolver resolver;
 	std::vector<boost::thread> packet_processing_threads;
 	nano::peer_exclusion excluded_peers;
-	nano::tcp_message_manager tcp_message_manager;
 	nano::node & node;
 	nano::network_filter publish_filter;
 	nano::transport::tcp_channels tcp_channels;
@@ -147,6 +153,11 @@ public:
 	// Called when a new channel is observed
 	std::function<void (std::shared_ptr<nano::transport::channel>)> channel_observer;
 	std::atomic<bool> stopped{ false };
+
+private:
+	nano::tcp_message_manager tcp_message_manager;
+
+public:
 	static unsigned const broadcast_interval_ms = 10;
 	static std::size_t const buffer_size = 512;
 

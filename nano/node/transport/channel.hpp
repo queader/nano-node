@@ -26,6 +26,12 @@ public:
 	explicit channel (nano::node &);
 	virtual ~channel () = default;
 
+	// Disallow move & copy construction/assignment
+	channel (nano::transport::channel const &) = delete;
+	channel (nano::transport::channel &&) = delete;
+	nano::transport::channel & operator= (nano::transport::channel const &) = delete;
+	nano::transport::channel & operator= (nano::transport::channel &&) = delete;
+
 	virtual std::size_t hash_code () const = 0;
 	virtual bool operator== (nano::transport::channel const &) const = 0;
 

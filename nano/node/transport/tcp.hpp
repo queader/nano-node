@@ -38,6 +38,12 @@ namespace transport
 		channel_tcp (nano::node &, std::weak_ptr<nano::transport::socket>);
 		~channel_tcp () override;
 
+		// Disallow move & copy construction/assignment
+		channel_tcp (nano::transport::channel_tcp const &) = delete;
+		channel_tcp (nano::transport::channel_tcp &&) = delete;
+		nano::transport::channel_tcp & operator= (nano::transport::channel_tcp const &) = delete;
+		nano::transport::channel_tcp & operator= (nano::transport::channel_tcp &&) = delete;
+
 		std::size_t hash_code () const override;
 		bool operator== (nano::transport::channel const &) const override;
 
@@ -104,7 +110,8 @@ namespace transport
 		friend class telemetry_simultaneous_requests_Test;
 
 	public:
-		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
+		explicit tcp_channels (nano::node &);
+
 		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
@@ -118,8 +125,6 @@ namespace transport
 		void receive ();
 		void start ();
 		void stop ();
-		void process_messages ();
-		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::transport::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
@@ -136,10 +141,10 @@ namespace transport
 		// Connection start
 		void start_tcp (nano::endpoint const &);
 		void start_tcp_receive_node_id (std::shared_ptr<nano::transport::channel_tcp> const &, nano::endpoint const &, std::shared_ptr<std::vector<uint8_t>> const &);
+
 		nano::node & node;
 
 	private:
-		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
 		class endpoint_tag
 		{
 		};

@@ -491,12 +491,10 @@ bool nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 
 void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
-	auto node = this->node.lock ();
-	if (!node)
+	if (auto node_l = node.lock ())
 	{
-		return;
+		node_l->network.queue (std::move (message), channel);
 	}
-	node->network.tcp_message_manager.put_message (nano::tcp_message_item{ std::move (message), remote_endpoint, remote_node_id, socket });
 }
 
 /*
