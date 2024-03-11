@@ -17,20 +17,12 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
-class tcp_message_item final
-{
-public:
-	std::shared_ptr<nano::message> message;
-	nano::tcp_endpoint endpoint;
-	nano::account node_id;
-	std::shared_ptr<nano::transport::socket> socket;
-};
 namespace transport
 {
 	class tcp_server;
 	class tcp_channels;
 
-	class channel_tcp : public nano::transport::channel
+	class channel_tcp final : public nano::transport::channel, public std::enable_shared_from_this<channel_tcp>
 	{
 		friend class nano::transport::tcp_channels;
 
@@ -38,18 +30,28 @@ namespace transport
 		channel_tcp (nano::node &, std::weak_ptr<nano::transport::socket>);
 		~channel_tcp () override;
 
-		std::size_t hash_code () const override;
-		bool operator== (nano::transport::channel const &) const override;
-
-		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions//
-		void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
+		// Disallow move & copy construction/assignment
+		channel_tcp (nano::transport::channel_tcp const &) = delete;
+		channel_tcp (nano::transport::channel_tcp &&) = delete;
+		nano::transport::channel_tcp & operator= (nano::transport::channel_tcp const &) = delete;
+		nano::transport::channel_tcp & operator= (nano::transport::channel_tcp &&) = delete;
 
 		std::string to_string () const override;
+		std::size_t hash_code () const override;
+		bool operator== (nano::transport::channel const &) const override;
 		bool operator== (nano::transport::channel_tcp const & other_a) const
 		{
 			return &node == &other_a.node && socket.lock () == other_a.socket.lock ();
 		}
+
+		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions//
+		void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
+
+		/*
+		 * Underlying socket
+		 */
 		std::weak_ptr<nano::transport::socket> socket;
+
 		/* Mark for temporary channels. Usually remote ports of these channels are ephemeral and received from incoming connections to server.
 		If remote part has open listening port, temporary channel will be replaced with direct connection to listening port soon. But if other side is behing NAT or firewall this connection can be pemanent. */
 		std::atomic<bool> temporary{ false };
@@ -72,7 +74,7 @@ namespace transport
 			return nano::transport::transport_type::tcp;
 		}
 
-		virtual bool max (nano::transport::traffic_type traffic_type) override
+		bool max (nano::transport::traffic_type traffic_type) override
 		{
 			bool result = true;
 			if (auto socket_l = socket.lock ())
@@ -82,13 +84,21 @@ namespace transport
 			return result;
 		}
 
-		virtual bool alive () const override
+		bool alive () const override
 		{
 			if (auto socket_l = socket.lock ())
 			{
 				return socket_l->alive ();
 			}
 			return false;
+		}
+
+		void close () override
+		{
+			if (auto socket_l = socket.lock ())
+			{
+				socket_l->close ();
+			}
 		}
 
 	private:
@@ -104,8 +114,13 @@ namespace transport
 		friend class telemetry_simultaneous_requests_Test;
 
 	public:
-		explicit tcp_channels (nano::node &, std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> = nullptr);
-		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
+		explicit tcp_channels (nano::node &);
+
+		void start ();
+		void stop ();
+
+		std::shared_ptr<nano::transport::channel_tcp> create (std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
+
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
 		std::shared_ptr<nano::transport::channel_tcp> find_channel (nano::tcp_endpoint const &) const;
@@ -116,10 +131,6 @@ namespace transport
 		// Get the next peer for attempting a tcp connection
 		nano::tcp_endpoint bootstrap_peer ();
 		void receive ();
-		void start ();
-		void stop ();
-		void process_messages ();
-		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::transport::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
@@ -132,59 +143,44 @@ namespace transport
 		void ongoing_merge (size_t channel_index, nano::keepalive keepalive, size_t peer_index);
 		void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
 		void modify (std::shared_ptr<nano::transport::channel_tcp> const &, std::function<void (std::shared_ptr<nano::transport::channel_tcp> const &)>);
-		void update (nano::tcp_endpoint const &);
+
 		// Connection start
 		void start_tcp (nano::endpoint const &);
-		void start_tcp_receive_node_id (std::shared_ptr<nano::transport::channel_tcp> const &, nano::endpoint const &, std::shared_ptr<std::vector<uint8_t>> const &);
+
 		nano::node & node;
 
 	private:
-		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
-		class endpoint_tag
-		{
-		};
-		class ip_address_tag
-		{
-		};
-		class subnetwork_tag
-		{
-		};
-		class random_access_tag
-		{
-		};
-		class last_packet_sent_tag
-		{
-		};
-		class last_bootstrap_attempt_tag
-		{
-		};
-		class last_attempt_tag
-		{
-		};
-		class node_id_tag
-		{
-		};
-		class version_tag
-		{
-		};
+		bool check (nano::tcp_endpoint const &, nano::account const & node_id);
 
-		class channel_tcp_wrapper final
+	private:
+		// clang-format off
+		class endpoint_tag {};
+		class ip_address_tag {};
+		class subnetwork_tag {};
+		class random_access_tag {};
+		class last_bootstrap_attempt_tag {};
+		class last_attempt_tag {};
+		class node_id_tag {};
+		// clang-format on
+
+		class channel_entry final
 		{
 		public:
 			std::shared_ptr<nano::transport::channel_tcp> channel;
 			std::shared_ptr<nano::transport::socket> socket;
 			std::shared_ptr<nano::transport::tcp_server> response_server;
-			channel_tcp_wrapper (std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
+
+			// Field not used for indexing
+			mutable std::chrono::steady_clock::time_point last_keepalive_sent{ std::chrono::steady_clock::time_point () };
+
+			channel_entry (std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
 				channel (std::move (channel_a)), socket (std::move (socket_a)), response_server (std::move (server_a))
 			{
 			}
+
 			nano::tcp_endpoint endpoint () const
 			{
 				return channel->get_tcp_endpoint ();
-			}
-			std::chrono::steady_clock::time_point last_packet_sent () const
-			{
-				return channel->get_last_packet_sent ();
 			}
 			std::chrono::steady_clock::time_point last_bootstrap_attempt () const
 			{
@@ -200,15 +196,11 @@ namespace transport
 			}
 			nano::account node_id () const
 			{
-				auto node_id (channel->get_node_id ());
-				return node_id;
-			}
-			uint8_t network_version () const
-			{
-				return channel->get_network_version ();
+				return channel->get_node_id ();
 			}
 		};
-		class tcp_endpoint_attempt final
+
+		class attempt_entry final
 		{
 		public:
 			nano::tcp_endpoint endpoint;
@@ -216,45 +208,45 @@ namespace transport
 			boost::asio::ip::address subnetwork;
 			std::chrono::steady_clock::time_point last_attempt{ std::chrono::steady_clock::now () };
 
-			explicit tcp_endpoint_attempt (nano::tcp_endpoint const & endpoint_a) :
+			explicit attempt_entry (nano::tcp_endpoint const & endpoint_a) :
 				endpoint (endpoint_a),
 				address (nano::transport::ipv4_address_or_ipv6_subnet (endpoint_a.address ())),
 				subnetwork (nano::transport::map_address_to_subnetwork (endpoint_a.address ()))
 			{
 			}
 		};
+
 		mutable nano::mutex mutex;
+
 		// clang-format off
-		boost::multi_index_container<channel_tcp_wrapper,
+		boost::multi_index_container<channel_entry,
 		mi::indexed_by<
-			mi::random_access<mi::tag<random_access_tag>>,
+			mi::random_access<mi::tag<random_access_tag>>, // TODO: Can this be replaced with sequential access?
 			mi::ordered_non_unique<mi::tag<last_bootstrap_attempt_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, std::chrono::steady_clock::time_point, &channel_tcp_wrapper::last_bootstrap_attempt>>,
+				mi::const_mem_fun<channel_entry, std::chrono::steady_clock::time_point, &channel_entry::last_bootstrap_attempt>>,
 			mi::hashed_unique<mi::tag<endpoint_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, nano::tcp_endpoint, &channel_tcp_wrapper::endpoint>>,
+				mi::const_mem_fun<channel_entry, nano::tcp_endpoint, &channel_entry::endpoint>>,
 			mi::hashed_non_unique<mi::tag<node_id_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, nano::account, &channel_tcp_wrapper::node_id>>,
-			mi::ordered_non_unique<mi::tag<last_packet_sent_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, std::chrono::steady_clock::time_point, &channel_tcp_wrapper::last_packet_sent>>,
-			mi::ordered_non_unique<mi::tag<version_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, uint8_t, &channel_tcp_wrapper::network_version>>,
+				mi::const_mem_fun<channel_entry, nano::account, &channel_entry::node_id>>,
 			mi::hashed_non_unique<mi::tag<ip_address_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::ip_address>>,
+				mi::const_mem_fun<channel_entry, boost::asio::ip::address, &channel_entry::ip_address>>,
 			mi::hashed_non_unique<mi::tag<subnetwork_tag>,
-				mi::const_mem_fun<channel_tcp_wrapper, boost::asio::ip::address, &channel_tcp_wrapper::subnetwork>>>>
+				mi::const_mem_fun<channel_entry, boost::asio::ip::address, &channel_entry::subnetwork>>>>
 		channels;
-		boost::multi_index_container<tcp_endpoint_attempt,
+
+		boost::multi_index_container<attempt_entry,
 		mi::indexed_by<
 			mi::hashed_unique<mi::tag<endpoint_tag>,
-				mi::member<tcp_endpoint_attempt, nano::tcp_endpoint, &tcp_endpoint_attempt::endpoint>>,
+				mi::member<attempt_entry, nano::tcp_endpoint, &attempt_entry::endpoint>>,
 			mi::hashed_non_unique<mi::tag<ip_address_tag>,
-				mi::member<tcp_endpoint_attempt, boost::asio::ip::address, &tcp_endpoint_attempt::address>>,
+				mi::member<attempt_entry, boost::asio::ip::address, &attempt_entry::address>>,
 			mi::hashed_non_unique<mi::tag<subnetwork_tag>,
-				mi::member<tcp_endpoint_attempt, boost::asio::ip::address, &tcp_endpoint_attempt::subnetwork>>,
+				mi::member<attempt_entry, boost::asio::ip::address, &attempt_entry::subnetwork>>,
 			mi::ordered_non_unique<mi::tag<last_attempt_tag>,
-				mi::member<tcp_endpoint_attempt, std::chrono::steady_clock::time_point, &tcp_endpoint_attempt::last_attempt>>>>
+				mi::member<attempt_entry, std::chrono::steady_clock::time_point, &attempt_entry::last_attempt>>>>
 		attempts;
 		// clang-format on
+
 		std::atomic<bool> stopped{ false };
 
 		friend class network_peer_max_tcp_attempts_subnetwork_Test;

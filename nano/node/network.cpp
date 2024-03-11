@@ -16,16 +16,11 @@
 nano::network::network (nano::node & node_a, uint16_t port_a) :
 	id (nano::network_constants::active_network),
 	syn_cookies (node_a.network_params.network.max_peers_per_ip),
-	inbound{ [this] (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel) {
-		debug_assert (message.header.network == node.network_params.network.current_network);
-		debug_assert (message.header.version_using >= node.network_params.network.protocol_version_min);
-		process_message (message, channel);
-	} },
 	resolver (node_a.io_ctx),
-	tcp_message_manager (node_a.config.tcp_incoming_connections_max),
+	message_queue (node_a.config.tcp_incoming_connections_max),
 	node (node_a),
 	publish_filter (256 * 1024),
-	tcp_channels (node_a, inbound),
+	tcp_channels (node_a),
 	port (port_a),
 	disconnect_observer ([] () {})
 {
@@ -35,7 +30,7 @@ nano::network::network (nano::node & node_a, uint16_t port_a) :
 			nano::thread_role::set (nano::thread_role::name::packet_processing);
 			try
 			{
-				tcp_channels.process_messages ();
+				process_messages ();
 			}
 			catch (boost::system::error_code & ec)
 			{
@@ -82,15 +77,45 @@ void nano::network::start ()
 
 void nano::network::stop ()
 {
-	if (!stopped.exchange (true))
+	if (stopped.exchange (true))
 	{
-		tcp_channels.stop ();
-		resolver.cancel ();
-		tcp_message_manager.stop ();
-		port = 0;
-		for (auto & thread : packet_processing_threads)
+		return;
+	}
+
+	tcp_channels.stop ();
+	resolver.cancel ();
+	message_queue.stop ();
+	port = 0;
+
+	for (auto & thread : packet_processing_threads)
+	{
+		thread.join ();
+	}
+}
+
+void nano::network::process_messages ()
+{
+	while (!stopped)
+	{
+		auto item = message_queue.get_message ();
+		if (item.message != nullptr)
 		{
-			thread.join ();
+			release_assert (item.channel != nullptr);
+
+			auto & message = *item.message;
+
+			if (message.header.network != node.network_params.network.current_network)
+			{
+				continue;
+			}
+			if (message.header.version_using < node.network_params.network.protocol_version_min)
+			{
+				continue;
+			}
+
+			item.channel->set_last_packet_received (std::chrono::steady_clock::now ());
+
+			process_message (*item.message, item.channel);
 		}
 	}
 }
@@ -305,7 +330,7 @@ public:
 
 	void node_id_handshake (nano::node_id_handshake const & message_a) override
 	{
-		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+		debug_assert (false); // This should only be exchanged during initial channel setup
 	}
 
 	void telemetry_req (nano::telemetry_req const & message_a) override
@@ -344,11 +369,26 @@ private:
 
 void nano::network::process_message (nano::message const & message, std::shared_ptr<nano::transport::channel> const & channel)
 {
+	debug_assert (message.header.network == node.network_params.network.current_network);
+	debug_assert (message.header.version_using >= node.network_params.network.protocol_version_min);
+
 	node.stats.inc (nano::stat::type::message, to_stat_detail (message.type ()), nano::stat::dir::in);
 	node.logger.trace (nano::log::type::network_processed, to_log_detail (message.type ()), nano::log::arg{ "message", message });
 
 	network_message_visitor visitor{ node, channel };
 	message.visit (visitor);
+}
+
+void nano::network::inbound (const nano::message & message, const std::shared_ptr<nano::transport::channel> & channel)
+{
+	process_message (message, channel);
+}
+
+void nano::network::queue (std::unique_ptr<nano::message> message, const std::shared_ptr<nano::transport::channel> & channel)
+{
+	release_assert (message != nullptr);
+	release_assert (channel != nullptr);
+	message_queue.put_message (std::move (message), channel);
 }
 
 // Send keepalives to all the peers we've been notified of
@@ -506,6 +546,7 @@ nano::endpoint nano::network::endpoint () const
 void nano::network::cleanup (std::chrono::steady_clock::time_point const & cutoff_a)
 {
 	tcp_channels.purge (cutoff_a);
+
 	if (node.network.empty ())
 	{
 		disconnect_observer ();
@@ -644,13 +685,13 @@ nano::node_id_handshake::response_payload nano::network::prepare_handshake_respo
  * tcp_message_manager
  */
 
-nano::tcp_message_manager::tcp_message_manager (unsigned incoming_connections_max_a) :
-	max_entries (incoming_connections_max_a * nano::tcp_message_manager::max_entries_per_connection + 1)
+nano::message_queue::message_queue (unsigned incoming_connections_max_a) :
+	max_entries (incoming_connections_max_a * max_entries_per_connection + 1)
 {
 	debug_assert (max_entries > 0);
 }
 
-void nano::tcp_message_manager::put_message (nano::tcp_message_item const & item_a)
+void nano::message_queue::put_message (std::unique_ptr<nano::message> message, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
@@ -658,14 +699,14 @@ void nano::tcp_message_manager::put_message (nano::tcp_message_item const & item
 		{
 			producer_condition.wait (lock);
 		}
-		entries.push_back (item_a);
+		entries.emplace_back (entry{ std::move (message), channel });
 	}
 	consumer_condition.notify_one ();
 }
 
-nano::tcp_message_item nano::tcp_message_manager::get_message ()
+nano::message_queue::entry nano::message_queue::get_message ()
 {
-	nano::tcp_message_item result;
+	entry result;
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (entries.empty () && !stopped)
 	{
@@ -678,14 +719,14 @@ nano::tcp_message_item nano::tcp_message_manager::get_message ()
 	}
 	else
 	{
-		result = nano::tcp_message_item{ nullptr, nano::tcp_endpoint (boost::asio::ip::address_v6::any (), 0), 0, nullptr };
+		result = entry{ nullptr, nullptr };
 	}
 	lock.unlock ();
 	producer_condition.notify_one ();
 	return result;
 }
 
-void nano::tcp_message_manager::stop ()
+void nano::message_queue::stop ()
 {
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
@@ -693,6 +734,12 @@ void nano::tcp_message_manager::stop ()
 	}
 	consumer_condition.notify_all ();
 	producer_condition.notify_all ();
+}
+
+size_t nano::message_queue::size () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return entries.size ();
 }
 
 /*

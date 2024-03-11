@@ -23,6 +23,7 @@ enum class type : uint8_t
 	http_callback,
 	ipc,
 	tcp,
+	tcp_channels,
 	channel,
 	socket,
 	confirmation_height,
@@ -147,6 +148,20 @@ enum class detail : uint8_t
 	telemetry_ack,
 	asc_pull_req,
 	asc_pull_ack,
+
+	// tcp_server
+	to_realtime,
+	to_bootstrap,
+	node_id_handshake_initiate,
+	node_id_handshake_responded,
+	node_id_handshake_received,
+	node_id_handshake_error,
+	node_id_handshake_network_error,
+	node_id_handshake_response_invalid,
+
+	// tcp_channels
+	channel_accepted,
+	channel_rejected,
 
 	// bootstrap, callback
 	initiate,
