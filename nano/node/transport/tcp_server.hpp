@@ -63,6 +63,7 @@ public:
 
 	void timeout ();
 	void set_last_keepalive (nano::keepalive const & message);
+	void send_handshake_query ();
 
 	std::weak_ptr<nano::node> const node;
 	std::shared_ptr<nano::transport::socket> const socket;

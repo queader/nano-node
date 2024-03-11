@@ -143,6 +143,8 @@ enum class detail : uint8_t
 	confirm_req,
 	confirm_ack,
 	node_id_handshake,
+	node_id_handshake_initiate,
+	node_id_handshake_response,
 	telemetry_req,
 	telemetry_ack,
 	asc_pull_req,
