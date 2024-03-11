@@ -1,7 +1,10 @@
 #pragma once
 
 #include <nano/lib/locks.hpp>
+#include <nano/lib/logging.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/lib/object_stream.hpp>
+#include <nano/lib/object_stream_adapters.hpp>
 #include <nano/lib/stats.hpp>
 #include <nano/lib/thread_roles.hpp>
 #include <nano/lib/threading.hpp>
@@ -50,21 +53,21 @@ public:
 
 		auto operator<=> (source const &) const = default;
 
-		friend std::ostream & operator<< (std::ostream & os, source const & source)
+		void operator() (nano::object_stream & obs) const
 		{
-			os << "sources: ";
-			std::apply ([&os] (auto const &... sources) {
-				((os << to_string (sources) << ", "), ...);
-			},
-			source.sources);
-			if (source.channel)
+			obs.write ("sources", [&] (nano::array_stream & ars) {
+				std::apply ([&ars] (auto const &... sources) {
+					((ars.write_single (sources)), ...);
+				},
+				sources);
+			});
+
+			if (channel)
 			{
-				os << " channel: " << source.channel->to_string ()
-				   << " (" << source.channel->get_node_id () << ")"
-				   << " [" << source.channel.get () << "]"
-				   << " ( use_count: " << source.channel.use_count () << ", alive: " << source.channel->alive () << ")";
+				obs.write ("channel", channel);
+				obs.write ("channel_ptr", channel.get ());
+				obs.write ("channel_ref_count", channel.use_count ());
 			}
-			return os;
 		}
 	};
 
@@ -110,6 +113,13 @@ private:
 		size_t size () const
 		{
 			return requests.size ();
+		}
+
+		void operator() (nano::object_stream & obs) const
+		{
+			obs.write ("priority", priority);
+			obs.write ("max_size", max_size);
+			obs.write ("requests", requests.size ());
 		}
 	};
 
@@ -172,27 +182,9 @@ public:
 			cleanup ();
 			update ();
 
-			std::cout << "fair_queue:\n"
-					  << *this
-					  << std::endl;
-
 			return true; // Updated
 		}
 		return false; // Not updated
-	}
-
-	void dump (std::ostream & os) const
-	{
-		for (auto const & [source, queue] : queues)
-		{
-			os << "queue: " << source << " - " << queue.size () << " / " << queue.max_size << " (priority: " << queue.priority << ")\n";
-		}
-	}
-
-	friend std::ostream & operator<< (std::ostream & os, fair_queue const & queue)
-	{
-		queue.dump (os);
-		return os;
 	}
 
 	/**
@@ -326,6 +318,14 @@ public:
 		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queues", queues.size (), sizeof (typename decltype (queues)::value_type) }));
 		composite->add_component (std::make_unique<container_info_leaf> (container_info{ "total_size", total_size (), sizeof (typename decltype (queues)::value_type) }));
 		return composite;
+	}
+
+	void operator() (nano::object_stream & obs) const
+	{
+		obs.write_range ("queues", queues, [] (auto const & entry, nano::object_stream & obs) {
+			obs.write ("source", entry.first);
+			obs.write ("queue", entry.second);
+		});
 	}
 };
 }

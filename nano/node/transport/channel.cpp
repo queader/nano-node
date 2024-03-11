@@ -68,4 +68,5 @@ void nano::transport::channel::operator() (nano::object_stream & obs) const
 	obs.write ("endpoint", get_endpoint ());
 	obs.write ("peering_endpoint", get_peering_endpoint ());
 	obs.write ("node_id", get_node_id ().to_node_id ());
+	obs.write ("alive", alive ());
 }
