@@ -386,6 +386,8 @@ void nano::network::inbound (const nano::message & message, const std::shared_pt
 
 void nano::network::queue (std::unique_ptr<nano::message> message, const std::shared_ptr<nano::transport::channel> & channel)
 {
+	release_assert (message != nullptr);
+	release_assert (channel != nullptr);
 	message_queue.put_message (std::move (message), channel);
 }
 
