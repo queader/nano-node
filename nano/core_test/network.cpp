@@ -85,17 +85,16 @@ TEST (network, send_node_id_handshake_tcp)
 	auto node1 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.work));
 	node1->start ();
 	system.nodes.push_back (node1);
-	auto initial (node0->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in));
-	auto initial_node1 (node1->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in));
-	auto initial_keepalive (node0->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in));
+	node0->stats.clear ();
+	node1->stats.clear ();
 	std::weak_ptr<nano::node> node_w (node0);
 	node0->network.tcp_channels.start_tcp (node1->network.endpoint ());
 	ASSERT_EQ (0, node0->network.size ());
 	ASSERT_EQ (0, node1->network.size ());
-	ASSERT_TIMELY (10s, node0->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= initial + 2);
-	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= initial_node1 + 2);
-	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in) >= initial_keepalive + 2);
-	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in) >= initial_keepalive + 2);
+	ASSERT_TIMELY (10s, node0->stats.count (nano::stat::type::tcp_server, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= 1);
+	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::tcp_server, nano::stat::detail::node_id_handshake, nano::stat::dir::in) >= 1);
+	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in) >= 2);
+	ASSERT_TIMELY (5s, node1->stats.count (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in) >= 2);
 	ASSERT_EQ (1, node0->network.size ());
 	ASSERT_EQ (1, node1->network.size ());
 	auto list1 (node0->network.list (1));
@@ -1043,7 +1042,7 @@ TEST (network, tcp_message_manager)
 		consumers.emplace_back ([&] {
 			for (auto i = 0; i < message_count; ++i)
 			{
-				ASSERT_EQ (manager.get_message ().channel, channel3);
+				ASSERT_EQ (manager2.get_message ().channel, channel3);
 			}
 		});
 	}
@@ -1053,7 +1052,7 @@ TEST (network, tcp_message_manager)
 		producers.emplace_back ([&] {
 			for (auto i = 0; i < message_count; ++i)
 			{
-				manager.put_message (make_message (), channel3);
+				manager2.put_message (make_message (), channel3);
 			}
 		});
 	}
@@ -1185,7 +1184,7 @@ TEST (network, purge_dead_channel_outgoing)
 		connected_count++;
 		outgoing = socket.shared_from_this ();
 
-		std::cout << "connected: " << socket.remote_endpoint () << std::endl;
+		system.logger.debug (nano::log::type::test, "Connected: {}", fmt::streamed (socket.remote_endpoint ()));
 	});
 
 	std::atomic<int> accepted_count{ 0 };
@@ -1193,7 +1192,7 @@ TEST (network, purge_dead_channel_outgoing)
 		accepted_count++;
 		incoming = socket.shared_from_this ();
 
-		std::cout << "accepted: " << socket.remote_endpoint () << std::endl;
+		system.logger.debug (nano::log::type::test, "Accepted: {}", fmt::streamed (socket.remote_endpoint ()));
 	});
 
 	auto & node2 = *system.add_node (flags);
