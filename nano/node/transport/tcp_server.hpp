@@ -102,6 +102,7 @@ private:
 	{
 	public:
 		bool bootstrap{ false };
+		bool realtime{ false };
 
 		explicit handshake_message_visitor (std::shared_ptr<tcp_server>);
 
