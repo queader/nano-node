@@ -22,7 +22,7 @@ namespace transport
 	class tcp_server;
 	class tcp_channels;
 
-	class channel_tcp final : public nano::transport::channel
+	class channel_tcp final : public nano::transport::channel, public std::enable_shared_from_this<channel_tcp>
 	{
 		friend class nano::transport::tcp_channels;
 
@@ -36,18 +36,22 @@ namespace transport
 		nano::transport::channel_tcp & operator= (nano::transport::channel_tcp const &) = delete;
 		nano::transport::channel_tcp & operator= (nano::transport::channel_tcp &&) = delete;
 
+		std::string to_string () const override;
 		std::size_t hash_code () const override;
 		bool operator== (nano::transport::channel const &) const override;
-
-		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions//
-		void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
-
-		std::string to_string () const override;
 		bool operator== (nano::transport::channel_tcp const & other_a) const
 		{
 			return &node == &other_a.node && socket.lock () == other_a.socket.lock ();
 		}
+
+		// TODO: investigate clang-tidy warning about default parameters on virtual/override functions//
+		void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
+
+		/*
+		 * Underlying socket
+		 */
 		std::weak_ptr<nano::transport::socket> socket;
+
 		/* Mark for temporary channels. Usually remote ports of these channels are ephemeral and received from incoming connections to server.
 		If remote part has open listening port, temporary channel will be replaced with direct connection to listening port soon. But if other side is behing NAT or firewall this connection can be pemanent. */
 		std::atomic<bool> temporary{ false };
