@@ -27,21 +27,23 @@ public:
 
 public:
 	message_queue (unsigned incoming_connections_max_a);
-	void put_message (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
-	entry get_message ();
+
 	// Stop container and notify waiting threads
 	void stop ();
+	size_t size () const;
+
+	void put_message (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
+	entry get_message ();
+
+	unsigned const max_entries;
 
 private:
-	nano::mutex mutex;
+	mutable nano::mutex mutex;
 	nano::condition_variable producer_condition;
 	nano::condition_variable consumer_condition;
 	std::deque<entry> entries;
-	unsigned max_entries;
 	static unsigned const max_entries_per_connection = 16;
 	bool stopped{ false };
-
-	friend class network_tcp_message_manager_Test;
 };
 
 /**

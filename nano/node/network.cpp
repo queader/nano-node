@@ -735,6 +735,12 @@ void nano::message_queue::stop ()
 	producer_condition.notify_all ();
 }
 
+size_t nano::message_queue::size () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return entries.size ();
+}
+
 /*
  * syn_cookies
  */

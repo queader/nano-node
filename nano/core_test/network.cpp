@@ -992,38 +992,50 @@ TEST (network, tcp_no_connect_excluded_peers)
 	ASSERT_TIMELY_EQ (5s, node0->network.size (), 1);
 }
 
-namespace nano
-{
 TEST (network, tcp_message_manager)
 {
-	nano::tcp_message_manager manager (1);
-	nano::tcp_message_item item;
-	item.node_id = nano::account (100);
-	ASSERT_EQ (0, manager.entries.size ());
-	manager.put_message (item);
-	ASSERT_EQ (1, manager.entries.size ());
-	ASSERT_EQ (manager.get_message ().node_id, item.node_id);
-	ASSERT_EQ (0, manager.entries.size ());
+	nano::test::system system{ 1 };
+
+	nano::message_queue manager (1);
+
+	auto channel1 = nano::test::fake_channel (system.node (0));
+	auto make_message = [&] () {
+		auto message = std::make_unique<nano::keepalive> (system.nodes[0]->network_params.network);
+		return message;
+	};
+
+	ASSERT_EQ (0, manager.size ());
+	manager.put_message (make_message (), channel1);
+	ASSERT_EQ (1, manager.size ());
+	auto item = manager.get_message ();
+	ASSERT_EQ (item.message->type (), nano::message_type::keepalive);
+	ASSERT_EQ (item.channel, channel1);
+	ASSERT_EQ (0, manager.size ());
 
 	// Fill the queue
-	manager.entries = decltype (manager.entries) (manager.max_entries, item);
-	ASSERT_EQ (manager.entries.size (), manager.max_entries);
+	auto channel2 = nano::test::fake_channel (system.node (0));
+	for (int n = 0; n < manager.max_entries; ++n)
+	{
+		manager.put_message (make_message (), channel2);
+	}
 
 	// This task will wait until a message is consumed
 	auto future = std::async (std::launch::async, [&] {
-		manager.put_message (item);
+		manager.put_message (make_message (), channel2);
 	});
 
 	// This should give sufficient time to execute put_message
 	// and prove that it waits on condition variable
 	std::this_thread::sleep_for (200ms);
 
-	ASSERT_EQ (manager.entries.size (), manager.max_entries);
-	ASSERT_EQ (manager.get_message ().node_id, item.node_id);
+	ASSERT_EQ (manager.size (), manager.max_entries);
+	ASSERT_EQ (manager.get_message ().channel, channel2);
 	ASSERT_NE (std::future_status::timeout, future.wait_for (1s));
-	ASSERT_EQ (manager.entries.size (), manager.max_entries);
+	ASSERT_EQ (manager.size (), manager.max_entries);
 
-	nano::tcp_message_manager manager2 (2);
+	nano::message_queue manager2 (2);
+	auto channel3 = nano::test::fake_channel (system.node (0));
+
 	size_t message_count = 10'000;
 	std::vector<std::thread> consumers;
 	for (auto i = 0; i < 4; ++i)
@@ -1031,7 +1043,7 @@ TEST (network, tcp_message_manager)
 		consumers.emplace_back ([&] {
 			for (auto i = 0; i < message_count; ++i)
 			{
-				ASSERT_EQ (manager.get_message ().node_id, item.node_id);
+				ASSERT_EQ (manager.get_message ().channel, channel3);
 			}
 		});
 	}
@@ -1041,7 +1053,7 @@ TEST (network, tcp_message_manager)
 		producers.emplace_back ([&] {
 			for (auto i = 0; i < message_count; ++i)
 			{
-				manager.put_message (item);
+				manager.put_message (make_message (), channel3);
 			}
 		});
 	}
@@ -1050,7 +1062,6 @@ TEST (network, tcp_message_manager)
 	{
 		t.join ();
 	}
-}
 }
 
 TEST (network, cleanup_purge)
