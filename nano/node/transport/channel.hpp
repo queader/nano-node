@@ -56,6 +56,7 @@ public:
 	{
 		return false;
 	}
+
 	virtual bool alive () const
 	{
 		return true;

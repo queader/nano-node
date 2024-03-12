@@ -5,7 +5,7 @@
 #include <nano/node/transport/message_deserializer.hpp>
 #include <nano/node/transport/tcp.hpp>
 
-#include <boost/format.hpp>
+#include <ranges>
 
 /*
  * channel_tcp
@@ -425,7 +425,11 @@ void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	node.logger.debug (nano::log::type::tcp_channels, "Performing periodic channel cleanup...");
+	node.logger.debug (nano::log::type::tcp_channels, "Performing periodic channel cleanup, cutoff: {}", nano::log::milliseconds_delta (cutoff_deadline));
+
+	node.logger.debug (nano::log::type::tcp_channels, "Channels [{}]: {}", channels.size (), nano::streamed_range (channels | std::views::transform ([] (auto const & entry) {
+		return entry.channel;
+	})));
 
 	erase_if (channels, [this, cutoff_deadline] (auto const & entry) {
 		// Remove channels with dead underlying sockets
@@ -434,6 +438,7 @@ void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point
 			node.logger.debug (nano::log::type::tcp_channels, "Removing dead channel: {}", entry.channel->to_string ());
 			return true; // Erase
 		}
+
 		// Remove channels that haven't sent a message within the cutoff time
 		if (entry.channel->get_last_packet_sent () < cutoff_deadline)
 		{
@@ -442,12 +447,14 @@ void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point
 			std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - entry.channel->get_last_packet_sent ()).count ());
 			return true; // Erase
 		}
+
 		// Check if any tcp channels belonging to old protocol versions which may still be alive due to async operations
 		if (entry.channel->get_network_version () < node.network_params.network.protocol_version_min)
 		{
 			node.logger.debug (nano::log::type::tcp_channels, "Removing channel with old protocol version: {}", entry.channel->to_string ());
 			return true; // Erase
 		}
+
 		return false;
 	});
 
