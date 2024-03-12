@@ -22,7 +22,7 @@ namespace transport
 	class tcp_server;
 	class tcp_channels;
 
-	class channel_tcp : public nano::transport::channel
+	class channel_tcp final : public nano::transport::channel
 	{
 		friend class nano::transport::tcp_channels;
 
@@ -70,7 +70,7 @@ namespace transport
 			return nano::transport::transport_type::tcp;
 		}
 
-		virtual bool max (nano::transport::traffic_type traffic_type) override
+		bool max (nano::transport::traffic_type traffic_type) override
 		{
 			bool result = true;
 			if (auto socket_l = socket.lock ())
@@ -80,13 +80,21 @@ namespace transport
 			return result;
 		}
 
-		virtual bool alive () const override
+		bool alive () const override
 		{
 			if (auto socket_l = socket.lock ())
 			{
 				return socket_l->alive ();
 			}
 			return false;
+		}
+
+		void close () override
+		{
+			if (auto socket_l = socket.lock ())
+			{
+				socket_l->close ();
+			}
 		}
 
 	private:

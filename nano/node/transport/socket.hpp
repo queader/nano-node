@@ -193,6 +193,7 @@ protected:
 	/** Updated only from strand, but stored as atomic so it can be read from outside */
 	std::atomic<bool> write_in_progress{ false };
 
+private:
 	void close_internal ();
 	void write_queued_messages ();
 	void set_default_timeout ();

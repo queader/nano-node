@@ -62,6 +62,11 @@ public:
 		return true;
 	}
 
+	virtual void close ()
+	{
+		// Do nothing by default
+	}
+
 	std::chrono::steady_clock::time_point get_last_bootstrap_attempt () const
 	{
 		nano::lock_guard<nano::mutex> lk (channel_mutex);

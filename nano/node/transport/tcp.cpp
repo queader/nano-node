@@ -54,7 +54,8 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 		if (!socket_l->max (traffic_type) || (policy_a == nano::transport::buffer_drop_policy::no_socket_drop && !socket_l->full (traffic_type)))
 		{
 			socket_l->async_write (
-			buffer_a, [endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node> (node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
+			buffer_a,
+			[endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node> (node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
 				if (auto node_l = node.lock ())
 				{
 					if (ec == boost::system::errc::host_unreachable)
@@ -431,27 +432,40 @@ void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point
 		return entry.channel;
 	})));
 
+	auto should_close = [this, cutoff_deadline] (auto const & channel) {
+		// Remove channels that haven't sent a message within the cutoff time
+		// TODO: Use max(last_sent, last_received)
+		if (channel->get_last_packet_sent () < cutoff_deadline)
+		{
+			node.logger.debug (nano::log::type::tcp_channels, "Closing idle channel: {} (idle for {} seconds)",
+			channel->to_string (),
+			nano::log::seconds (std::chrono::steady_clock::now () - channel->get_last_packet_sent ()));
+
+			return true; // Close
+		}
+		// Check if any tcp channels belonging to old protocol versions which may still be alive due to async operations
+		if (channel->get_network_version () < node.network_params.network.protocol_version_min)
+		{
+			node.logger.debug (nano::log::type::tcp_channels, "Closing channel with old protocol version: {}", channel->to_string ());
+
+			return true; // Close
+		}
+		return false;
+	};
+
+	for (auto const & entry : channels)
+	{
+		if (should_close (entry.channel))
+		{
+			entry.channel->close ();
+		}
+	}
+
 	erase_if (channels, [this, cutoff_deadline] (auto const & entry) {
 		// Remove channels with dead underlying sockets
 		if (!entry.channel->alive ())
 		{
 			node.logger.debug (nano::log::type::tcp_channels, "Removing dead channel: {}", entry.channel->to_string ());
-			return true; // Erase
-		}
-
-		// Remove channels that haven't sent a message within the cutoff time
-		if (entry.channel->get_last_packet_sent () < cutoff_deadline)
-		{
-			node.logger.debug (nano::log::type::tcp_channels, "Removing idle channel: {} (idle for {} seconds)",
-			entry.channel->to_string (),
-			std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - entry.channel->get_last_packet_sent ()).count ());
-			return true; // Erase
-		}
-
-		// Check if any tcp channels belonging to old protocol versions which may still be alive due to async operations
-		if (entry.channel->get_network_version () < node.network_params.network.protocol_version_min)
-		{
-			node.logger.debug (nano::log::type::tcp_channels, "Removing channel with old protocol version: {}", entry.channel->to_string ());
 			return true; // Erase
 		}
 
