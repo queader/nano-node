@@ -306,7 +306,7 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 	bool updated = queue.periodic_update ();
 	if (updated)
 	{
-		node.logger.info (nano::log::type::test, "Fair queue: {}", nano::streamed (queue));
+		//		node.logger.info (nano::log::type::test, "Fair queue: {}", nano::streamed (queue));
 	}
 
 	timer_l.start ();
