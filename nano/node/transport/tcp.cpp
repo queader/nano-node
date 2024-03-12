@@ -57,10 +57,6 @@ void nano::transport::channel_tcp::send_buffer (nano::shared_const_buffer const 
 			buffer_a, [endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node> (node.shared ()), callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
 				if (auto node_l = node.lock ())
 				{
-					if (!ec)
-					{
-						node_l->network.tcp_channels.update (endpoint_a);
-					}
 					if (ec == boost::system::errc::host_unreachable)
 					{
 						node_l->stats.inc (nano::stat::type::error, nano::stat::detail::unreachable_host, nano::stat::dir::out);
@@ -332,7 +328,7 @@ nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
 		if (i->channel->get_network_version () >= node.network_params.network.protocol_version_min)
 		{
 			result = nano::transport::map_endpoint_to_tcp (i->channel->get_peering_endpoint ());
-			channels.get<last_bootstrap_attempt_tag> ().modify (i, [] (channel_tcp_wrapper & wrapper_a) {
+			channels.get<last_bootstrap_attempt_tag> ().modify (i, [] (channel_entry & wrapper_a) {
 				wrapper_a.channel->set_last_bootstrap_attempt (std::chrono::steady_clock::now ());
 			});
 			i = n;
@@ -425,44 +421,68 @@ std::unique_ptr<nano::container_info_component> nano::transport::tcp_channels::c
 	return composite;
 }
 
-void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point const & cutoff_a)
+void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point const & cutoff_deadline)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	// Remove channels with dead underlying sockets
-	erase_if (channels, [] (auto const & entry) {
-		return !entry.channel->alive ();
+	node.logger.debug (nano::log::type::tcp_channels, "Performing periodic channel cleanup...");
+
+	erase_if (channels, [this, cutoff_deadline] (auto const & entry) {
+		// Remove channels with dead underlying sockets
+		if (!entry.channel->alive ())
+		{
+			node.logger.debug (nano::log::type::tcp_channels, "Removing dead channel: {}", entry.channel->to_string ());
+			return true; // Erase
+		}
+		// Remove channels that haven't sent a message within the cutoff time
+		if (entry.channel->get_last_packet_sent () < cutoff_deadline)
+		{
+			node.logger.debug (nano::log::type::tcp_channels, "Removing idle channel: {} (idle for {} seconds)",
+			entry.channel->to_string (),
+			std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - entry.channel->get_last_packet_sent ()).count ());
+			return true; // Erase
+		}
+		// Check if any tcp channels belonging to old protocol versions which may still be alive due to async operations
+		if (entry.channel->get_network_version () < node.network_params.network.protocol_version_min)
+		{
+			node.logger.debug (nano::log::type::tcp_channels, "Removing channel with old protocol version: {}", entry.channel->to_string ());
+			return true; // Erase
+		}
+		return false;
 	});
 
-	auto disconnect_cutoff (channels.get<last_packet_sent_tag> ().lower_bound (cutoff_a));
-	channels.get<last_packet_sent_tag> ().erase (channels.get<last_packet_sent_tag> ().begin (), disconnect_cutoff);
-
 	// Remove keepalive attempt tracking for attempts older than cutoff
-	auto attempts_cutoff (attempts.get<last_attempt_tag> ().lower_bound (cutoff_a));
+	auto attempts_cutoff (attempts.get<last_attempt_tag> ().lower_bound (cutoff_deadline));
 	attempts.get<last_attempt_tag> ().erase (attempts.get<last_attempt_tag> ().begin (), attempts_cutoff);
-
-	// Check if any tcp channels belonging to old protocol versions which may still be alive due to async operations
-	auto lower_bound = channels.get<version_tag> ().lower_bound (node.network_params.network.protocol_version_min);
-	channels.get<version_tag> ().erase (channels.get<version_tag> ().begin (), lower_bound);
 }
 
 void nano::transport::tcp_channels::ongoing_keepalive ()
 {
 	nano::keepalive message{ node.network_params.network };
 	node.network.random_fill (message.peers);
+
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	// Wake up channels
+
+	auto const keepalive_sent_cutoff = std::chrono::steady_clock::now () - node.network_params.network.keepalive_period;
+
 	std::vector<std::shared_ptr<nano::transport::channel_tcp>> send_list;
-	auto keepalive_sent_cutoff (channels.get<last_packet_sent_tag> ().lower_bound (std::chrono::steady_clock::now () - node.network_params.network.keepalive_period));
-	for (auto i (channels.get<last_packet_sent_tag> ().begin ()); i != keepalive_sent_cutoff; ++i)
+	for (auto & entry : channels)
 	{
-		send_list.push_back (i->channel);
+		if (entry.last_keepalive_sent < keepalive_sent_cutoff)
+		{
+			entry.last_keepalive_sent = std::chrono::steady_clock::now ();
+			send_list.push_back (entry.channel);
+		}
 	}
+
 	lock.unlock ();
+
 	for (auto & channel : send_list)
 	{
+		node.stats.inc (nano::stat::type::tcp_channels, nano::stat::detail::keepalive, nano::stat::dir::out);
 		channel->send (message);
 	}
+
 	std::weak_ptr<nano::node> node_w (node.shared ());
 	node.workers.add_timed_task (std::chrono::steady_clock::now () + node.network_params.network.keepalive_period, [node_w] () {
 		if (auto node_l = node_w.lock ())
@@ -562,20 +582,8 @@ void nano::transport::tcp_channels::modify (std::shared_ptr<nano::transport::cha
 	auto existing (channels.get<endpoint_tag> ().find (channel_a->get_tcp_endpoint ()));
 	if (existing != channels.get<endpoint_tag> ().end ())
 	{
-		channels.get<endpoint_tag> ().modify (existing, [modify_callback = std::move (modify_callback_a)] (channel_tcp_wrapper & wrapper_a) {
+		channels.get<endpoint_tag> ().modify (existing, [modify_callback = std::move (modify_callback_a)] (channel_entry & wrapper_a) {
 			modify_callback (wrapper_a.channel);
-		});
-	}
-}
-
-void nano::transport::tcp_channels::update (nano::tcp_endpoint const & endpoint_a)
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	auto existing (channels.get<endpoint_tag> ().find (endpoint_a));
-	if (existing != channels.get<endpoint_tag> ().end ())
-	{
-		channels.get<endpoint_tag> ().modify (existing, [] (channel_tcp_wrapper & wrapper_a) {
-			wrapper_a.channel->set_last_packet_sent (std::chrono::steady_clock::now ());
 		});
 	}
 }
