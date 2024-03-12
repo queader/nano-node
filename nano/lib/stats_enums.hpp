@@ -159,6 +159,10 @@ enum class detail : uint8_t
 	node_id_handshake_network_error,
 	node_id_handshake_response_invalid,
 
+	// tcp_channels
+	channel_accepted,
+	channel_rejected,
+
 	// bootstrap, callback
 	initiate,
 	initiate_legacy_age,

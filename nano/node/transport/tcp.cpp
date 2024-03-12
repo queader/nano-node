@@ -203,6 +203,11 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::cre
 
 		if (check (endpoint, node_id))
 		{
+			node.stats.inc (nano::stat::type::tcp_channels, nano::stat::detail::channel_accepted);
+			node.logger.debug (nano::log::type::tcp_channels, "Accepted new channel from: {} ({})",
+			fmt::streamed (socket->remote_endpoint ()),
+			node_id.to_node_id ());
+
 			auto channel = std::make_shared<nano::transport::channel_tcp> (node, socket);
 			channel->set_endpoint ();
 			channel->set_node_id (node_id);
@@ -220,7 +225,10 @@ std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::cre
 		}
 		else
 		{
-			// TODO: Stat & log
+			node.stats.inc (nano::stat::type::tcp_channels, nano::stat::detail::channel_rejected);
+			node.logger.debug (nano::log::type::tcp_channels, "Rejected new channel from: {} ({})",
+			fmt::streamed (socket->remote_endpoint ()),
+			node_id.to_node_id ());
 		}
 	}
 	return nullptr;
