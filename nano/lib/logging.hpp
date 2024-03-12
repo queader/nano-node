@@ -38,6 +38,12 @@ auto microseconds (std::chrono::time_point<Clock> time)
 {
 	return std::chrono::duration_cast<std::chrono::microseconds> (time.time_since_epoch ()).count ();
 }
+
+template <class Clock>
+auto milliseconds_delta (std::chrono::time_point<Clock> time, std::chrono::time_point<Clock> now = Clock::now ())
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds> (time - now).count ();
+}
 }
 
 namespace nano

@@ -65,8 +65,14 @@ nano::endpoint nano::transport::channel::get_peering_endpoint () const
 
 void nano::transport::channel::operator() (nano::object_stream & obs) const
 {
+	nano::lock_guard<nano::mutex> lk (channel_mutex);
+
 	obs.write ("endpoint", get_endpoint ());
 	obs.write ("peering_endpoint", get_peering_endpoint ());
 	obs.write ("node_id", get_node_id ().to_node_id ());
 	obs.write ("alive", alive ());
+
+	obs.write ("last_bootstrap_attempt", nano::log::milliseconds_delta (get_last_bootstrap_attempt ()));
+	obs.write ("last_packet_received", nano::log::milliseconds_delta (get_last_packet_received ()));
+	obs.write ("last_packet_sent", nano::log::milliseconds_delta (get_last_packet_sent ()));
 }
