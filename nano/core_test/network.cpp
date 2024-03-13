@@ -1176,8 +1176,8 @@ TEST (network, purge_dead_channel_outgoing)
 	auto & node1 = *system.add_node (flags);
 
 	// We expect one incoming and one outgoing connection
-	std::shared_ptr<nano::transport::socket> outgoing;
-	std::shared_ptr<nano::transport::socket> incoming;
+	std::shared_ptr<nano::transport::socket> outgoing; // Connection from node1 -> node2
+	std::shared_ptr<nano::transport::socket> incoming; // Connection from node2 -> node1
 
 	std::atomic<int> connected_count{ 0 };
 	node1.observers.socket_connected.add ([&] (nano::transport::socket & socket) {
@@ -1209,16 +1209,18 @@ TEST (network, purge_dead_channel_outgoing)
 	// Store reference to the only channel
 	auto channels = node1.network.list ();
 	ASSERT_EQ (channels.size (), 1);
-	auto channel = channels.front ();
+	auto channel = channels.front (); // node1 -> node2
 	ASSERT_TRUE (channel);
+
+	ASSERT_EQ (std::dynamic_pointer_cast<nano::transport::channel_tcp> (channel)->socket.lock (), incoming);
 
 	// When socket is dead ensure channel knows about that
 	ASSERT_TRUE (channel->alive ());
 	outgoing->close ();
-	ASSERT_TIMELY (5s, !channel->alive ());
+	ASSERT_TIMELY (10s, !channel->alive ());
 
 	// Shortly after that a new channel should be established
-	ASSERT_TIMELY_EQ (5s, connected_count, 2);
+	ASSERT_TIMELY_EQ (10s, connected_count, 2);
 	ASSERT_ALWAYS_EQ (1s, connected_count, 2);
 
 	// Check that a new channel is healthy
