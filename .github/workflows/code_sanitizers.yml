@@ -41,6 +41,8 @@ jobs:
       - name: Build Tests
         id: build
         run: ci/build-tests.sh
+        env:
+          MAX_BUILD_PARALLELISM: 2 # Limit parallelism to avoid OOM during compilation
 
       - name: Core Tests
         if: steps.build.outcome == 'success' && (success() || failure())

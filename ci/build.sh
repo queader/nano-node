@@ -70,21 +70,29 @@ ${CMAKE_BACKTRACE:-} \
 ${SRC}
 
 number_of_processors() {
+    local max_procs=$(nproc)
     case "$(uname -s)" in
-        Linux*)     
-            nproc
+        Linux*)
+            max_procs=$(nproc)
             ;;
-        Darwin*)    
-            sysctl -n hw.ncpu
+        Darwin*)
+            max_procs=$(sysctl -n hw.ncpu)
             ;;
         CYGWIN*|MINGW32*|MSYS*|MINGW*)
-            echo "${NUMBER_OF_PROCESSORS}"
+            max_procs="${NUMBER_OF_PROCESSORS}"
             ;;
         *)
             echo "Unknown OS"
             exit 1
             ;;
     esac
+
+    # If MAX_BUILD_PARALLELISM is set and less than the number of processors, use it instead
+    if [[ ! -z ${MAX_BUILD_PARALLELISM:-} ]] && [[ "$MAX_BUILD_PARALLELISM" -lt "$max_procs" ]]; then
+        echo "$MAX_BUILD_PARALLELISM"
+    else
+        echo "$max_procs"
+    fi
 }
 
 parallel_build_flag() {
