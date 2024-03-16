@@ -96,7 +96,7 @@ namespace transport
 			return nano::transport::transport_type::tcp;
 		}
 
-		virtual bool max (nano::transport::traffic_type traffic_type) override
+		bool max (nano::transport::traffic_type traffic_type) override
 		{
 			bool result = true;
 			if (auto socket_l = socket.lock ())
@@ -106,7 +106,7 @@ namespace transport
 			return result;
 		}
 
-		virtual bool alive () const override
+		bool alive () const override
 		{
 			if (auto socket_l = socket.lock ())
 			{
