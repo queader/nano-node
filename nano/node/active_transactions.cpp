@@ -480,9 +480,10 @@ nano::election_insertion_result nano::active_transactions::insert (std::shared_p
 }
 
 // Validate a vote and apply it to the current election if one exists
-nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> const & vote_a)
+std::unordered_map<nano::block_hash, nano::vote_code> nano::active_transactions::vote (std::shared_ptr<nano::vote> const & vote_a)
 {
 	nano::vote_code result{ nano::vote_code::indeterminate };
+
 	// If all hashes were recently confirmed then it is a replay
 	unsigned recently_confirmed_counter (0);
 
@@ -642,10 +643,13 @@ bool nano::active_transactions::publish (std::shared_ptr<nano::block> const & bl
 			lock.lock ();
 			blocks.emplace (block_a->hash (), election);
 			lock.unlock ();
-			if (auto const cache = node.vote_cache.find (block_a->hash ()); cache)
+
+			auto cached = node.vote_cache.find (block_a->hash ());
+			for (auto const & cached_vote : cached)
 			{
-				cache->fill (election);
+				vote (cached_vote);
 			}
+
 			node.stats.inc (nano::stat::type::active, nano::stat::detail::election_block_conflict);
 		}
 	}
