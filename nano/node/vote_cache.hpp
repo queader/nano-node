@@ -109,12 +109,12 @@ public:
 	/**
 	 * Adds a new vote to cache
 	 */
-	void vote (std::shared_ptr<nano::vote> const & vote, std::unordered_set<nano::block_hash> const & filter);
+	void vote (std::shared_ptr<nano::vote> const & vote, std::function<bool (nano::block_hash const &)> const & filter);
 
 	/**
 	 * Tries to find an entry associated with block hash
 	 */
-	std::optional<entry> find (nano::block_hash const & hash) const;
+	std::vector<std::shared_ptr<nano::vote>> find (nano::block_hash const & hash) const;
 
 	/**
 	 * Removes an entry associated with block hash, does nothing if entry does not exist

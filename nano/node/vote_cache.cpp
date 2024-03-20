@@ -127,11 +127,8 @@ nano::vote_cache::vote_cache (vote_cache_config const & config_a, nano::stats & 
 {
 }
 
-void nano::vote_cache::vote (std::shared_ptr<nano::vote> const & vote, std::unordered_set<nano::block_hash> const & filter)
+void nano::vote_cache::vote (std::shared_ptr<nano::vote> const & vote, std::function<bool (nano::block_hash const &)> const & filter)
 {
-	// Assert that supplied hash corresponds to a one of the hashes stored in vote
-	debug_assert (std::find (vote->hashes.begin (), vote->hashes.end (), hash) != vote->hashes.end ());
-
 	auto const representative = vote->account;
 	auto const timestamp = vote->timestamp ();
 	auto const rep_weight = rep_weight_query (representative);
@@ -140,7 +137,7 @@ void nano::vote_cache::vote (std::shared_ptr<nano::vote> const & vote, std::unor
 
 	for (auto const & hash : vote->hashes)
 	{
-		if (!filter.contains (hash))
+		if (!filter (hash))
 		{
 			continue;
 		}
@@ -182,14 +179,14 @@ std::size_t nano::vote_cache::size () const
 	return cache.size ();
 }
 
-std::optional<nano::vote_cache::entry> nano::vote_cache::find (const nano::block_hash & hash) const
+std::vector<std::shared_ptr<nano::vote>> nano::vote_cache::find (const nano::block_hash & hash) const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
 	auto & cache_by_hash = cache.get<tag_hash> ();
 	if (auto existing = cache_by_hash.find (hash); existing != cache_by_hash.end ())
 	{
-		return *existing;
+		return existing->votes ();
 	}
 	return {};
 }
