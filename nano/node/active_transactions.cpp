@@ -405,9 +405,11 @@ void nano::active_transactions::trim ()
 
 nano::election_insertion_result nano::active_transactions::insert (std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a)
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
 	debug_assert (block_a);
 	debug_assert (block_a->has_sideband ());
+
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
 	nano::election_insertion_result result;
 
 	if (stopped)
@@ -450,15 +452,16 @@ nano::election_insertion_result nano::active_transactions::insert (std::shared_p
 		result.election = existing->election;
 	}
 
-	lock.unlock (); // end of critical section
+	lock.unlock ();
 
 	if (result.inserted)
 	{
 		release_assert (result.election);
 
-		if (auto const cache = node.vote_cache.find (hash); cache)
+		auto cached = node.vote_cache.find (hash);
+		for (auto const & cached_vote : cached)
 		{
-			cache->fill (result.election);
+			vote (cached_vote);
 		}
 
 		node.observers.active_started.notify (hash);
@@ -470,7 +473,9 @@ nano::election_insertion_result nano::active_transactions::insert (std::shared_p
 	{
 		result.election->broadcast_vote ();
 	}
+
 	trim ();
+
 	return result;
 }
 
@@ -502,12 +507,6 @@ nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> con
 				++recently_confirmed_counter;
 			}
 		}
-	}
-
-	// Process inactive votes outside of the critical section
-	for (auto & hash : inactive)
-	{
-		add_vote_cache (hash, vote_a);
 	}
 
 	if (!process.empty ())
@@ -678,14 +677,6 @@ boost::optional<nano::election_status_type> nano::active_transactions::confirm_b
 	}
 
 	return status_type;
-}
-
-void nano::active_transactions::add_vote_cache (nano::block_hash const & hash, std::shared_ptr<nano::vote> const vote)
-{
-	if (node.ledger.weight (vote->account) > node.minimum_principal_weight ())
-	{
-		node.vote_cache.vote (hash, vote);
-	}
 }
 
 std::size_t nano::active_transactions::election_winner_details_size ()

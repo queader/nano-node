@@ -190,11 +190,6 @@ private:
 	nano::stat::type completion_type (nano::election const & election) const;
 	// Returns a list of elections sorted by difficulty, mutex must be locked
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
-	/**
-	 * Checks if vote passes minimum representative weight threshold and adds it to inactive vote cache
-	 * TODO: Should be moved to `vote_cache` class
-	 */
-	void add_vote_cache (nano::block_hash const & hash, std::shared_ptr<nano::vote> vote);
 	boost::optional<nano::election_status_type> election_status (std::shared_ptr<nano::block> const & block);
 	void process_inactive_confirmation (nano::store::read_transaction const & transaction, std::shared_ptr<nano::block> const & block);
 	void process_active_confirmation (nano::store::read_transaction const & transaction, std::shared_ptr<nano::block> const & block, nano::election_status_type status);

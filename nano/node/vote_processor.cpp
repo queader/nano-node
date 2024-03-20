@@ -1,6 +1,7 @@
 #include <nano/lib/stats.hpp>
 #include <nano/lib/timer.hpp>
 #include <nano/node/active_transactions.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/node_observers.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/online_reps.hpp>
@@ -9,8 +10,6 @@
 #include <nano/node/vote_processor.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
-
-#include <boost/format.hpp>
 
 #include <chrono>
 
@@ -167,8 +166,19 @@ nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote>
 	if (validated || !vote_a->validate ())
 	{
 		result = active.vote (vote_a);
+
+		if (result != nano::vote_code::replay)
+		{
+
+		}
+		if (ledger.weight (vote_a->account) > node.minimum_principal_weight ())
+		{
+			node.vote_cache.vote (vote_a);
+		}
+
 		observers.vote.notify (vote_a, channel_a, result);
 	}
+
 	std::string status;
 	switch (result)
 	{

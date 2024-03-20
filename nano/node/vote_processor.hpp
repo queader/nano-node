@@ -56,6 +56,7 @@ public:
 	std::atomic<uint64_t> total_processed{ 0 };
 
 private: // Dependencies
+	nano::node & node;
 	nano::active_transactions & active;
 	nano::node_observers & observers;
 	nano::stats & stats;
