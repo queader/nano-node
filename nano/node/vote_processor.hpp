@@ -27,6 +27,7 @@ class network_params;
 class node_flags;
 class stats;
 class rep_tiers;
+class vote_cache;
 
 namespace transport
 {
@@ -36,7 +37,7 @@ namespace transport
 class vote_processor final
 {
 public:
-	vote_processor (nano::active_transactions &, nano::node_observers &, nano::stats &, nano::node_config &, nano::node_flags &, nano::logger &, nano::online_reps &, nano::rep_crawler &, nano::ledger &, nano::network_params &, nano::rep_tiers &);
+	vote_processor (nano::active_transactions &, nano::node_observers &, nano::stats &, nano::node_config &, nano::node_flags &, nano::logger &, nano::online_reps &, nano::rep_crawler &, nano::ledger &, nano::network_params &, nano::rep_tiers &, nano::vote_cache &);
 	~vote_processor ();
 
 	void start ();
@@ -56,7 +57,6 @@ public:
 	std::atomic<uint64_t> total_processed{ 0 };
 
 private: // Dependencies
-	nano::node & node;
 	nano::active_transactions & active;
 	nano::node_observers & observers;
 	nano::stats & stats;
@@ -67,6 +67,7 @@ private: // Dependencies
 	nano::ledger & ledger;
 	nano::network_params & network_params;
 	nano::rep_tiers & rep_tiers;
+	nano::vote_cache & vote_cache;
 
 private:
 	void run ();

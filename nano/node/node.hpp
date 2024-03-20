@@ -164,6 +164,7 @@ public:
 	nano::online_reps online_reps;
 	nano::rep_crawler rep_crawler;
 	nano::rep_tiers rep_tiers;
+	nano::vote_cache vote_cache;
 	nano::vote_processor vote_processor;
 	unsigned warmed_up;
 	nano::block_processor block_processor;
@@ -171,7 +172,6 @@ public:
 	nano::block_uniquer block_uniquer;
 	nano::vote_uniquer vote_uniquer;
 	nano::confirmation_height_processor confirmation_height_processor;
-	nano::vote_cache vote_cache;
 	nano::vote_generator generator;
 	nano::vote_generator final_generator;
 	nano::active_transactions active;

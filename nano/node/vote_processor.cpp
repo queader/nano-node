@@ -15,7 +15,7 @@
 
 using namespace std::chrono_literals;
 
-nano::vote_processor::vote_processor (nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stats & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a, nano::rep_tiers & rep_tiers_a) :
+nano::vote_processor::vote_processor (nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stats & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a, nano::rep_tiers & rep_tiers_a, nano::vote_cache & vote_cache_a) :
 	active{ active_a },
 	observers{ observers_a },
 	stats{ stats_a },
@@ -26,6 +26,7 @@ nano::vote_processor::vote_processor (nano::active_transactions & active_a, nano
 	ledger{ ledger_a },
 	network_params{ network_params_a },
 	rep_tiers{ rep_tiers_a },
+	vote_cache{ vote_cache_a },
 	max_votes{ flags_a.vote_processor_capacity }
 {
 }
@@ -177,7 +178,7 @@ nano::vote_code nano::vote_processor::vote_blocking (std::shared_ptr<nano::vote>
 		}
 		result = replay ? nano::vote_code::replay : (processed ? nano::vote_code::vote : nano::vote_code::indeterminate);
 
-		node.vote_cache.vote (vote, [&vote_results] (nano::block_hash const & hash) {
+		vote_cache.vote (vote, [&vote_results] (nano::block_hash const & hash) {
 			// This filters which hashes should be included in the vote cache
 			auto result = vote_results[hash];
 			return result == nano::vote_code::vote || result == nano::vote_code::indeterminate;
