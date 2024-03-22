@@ -38,6 +38,7 @@ TEST (node, null_account)
 TEST (node, stop)
 {
 	nano::test::system system (1);
+	system.io_guard.reset ();
 	ASSERT_NE (system.nodes[0]->wallets.items.end (), system.nodes[0]->wallets.items.begin ());
 	system.nodes[0]->stop ();
 	system.io_ctx->run ();
