@@ -104,6 +104,7 @@ void nano::transport::tcp_listener::stop ()
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
 	}
+	condition.notify_all ();
 
 	acceptor.close ();
 
@@ -137,17 +138,18 @@ void nano::transport::tcp_listener::stop ()
 
 void nano::transport::tcp_listener::run_cleanup ()
 {
+	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::cleanup);
 		cleanup ();
-		std::this_thread::sleep_for (1s);
+		condition.wait_for (lock, 1s, [this] () { return stopped.load (); });
 	}
 }
 
 void nano::transport::tcp_listener::cleanup ()
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
+	debug_assert (!mutex.try_lock ());
 
 	erase_if (connections, [] (auto const & connection) {
 		return connection.socket.expired () && connection.server.expired ();
@@ -156,8 +158,11 @@ void nano::transport::tcp_listener::cleanup ()
 
 void nano::transport::tcp_listener::run ()
 {
+	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped && acceptor.is_open ())
 	{
+		lock.unlock ();
+
 		wait_available_slots ();
 		if (stopped)
 		{
@@ -175,7 +180,10 @@ void nano::transport::tcp_listener::run ()
 			nano::log::type::tcp_listener, "Error accepting incoming connection: {}", ex.what ());
 		}
 
-		std::this_thread::sleep_for (100ms); // Sleep for a while to prevent busy loop
+		lock.lock ();
+
+		// Sleep for a while to prevent busy loop
+		condition.wait_for (lock, 10ms, [this] () { return stopped.load (); });
 	}
 	if (!stopped)
 	{
@@ -240,9 +248,9 @@ void nano::transport::tcp_listener::wait_available_slots ()
 
 auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const & ip) -> check_result
 {
-	cleanup ();
-
 	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	cleanup ();
 
 	debug_assert (connections.size () <= max_inbound_connections); // Should be checked earlier (wait_available_slots)
 

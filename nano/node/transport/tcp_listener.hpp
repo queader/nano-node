@@ -113,6 +113,7 @@ private:
 	boost::asio::ip::tcp::endpoint local;
 
 	std::atomic<bool> stopped;
+	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;
 	std::thread cleanup_thread;
