@@ -41,6 +41,9 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_
 	acceptor{ node_a.io_ctx }
 // local{ boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port_a } }
 {
+	connection_accepted.add ([this] (auto const & socket, auto const & server) {
+		node.observers.socket_accepted.notify (*socket);
+	});
 }
 
 nano::transport::tcp_listener::~tcp_listener ()
@@ -227,7 +230,7 @@ auto nano::transport::tcp_listener::accept_one () -> check_result
 	socket->start ();
 	server->start ();
 
-	node.observers.socket_accepted.notify (*socket);
+	connection_accepted.notify (socket, server);
 
 	return check_result::accepted;
 }
