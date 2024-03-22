@@ -62,10 +62,13 @@ void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<n
 		acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 		acceptor.bind (local);
 		acceptor.listen (boost::asio::socket_base::max_listen_connections);
+
+		logger.info (nano::log::type::tcp_listener, "Listening for incoming connections on: {}", fmt::streamed (acceptor.local_endpoint ()));
 	}
 	catch (boost::system::system_error const & ex)
 	{
-		node.logger.critical (nano::log::type::tcp_listener, "Error while binding for incoming TCP: {} (port: {})", ex.what (), acceptor.local_endpoint ().port ());
+		logger.critical (nano::log::type::tcp_listener, "Error while binding for incoming TCP: {} (port: {})", ex.what (), port);
+
 		throw std::runtime_error (ex.code ().message ());
 	}
 
@@ -73,9 +76,9 @@ void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<n
 		nano::thread_role::set (nano::thread_role::name::tcp_listener);
 		try
 		{
-			logger.info (nano::log::type::tcp_listener, "Starting TCP listener on: {}", fmt::streamed (acceptor.local_endpoint ()));
+			logger.debug (nano::log::type::tcp_listener, "Starting acceptor thread");
 			run ();
-			logger.info (nano::log::type::tcp_listener, "Stopped TCP listener");
+			logger.debug (nano::log::type::tcp_listener, "Stopped acceptor thread");
 		}
 		catch (std::exception const & ex)
 		{
@@ -95,6 +98,8 @@ void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<n
 
 void nano::transport::tcp_listener::stop ()
 {
+	logger.info (nano::log::type::tcp_listener, "Stopping listeninig for incoming connections and closing all sockets...");
+
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
@@ -161,15 +166,21 @@ void nano::transport::tcp_listener::run ()
 
 		try
 		{
-			auto result = accept_one ();
+			accept_one ();
 		}
 		catch (boost::system::system_error const & ex)
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_failure, nano::stat::dir::in);
-			logger.error (nano::log::type::tcp_listener, "Error accepting incoming connection: {}", ex.what ());
+			logger.log (stopped ? nano::log::level::debug : nano::log::level::error, // Avoid logging expected errors when stopping
+			nano::log::type::tcp_listener, "Error accepting incoming connection: {}", ex.what ());
 		}
 
 		std::this_thread::sleep_for (100ms); // Sleep for a while to prevent busy loop
+	}
+	if (!stopped)
+	{
+		debug_assert (false, "acceptor stopped unexpectedly");
+		logger.error (nano::log::type::tcp_listener, "Acceptor stopped unexpectedly");
 	}
 }
 
