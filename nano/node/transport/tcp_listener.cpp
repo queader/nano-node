@@ -154,8 +154,16 @@ void nano::transport::tcp_listener::cleanup ()
 {
 	debug_assert (!mutex.try_lock ());
 
-	erase_if (connections, [] (auto const & connection) {
-		return connection.socket.expired () && connection.server.expired ();
+	erase_if (connections, [this] (auto const & connection) {
+		if (connection.socket.expired () && connection.server.expired ())
+		{
+			logger.debug (nano::log::type::tcp_listener, "Evicting dead connection: {}", fmt::streamed (connection.endpoint));
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	});
 }
 
@@ -242,15 +250,16 @@ void nano::transport::tcp_listener::wait_available_slots ()
 		return connections.size () >= max_inbound_connections;
 	};
 
-	nano::interval log_interval{ 15s };
+	nano::interval log_interval{ node.network_params.network.is_dev_network () ? 1s : 15s };
 	while (!stopped && should_wait ())
 	{
-		std::this_thread::sleep_for (100ms);
-
 		if (log_interval.elapsed ())
 		{
-			logger.warn (nano::log::type::tcp_listener, "Waiting for available slots to accept new connections ({} / {})", connection_count (), max_inbound_connections);
+			logger.warn (nano::log::type::tcp_listener, "Waiting for available slots to accept new connections (current: {} / max: {})",
+			connection_count (), max_inbound_connections);
 		}
+
+		std::this_thread::sleep_for (100ms);
 	}
 }
 
