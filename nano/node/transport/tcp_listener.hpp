@@ -100,9 +100,6 @@ private:
 	// clang-format on
 	ordered_connections connections;
 
-	// std::unordered_map<nano::transport::tcp_server *, std::weak_ptr<nano::transport::tcp_server>> connections;
-	// std::multimap<boost::asio::ip::address, std::weak_ptr<nano::transport::socket>> connections_per_address;
-
 	boost::asio::ip::tcp::acceptor acceptor;
 	boost::asio::ip::tcp::endpoint local;
 
