@@ -70,8 +70,6 @@ private:
 	size_t count_per_ip (boost::asio::ip::address const & ip) const;
 	size_t count_per_subnetwork (boost::asio::ip::address const & ip) const;
 
-	static std::string_view to_friendly_string (check_result);
-
 public:
 	std::atomic<std::size_t> bootstrap_count{ 0 };
 	std::atomic<std::size_t> realtime_count{ 0 };

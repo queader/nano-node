@@ -81,7 +81,6 @@ void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<n
 void nano::transport::tcp_listener::stop ()
 {
 	logger.info (nano::log::type::tcp_listener, "Stopping listeninig for incoming connections and closing all sockets...");
-
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
@@ -197,11 +196,10 @@ auto nano::transport::tcp_listener::accept_one () -> check_result
 	auto const remote_endpoint = boost_socket.remote_endpoint ();
 	auto const local_endpoint = boost_socket.local_endpoint ();
 
-	auto result = check_limits (remote_endpoint.address ());
-	if (result != check_result::accepted)
+	if (auto result = check_limits (remote_endpoint.address ()); result != check_result::accepted)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_limits_exceeded, nano::stat::dir::in);
-		logger.debug (nano::log::type::tcp_listener, "Check limits failed: {}", to_friendly_string (result));
+		// Refusal reason should be logged earlier
 
 		return result;
 	}
@@ -329,22 +327,4 @@ std::unique_ptr<nano::container_info_component> nano::transport::tcp_listener::c
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", connection_count (), sizeof (decltype (connections)::value_type) }));
 	return composite;
-}
-
-std::string_view nano::transport::tcp_listener::to_friendly_string (check_result result)
-{
-	switch (result)
-	{
-		case check_result::invalid:
-			return "invalid";
-		case check_result::accepted:
-			return "accepted";
-		case check_result::too_many_per_ip:
-			return "too many connections per IP";
-		case check_result::too_many_per_subnetwork:
-			return "too many connections per subnetwork";
-		case check_result::excluded:
-			return "excluded";
-	}
-	return "unknown";
 }
