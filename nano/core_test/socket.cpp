@@ -401,54 +401,6 @@ TEST (socket, disconnection_of_silent_connections)
 	node->stop ();
 }
 
-namespace
-{
-class dumb_acceptor
-{
-public:
-	using callback_t = std::function<void (boost::asio::ip::tcp::socket &)>;
-
-	dumb_acceptor (
-	boost::asio::io_context & io_ctx, uint16_t port, callback_t callback = [] (auto & socket) {}) :
-		acceptor (io_ctx, boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::any (), port))
-	{
-		thread = std::thread ([this, callback] () {
-			run (callback);
-		});
-	}
-
-	~dumb_acceptor ()
-	{
-		acceptor.close ();
-		thread.join ();
-	}
-
-	void run (auto && callback)
-	{
-		std::vector<boost::asio::ip::tcp::socket> sockets;
-		while (acceptor.is_open ())
-		{
-			boost::system::error_code ec;
-			auto socket = acceptor.accept (ec);
-			if (!ec)
-			{
-				callback (socket);
-				sockets.push_back (std::move (socket));
-			}
-		}
-	}
-
-	auto endpoint () const
-	{
-		return acceptor.local_endpoint ();
-	}
-
-private:
-	boost::asio::ip::tcp::acceptor acceptor;
-	std::thread thread;
-};
-}
-
 TEST (socket, drop_policy)
 {
 	nano::test::system system;
@@ -463,14 +415,23 @@ TEST (socket, drop_policy)
 	std::vector<std::shared_ptr<nano::transport::socket>> connections;
 
 	auto func = [&] (size_t total_message_count, nano::transport::buffer_drop_policy drop_policy) {
-		dumb_acceptor listener{ node->io_ctx, system.get_available_port () };
+		boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ());
+		boost::asio::ip::tcp::acceptor acceptor (node->io_ctx);
+		acceptor.open (endpoint.protocol ());
+		acceptor.bind (endpoint);
+		acceptor.listen (boost::asio::socket_base::max_listen_connections);
+
+		boost::asio::ip::tcp::socket newsock (*system.io_ctx);
+		acceptor.async_accept (newsock, [] (boost::system::error_code const & ec) {
+			EXPECT_FALSE (ec);
+		});
 
 		auto client = std::make_shared<nano::transport::socket> (*node);
 		auto channel = std::make_shared<nano::transport::channel_tcp> (*node, client);
 
 		std::atomic completed_writes{ 0 };
 
-		client->async_connect (boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::loopback (), listener.endpoint ().port ()),
+		client->async_connect (boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::loopback (), acceptor.local_endpoint ().port ()),
 		[&channel, total_message_count, node, &completed_writes, &drop_policy, client] (boost::system::error_code const & ec_a) mutable {
 			for (int i = 0; i < total_message_count; i++)
 			{
@@ -527,7 +488,8 @@ TEST (socket, concurrent_writes)
 	// We're expecting client_count*4 messages
 	std::atomic completed_reads{ 0 };
 
-	std::function<void (std::shared_ptr<nano::transport::socket> const &)> reader = [&completed_reads, &total_message_count, &reader] (std::shared_ptr<nano::transport::socket> const & socket_a) {
+	using reader_callback_t = std::function<void (std::shared_ptr<nano::transport::socket> const &)>;
+	reader_callback_t reader = [&completed_reads, &total_message_count, &reader] (std::shared_ptr<nano::transport::socket> const & socket_a) {
 		auto buff (std::make_shared<std::vector<uint8_t>> ());
 		buff->resize (1);
 		socket_a->async_read (buff, 1, [&completed_reads, &reader, &total_message_count, socket_a, buff] (boost::system::error_code const & ec, size_t size_a) {
@@ -545,17 +507,31 @@ TEST (socket, concurrent_writes)
 		});
 	};
 
-	auto server_port (system.get_available_port ());
-	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::any (), server_port);
-
 	std::vector<std::shared_ptr<nano::transport::socket>> connections;
 
-	dumb_acceptor listener{ node->io_ctx, server_port,
-		[&] (boost::asio::ip::tcp::socket & socket) {
+	auto server_port (system.get_available_port ());
+	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::any (), server_port);
+	boost::asio::ip::tcp::acceptor acceptor (node->io_ctx);
+	acceptor.open (endpoint.protocol ());
+	acceptor.bind (endpoint);
+	acceptor.listen (boost::asio::socket_base::max_listen_connections);
+
+	using accept_callback_t = std::function<void (boost::system::error_code const &, boost::asio::ip::tcp::socket)>;
+	accept_callback_t accept_callback = [&] (boost::system::error_code const & ec, boost::asio::ip::tcp::socket socket) {
+		if (!ec)
+		{
 			auto new_connection = std::make_shared<nano::transport::socket> (std::move (socket), socket.remote_endpoint (), socket.local_endpoint (), *node);
 			connections.push_back (new_connection);
 			reader (new_connection);
-		} };
+
+			acceptor.async_accept (accept_callback);
+		}
+		else
+		{
+			std::cerr << "async_accept: " << ec.message () << std::endl;
+		}
+	};
+	acceptor.async_accept (accept_callback);
 
 	std::atomic completed_connections{ 0 };
 
@@ -564,7 +540,7 @@ TEST (socket, concurrent_writes)
 	{
 		auto client = std::make_shared<nano::transport::socket> (*node);
 		clients.push_back (client);
-		client->async_connect (boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v4::loopback (), listener.endpoint ().port ()),
+		client->async_connect (boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v4::loopback (), acceptor.local_endpoint ().port ()),
 		[&completed_connections] (boost::system::error_code const & ec_a) {
 			if (ec_a)
 			{
