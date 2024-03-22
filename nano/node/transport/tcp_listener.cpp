@@ -1,3 +1,4 @@
+#include <nano/lib/interval.hpp>
 #include <nano/node/messages.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/transport/tcp.hpp>
@@ -5,6 +6,8 @@
 #include <nano/node/transport/tcp_server.hpp>
 
 #include <memory>
+
+using namespace std::chrono_literals;
 
 namespace
 {
@@ -30,204 +33,268 @@ bool is_temporary_error (boost::system::error_code const & ec_a)
  */
 
 nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_a, std::size_t max_inbound_connections) :
-	node (node_a),
-	strand{ node_a.io_ctx.get_executor () },
-	acceptor{ node_a.io_ctx },
-	local{ boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port_a } },
-	max_inbound_connections{ max_inbound_connections }
+	node{ node_a },
+	stats{ node_a.stats },
+	logger{ node_a.logger },
+	port{ port_a },
+	max_inbound_connections{ max_inbound_connections },
+	acceptor{ node_a.io_ctx }
+// local{ boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port_a } }
 {
 }
 
 nano::transport::tcp_listener::~tcp_listener ()
 {
-	debug_assert (stopped);
+	// Thread should be stopped before destruction
+	debug_assert (!thread.joinable ());
 }
 
 void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback_a)
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
+	debug_assert (!thread.joinable ());
+	debug_assert (!cleanup_thread.joinable ());
 
-	acceptor.open (local.protocol ());
-	acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
-	boost::system::error_code ec;
-	acceptor.bind (local, ec);
-	if (!ec)
+	local = boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port };
+
+	try
 	{
-		acceptor.listen (boost::asio::socket_base::max_listen_connections, ec);
+		acceptor.open (local.protocol ());
+		acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
+		acceptor.bind (local);
+		acceptor.listen (boost::asio::socket_base::max_listen_connections);
 	}
-	if (ec)
+	catch (boost::system::system_error const & ex)
 	{
-		node.logger.critical (nano::log::type::tcp_listener, "Error while binding for incoming TCP: {} (port: {})", ec.message (), acceptor.local_endpoint ().port ());
-		throw std::runtime_error (ec.message ());
+		node.logger.critical (nano::log::type::tcp_listener, "Error while binding for incoming TCP: {} (port: {})", ex.what (), acceptor.local_endpoint ().port ());
+		throw std::runtime_error (ex.code ().message ());
 	}
 
-	on_connection (callback_a);
+	thread = std::thread ([this, callback_a] {
+		nano::thread_role::set (nano::thread_role::name::tcp_listener);
+		try
+		{
+			logger.info (nano::log::type::tcp_listener, "Starting TCP listener on: {}", fmt::streamed (acceptor.local_endpoint ()));
+			run ();
+			logger.info (nano::log::type::tcp_listener, "Stopped TCP listener");
+		}
+		catch (std::exception const & ex)
+		{
+			logger.error (nano::log::type::tcp_listener, "Error while running: {}", ex.what ());
+		}
+		catch (...)
+		{
+			logger.error (nano::log::type::tcp_listener, "Unknown error while running");
+		}
+	});
+
+	cleanup_thread = std::thread ([this] {
+		nano::thread_role::set (nano::thread_role::name::tcp_listener);
+		run_cleanup ();
+	});
 }
 
 void nano::transport::tcp_listener::stop ()
 {
-	decltype (connections) connections_l;
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
+	}
+
+	acceptor.close ();
+
+	if (thread.joinable ())
+	{
+		thread.join ();
+	}
+	if (cleanup_thread.joinable ())
+	{
+		cleanup_thread.join ();
+	}
+
+	decltype (connections) connections_l;
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
 		connections_l.swap (connections);
 	}
 
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	boost::asio::dispatch (strand, [this_l = shared_from_this ()] () {
-		this_l->acceptor.close ();
-
-		for (auto & address_connection_pair : this_l->connections_per_address)
+	for (auto & connection : connections_l)
+	{
+		if (auto socket = connection.socket.lock ())
 		{
-			if (auto connection_l = address_connection_pair.second.lock ())
-			{
-				connection_l->close ();
-			}
+			socket->close ();
 		}
-		this_l->connections_per_address.clear ();
-	});
+		if (auto server = connection.server.lock ())
+		{
+			server->stop ();
+		}
+	}
 }
 
-std::size_t nano::transport::tcp_listener::connection_count ()
+void nano::transport::tcp_listener::run_cleanup ()
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	cleanup ();
-	return connections.size ();
+	while (!stopped)
+	{
+		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::cleanup);
+		cleanup ();
+		std::this_thread::sleep_for (1s);
+	}
 }
 
 void nano::transport::tcp_listener::cleanup ()
 {
-	debug_assert (!mutex.try_lock ());
+	nano::lock_guard<nano::mutex> lock{ mutex };
 
 	erase_if (connections, [] (auto const & connection) {
-		return connection.second.expired ();
+		return connection.socket.expired () && connection.server.expired ();
 	});
 }
 
-bool nano::transport::tcp_listener::limit_reached_for_incoming_subnetwork_connections (std::shared_ptr<nano::transport::socket> const & new_connection)
+void nano::transport::tcp_listener::run ()
 {
-	debug_assert (strand.running_in_this_thread ());
-	if (node.flags.disable_max_peers_per_subnetwork || nano::transport::is_ipv4_or_v4_mapped_address (new_connection->remote.address ()))
+	while (!stopped && acceptor.is_open ())
 	{
-		// If the limit is disabled, then it is unreachable.
-		// If the address is IPv4 we don't check for a network limit, since its address space isn't big as IPv6 /64.
-		return false;
+		wait_available_slots ();
+		if (stopped)
+		{
+			return;
+		}
+
+		try
+		{
+			auto result = accept_one ();
+		}
+		catch (boost::system::system_error const & ex)
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_failure, nano::stat::dir::in);
+			logger.error (nano::log::type::tcp_listener, "Error accepting incoming connection: {}", ex.what ());
+		}
+
+		std::this_thread::sleep_for (100ms); // Sleep for a while to prevent busy loop
 	}
-	auto const counted_connections = socket_functions::count_subnetwork_connections (
-	connections_per_address,
-	new_connection->remote.address ().to_v6 (),
-	node.network_params.network.ipv6_subnetwork_prefix_for_limiting);
-	return counted_connections >= node.network_params.network.max_peers_per_subnetwork;
 }
 
-bool nano::transport::tcp_listener::limit_reached_for_incoming_ip_connections (std::shared_ptr<nano::transport::socket> const & new_connection)
+auto nano::transport::tcp_listener::accept_one () -> check_result
 {
-	debug_assert (strand.running_in_this_thread ());
-	if (node.flags.disable_max_peers_per_ip)
+	auto boost_socket = acceptor.accept ();
+	auto const remote_endpoint = boost_socket.remote_endpoint ();
+	auto const local_endpoint = boost_socket.local_endpoint ();
+
+	auto result = check_limits (remote_endpoint.address ());
+	if (result != check_result::accepted)
 	{
-		// If the limit is disabled, then it is unreachable.
-		return false;
+		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_limits_exceeded, nano::stat::dir::in);
+		logger.debug (nano::log::type::tcp_listener, "Check limits failed: {}", to_friendly_string (result));
+
+		return result;
 	}
-	auto const address_connections_range = connections_per_address.equal_range (new_connection->remote.address ());
-	auto const counted_connections = static_cast<std::size_t> (std::abs (std::distance (address_connections_range.first, address_connections_range.second)));
-	return counted_connections >= node.network_params.network.max_peers_per_ip;
+
+	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_success, nano::stat::dir::in);
+	logger.debug (nano::log::type::tcp_listener, "Accepted incoming connection from: {}", fmt::streamed (remote_endpoint));
+
+	auto socket = std::make_shared<nano::transport::socket> (std::move (boost_socket), remote_endpoint, local_endpoint, node, socket_endpoint::server);
+	auto server = std::make_shared<nano::transport::tcp_server> (socket, node.shared (), true);
+
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		connections.emplace (entry{ remote_endpoint, socket, server });
+	}
+
+	socket->set_timeout (node.network_params.network.idle_timeout);
+	socket->start ();
+	server->start ();
+
+	node.observers.socket_accepted.notify (*socket);
+
+	return check_result::accepted;
+}
+
+void nano::transport::tcp_listener::wait_available_slots ()
+{
+	auto should_wait = [this] {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		return connections.size () >= max_inbound_connections;
+	};
+
+	nano::interval log_interval{ 15s };
+	while (!stopped && should_wait ())
+	{
+		std::this_thread::sleep_for (100ms);
+
+		if (log_interval.elapsed ())
+		{
+			logger.warn (nano::log::type::tcp_listener, "Waiting for available slots to accept new connections ({} / {})", connection_count (), max_inbound_connections);
+		}
+	}
+}
+
+auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const & ip) -> check_result
+{
+	cleanup ();
+
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	debug_assert (connections.size () <= max_inbound_connections); // Should be checked earlier (wait_available_slots)
+
+	if (!node.flags.disable_max_peers_per_ip)
+	{
+		if (count_per_ip (ip) >= node.network_params.network.max_peers_per_ip)
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_per_ip, nano::stat::dir::in);
+			logger.debug (nano::log::type::tcp_listener, "Max connections per IP reached ({}), unable to open new connection", ip.to_string ());
+
+			return check_result::too_many_per_ip;
+		}
+	}
+
+	// If the address is IPv4 we don't check for a network limit, since its address space isn't big as IPv6/64.
+	if (!node.flags.disable_max_peers_per_subnetwork && !nano::transport::is_ipv4_or_v4_mapped_address (ip))
+	{
+		if (count_per_subnetwork (ip) >= node.network_params.network.max_peers_per_subnetwork)
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_per_subnetwork, nano::stat::dir::in);
+			logger.debug (nano::log::type::tcp_listener, "Max connections per subnetwork reached ({}), unable to open new connection", ip.to_string ());
+
+			return check_result::too_many_per_subnetwork;
+		}
+	}
+
+	if (node.network.excluded_peers.check (ip)) // true => error
+	{
+		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::excluded, nano::stat::dir::in);
+		logger.debug (nano::log::type::tcp_listener, "Rejected connection from excluded peer: {}", ip.to_string ());
+
+		return check_result::excluded;
+	}
+
+	return check_result::accepted;
+}
+
+std::size_t nano::transport::tcp_listener::connection_count () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return connections.size ();
+}
+
+size_t nano::transport::tcp_listener::count_per_ip (boost::asio::ip::address const & ip) const
+{
+	debug_assert (!mutex.try_lock ());
+
+	return std::count_if (connections.begin (), connections.end (), [&ip] (auto const & connection) {
+		return nano::transport::is_same_ip (connection.address (), ip);
+	});
+}
+
+size_t nano::transport::tcp_listener::count_per_subnetwork (boost::asio::ip::address const & ip) const
+{
+	debug_assert (!mutex.try_lock ());
+
+	return std::count_if (connections.begin (), connections.end (), [this, &ip] (auto const & connection) {
+		return nano::transport::is_same_subnetwork (connection.address (), ip);
+	});
 }
 
 void nano::transport::tcp_listener::on_connection (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback_a)
 {
-	boost::asio::post (strand, boost::asio::bind_executor (strand, [this_l = shared_from_this (), callback = std::move (callback_a)] () mutable {
-		if (!this_l->acceptor.is_open ())
-		{
-			this_l->node.logger.error (nano::log::type::tcp_listener, "Acceptor is not open");
-			return;
-		}
-
-		// Prepare new connection
-		auto new_connection = std::make_shared<nano::transport::socket> (this_l->node, socket_endpoint::server);
-		this_l->acceptor.async_accept (new_connection->tcp_socket, new_connection->remote,
-		boost::asio::bind_executor (this_l->strand,
-		[this_l, new_connection, cbk = std::move (callback)] (boost::system::error_code const & ec_a) mutable {
-			this_l->evict_dead_connections ();
-
-			if (this_l->connections_per_address.size () >= this_l->max_inbound_connections)
-			{
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_failure, nano::stat::dir::in);
-				this_l->node.logger.debug (nano::log::type::tcp_listener, "Max connections reached ({}), unable to open new connection", this_l->connections_per_address.size ());
-
-				this_l->on_connection_requeue_delayed (std::move (cbk));
-				return;
-			}
-
-			if (this_l->limit_reached_for_incoming_ip_connections (new_connection))
-			{
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_max_per_ip, nano::stat::dir::in);
-				this_l->node.logger.debug (nano::log::type::tcp_listener, "Max connections per IP reached ({}), unable to open new connection", new_connection->remote_endpoint ().address ().to_string ());
-
-				this_l->on_connection_requeue_delayed (std::move (cbk));
-				return;
-			}
-
-			if (this_l->limit_reached_for_incoming_subnetwork_connections (new_connection))
-			{
-				auto const remote_ip_address = new_connection->remote_endpoint ().address ();
-				debug_assert (remote_ip_address.is_v6 ());
-				auto const remote_subnet = socket_functions::get_ipv6_subnet_address (remote_ip_address.to_v6 (), this_l->node.network_params.network.max_peers_per_subnetwork);
-
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_max_per_subnetwork, nano::stat::dir::in);
-				this_l->node.logger.debug (nano::log::type::tcp_listener, "Max connections per subnetwork reached (subnetwork: {}, ip: {}), unable to open new connection",
-				remote_subnet.canonical ().to_string (),
-				remote_ip_address.to_string ());
-
-				this_l->on_connection_requeue_delayed (std::move (cbk));
-				return;
-			}
-
-			if (!ec_a)
-			{
-				{
-					// Best effort attempt to get endpoint addresses
-					boost::system::error_code ec;
-					new_connection->local = new_connection->tcp_socket.local_endpoint (ec);
-				}
-
-				// Make sure the new connection doesn't idle. Note that in most cases, the callback is going to start
-				// an IO operation immediately, which will start a timer.
-				new_connection->start ();
-				new_connection->set_timeout (this_l->node.network_params.network.idle_timeout);
-				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_success, nano::stat::dir::in);
-				this_l->connections_per_address.emplace (new_connection->remote.address (), new_connection);
-				this_l->node.observers.socket_accepted.notify (*new_connection);
-				if (cbk (new_connection, ec_a))
-				{
-					this_l->on_connection (std::move (cbk));
-					return;
-				}
-				this_l->node.logger.warn (nano::log::type::tcp_listener, "Stopping to accept new connections");
-				return;
-			}
-
-			// accept error
-			this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_failure, nano::stat::dir::in);
-			this_l->node.logger.error (nano::log::type::tcp_listener, "Unable to accept connection: {} ({})", ec_a.message (), new_connection->remote_endpoint ().address ().to_string ());
-
-			if (is_temporary_error (ec_a))
-			{
-				// if it is a temporary error, just retry it
-				this_l->on_connection_requeue_delayed (std::move (cbk));
-				return;
-			}
-
-			// if it is not a temporary error, check how the listener wants to handle this error
-			if (cbk (new_connection, ec_a))
-			{
-				this_l->on_connection_requeue_delayed (std::move (cbk));
-				return;
-			}
-
-			// No requeue if we reach here, no incoming socket connections will be handled
-			this_l->node.logger.warn (nano::log::type::tcp_listener, "Stopping to accept new connections");
-		}));
-	}));
 }
 
 // If we are unable to accept a socket, for any reason, we wait just a little (1ms) before rescheduling the next connection accept.
@@ -235,35 +302,10 @@ void nano::transport::tcp_listener::on_connection (std::function<bool (std::shar
 // give the rest of the system a chance to recover.
 void nano::transport::tcp_listener::on_connection_requeue_delayed (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback_a)
 {
-	node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::milliseconds (1), [this_l = shared_from_this (), callback = std::move (callback_a)] () mutable {
-		this_l->on_connection (std::move (callback));
-	});
-}
-
-// This must be called from a strand
-void nano::transport::tcp_listener::evict_dead_connections ()
-{
-	debug_assert (strand.running_in_this_thread ());
-
-	erase_if (connections_per_address, [] (auto const & entry) {
-		return entry.second.expired ();
-	});
 }
 
 void nano::transport::tcp_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::transport::socket> const & socket_a)
 {
-	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
-	{
-		auto server = std::make_shared<nano::transport::tcp_server> (socket_a, node.shared (), true);
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		connections[server.get ()] = server;
-		server->start ();
-	}
-	else
-	{
-		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_excluded);
-		node.logger.debug (nano::log::type::tcp_server, "Rejected connection from excluded peer: {}", nano::util::to_str (socket_a->remote_endpoint ()));
-	}
 }
 
 boost::asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint () const
@@ -284,4 +326,22 @@ std::unique_ptr<nano::container_info_component> nano::transport::tcp_listener::c
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", connection_count (), sizeof (decltype (connections)::value_type) }));
 	return composite;
+}
+
+std::string_view nano::transport::tcp_listener::to_friendly_string (check_result result)
+{
+	switch (result)
+	{
+		case check_result::invalid:
+			return "invalid";
+		case check_result::accepted:
+			return "accepted";
+		case check_result::too_many_per_ip:
+			return "too many connections per IP";
+		case check_result::too_many_per_subnetwork:
+			return "too many connections per subnetwork";
+		case check_result::excluded:
+			return "excluded";
+	}
+	return "unknown";
 }
