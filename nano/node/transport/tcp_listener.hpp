@@ -36,8 +36,6 @@ public:
 	void start (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback = {});
 	void stop ();
 
-	void accept_action (boost::system::error_code const &, std::shared_ptr<nano::transport::socket> const &);
-
 	std::size_t connection_count () const;
 	nano::tcp_endpoint endpoint () const;
 
@@ -73,10 +71,6 @@ private:
 	size_t count_per_subnetwork (boost::asio::ip::address const & ip) const;
 
 	static std::string_view to_friendly_string (check_result);
-
-private:
-	void on_connection (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback_a);
-	void on_connection_requeue_delayed (std::function<bool (std::shared_ptr<nano::transport::socket> const & new_connection, boost::system::error_code const &)>);
 
 public:
 	std::atomic<std::size_t> bootstrap_count{ 0 };

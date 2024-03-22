@@ -308,31 +308,15 @@ size_t nano::transport::tcp_listener::count_per_subnetwork (boost::asio::ip::add
 	});
 }
 
-void nano::transport::tcp_listener::on_connection (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback_a)
-{
-}
-
-// If we are unable to accept a socket, for any reason, we wait just a little (1ms) before rescheduling the next connection accept.
-// The intention is to throttle back the connection requests and break up any busy loops that could possibly form and
-// give the rest of the system a chance to recover.
-void nano::transport::tcp_listener::on_connection_requeue_delayed (std::function<bool (std::shared_ptr<nano::transport::socket> const &, boost::system::error_code const &)> callback_a)
-{
-}
-
-void nano::transport::tcp_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::transport::socket> const & socket_a)
-{
-}
-
 boost::asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint () const
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
 	if (!stopped)
 	{
-		return boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::loopback (), acceptor.local_endpoint ().port ());
+		return { boost::asio::ip::address_v6::loopback (), acceptor.local_endpoint ().port () };
 	}
 	else
 	{
-		return boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::loopback (), 0);
+		return { boost::asio::ip::address_v6::loopback (), 0 };
 	}
 }
 
