@@ -171,11 +171,16 @@ void nano::transport::tcp_listener::run ()
 
 		try
 		{
-			accept_one ();
+			auto result = accept_one ();
+			if (result != check_result::accepted)
+			{
+				stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_failure, nano::stat::dir::in);
+				// Refusal reason should be logged earlier
+			}
 		}
 		catch (boost::system::system_error const & ex)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_failure, nano::stat::dir::in);
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_error, nano::stat::dir::in);
 			logger.log (stopped ? nano::log::level::debug : nano::log::level::error, // Avoid logging expected errors when stopping
 			nano::log::type::tcp_listener, "Error accepting incoming connection: {}", ex.what ());
 		}

@@ -237,6 +237,7 @@ enum class detail : uint8_t
 
 	// tcp_listener
 	accept_success,
+	accept_error,
 	accept_failure,
 	accept_limits_exceeded,
 	max_per_ip,
