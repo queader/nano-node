@@ -78,7 +78,6 @@ void nano::test::system::stop ()
 	{
 		node->stop ();
 	}
-	nodes.clear ();
 	work.stop ();
 }
 
