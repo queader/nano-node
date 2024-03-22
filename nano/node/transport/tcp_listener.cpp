@@ -9,25 +9,6 @@
 
 using namespace std::chrono_literals;
 
-namespace
-{
-bool is_temporary_error (boost::system::error_code const & ec_a)
-{
-	switch (ec_a.value ())
-	{
-#if EAGAIN != EWOULDBLOCK
-		case EAGAIN:
-#endif
-
-		case EWOULDBLOCK:
-		case EINTR:
-			return true;
-		default:
-			return false;
-	}
-}
-}
-
 /*
  * tcp_listener
  */
@@ -38,8 +19,8 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_
 	logger{ node_a.logger },
 	port{ port_a },
 	max_inbound_connections{ max_inbound_connections },
-	acceptor{ node_a.io_ctx }
-// local{ boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port_a } }
+	acceptor{ node_a.io_ctx },
+	local{ boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port_a } }
 {
 	connection_accepted.add ([this] (auto const & socket, auto const & server) {
 		node.observers.socket_accepted.notify (*socket);
@@ -56,8 +37,6 @@ void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<n
 {
 	debug_assert (!thread.joinable ());
 	debug_assert (!cleanup_thread.joinable ());
-
-	local = boost::asio::ip::tcp::endpoint{ boost::asio::ip::address_v6::any (), port };
 
 	try
 	{
