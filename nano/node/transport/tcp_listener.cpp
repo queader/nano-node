@@ -154,11 +154,13 @@ void nano::transport::tcp_listener::run ()
 		lock.unlock ();
 
 		wait_available_slots ();
+
 		if (stopped)
 		{
 			return;
 		}
 
+		bool cooldown = false;
 		try
 		{
 			auto result = accept_one ();
@@ -173,12 +175,14 @@ void nano::transport::tcp_listener::run ()
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_error, nano::stat::dir::in);
 			logger.log (stopped ? nano::log::level::debug : nano::log::level::error, // Avoid logging expected errors when stopping
 			nano::log::type::tcp_listener, "Error accepting incoming connection: {}", ex.what ());
+
+			cooldown = true;
 		}
 
 		lock.lock ();
 
-		// Sleep for a while to prevent busy loop
-		condition.wait_for (lock, 10ms, [this] () { return stopped.load (); });
+		// Sleep for a while to prevent busy loop with additional cooldown if an error occurred
+		condition.wait_for (lock, cooldown ? 1s : 100ms, [this] () { return stopped.load (); });
 	}
 	if (!stopped)
 	{
