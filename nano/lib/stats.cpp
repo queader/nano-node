@@ -495,19 +495,19 @@ void nano::stats::clear ()
 std::string nano::stats::type_to_string (uint32_t key)
 {
 	auto type = static_cast<stat::type> (key >> 16 & 0x000000ff);
-	return std::string{ nano::to_string (type) };
+	return std::string{ nano::stat::to_string (type) };
 }
 
 std::string nano::stats::detail_to_string (uint32_t key)
 {
 	auto detail = static_cast<stat::detail> (key >> 8 & 0x000000ff);
-	return std::string{ nano::to_string (detail) };
+	return std::string{ nano::stat::to_string (detail) };
 }
 
 std::string nano::stats::dir_to_string (uint32_t key)
 {
 	auto dir = static_cast<stat::dir> (key & 0x000000ff);
-	return std::string{ nano::to_string (dir) };
+	return std::string{ nano::stat::to_string (dir) };
 }
 
 nano::stat_datapoint::stat_datapoint (stat_datapoint const & other_a)

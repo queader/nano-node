@@ -388,11 +388,15 @@ enum class dir : uint8_t
 };
 }
 
-namespace nano
+namespace nano::stat
 {
 std::string_view to_string (stat::type);
 std::string_view to_string (stat::detail);
 std::string_view to_string (stat::dir);
+
+std::vector<stat::type> const & all_types ();
+std::vector<stat::detail> const & all_details ();
+std::vector<stat::dir> const & all_dirs ();
 }
 
 // Ensure that the enum_range is large enough to hold all values (including future ones)
