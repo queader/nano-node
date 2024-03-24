@@ -58,7 +58,7 @@ private:
 	void cleanup ();
 	void wait_available_slots ();
 
-	enum class check_result
+	enum class accept_result
 	{
 		invalid,
 		accepted,
@@ -67,8 +67,8 @@ private:
 		excluded,
 	};
 
-	check_result accept_one ();
-	check_result check_limits (boost::asio::ip::address const & ip);
+	accept_result accept_one ();
+	accept_result check_limits (boost::asio::ip::address const & ip);
 	size_t count_per_ip (boost::asio::ip::address const & ip) const;
 	size_t count_per_subnetwork (boost::asio::ip::address const & ip) const;
 

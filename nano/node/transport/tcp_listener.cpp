@@ -165,7 +165,7 @@ void nano::transport::tcp_listener::run ()
 		try
 		{
 			auto result = accept_one ();
-			if (result != check_result::accepted)
+			if (result != accept_result::accepted)
 			{
 				stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_failure, nano::stat::dir::in);
 				// Refusal reason should be logged earlier
@@ -192,13 +192,13 @@ void nano::transport::tcp_listener::run ()
 	}
 }
 
-auto nano::transport::tcp_listener::accept_one () -> check_result
+auto nano::transport::tcp_listener::accept_one () -> accept_result
 {
 	auto boost_socket = acceptor.accept ();
 	auto const remote_endpoint = boost_socket.remote_endpoint ();
 	auto const local_endpoint = boost_socket.local_endpoint ();
 
-	if (auto result = check_limits (remote_endpoint.address ()); result != check_result::accepted)
+	if (auto result = check_limits (remote_endpoint.address ()); result != accept_result::accepted)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_limits_exceeded, nano::stat::dir::in);
 		// Refusal reason should be logged earlier
@@ -223,7 +223,7 @@ auto nano::transport::tcp_listener::accept_one () -> check_result
 
 	connection_accepted.notify (socket, server);
 
-	return check_result::accepted;
+	return accept_result::accepted;
 }
 
 void nano::transport::tcp_listener::wait_available_slots ()
@@ -246,7 +246,7 @@ void nano::transport::tcp_listener::wait_available_slots ()
 	}
 }
 
-auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const & ip) -> check_result
+auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const & ip) -> accept_result
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
@@ -261,7 +261,7 @@ auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_per_ip, nano::stat::dir::in);
 			logger.debug (nano::log::type::tcp_listener, "Max connections per IP reached ({}), unable to open new connection", ip.to_string ());
 
-			return check_result::too_many_per_ip;
+			return accept_result::too_many_per_ip;
 		}
 	}
 
@@ -273,7 +273,7 @@ auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_per_subnetwork, nano::stat::dir::in);
 			logger.debug (nano::log::type::tcp_listener, "Max connections per subnetwork reached ({}), unable to open new connection", ip.to_string ());
 
-			return check_result::too_many_per_subnetwork;
+			return accept_result::too_many_per_subnetwork;
 		}
 	}
 
@@ -282,10 +282,10 @@ auto nano::transport::tcp_listener::check_limits (boost::asio::ip::address const
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::excluded, nano::stat::dir::in);
 		logger.debug (nano::log::type::tcp_listener, "Rejected connection from excluded peer: {}", ip.to_string ());
 
-		return check_result::excluded;
+		return accept_result::excluded;
 	}
 
-	return check_result::accepted;
+	return accept_result::accepted;
 }
 
 size_t nano::transport::tcp_listener::connection_count () const
