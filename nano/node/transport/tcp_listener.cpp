@@ -181,7 +181,7 @@ void nano::transport::tcp_listener::run ()
 		lock.lock ();
 
 		// Sleep for a while to prevent busy loop with additional cooldown if an error occurred
-		condition.wait_for (lock, cooldown ? 1s : 100ms, [this] () { return stopped.load (); });
+		condition.wait_for (lock, cooldown ? 1s : 10ms, [this] () { return stopped.load (); });
 	}
 	if (!stopped)
 	{
