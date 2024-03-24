@@ -231,10 +231,10 @@ void nano::transport::tcp_listener::wait_available_slots ()
 		return connections.size () >= max_inbound_connections;
 	};
 
-	nano::interval log_interval{ node.network_params.network.is_dev_network () ? 1s : 15s };
+	nano::interval log_interval;
 	while (!stopped && should_wait ())
 	{
-		if (log_interval.elapsed ())
+		if (log_interval.elapsed (node.network_params.network.is_dev_network () ? 1s : 15s))
 		{
 			logger.warn (nano::log::type::tcp_listener, "Waiting for available slots to accept new connections (current: {} / max: {})",
 			connection_count (), max_inbound_connections);
