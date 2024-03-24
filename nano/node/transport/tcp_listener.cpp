@@ -64,11 +64,13 @@ void nano::transport::tcp_listener::start (std::function<bool (std::shared_ptr<n
 		}
 		catch (std::exception const & ex)
 		{
-			logger.error (nano::log::type::tcp_listener, "Error while running: {}", ex.what ());
+			logger.critical (nano::log::type::tcp_listener, "Error: {}", ex.what ());
+			release_assert (false); // Should be handled earlier
 		}
 		catch (...)
 		{
-			logger.error (nano::log::type::tcp_listener, "Unknown error while running");
+			logger.critical (nano::log::type::tcp_listener, "Unknown error");
+			release_assert (false); // Should be handled earlier
 		}
 	});
 
