@@ -240,6 +240,7 @@ enum class detail : uint8_t
 	accept_error,
 	accept_failure,
 	accept_limits_exceeded,
+	close_error,
 	max_per_ip,
 	max_per_subnetwork,
 	excluded,

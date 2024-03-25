@@ -183,7 +183,7 @@ void nano::transport::tcp_listener::run ()
 		lock.lock ();
 
 		// Sleep for a while to prevent busy loop with additional cooldown if an error occurred
-		condition.wait_for (lock, cooldown ? 1s : 10ms, [this] () { return stopped.load (); });
+		condition.wait_for (lock, cooldown ? 100ms : 10ms, [this] () { return stopped.load (); });
 	}
 	if (!stopped)
 	{
@@ -194,14 +194,26 @@ void nano::transport::tcp_listener::run ()
 
 auto nano::transport::tcp_listener::accept_one () -> accept_result
 {
-	auto boost_socket = acceptor.accept ();
-	auto const remote_endpoint = boost_socket.remote_endpoint ();
-	auto const local_endpoint = boost_socket.local_endpoint ();
+	auto raw_socket = acceptor.accept ();
+	auto const remote_endpoint = raw_socket.remote_endpoint ();
+	auto const local_endpoint = raw_socket.local_endpoint ();
 
 	if (auto result = check_limits (remote_endpoint.address ()); result != accept_result::accepted)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_limits_exceeded, nano::stat::dir::in);
 		// Refusal reason should be logged earlier
+
+		try
+		{
+			// Best effor attempt to gracefully close the socket, shutdown before closing to avoid zombie sockets
+			raw_socket.shutdown (boost::asio::ip::tcp::socket::shutdown_both);
+			raw_socket.close ();
+		}
+		catch (boost::system::system_error const & ex)
+		{
+			logger.debug (nano::log::type::tcp_listener, "Error while closing socket after refusing connection: {}", ex.what ());
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::close_error, nano::stat::dir::in);
+		}
 
 		return result;
 	}
@@ -209,7 +221,7 @@ auto nano::transport::tcp_listener::accept_one () -> accept_result
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_success, nano::stat::dir::in);
 	logger.debug (nano::log::type::tcp_listener, "Accepted incoming connection from: {}", fmt::streamed (remote_endpoint));
 
-	auto socket = std::make_shared<nano::transport::socket> (std::move (boost_socket), remote_endpoint, local_endpoint, node, socket_endpoint::server);
+	auto socket = std::make_shared<nano::transport::socket> (std::move (raw_socket), remote_endpoint, local_endpoint, node, socket_endpoint::server);
 	auto server = std::make_shared<nano::transport::tcp_server> (socket, node.shared (), true);
 
 	{
