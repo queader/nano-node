@@ -51,6 +51,8 @@ enum class name
 	tcp_listener,
 };
 
+std::string_view to_string (name);
+
 /*
  * Get/Set the identifier for the current thread
  */
