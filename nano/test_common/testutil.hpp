@@ -117,12 +117,28 @@
 
 namespace nano::test
 {
-template <class... Ts>
+// Concept for checking .stop() method
+template <typename T>
+concept stoppable = requires (T a) {
+	{
+		a.stop ()
+	} -> std::same_as<void>;
+};
+
+// Concept for checking if it's callable
+template <typename T>
+concept callable = requires (T a) {
+	{
+		a ()
+	} -> std::same_as<void>;
+};
+
+template <stoppable... Ts>
 class start_stop_guard
 {
 public:
 	explicit start_stop_guard (Ts &... refs_a) :
-		refs{ std::forward<Ts &> (refs_a)... }
+		refs{ std::forward<decltype (refs_a)> (refs_a)... }
 	{
 		std::apply ([] (Ts &... refs) { (refs.start (), ...); }, refs);
 	}
@@ -136,12 +152,12 @@ private:
 	std::tuple<Ts &...> refs;
 };
 
-template <class... Ts>
+template <stoppable... Ts>
 class stop_guard
 {
 public:
 	explicit stop_guard (Ts &... refs_a) :
-		refs{ std::forward<Ts &> (refs_a)... }
+		refs{ std::forward<decltype (refs_a)> (refs_a)... }
 	{
 	}
 
@@ -152,6 +168,24 @@ public:
 
 private:
 	std::tuple<Ts &...> refs;
+};
+
+template <callable... Ts>
+class call_guard
+{
+public:
+	explicit call_guard (Ts &&... calls_a) :
+		calls{ std::forward<decltype (calls_a)> (calls_a)... }
+	{
+	}
+
+	~call_guard ()
+	{
+		std::apply ([] (Ts &... refs) { (refs (), ...); }, calls);
+	}
+
+private:
+	std::tuple<Ts...> calls;
 };
 }
 
