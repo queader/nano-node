@@ -10,14 +10,13 @@ RUN /tmp/prepare/prepare.sh
 COPY ./ /tmp/src
 WORKDIR /tmp/src
 
-#Define ARGs for ci/build-node.sh
+# Define ARGs for ci/build-node.sh
 ARG BUILD_TYPE=RelWithDebInfo
 ARG NANO_TEST=OFF
 ARG COVERAGE=OFF
-ARG CMAKE_SANITIZER=""
+ARG SANITIZER
 ARG CI_TAG=DEV_BUILD
 ARG CI_VERSION_PRE_RELEASE=OFF
-ARG SANITIZER
 
 # Build node
 RUN ci/build-node.sh
