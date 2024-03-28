@@ -91,6 +91,8 @@ std::shared_ptr<nano::rpc> nano::get_rpc (std::shared_ptr<boost::asio::io_contex
 	{
 #ifdef NANO_SECURE_RPC
 		return std::make_shared<nano::rpc_secure> (io_ctx_a, config_a, rpc_handler_interface_a);
+#else
+		return nullptr;
 #endif
 	}
 	else
