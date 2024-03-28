@@ -240,11 +240,18 @@ enum class detail : uint8_t
 	accept_error,
 	accept_failure,
 	accept_limits_exceeded,
+	attempts_limits_exceeded,
+	attempt_in_progress,
 	close_error,
 	max_per_ip,
 	max_per_subnetwork,
+	max_attempts,
 	excluded,
 	erase_dead,
+	connect_initiate,
+	connect_failure,
+	connect_error,
+	attempt_timeout,
 
 	// tcp_server
 	handshake,
