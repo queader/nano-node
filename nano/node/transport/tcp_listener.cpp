@@ -331,16 +331,16 @@ auto nano::transport::tcp_listener::connect_impl (nano::tcp_endpoint endpoint) -
 
 asio::ip::tcp::socket nano::transport::tcp_listener::accept_socket ()
 {
+	// This expects the result type to be default-constructible, therefore we need to wrap the socket in an optional
 	auto future = asio::co_spawn (
-	strand, [this] () -> asio::awaitable<asio::ip::tcp::socket> {
+	strand, [this] () mutable -> asio::awaitable<std::optional<asio::ip::tcp::socket>> {
+		debug_assert (strand.running_in_this_thread ());
 		auto socket = co_await acceptor.async_accept (asio::use_awaitable);
 		co_return socket;
-		// asio::ip::tcp::socket socket{ node.io_ctx };
-		// co_return std::move(socket);
 	},
 	asio::use_future);
 	future.wait ();
-	return future.get ();
+	return future.get ().value ();
 }
 
 auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket, connection_type type) -> accept_result
