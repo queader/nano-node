@@ -124,7 +124,7 @@ private:
 		}
 
 		asio::cancellation_signal cancellation_signal{};
-		std::chrono::steady_clock::time_point start{ std::chrono::steady_clock::now () };
+		std::chrono::steady_clock::time_point const start{ std::chrono::steady_clock::now () };
 
 		nano::ip_address address () const
 		{
@@ -151,7 +151,7 @@ private:
 
 	std::list<attempt_entry> attempts;
 
-	// All connection attempts are serialized through this strand
+	// All io operations are serialized through this strand
 	asio::strand<asio::io_context::executor_type> strand;
 	asio::ip::tcp::acceptor acceptor;
 	asio::ip::tcp::endpoint local;

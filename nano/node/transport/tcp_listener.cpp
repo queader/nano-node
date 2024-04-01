@@ -99,15 +99,19 @@ void nano::transport::tcp_listener::stop ()
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
+	}
+	condition.notify_all ();
 
+	// Close acceptor
+	asio::post (strand, asio::use_future ([this] () {
 		boost::system::error_code ec;
 		acceptor.close (ec); // Best effort to close the acceptor, ignore errors
 		if (ec)
 		{
 			logger.error (nano::log::type::tcp_listener, "Error while closing acceptor: {}", ec.message ());
 		}
-	}
-	condition.notify_all ();
+	}))
+	.wait ();
 
 	if (listening_thread.joinable ())
 	{
@@ -293,13 +297,19 @@ bool nano::transport::tcp_listener::connect (nano::ip_address ip, nano::ip_port 
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_initiate, nano::stat::dir::out);
 	logger.debug (nano::log::type::tcp_listener, "Initiating outgoing connection to: {}", fmt::streamed (endpoint));
 
-	auto future = asio::co_spawn (node.io_ctx, connect_impl (endpoint), asio::use_future);
+	auto future = asio::co_spawn (
+	strand, [this, endpoint] () mutable -> asio::awaitable<void> {
+		co_await connect_impl (endpoint);
+	},
+	asio::use_future);
+
 	attempts.emplace_back (endpoint, std::move (future));
 	return true; // Attempt started
 }
 
 auto nano::transport::tcp_listener::connect_impl (nano::tcp_endpoint endpoint) -> asio::awaitable<void>
 {
+	debug_assert (strand.running_in_this_thread ());
 	try
 	{
 		asio::ip::tcp::socket raw_socket{ node.io_ctx };
@@ -321,11 +331,14 @@ auto nano::transport::tcp_listener::connect_impl (nano::tcp_endpoint endpoint) -
 
 asio::ip::tcp::socket nano::transport::tcp_listener::accept_socket ()
 {
-	std::future<asio::ip::tcp::socket> future;
-	{
-		nano::unique_lock<nano::mutex> lock{ mutex };
-		future = acceptor.async_accept (asio::use_future);
-	}
+	auto future = asio::co_spawn (
+	strand, [this] () -> asio::awaitable<asio::ip::tcp::socket> {
+		auto socket = co_await acceptor.async_accept (asio::use_awaitable);
+		co_return socket;
+		// asio::ip::tcp::socket socket{ node.io_ctx };
+		// co_return std::move(socket);
+	},
+	asio::use_future);
 	future.wait ();
 	return future.get ();
 }
