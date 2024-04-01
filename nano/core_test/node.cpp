@@ -39,7 +39,6 @@ TEST (node, null_account)
 TEST (node, stop)
 {
 	nano::test::system system (1);
-	system.io_guard.reset ();
 	ASSERT_NE (system.nodes[0]->wallets.items.end (), system.nodes[0]->wallets.items.begin ());
 	ASSERT_TRUE (true);
 }
@@ -72,10 +71,9 @@ TEST (node, work_generate)
 TEST (node, block_store_path_failure)
 {
 	nano::test::system system;
-	auto io_ctx = std::make_shared<boost::asio::io_context> ();
 	auto path (nano::unique_path ());
 	nano::work_pool pool{ nano::dev::network_params.network, std::numeric_limits<unsigned>::max () };
-	auto node (std::make_shared<nano::node> (io_ctx, system.get_available_port (), path, pool));
+	auto node (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), path, pool));
 	system.register_node (node);
 	ASSERT_TRUE (node->wallets.items.empty ());
 }
