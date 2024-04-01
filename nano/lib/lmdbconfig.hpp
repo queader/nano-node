@@ -45,6 +45,6 @@ public:
 	/** Sync strategy for the ledger database */
 	sync_strategy sync{ always };
 	uint32_t max_databases{ 128 };
-	size_t map_size{ 512ULL * 1024 * 1024 * 1024 };
+	size_t map_size{ 1024ULL * 1024 * 1024 * 1024 };
 };
 }
