@@ -21,8 +21,7 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_
 	logger{ node_a.logger },
 	port{ port_a },
 	max_inbound_connections{ max_inbound_connections },
-	acceptor{ node_a.io_ctx },
-	local{ asio::ip::tcp::endpoint{ asio::ip::address_v6::any (), port_a } }
+	acceptor{ node_a.io_ctx }
 {
 	connection_accepted.add ([this] (auto const & socket, auto const & server) {
 		node.observers.socket_accepted.notify (*socket);
@@ -42,10 +41,17 @@ void nano::transport::tcp_listener::start ()
 
 	try
 	{
-		acceptor.open (local.protocol ());
+		asio::ip::tcp::endpoint target{ asio::ip::address_v6::any (), port };
+
+		acceptor.open (target.protocol ());
 		acceptor.set_option (asio::ip::tcp::acceptor::reuse_address (true));
-		acceptor.bind (local);
+		acceptor.bind (target);
 		acceptor.listen (asio::socket_base::max_listen_connections);
+
+		{
+			nano::lock_guard<nano::mutex> lock{ mutex };
+			local = acceptor.local_endpoint ();
+		}
 
 		logger.info (nano::log::type::tcp_listener, "Listening for incoming connections on: {}", fmt::streamed (acceptor.local_endpoint ()));
 	}
@@ -371,7 +377,7 @@ asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint () const
 	if (!stopped)
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
-		return { asio::ip::address_v6::loopback (), acceptor.local_endpoint ().port () };
+		return local;
 	}
 	else
 	{
