@@ -21,6 +21,7 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_
 	node{ node_a },
 	stats{ node_a.stats },
 	logger{ node_a.logger },
+	strand{ node.io_ctx.get_executor () },
 	port{ port_a },
 	max_inbound_connections{ max_inbound_connections },
 	max_connection_attempts{ max_inbound_connections / 2 },
@@ -121,18 +122,26 @@ void nano::transport::tcp_listener::stop ()
 	decltype (attempts) attempts_l;
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
-
 		connections_l.swap (connections);
 		attempts_l.swap (attempts);
 	}
 
-	// Cancel and await in-flight attempts
+	// Cancel all in-flight attempts
+	asio::post (strand, asio::use_future ([&attempts_l] () {
+		for (auto & attempt : attempts_l)
+		{
+			attempt.cancellation_signal.emit (asio::cancellation_type::terminal);
+		}
+	}))
+	.wait ();
+
+	// Wait for all attempts to complete
 	for (auto & attempt : attempts_l)
 	{
-		// TODO: Cancel attempt
 		attempt.future.wait ();
 	}
 
+	// Gracefully close all connections
 	for (auto & connection : connections_l)
 	{
 		if (auto socket = connection.socket.lock ())
@@ -144,6 +153,10 @@ void nano::transport::tcp_listener::stop ()
 			server->stop ();
 		}
 	}
+
+	// No new connections should be accepted or initiated in the meantime
+	debug_assert (connection_count () == 0);
+	debug_assert (attempt_count () == 0);
 }
 
 void nano::transport::tcp_listener::run_cleanup ()
@@ -195,11 +208,14 @@ void nano::transport::tcp_listener::timeout ()
 		{
 			if (attempt.start < cutoff)
 			{
-				// TODO: Cancel attempt
-
 				stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::attempt_timeout);
 				logger.debug (nano::log::type::tcp_listener, "Connection attempt timed out: {} (started {}s ago)",
 				fmt::streamed (attempt.endpoint), nano::log::seconds_delta (attempt.start));
+
+				asio::post (strand, asio::use_future ([&attempt] () {
+					attempt.cancellation_signal.emit (asio::cancellation_type::terminal);
+				}))
+				.wait ();
 			}
 		}
 	}
@@ -255,6 +271,11 @@ bool nano::transport::tcp_listener::connect (nano::ip_address ip, nano::ip_port 
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
+	if (stopped)
+	{
+		return false; // Rejected
+	}
+
 	if (port == 0)
 	{
 		port = node.network_params.network.default_node_port;
@@ -274,12 +295,13 @@ bool nano::transport::tcp_listener::connect (nano::ip_address ip, nano::ip_port 
 	logger.debug (nano::log::type::tcp_listener, "Initiating outgoing connection to: {}", fmt::streamed (endpoint));
 
 	auto future = asio::co_spawn (node.io_ctx, connect_impl (endpoint), asio::use_future);
-	attempts.emplace (attempt_entry{ endpoint, std::move (future) });
+	attempts.emplace_back (endpoint, std::move (future));
 	return true; // Attempt started
 }
 
 auto nano::transport::tcp_listener::connect_impl (nano::tcp_endpoint endpoint) -> asio::awaitable<void>
 {
+	debug_assert (strand.running_in_this_thread ());
 	try
 	{
 		asio::ip::tcp::socket raw_socket{ node.io_ctx };
@@ -316,6 +338,11 @@ auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket
 	auto const local_endpoint = raw_socket.local_endpoint ();
 
 	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	if (stopped)
+	{
+		return accept_result::invalid;
+	}
 
 	if (auto result = check_limits (remote_endpoint.address (), connection_type::inbound); result != accept_result::accepted)
 	{
@@ -425,7 +452,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 			return accept_result::too_many_attempts;
 		}
 
-		if (auto count = count_per_attempt (ip); count >= 1)
+		if (auto count = count_attempts (ip); count >= max_attempts_per_ip)
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::attempt_in_progress, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Connection attempt already in progress (ip: {}), unable to initiate new connection ({})",
@@ -442,6 +469,12 @@ size_t nano::transport::tcp_listener::connection_count () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	return connections.size ();
+}
+
+size_t nano::transport::tcp_listener::attempt_count () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return attempts.size ();
 }
 
 size_t nano::transport::tcp_listener::realtime_count () const
@@ -488,7 +521,7 @@ size_t nano::transport::tcp_listener::count_per_subnetwork (nano::ip_address con
 	});
 }
 
-size_t nano::transport::tcp_listener::count_per_attempt (nano::ip_address const & ip) const
+size_t nano::transport::tcp_listener::count_attempts (nano::ip_address const & ip) const
 {
 	debug_assert (!mutex.try_lock ());
 

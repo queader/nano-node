@@ -10,6 +10,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <list>
 #include <string_view>
 #include <thread>
 
@@ -48,6 +49,7 @@ public:
 
 	nano::tcp_endpoint endpoint () const;
 	size_t connection_count () const;
+	size_t attempt_count () const;
 	size_t realtime_count () const;
 	size_t bootstrap_count () const;
 
@@ -92,7 +94,7 @@ private:
 
 	size_t count_per_ip (nano::ip_address const & ip) const;
 	size_t count_per_subnetwork (nano::ip_address const & ip) const;
-	size_t count_per_attempt (nano::ip_address const & ip) const;
+	size_t count_attempts (nano::ip_address const & ip) const;
 
 	static nano::stat::dir to_stat_dir (connection_type);
 	static std::string_view to_string (connection_type);
@@ -116,7 +118,13 @@ private:
 		nano::tcp_endpoint endpoint;
 		std::future<void> future;
 
-		std::chrono::steady_clock::time_point start{ std::chrono::steady_clock::now () };
+		attempt_entry (nano::tcp_endpoint const & endpoint, std::future<void> && future) :
+			endpoint{ endpoint }, future{ std::move (future) }
+		{
+		}
+
+		asio::cancellation_signal cancellation_signal{};
+		std::chrono::steady_clock::time_point const start{ std::chrono::steady_clock::now () };
 
 		nano::ip_address address () const
 		{
@@ -128,6 +136,7 @@ private:
 	uint16_t const port;
 	std::size_t const max_inbound_connections;
 	size_t const max_connection_attempts;
+	size_t const max_attempts_per_ip{ 1 };
 
 	// clang-format off
 	class tag_address {};
@@ -137,17 +146,14 @@ private:
 		mi::hashed_non_unique<mi::tag<tag_address>,
 			mi::const_mem_fun<entry, nano::ip_address, &entry::address>>
 	>>;
-
-	using ordered_attempts = boost::multi_index_container<attempt_entry,
-	mi::indexed_by<
-		mi::hashed_non_unique<mi::tag<tag_address>,
-			mi::const_mem_fun<attempt_entry, nano::ip_address, &attempt_entry::address>>
-	>>;
 	// clang-format on
-
 	ordered_connections connections;
-	ordered_attempts attempts;
 
+	std::list<attempt_entry> attempts;
+
+	// All connection attempts are serialized through this strand
+	asio::strand<asio::io_context::executor_type> strand;
+	// For simplicity, acceptor is not run on the strand but instead guarded by mutex
 	asio::ip::tcp::acceptor acceptor;
 	asio::ip::tcp::endpoint local;
 
