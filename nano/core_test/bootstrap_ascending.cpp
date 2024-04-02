@@ -161,8 +161,8 @@ TEST (account_sets, saturate_priority)
 TEST (bootstrap_ascending, account_base)
 {
 	nano::node_flags flags;
-	nano::test::system system{ 1, nano::transport::transport_type::tcp, flags };
-	auto & node0 = *system.nodes[0];
+	nano::test::system system;
+	auto & node0 = *system.add_node (flags);
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
 				 .account (nano::dev::genesis_key.pub)
@@ -184,8 +184,8 @@ TEST (bootstrap_ascending, account_base)
 TEST (bootstrap_ascending, account_inductive)
 {
 	nano::node_flags flags;
-	nano::test::system system{ 1, nano::transport::transport_type::tcp, flags };
-	auto & node0 = *system.nodes[0];
+	nano::test::system system;
+	auto & node0 = *system.add_node (flags);
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
 				 .account (nano::dev::genesis_key.pub)
@@ -221,8 +221,8 @@ TEST (bootstrap_ascending, trace_base)
 {
 	nano::node_flags flags;
 	flags.disable_legacy_bootstrap = true;
-	nano::test::system system{ 1, nano::transport::transport_type::tcp, flags };
-	auto & node0 = *system.nodes[0];
+	nano::test::system system;
+	auto & node0 = *system.add_node (flags);
 	nano::keypair key;
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()

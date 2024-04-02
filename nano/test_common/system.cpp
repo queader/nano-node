@@ -42,16 +42,6 @@ nano::test::system::system () :
 	}
 }
 
-nano::test::system::system (uint16_t count_a, nano::transport::transport_type type_a, nano::node_flags flags_a) :
-	system ()
-{
-	nodes.reserve (count_a);
-	for (uint16_t i (0); i < count_a; ++i)
-	{
-		add_node (default_config (), flags_a, type_a);
-	}
-}
-
 nano::test::system::~system ()
 {
 	// Only stop system in destructor to avoid confusing and random bugs when debugging assertions that hit deadline expired condition

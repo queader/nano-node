@@ -16,8 +16,8 @@ using namespace std::chrono_literals;
 
 TEST (conflicts, start_stop)
 {
-	nano::test::system system (1);
-	auto & node1 (*system.nodes[0]);
+	nano::test::system system;
+	auto & node1 = *system.add_node ();
 	nano::keypair key1;
 	nano::block_builder builder;
 	auto send1 = builder
@@ -41,8 +41,8 @@ TEST (conflicts, start_stop)
 
 TEST (conflicts, add_existing)
 {
-	nano::test::system system{ 1 };
-	auto & node1 = *system.nodes[0];
+	nano::test::system system;
+	auto & node1 = *system.add_node ();
 	nano::keypair key1;
 
 	// create a send block to send all of the nano supply to key1
@@ -91,7 +91,7 @@ TEST (conflicts, add_existing)
 
 TEST (conflicts, add_two)
 {
-	nano::test::system system{};
+	nano::test::system system;
 	auto const & node = system.add_node ();
 	nano::keypair key1, key2, key3;
 	auto gk = nano::dev::genesis_key;

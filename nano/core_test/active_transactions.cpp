@@ -238,8 +238,8 @@ TEST (active_transactions, keep_local)
 
 TEST (inactive_votes_cache, basic)
 {
-	nano::test::system system (1);
-	auto & node = *system.nodes[0];
+	nano::test::system system;
+	auto & node = *system.add_node ();
 	nano::block_hash latest (node.latest (nano::dev::genesis_key.pub));
 	nano::keypair key;
 	auto send = nano::send_block_builder ()
@@ -262,8 +262,8 @@ TEST (inactive_votes_cache, basic)
  */
 TEST (inactive_votes_cache, non_final)
 {
-	nano::test::system system (1);
-	auto & node = *system.nodes[0];
+	nano::test::system system;
+	auto & node = *system.add_node ();
 
 	auto send = nano::send_block_builder ()
 				.previous (nano::dev::genesis->hash ())
@@ -288,8 +288,8 @@ TEST (inactive_votes_cache, non_final)
 
 TEST (inactive_votes_cache, fork)
 {
-	nano::test::system system{ 1 };
-	auto & node = *system.nodes[0];
+	nano::test::system system;
+	auto & node = *system.add_node ();
 
 	auto const latest = node.latest (nano::dev::genesis_key.pub);
 	nano::keypair key{};
@@ -1033,8 +1033,8 @@ TEST (active_transactions, confirmation_consistency)
 
 TEST (active_transactions, confirm_new)
 {
-	nano::test::system system (1);
-	auto & node1 = *system.nodes[0];
+	nano::test::system system;
+	auto & node1 = *system.add_node ();
 	auto send = nano::send_block_builder ()
 				.previous (nano::dev::genesis->hash ())
 				.destination (nano::public_key ())
@@ -1258,8 +1258,8 @@ TEST (active_transactions, activate_inactive)
 
 TEST (active_transactions, list_active)
 {
-	nano::test::system system (1);
-	auto & node = *system.nodes[0];
+	nano::test::system system;
+	auto & node = *system.add_node ();
 
 	nano::keypair key;
 	nano::state_block_builder builder;

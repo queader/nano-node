@@ -19,12 +19,15 @@ using namespace std::chrono_literals;
 
 TEST (ipc, asynchronous)
 {
-	nano::test::system system (1);
-	system.nodes[0]->config.ipc_config.transport_tcp.enabled = true;
-	system.nodes[0]->config.ipc_config.transport_tcp.port = system.get_available_port ();
+	nano::test::system system;
+
+	nano::node_config node_config = system.default_config ();
+	node_config.ipc_config.transport_tcp.enabled = true;
+	node_config.ipc_config.transport_tcp.port = system.get_available_port ();
+	auto & node = *system.add_node (node_config);
 	nano::node_rpc_config node_rpc_config;
-	nano::ipc::ipc_server ipc (*system.nodes[0], node_rpc_config);
-	nano::ipc::ipc_client client (system.nodes[0]->io_ctx);
+	nano::ipc::ipc_server ipc (node, node_rpc_config);
+	nano::ipc::ipc_client client (node.io_ctx);
 
 	auto req (nano::ipc::prepare_request (nano::ipc::payload_encoding::json_v1, std::string (R"({"action": "block_count"})")));
 	auto res (std::make_shared<std::vector<uint8_t>> ());
@@ -59,12 +62,15 @@ TEST (ipc, asynchronous)
 
 TEST (ipc, synchronous)
 {
-	nano::test::system system (1);
-	system.nodes[0]->config.ipc_config.transport_tcp.enabled = true;
-	system.nodes[0]->config.ipc_config.transport_tcp.port = system.get_available_port ();
+	nano::test::system system;
+
+	nano::node_config node_config = system.default_config ();
+	node_config.ipc_config.transport_tcp.enabled = true;
+	node_config.ipc_config.transport_tcp.port = system.get_available_port ();
+	auto & node = *system.add_node (node_config);
 	nano::node_rpc_config node_rpc_config;
-	nano::ipc::ipc_server ipc (*system.nodes[0], node_rpc_config);
-	nano::ipc::ipc_client client (system.nodes[0]->io_ctx);
+	nano::ipc::ipc_server ipc (node, node_rpc_config);
+	nano::ipc::ipc_client client (node.io_ctx);
 
 	// Start blocking IPC client in a separate thread
 	std::atomic<bool> call_completed{ false };
@@ -192,11 +198,14 @@ TEST (ipc, permissions_default_user_order)
 
 TEST (ipc, invalid_endpoint)
 {
-	nano::test::system system (1);
-	system.nodes[0]->config.ipc_config.transport_tcp.enabled = true;
-	system.nodes[0]->config.ipc_config.transport_tcp.port = system.get_available_port ();
+	nano::test::system system;
+
+	nano::node_config node_config = system.default_config ();
+	node_config.ipc_config.transport_tcp.enabled = true;
+	node_config.ipc_config.transport_tcp.port = system.get_available_port ();
+	auto & node = *system.add_node (node_config);
 	nano::node_rpc_config node_rpc_config;
-	nano::ipc::ipc_client client (system.nodes[0]->io_ctx);
+	nano::ipc::ipc_client client (node.io_ctx);
 
 	std::atomic<bool> call_completed{ false };
 	client.async_connect ("::-1", 24077, [&client, &call_completed] (nano::error err) {

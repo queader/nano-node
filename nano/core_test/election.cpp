@@ -14,24 +14,25 @@ using namespace std::chrono_literals;
 
 TEST (election, construction)
 {
-	nano::test::system system (1);
-	auto & node = *system.nodes[0];
+	nano::test::system system;
+	auto & node = *system.add_node ();
 	auto election = std::make_shared<nano::election> (
 	node, nano::dev::genesis, [] (auto const &) {}, [] (auto const &) {}, nano::election_behavior::normal);
 }
 
 TEST (election, behavior)
 {
-	nano::test::system system (1);
-	auto chain = nano::test::setup_chain (system, *system.nodes[0], 1, nano::dev::genesis_key, false);
-	auto election = nano::test::start_election (system, *system.nodes[0], chain[0]->hash ());
+	nano::test::system system;
+	auto & node = *system.add_node ();
+	auto chain = nano::test::setup_chain (system, node, 1, nano::dev::genesis_key, false);
+	auto election = nano::test::start_election (system, node, chain[0]->hash ());
 	ASSERT_NE (nullptr, election);
 	ASSERT_EQ (nano::election_behavior::normal, election->behavior ());
 }
 
 TEST (election, quorum_minimum_flip_success)
 {
-	nano::test::system system{};
+	nano::test::system system;
 
 	nano::node_config node_config = system.default_config ();
 	node_config.online_weight_minimum = nano::dev::constants.genesis_amount;
@@ -273,7 +274,7 @@ TEST (election, quorum_minimum_update_weight_before_quorum_checks)
 
 TEST (election, continuous_voting)
 {
-	nano::test::system system{};
+	nano::test::system system;
 	auto & node1 = *system.add_node ();
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
