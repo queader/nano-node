@@ -127,13 +127,16 @@ void nano::transport::tcp_listener::stop ()
 	}
 
 	// Cancel all in-flight attempts
-	asio::post (strand, asio::use_future ([&attempts_l] () {
-		for (auto & attempt : attempts_l)
-		{
-			attempt.cancellation_signal.emit (asio::cancellation_type::terminal);
-		}
-	}))
-	.wait ();
+	if (!attempts_l.empty ())
+	{
+		asio::post (strand, asio::use_future ([&attempts_l] () {
+			for (auto & attempt : attempts_l)
+			{
+				attempt.cancellation_signal.emit (asio::cancellation_type::terminal);
+			}
+		}))
+		.wait ();
+	}
 
 	// Wait for all attempts to complete
 	for (auto & attempt : attempts_l)
