@@ -21,6 +21,15 @@ REGISTER_ERROR_CODES (nano, error_system);
 
 namespace nano::test
 {
+constexpr size_t asio_handler_tracking_threshold ()
+{
+#if NANO_ASIO_HANDLER_TRACKING == 0
+	return 0;
+#else
+	return NANO_ASIO_HANDLER_TRACKING;
+#endif
+}
+
 class system final
 {
 public:
