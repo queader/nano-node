@@ -63,7 +63,6 @@ public:
 	 */
 	std::error_code poll (std::chrono::nanoseconds const & sleep_time = std::chrono::milliseconds (50));
 	std::error_code poll_until_true (std::chrono::nanoseconds deadline, std::function<bool ()>);
-	void delay_ms (std::chrono::milliseconds const & delay);
 	void deadline_set (std::chrono::duration<double, std::nano> const & delta);
 	/*
 	 * Convenience function to get a reference to a node at given index. Does bound checking.

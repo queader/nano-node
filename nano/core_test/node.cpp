@@ -881,7 +881,7 @@ TEST (node, fork_open)
 	ASSERT_EQ (publish2.block->hash (), election->winner ()->hash ());
 
 	// wait for a second and check that the election did not get confirmed
-	system.delay_ms (1000ms);
+	WAIT (1s)
 	ASSERT_FALSE (election->confirmed ());
 
 	// check that only the first block is saved to the ledger
