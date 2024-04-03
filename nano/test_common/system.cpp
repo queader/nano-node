@@ -31,7 +31,8 @@ std::string nano::error_system_messages::message (int ev) const
  * system
  */
 
-nano::test::system::system () :
+nano::test::system::system (nano::test::io_type io_type_a) :
+	io_type{ io_type_a },
 	io_ctx{ std::make_shared<boost::asio::io_context> () },
 	io_guard{ boost::asio::make_work_guard (*io_ctx) }
 {
@@ -40,15 +41,24 @@ nano::test::system::system () :
 	{
 		deadline_scaling_factor = std::stod (scale_str);
 	}
+
+	if (io_type == nano::test::io_type::singlethreaded)
+	{
+		io_runner = std::make_unique<nano::thread_runner> (io_ctx, /* single threaded */ 1);
+	}
+	if (io_type == nano::test::io_type::multithreaded)
+	{
+		io_runner = std::make_unique<nano::thread_runner> (io_ctx);
+	}
 }
 
-nano::test::system::system (uint16_t count_a, nano::transport::transport_type type_a, nano::node_flags flags_a) :
-	system ()
+nano::test::system::system (unsigned count_a, nano::test::io_type io_type_a) :
+	system (io_type_a)
 {
 	nodes.reserve (count_a);
 	for (uint16_t i (0); i < count_a; ++i)
 	{
-		add_node (default_config (), flags_a, type_a);
+		add_node (default_config ());
 	}
 }
 
@@ -85,8 +95,17 @@ void nano::test::system::stop ()
 		stop_node (*node);
 	}
 
-	io_guard.reset ();
 	work.stop ();
+
+	if (io_guard)
+	{
+		io_guard->reset ();
+	}
+	if (io_runner)
+	{
+		io_runner->stop_event_processing ();
+		io_runner->join ();
+	}
 }
 
 nano::node & nano::test::system::node (std::size_t index) const
@@ -221,14 +240,23 @@ void nano::test::system::register_node (std::shared_ptr<nano::node> const & node
 
 void nano::test::system::stop_node (nano::node & node)
 {
-	auto stopped = std::async (std::launch::async, [&node] () {
+	if (io_type == nano::test::io_type::lazy)
+	{
+		// Keep io context running while stopping node
+		auto stopped = std::async (std::launch::async, [&node] () {
+			node.stop ();
+		});
+		auto ec = poll_until_true (5s, [&] () {
+			auto status = stopped.wait_for (0s);
+			return status == std::future_status::ready;
+		});
+		debug_assert (!ec);
+	}
+	else
+	{
+		// Io context is constantly running, so we can just stop the node
 		node.stop ();
-	});
-	auto ec = poll_until_true (5s, [&] () {
-		auto status = stopped.wait_for (0s);
-		return status == std::future_status::ready;
-	});
-	debug_assert (!ec);
+	}
 }
 
 void nano::test::system::ledger_initialization_set (std::vector<nano::keypair> const & reps, nano::amount const & reserve)
@@ -337,7 +365,14 @@ std::error_code nano::test::system::poll (std::chrono::nanoseconds const & wait_
 {
 	if constexpr (asio_handler_tracking_threshold () == 0)
 	{
-		io_ctx->run_one_for (wait_time);
+		if (io_type == io_type::lazy)
+		{
+			io_ctx->run_one_for (wait_time);
+		}
+		else
+		{
+			std::this_thread::sleep_for (wait_time);
+		}
 	}
 	else
 	{

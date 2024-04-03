@@ -2,6 +2,7 @@
 
 #include <nano/lib/errors.hpp>
 #include <nano/lib/stats.hpp>
+#include <nano/lib/thread_runner.hpp>
 #include <nano/node/node.hpp>
 
 #include <chrono>
@@ -30,11 +31,18 @@ constexpr size_t asio_handler_tracking_threshold ()
 #endif
 }
 
+enum class io_type
+{
+	lazy,
+	singlethreaded,
+	multithreaded,
+};
+
 class system final
 {
 public:
-	system ();
-	system (uint16_t, nano::transport::transport_type = nano::transport::transport_type::tcp, nano::node_flags = nano::node_flags ());
+	system (nano::test::io_type = io_type::singlethreaded);
+	system (unsigned node_count, nano::test::io_type = io_type::singlethreaded);
 	~system ();
 
 	void stop ();
@@ -88,10 +96,15 @@ public:
 	uint16_t get_available_port ();
 
 public:
+	nano::test::io_type const io_type;
+
 	std::shared_ptr<boost::asio::io_context> io_ctx;
-	boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_guard;
+	std::optional<nano::io_guard> io_guard;
+	std::unique_ptr<nano::thread_runner> io_runner; // May be nullptr for lazy I/O
+
 	std::vector<std::shared_ptr<nano::node>> nodes;
 	std::vector<std::shared_ptr<nano::node>> disconnected_nodes;
+
 	nano::stats stats;
 	nano::logger logger{ "tests" };
 	nano::work_pool work{ nano::dev::network_params.network, std::max (nano::hardware_concurrency (), 1u) };

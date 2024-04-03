@@ -160,9 +160,8 @@ TEST (account_sets, saturate_priority)
  */
 TEST (bootstrap_ascending, account_base)
 {
-	nano::node_flags flags;
-	nano::test::system system{ 1, nano::transport::transport_type::tcp, flags };
-	auto & node0 = *system.nodes[0];
+	nano::test::system system;
+	auto & node0 = *system.add_node ();
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
 				 .account (nano::dev::genesis_key.pub)
@@ -174,7 +173,7 @@ TEST (bootstrap_ascending, account_base)
 				 .work (*system.work.generate (nano::dev::genesis->hash ()))
 				 .build ();
 	ASSERT_EQ (nano::block_status::progress, node0.process (send1));
-	auto & node1 = *system.add_node (flags);
+	auto & node1 = *system.add_node ();
 	ASSERT_TIMELY (5s, node1.block (send1->hash ()) != nullptr);
 }
 
@@ -183,9 +182,8 @@ TEST (bootstrap_ascending, account_base)
  */
 TEST (bootstrap_ascending, account_inductive)
 {
-	nano::node_flags flags;
-	nano::test::system system{ 1, nano::transport::transport_type::tcp, flags };
-	auto & node0 = *system.nodes[0];
+	nano::test::system system;
+	auto & node0 = *system.add_node ();
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
 				 .account (nano::dev::genesis_key.pub)
@@ -210,7 +208,7 @@ TEST (bootstrap_ascending, account_inductive)
 	//	std::cerr << "Send2: " << send2->hash ().to_string () << std::endl;
 	ASSERT_EQ (nano::block_status::progress, node0.process (send1));
 	ASSERT_EQ (nano::block_status::progress, node0.process (send2));
-	auto & node1 = *system.add_node (flags);
+	auto & node1 = *system.add_node ();
 	ASSERT_TIMELY (50s, node1.block (send2->hash ()) != nullptr);
 }
 
@@ -219,10 +217,10 @@ TEST (bootstrap_ascending, account_inductive)
  */
 TEST (bootstrap_ascending, trace_base)
 {
+	nano::test::system system;
 	nano::node_flags flags;
 	flags.disable_legacy_bootstrap = true;
-	nano::test::system system{ 1, nano::transport::transport_type::tcp, flags };
-	auto & node0 = *system.nodes[0];
+	auto & node0 = *system.add_node (flags);
 	nano::keypair key;
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
@@ -248,7 +246,7 @@ TEST (bootstrap_ascending, trace_base)
 	//	std::cerr << "Genesis: " << nano::dev::genesis->hash ().to_string () << std::endl;
 	//	std::cerr << "send1: " << send1->hash ().to_string () << std::endl;
 	//	std::cerr << "receive1: " << receive1->hash ().to_string () << std::endl;
-	auto & node1 = *system.add_node ();
+	auto & node1 = *system.add_node (flags);
 	//	std::cerr << "--------------- Start ---------------\n";
 	ASSERT_EQ (nano::block_status::progress, node0.process (send1));
 	ASSERT_EQ (nano::block_status::progress, node0.process (receive1));

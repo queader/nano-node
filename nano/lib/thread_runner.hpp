@@ -10,6 +10,8 @@
 
 namespace nano
 {
+using io_guard = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
+
 class thread_runner final
 {
 	nano::logger logger;
@@ -26,7 +28,7 @@ public:
 
 private:
 	std::shared_ptr<boost::asio::io_context> io_ctx;
-	boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_guard;
+	nano::io_guard io_guard;
 	nano::thread_role::name const role;
 	std::vector<boost::thread> threads;
 

@@ -72,10 +72,9 @@ TEST (node, work_generate)
 TEST (node, block_store_path_failure)
 {
 	nano::test::system system;
-	auto io_ctx = std::make_shared<boost::asio::io_context> ();
 	auto path (nano::unique_path ());
 	nano::work_pool pool{ nano::dev::network_params.network, std::numeric_limits<unsigned>::max () };
-	auto node (std::make_shared<nano::node> (io_ctx, system.get_available_port (), path, pool));
+	auto node (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), path, pool));
 	system.register_node (node);
 	ASSERT_TRUE (node->wallets.items.empty ());
 }
@@ -1809,9 +1808,7 @@ TEST (node, online_reps_election)
 
 TEST (node, block_confirm)
 {
-	auto type = nano::transport::transport_type::tcp;
-	nano::node_flags node_flags;
-	nano::test::system system (2, type, node_flags);
+	nano::test::system system (2);
 	auto & node1 (*system.nodes[0]);
 	auto & node2 (*system.nodes[1]);
 	nano::keypair key;
