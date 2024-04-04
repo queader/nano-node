@@ -82,6 +82,11 @@ nano::node_config::node_config (const std::optional<uint16_t> & peering_port_a, 
 	}
 }
 
+nano::node_config::~node_config ()
+{
+	// Keep the node_config destructor definition here to avoid incomplete type issues
+}
+
 nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 {
 	if (peering_port.has_value ())

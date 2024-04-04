@@ -59,6 +59,7 @@ enum class type : uint8_t
 	local_block_broadcaster,
 	rep_tiers,
 	syn_cookies,
+	message_processor,
 
 	bootstrap_ascending,
 	bootstrap_ascending_accounts,

@@ -48,7 +48,7 @@ enum class type
 	election,
 	blockprocessor,
 	network,
-	network_processed,
+	message,
 	channel,
 	channel_sent,
 	socket,
@@ -75,6 +75,7 @@ enum class type
 	rep_tiers,
 	syn_cookies,
 	thread_runner,
+	message_processor,
 
 	// bootstrap
 	bulk_pull_client,

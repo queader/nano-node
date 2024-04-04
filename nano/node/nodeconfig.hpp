@@ -11,6 +11,7 @@
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap/bootstrap_config.hpp>
 #include <nano/node/ipc/ipc_config.hpp>
+#include <nano/node/message_processor.hpp>
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/scheduler/hinted.hpp>
 #include <nano/node/scheduler/optimistic.hpp>
@@ -35,6 +36,8 @@ enum class frontiers_confirmation_mode : uint8_t
 	invalid
 };
 
+class message_processor_config;
+
 /**
  * Node configuration
  */
@@ -43,6 +46,7 @@ class node_config
 public:
 	node_config (nano::network_params & network_params = nano::dev::network_params);
 	node_config (const std::optional<uint16_t> &, nano::network_params & network_params = nano::dev::network_params);
+	~node_config ();
 
 	nano::error serialize_toml (nano::tomlconfig &) const;
 	nano::error deserialize_toml (nano::tomlconfig &);
@@ -138,6 +142,7 @@ public:
 	nano::vote_cache_config vote_cache;
 	nano::rep_crawler_config rep_crawler;
 	nano::block_processor_config block_processor;
+	nano::message_processor_config message_processor;
 
 public:
 	std::string serialize_frontiers_confirmation (nano::frontiers_confirmation_mode) const;
