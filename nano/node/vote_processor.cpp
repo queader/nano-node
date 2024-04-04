@@ -31,13 +31,11 @@ nano::vote_processor::vote_processor (nano::active_transactions & active_a, nano
 		switch (origin.source)
 		{
 			case nano::rep_tier::tier_3:
-				return 256;
 			case nano::rep_tier::tier_2:
-				return 128;
 			case nano::rep_tier::tier_1:
-				return 64;
+				return 1024;
 			case nano::rep_tier::none:
-				return 32;
+				return 128;
 		}
 		debug_assert (false);
 		return 0;
