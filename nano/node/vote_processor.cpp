@@ -124,7 +124,6 @@ void nano::vote_processor::run ()
 		{
 			run_batch (lock);
 			debug_assert (!lock.owns_lock ());
-
 			lock.lock ();
 		}
 

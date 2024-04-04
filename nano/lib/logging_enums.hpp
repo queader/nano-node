@@ -48,7 +48,7 @@ enum class type
 	election,
 	blockprocessor,
 	network,
-	network_processed,
+	message,
 	channel,
 	channel_sent,
 	socket,
@@ -77,6 +77,7 @@ enum class type
 	thread_runner,
 	signal_manager,
 	peer_history,
+	message_processor,
 
 	// bootstrap
 	bulk_pull_client,
