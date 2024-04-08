@@ -270,6 +270,10 @@ enum class detail
 	connect_success,
 	attempt_timeout,
 
+	// tcp_channels
+	channel_accepted,
+	channel_rejected,
+
 	// tcp_server
 	handshake,
 	handshake_abort,
