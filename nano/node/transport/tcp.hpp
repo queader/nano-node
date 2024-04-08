@@ -20,40 +20,35 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
-class tcp_message_item final
-{
-public:
-	std::shared_ptr<nano::message> message;
-	nano::tcp_endpoint endpoint;
-	nano::account node_id;
-	std::shared_ptr<nano::transport::socket> socket;
-};
-
-class tcp_message_manager final
-{
-public:
-	tcp_message_manager (unsigned incoming_connections_max_a);
-	void put_message (nano::tcp_message_item const & item_a);
-	nano::tcp_message_item get_message ();
-	// Stop container and notify waiting threads
-	void stop ();
-
-private:
-	nano::mutex mutex;
-	nano::condition_variable producer_condition;
-	nano::condition_variable consumer_condition;
-	std::deque<nano::tcp_message_item> entries;
-	unsigned max_entries;
-	static unsigned const max_entries_per_connection = 16;
-	bool stopped{ false };
-
-	friend class network_tcp_message_manager_Test;
-};
-
 namespace transport
 {
 	class tcp_server;
 	class tcp_channels;
+	class channel_tcp;
+
+	// TODO: Replace with message_processor component with fair queueing
+	class tcp_message_manager final
+	{
+	public:
+		using entry_t = std::pair<std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel_tcp>>;
+
+		explicit tcp_message_manager (unsigned incoming_connections_max);
+		void stop ();
+
+		void put (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel_tcp>);
+		entry_t next ();
+
+	private:
+		nano::mutex mutex;
+		nano::condition_variable producer_condition;
+		nano::condition_variable consumer_condition;
+		std::deque<entry_t> entries;
+		unsigned max_entries;
+		static unsigned const max_entries_per_connection = 16;
+		bool stopped{ false };
+
+		friend class network_tcp_message_manager_Test;
+	};
 
 	class channel_tcp : public nano::transport::channel, public std::enable_shared_from_this<channel_tcp>
 	{
@@ -124,10 +119,6 @@ namespace transport
 	public:
 		std::weak_ptr<nano::transport::socket> socket;
 
-		/* Mark for temporary channels. Usually remote ports of these channels are ephemeral and received from incoming connections to server.
-		If remote part has open listening port, temporary channel will be replaced with direct connection to listening port soon. But if other side is behing NAT or firewall this connection can be pemanent. */
-		std::atomic<bool> temporary{ false };
-
 	private:
 		nano::tcp_endpoint endpoint{ boost::asio::ip::address_v6::any (), 0 };
 
@@ -148,7 +139,9 @@ namespace transport
 		void start ();
 		void stop ();
 
-		bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
+		std::shared_ptr<nano::transport::channel_tcp> create (std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
+
+		// bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
 		std::shared_ptr<nano::transport::channel_tcp> find_channel (nano::tcp_endpoint const &) const;
@@ -180,7 +173,7 @@ namespace transport
 		nano::node & node;
 
 	public:
-		nano::tcp_message_manager message_manager;
+		tcp_message_manager message_manager;
 
 	private:
 		void close ();
@@ -216,8 +209,7 @@ namespace transport
 			}
 			nano::account node_id () const
 			{
-				auto node_id (channel->get_node_id ());
-				return node_id;
+				return channel->get_node_id ();
 			}
 			uint8_t network_version () const
 			{

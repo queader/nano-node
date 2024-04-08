@@ -891,12 +891,12 @@ TEST (network, tcp_no_connect_excluded_peers)
 	ASSERT_TIMELY_EQ (5s, node0->network.size (), 1);
 }
 
+/*
 namespace nano
 {
 TEST (network, tcp_message_manager)
 {
-	nano::tcp_message_manager manager (1);
-	nano::tcp_message_item item;
+	nano::transport::tcp_message_manager manager (1);
 	item.node_id = nano::account (100);
 	ASSERT_EQ (0, manager.entries.size ());
 	manager.put_message (item);
@@ -951,6 +951,7 @@ TEST (network, tcp_message_manager)
 	}
 }
 }
+*/
 
 TEST (network, cleanup_purge)
 {

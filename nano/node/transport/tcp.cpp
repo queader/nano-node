@@ -23,10 +23,7 @@ nano::transport::channel_tcp::~channel_tcp ()
 	// Close socket. Exception: socket is used by tcp_server
 	if (auto socket_l = socket.lock ())
 	{
-		if (!temporary)
-		{
-			socket_l->close ();
-		}
+		socket_l->close ();
 	}
 }
 
@@ -145,32 +142,34 @@ void nano::transport::tcp_channels::close ()
 	channels.clear ();
 }
 
-bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::transport::socket> const & socket_a, std::shared_ptr<nano::transport::tcp_server> const & server_a)
-{
-	auto endpoint (channel_a->get_tcp_endpoint ());
-	debug_assert (endpoint.address ().is_v6 ());
-	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
-	bool error (true);
-	if (!node.network.not_a_peer (udp_endpoint, node.config.allow_local_peers) && !stopped)
-	{
-		nano::unique_lock<nano::mutex> lock{ mutex };
-		auto existing (channels.get<endpoint_tag> ().find (endpoint));
-		if (existing == channels.get<endpoint_tag> ().end ())
-		{
-			auto node_id (channel_a->get_node_id ());
-			if (!channel_a->temporary)
-			{
-				channels.get<node_id_tag> ().erase (node_id);
-			}
-			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, server_a);
-			attempts.get<endpoint_tag> ().erase (endpoint);
-			error = false;
-			lock.unlock ();
-			node.network.channel_observer (channel_a);
-		}
-	}
-	return error;
-}
+// bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::transport::socket> const & socket_a, std::shared_ptr<nano::transport::tcp_server> const & server_a)
+// {
+// 	auto endpoint (channel_a->get_tcp_endpoint ());
+// 	debug_assert (endpoint.address ().is_v6 ());
+// 	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
+// 	bool error (true);
+// 	if (!node.network.not_a_peer (udp_endpoint, node.config.allow_local_peers) && !stopped)
+// 	{
+// 		nano::unique_lock<nano::mutex> lock{ mutex };
+// 		auto existing (channels.get<endpoint_tag> ().find (endpoint));
+// 		if (existing == channels.get<endpoint_tag> ().end ())
+// 		{
+// 			auto node_id (channel_a->get_node_id ());
+// 			if (!channel_a->temporary)
+// 			{
+// 				channels.get<node_id_tag> ().erase (node_id);
+// 			}
+// 			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, server_a);
+// 			attempts.get<endpoint_tag> ().erase (endpoint);
+// 			error = false;
+// 			lock.unlock ();
+// 			node.network.channel_observer (channel_a);
+// 		}
+// 	}
+// 	return error;
+// }
+
+
 
 void nano::transport::tcp_channels::erase (nano::tcp_endpoint const & endpoint_a)
 {
@@ -216,7 +215,7 @@ std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::transport::t
 				continue;
 			}
 
-			if (channel->get_network_version () >= min_version && (include_temporary_channels_a || !channel->temporary))
+			if (channel->get_network_version () >= min_version)
 			{
 				result.insert (channel);
 			}
@@ -308,10 +307,11 @@ void nano::transport::tcp_channels::process_messages ()
 {
 	while (!stopped)
 	{
-		auto item = message_manager.get_message ();
-		if (item.message != nullptr)
+		auto [message, channel] = message_manager.next ();
+		if (message != nullptr)
 		{
-			process_message (*item.message, item.endpoint, item.node_id, item.socket);
+			release_assert (channel != nullptr);
+			sink (*message, channel);
 		}
 	}
 }
@@ -333,32 +333,37 @@ void nano::transport::tcp_channels::process_message (nano::message const & messa
 			{
 				sink (message_a, channel);
 			}
-			else if (!node.network.excluded_peers.check (endpoint_a))
+			else
 			{
-				if (!node_id_a.is_zero ())
-				{
-					// Add temporary channel
-					auto temporary_channel (std::make_shared<nano::transport::channel_tcp> (node, socket_a));
-					temporary_channel->update_endpoint ();
-					debug_assert (endpoint_a == temporary_channel->get_tcp_endpoint ());
-					temporary_channel->set_node_id (node_id_a);
-					temporary_channel->set_network_version (message_a.header.version_using);
-					temporary_channel->temporary = true;
-					debug_assert (type_a == nano::transport::socket::type_t::realtime);
-					// Don't insert temporary channels for response_server
-					if (type_a == nano::transport::socket::type_t::realtime)
-					{
-						insert (temporary_channel, socket_a, nullptr);
-					}
-					sink (message_a, temporary_channel);
-				}
-				else
-				{
-					// Initial node_id_handshake request without node ID
-					debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
-					node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
-				}
+				debug_assert (false);
 			}
+
+			// else if (!node.network.excluded_peers.check (endpoint_a))
+			// {
+			// 	if (!node_id_a.is_zero ())
+			// 	{
+			// 		// Add temporary channel
+			// 		auto temporary_channel (std::make_shared<nano::transport::channel_tcp> (node, socket_a));
+			// 		temporary_channel->update_endpoint ();
+			// 		debug_assert (endpoint_a == temporary_channel->get_tcp_endpoint ());
+			// 		temporary_channel->set_node_id (node_id_a);
+			// 		temporary_channel->set_network_version (message_a.header.version_using);
+			// 		temporary_channel->temporary = true;
+			// 		debug_assert (type_a == nano::transport::socket::type_t::realtime);
+			// 		// Don't insert temporary channels for response_server
+			// 		if (type_a == nano::transport::socket::type_t::realtime)
+			// 		{
+			// 			insert (temporary_channel, socket_a, nullptr);
+			// 		}
+			// 		sink (message_a, temporary_channel);
+			// 	}
+			// 	else
+			// 	{
+			// 		// Initial node_id_handshake request without node ID
+			// 		debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
+			// 		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+			// 	}
+			// }
 		}
 		if (channel)
 		{
@@ -560,7 +565,7 @@ void nano::transport::tcp_channels::list (std::deque<std::shared_ptr<nano::trans
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	// clang-format off
 	nano::transform_if (channels.get<random_access_tag> ().begin (), channels.get<random_access_tag> ().end (), std::back_inserter (deque_a),
-		[include_temporary_channels_a, minimum_version_a](auto & channel_a) { return channel_a.channel->get_network_version () >= minimum_version_a && (include_temporary_channels_a || !channel_a.channel->temporary); },
+		[include_temporary_channels_a, minimum_version_a](auto & channel_a) { return channel_a.channel->get_network_version () >= minimum_version_a; },
 		[](auto const & channel) { return channel.channel; });
 	// clang-format on
 }
