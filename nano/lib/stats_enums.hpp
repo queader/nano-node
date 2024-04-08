@@ -253,6 +253,10 @@ enum class detail : uint8_t
 	excluded,
 	erase_dead,
 
+	// tcp_channels
+	channel_accepted,
+	channel_rejected,
+
 	// tcp_server
 	handshake,
 	handshake_abort,

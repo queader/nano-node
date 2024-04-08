@@ -142,34 +142,80 @@ void nano::transport::tcp_channels::close ()
 	channels.clear ();
 }
 
-// bool nano::transport::tcp_channels::insert (std::shared_ptr<nano::transport::channel_tcp> const & channel_a, std::shared_ptr<nano::transport::socket> const & socket_a, std::shared_ptr<nano::transport::tcp_server> const & server_a)
-// {
-// 	auto endpoint (channel_a->get_tcp_endpoint ());
-// 	debug_assert (endpoint.address ().is_v6 ());
-// 	auto udp_endpoint (nano::transport::map_tcp_to_endpoint (endpoint));
-// 	bool error (true);
-// 	if (!node.network.not_a_peer (udp_endpoint, node.config.allow_local_peers) && !stopped)
-// 	{
-// 		nano::unique_lock<nano::mutex> lock{ mutex };
-// 		auto existing (channels.get<endpoint_tag> ().find (endpoint));
-// 		if (existing == channels.get<endpoint_tag> ().end ())
-// 		{
-// 			auto node_id (channel_a->get_node_id ());
-// 			if (!channel_a->temporary)
-// 			{
-// 				channels.get<node_id_tag> ().erase (node_id);
-// 			}
-// 			channels.get<endpoint_tag> ().emplace (channel_a, socket_a, server_a);
-// 			attempts.get<endpoint_tag> ().erase (endpoint);
-// 			error = false;
-// 			lock.unlock ();
-// 			node.network.channel_observer (channel_a);
-// 		}
-// 	}
-// 	return error;
-// }
+bool nano::transport::tcp_channels::check (const nano::tcp_endpoint & endpoint, const nano::account & node_id) const
+{
+	debug_assert (!mutex.try_lock ());
 
+	if (node.network.not_a_peer (nano::transport::map_tcp_to_endpoint (endpoint), node.config.allow_local_peers))
+	{
+		return false; // Reject
+	}
 
+	bool has_duplicate = std::any_of (channels.begin (), channels.end (), [&endpoint, &node_id] (auto const & channel) {
+		if (nano::transport::is_same_ip (channel.endpoint ().address (), endpoint.address ()))
+		{
+			// Only counsider channels with the same node id as duplicates if they come from the same IP
+			if (channel.node_id () == node_id)
+			{
+				return true;
+			}
+		}
+		return false;
+	});
+
+	if (has_duplicate)
+	{
+		return false; // Reject
+	}
+
+	return true; // OK
+}
+
+// This should be the only place in node where channels are created
+std::shared_ptr<nano::transport::channel_tcp> nano::transport::tcp_channels::create (const std::shared_ptr<nano::transport::socket> & socket, const std::shared_ptr<nano::transport::tcp_server> & server, const nano::account & node_id)
+{
+	auto const endpoint = socket->remote_endpoint ();
+	debug_assert (endpoint.address ().is_v6 ());
+
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	if (stopped)
+	{
+		return nullptr;
+	}
+
+	if (check (endpoint, node_id))
+	{
+		node.stats.inc (nano::stat::type::tcp_channels, nano::stat::detail::channel_accepted);
+		node.logger.debug (nano::log::type::tcp_channels, "Accepted new channel from: {} ({})",
+		fmt::streamed (socket->remote_endpoint ()),
+		node_id.to_node_id ());
+
+		auto channel = std::make_shared<nano::transport::channel_tcp> (node, socket);
+		channel->update_endpoint ();
+		channel->set_node_id (node_id);
+
+		attempts.get<endpoint_tag> ().erase (endpoint);
+
+		auto [_, inserted] = channels.get<endpoint_tag> ().emplace (channel, socket, server);
+		debug_assert (inserted);
+
+		lock.unlock ();
+
+		node.network.channel_observer (channel);
+
+		return channel;
+	}
+	else
+	{
+		node.stats.inc (nano::stat::type::tcp_channels, nano::stat::detail::channel_rejected);
+		node.logger.debug (nano::log::type::tcp_channels, "Rejected new channel from: {} ({})",
+		fmt::streamed (socket->remote_endpoint ()),
+		node_id.to_node_id ());
+	}
+
+	return nullptr;
+}
 
 void nano::transport::tcp_channels::erase (nano::tcp_endpoint const & endpoint_a)
 {
@@ -274,6 +320,14 @@ nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
 	return result;
 }
 
+void nano::transport::tcp_channels::queue_message (std::unique_ptr<nano::message> message, std::shared_ptr<nano::transport::channel_tcp> channel)
+{
+	if (!stopped)
+	{
+		message_manager.put (std::move (message), std::move (channel));
+	}
+}
+
 void nano::transport::tcp_channels::process_messages ()
 {
 	while (!stopped)
@@ -283,62 +337,6 @@ void nano::transport::tcp_channels::process_messages ()
 		{
 			release_assert (channel != nullptr);
 			sink (*message, channel);
-		}
-	}
-}
-
-void nano::transport::tcp_channels::process_message (nano::message const & message_a, nano::tcp_endpoint const & endpoint_a, nano::account const & node_id_a, std::shared_ptr<nano::transport::socket> const & socket_a)
-{
-	auto type_a = socket_a->type ();
-	if (!stopped && message_a.header.version_using >= node.network_params.network.protocol_version_min)
-	{
-		auto channel (node.network.find_channel (nano::transport::map_tcp_to_endpoint (endpoint_a)));
-		if (channel)
-		{
-			sink (message_a, channel);
-		}
-		else
-		{
-			channel = node.network.find_node_id (node_id_a);
-			if (channel)
-			{
-				sink (message_a, channel);
-			}
-			else
-			{
-				debug_assert (false);
-			}
-
-			// else if (!node.network.excluded_peers.check (endpoint_a))
-			// {
-			// 	if (!node_id_a.is_zero ())
-			// 	{
-			// 		// Add temporary channel
-			// 		auto temporary_channel (std::make_shared<nano::transport::channel_tcp> (node, socket_a));
-			// 		temporary_channel->update_endpoint ();
-			// 		debug_assert (endpoint_a == temporary_channel->get_tcp_endpoint ());
-			// 		temporary_channel->set_node_id (node_id_a);
-			// 		temporary_channel->set_network_version (message_a.header.version_using);
-			// 		temporary_channel->temporary = true;
-			// 		debug_assert (type_a == nano::transport::socket::type_t::realtime);
-			// 		// Don't insert temporary channels for response_server
-			// 		if (type_a == nano::transport::socket::type_t::realtime)
-			// 		{
-			// 			insert (temporary_channel, socket_a, nullptr);
-			// 		}
-			// 		sink (message_a, temporary_channel);
-			// 	}
-			// 	else
-			// 	{
-			// 		// Initial node_id_handshake request without node ID
-			// 		debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
-			// 		node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
-			// 	}
-			// }
-		}
-		if (channel)
-		{
-			channel->set_last_packet_received (std::chrono::steady_clock::now ());
 		}
 	}
 }
