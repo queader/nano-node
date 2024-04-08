@@ -128,7 +128,7 @@ namespace transport
 
 	class tcp_channels final
 	{
-		friend class nano::transport::channel_tcp;
+		friend class channel_tcp;
 		friend class telemetry_simultaneous_requests_Test;
 		friend class network_peer_max_tcp_attempts_subnetwork_Test;
 
@@ -140,8 +140,6 @@ namespace transport
 		void stop ();
 
 		std::shared_ptr<nano::transport::channel_tcp> create (std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
-
-		// bool insert (std::shared_ptr<nano::transport::channel_tcp> const &, std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &);
 		void erase (nano::tcp_endpoint const &);
 		std::size_t size () const;
 		std::shared_ptr<nano::transport::channel_tcp> find_channel (nano::tcp_endpoint const &) const;
@@ -151,8 +149,8 @@ namespace transport
 		std::shared_ptr<nano::transport::channel_tcp> find_node_id (nano::account const &);
 		// Get the next peer for attempting a tcp connection
 		nano::tcp_endpoint bootstrap_peer ();
+		void queue_message (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel_tcp>);
 		void process_messages ();
-		void process_message (nano::message const &, nano::tcp_endpoint const &, nano::account const &, std::shared_ptr<nano::transport::socket> const &);
 		bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 		bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
@@ -167,16 +165,13 @@ namespace transport
 
 		// Connection start
 		void start_tcp (nano::endpoint const &);
-		void start_tcp_receive_node_id (std::shared_ptr<nano::transport::channel_tcp> const &, nano::endpoint const &, std::shared_ptr<std::vector<uint8_t>> const &);
-
-	private: // Dependencies
-		nano::node & node;
-
-	public:
-		tcp_message_manager message_manager;
 
 	private:
 		void close ();
+		bool check (nano::tcp_endpoint const &, nano::account const & node_id) const;
+
+	private: // Dependencies
+		nano::node & node;
 
 	private:
 		class channel_entry final
@@ -277,6 +272,8 @@ namespace transport
 		// clang-format on
 
 	private:
+		tcp_message_manager message_manager;
+
 		std::function<void (nano::message const &, std::shared_ptr<nano::transport::channel> const &)> sink;
 
 		std::atomic<bool> stopped{ false };

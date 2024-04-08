@@ -45,14 +45,6 @@ nano::transport::tcp_server::~tcp_server ()
 	else if (socket->type () == nano::transport::socket::type_t::realtime)
 	{
 		--node->tcp_listener->realtime_count;
-
-		// Clear temporary channel
-		auto exisiting_response_channel (node->network.tcp_channels.find_channel (remote_endpoint));
-		if (exisiting_response_channel != nullptr)
-		{
-			// TODO: Replace with close channel
-			node->network.tcp_channels.erase (remote_endpoint);
-		}
 	}
 
 	stop ();
@@ -270,7 +262,7 @@ void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message>
 	release_assert (channel != nullptr);
 
 	channel->set_last_packet_received (std::chrono::steady_clock::now ());
-	node->network.tcp_channels.message_manager.put (std::move (message), channel);
+	node->network.tcp_channels.queue_message (std::move (message), channel);
 }
 
 auto nano::transport::tcp_server::process_handshake (nano::node_id_handshake const & message) -> handshake_status
