@@ -66,7 +66,7 @@ void nano::transport::socket::async_connect (nano::tcp_endpoint const & endpoint
 		this_l->remote = endpoint_a;
 		if (ec)
 		{
-			node_l->stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in);
+			node_l->stats.inc (nano::stat::type::tcp, nano::stat::detail::connect_error, nano::stat::dir::in);
 			this_l->close ();
 		}
 		else

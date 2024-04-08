@@ -621,7 +621,7 @@ TEST (socket_timeout, connect)
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY_EQ (6s, done, true);
 	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in));
+	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::connect_error, nano::stat::dir::in));
 
 	// check that the socket was closed due to tcp_io_timeout timeout
 	// NOTE: this assert is not guaranteed to be always true, it is only likely that it will be true, we can also get "No route to host"
