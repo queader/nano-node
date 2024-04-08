@@ -238,7 +238,7 @@ enum class detail : uint8_t
 	tcp_write_no_socket_drop,
 	tcp_silent_connection_drop,
 	tcp_io_timeout_drop,
-	tcp_connect_error,
+	connect_error,
 	tcp_read_error,
 	tcp_write_error,
 

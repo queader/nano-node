@@ -44,7 +44,6 @@ enum class socket_type
 	undefined,
 	bootstrap,
 	realtime,
-	realtime_response_server // special type for tcp channel response server
 };
 
 std::string_view to_string (socket_type);
@@ -71,7 +70,7 @@ public:
 	explicit socket (nano::node &, nano::transport::socket_endpoint = socket_endpoint::client, std::size_t max_queue_size = default_max_queue_size);
 
 	// TODO: Accepting remote/local endpoints as a parameter is unnecessary, but is needed for now to keep compatibility with the legacy code
-	explicit socket (
+	socket (
 	nano::node &,
 	boost::asio::ip::tcp::socket,
 	boost::asio::ip::tcp::endpoint remote_endpoint,
@@ -125,7 +124,7 @@ public:
 	}
 	bool is_realtime_connection () const
 	{
-		return type () == socket_type::realtime || type () == socket_type::realtime_response_server;
+		return type () == socket_type::realtime;
 	}
 	bool is_bootstrap_connection () const
 	{
