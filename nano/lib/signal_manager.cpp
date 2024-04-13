@@ -1,4 +1,5 @@
 #include <nano/lib/signal_manager.hpp>
+#include <nano/lib/thread_roles.hpp>
 #include <nano/lib/utility.hpp>
 
 #include <boost/asio.hpp>
@@ -8,10 +9,11 @@
 #include <iostream>
 
 nano::signal_manager::signal_manager () :
-	work (boost::asio::make_work_guard (ioc))
+	io_guard{ boost::asio::make_work_guard (io_context) }
 {
-	smthread = boost::thread ([&ioc = ioc] () {
-		ioc.run ();
+	thread = boost::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::signal_manager);
+		io_context.run ();
 	});
 }
 
@@ -19,20 +21,15 @@ nano::signal_manager::~signal_manager ()
 {
 	/// Indicate that we have finished with the private io_context. Its
 	/// io_context::run() function will exit once all other work has completed.
-	work.reset ();
-	ioc.stop ();
-	smthread.join ();
-}
-
-nano::signal_manager::signal_descriptor::signal_descriptor (std::shared_ptr<boost::asio::signal_set> sigset_a, signal_manager & sigman_a, std::function<void (int)> handler_func_a, bool repeat_a) :
-	sigset (sigset_a), sigman (sigman_a), handler_func (handler_func_a), repeat (repeat_a)
-{
+	io_guard.reset ();
+	io_context.stop ();
+	thread.join ();
 }
 
 void nano::signal_manager::register_signal_handler (int signum, std::function<void (int)> handler, bool repeat)
 {
 	// create a signal set to hold the mapping between signals and signal handlers
-	auto sigset = std::make_shared<boost::asio::signal_set> (ioc, signum);
+	auto sigset = std::make_shared<boost::asio::signal_set> (io_context, signum);
 
 	// a signal descriptor holds all the data needed by the base handler including the signal set
 	// working with copies of a descriptor is OK
@@ -46,7 +43,7 @@ void nano::signal_manager::register_signal_handler (int signum, std::function<vo
 		nano::signal_manager::base_handler (descriptor, error, signum);
 	});
 
-	log (boost::str (boost::format ("Registered signal handler for signal %d") % signum));
+	logger.debug (nano::log::type::signal_manager, "Registered signal handler for signal: {}", to_signal_name (signum));
 }
 
 void nano::signal_manager::base_handler (nano::signal_manager::signal_descriptor descriptor, boost::system::error_code const & error, int signum)
@@ -79,5 +76,37 @@ void nano::signal_manager::base_handler (nano::signal_manager::signal_descriptor
 	else
 	{
 		descriptor.sigman.log (boost::str (boost::format ("Signal error: %d (%s)") % error.value () % error.message ()));
+	}
+}
+
+/*
+ * signal_descriptor
+ */
+
+nano::signal_manager::signal_descriptor::signal_descriptor (std::shared_ptr<boost::asio::signal_set> sigset_a, signal_manager & sigman_a, std::function<void (int)> handler_func_a, bool repeat_a) :
+	sigset (sigset_a), sigman (sigman_a), handler_func (handler_func_a), repeat (repeat_a)
+{
+}
+
+/*
+ *
+ */
+
+std::string_view nano::to_signal_name (int signum)
+{
+	switch (signum)
+	{
+		case SIGINT:
+			return "SIGINT";
+		case SIGTERM:
+			return "SIGTERM";
+		case SIGSEGV:
+			return "SIGSEGV";
+		case SIGABRT:
+			return "SIGABRT";
+		case SIGILL:
+			return "SIGILL";
+		default:
+			return "UNKNOWN";
 	}
 }

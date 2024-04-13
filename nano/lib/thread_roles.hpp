@@ -49,6 +49,7 @@ enum class name
 	network_keepalive,
 	network_reachout,
 	tcp_listener,
+	signal_manager,
 };
 
 std::string_view to_string (name);
