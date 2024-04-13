@@ -5,12 +5,15 @@
 
 #include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
-#include <boost/thread.hpp>
 
+#include <future>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
+
+namespace asio = boost::asio;
 
 namespace nano
 {
@@ -29,49 +32,57 @@ public:
 	/** stops the signal manager io context and wait for the thread to finish */
 	~signal_manager ();
 
+	using handler_t = std::function<void (int)>;
+
 	/** Register a handler for a signal to be called from a safe context.
 	 *  The handler will be called from the "ioc" io context.
 	 */
-	void register_signal_handler (int signum, std::function<void (int)> handler, bool repeat);
+	void register_signal_handler (int signum, handler_t handler, bool repeat = true);
 
 private:
-	struct signal_descriptor final
+	class descriptor final : public std::enable_shared_from_this<descriptor>
 	{
-		signal_descriptor (std::shared_ptr<boost::asio::signal_set> sigset_a, signal_manager & sigman_a, std::function<void (int)> handler_func_a, bool repeat_a);
+	public:
+		descriptor (signal_manager &, int signum, handler_t handler, bool repeat);
+		~descriptor ();
 
-		/** a signal set that maps signals to signal handler and provides the connection to boost asio */
-		std::shared_ptr<boost::asio::signal_set> sigset;
+		void start ();
+		void stop ();
 
-		/** reference to the signal manager that owns this signal descriptor */
+	private:
+		void handle_signal (boost::system::error_code const &, int signum);
+
+	private: // Dependencies
 		signal_manager & sigman;
+		asio::io_context & io_context;
+		nano::logger & logger;
+
+	private:
+		/** a signal set that maps signals to signal handler and provides the connection to boost asio */
+		asio::signal_set sigset;
 
 		/** the caller supplied function to call from the base signal handler */
-		std::function<void (int)> handler_func;
+		handler_t const handler;
 
 		/** indicates if the signal handler should continue handling a signal after receiving one */
-		bool repeat;
+		bool const repeat;
 	};
 
 private:
+	// TODO: Passs in constructor
 	nano::logger logger;
 
-	/**
-	 * This is the actual handler that is registered with boost asio.
-	 * It calls the caller supplied function (if one is given) and sets the handler to repeat (or not).
-	 */
-	static void base_handler (nano::signal_manager::signal_descriptor descriptor, boost::system::error_code const & error, int signum);
-
-	/** boost asio context to use */
-	boost::asio::io_context io_context;
+	/** Async operations are synchronized by implicit strand (single threaded context) */
+	asio::io_context io_context;
 
 	/** work object to make the thread run function live as long as a signal manager */
-	boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_guard;
+	asio::executor_work_guard<asio::io_context::executor_type> io_guard;
 
 	/** a list of descriptors to hold data contexts needed by the asyncronous handlers */
-	std::vector<signal_descriptor> descriptor_list;
+	std::vector<std::shared_ptr<descriptor>> descriptors;
 
 	/** thread to service the signal manager io context */
-	boost::thread thread;
+	std::thread thread;
 };
 
 std::string_view to_signal_name (int signum);
