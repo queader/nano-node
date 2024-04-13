@@ -62,9 +62,19 @@ void nano::signal_manager::register_signal_handler (int signum, std::function<vo
 
 void nano::signal_manager::descriptor::start ()
 {
+	debug_assert (io_context.get_executor ().running_in_this_thread ());
+
 	sigset.async_wait ([self = shared_from_this ()] (boost::system::error_code const & ec, int signum) {
 		self->handle_signal (ec, signum);
 	});
+}
+
+void nano::signal_manager::descriptor::stop ()
+{
+	debug_assert (io_context.get_executor ().running_in_this_thread ());
+
+	sigset.cancel ();
+	sigset.clear ();
 }
 
 void nano::signal_manager::descriptor::handle_signal (boost::system::error_code const & ec, int signum)
@@ -85,7 +95,8 @@ void nano::signal_manager::descriptor::handle_signal (boost::system::error_code 
 		else
 		{
 			logger.debug (nano::log::type::signal_manager, "Signal handler will not repeat: {}", to_signal_name (signum));
-			sigset.clear ();
+
+			stop ();
 		}
 	}
 	else
