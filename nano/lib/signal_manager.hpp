@@ -32,6 +32,8 @@ public:
 	/** stops the signal manager io context and wait for the thread to finish */
 	~signal_manager ();
 
+	void stop ();
+
 	using handler_t = std::function<void (int)>;
 
 	/** Register a handler for a signal to be called from a safe context.

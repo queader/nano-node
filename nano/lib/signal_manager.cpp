@@ -20,6 +20,17 @@ nano::signal_manager::signal_manager () :
 
 nano::signal_manager::~signal_manager ()
 {
+	stop ();
+}
+
+void nano::signal_manager::stop ()
+{
+	for (auto & desc : descriptors)
+	{
+		desc->stop ();
+	}
+	descriptors.clear ();
+
 	/// Indicate that we have finished with the private io_context. Its
 	/// io_context::run() function will exit once all other work has completed.
 	io_guard.reset ();
@@ -29,21 +40,6 @@ nano::signal_manager::~signal_manager ()
 
 void nano::signal_manager::register_signal_handler (int signum, std::function<void (int)> handler, bool repeat)
 {
-	// // create a signal set to hold the mapping between signals and signal handlers
-	// auto sigset = std::make_shared<boost::asio::signal_set> (io_context, signum);
-	//
-	// // a signal descriptor holds all the data needed by the base handler including the signal set
-	// // working with copies of a descriptor is OK
-	// signal_descriptor descriptor (sigset, *this, handler, repeat);
-	//
-	// // ensure the signal set and descriptors live long enough
-	// descriptor_list.push_back (descriptor);
-	//
-	// // asynchronously listen for signals from this signal set
-	// sigset->async_wait ([descriptor] (boost::system::error_code const & error, int signum) {
-	// 	nano::signal_manager::base_handler (descriptor, error, signum);
-	// });
-
 	auto desc = std::make_shared<descriptor> (*this, signum, handler, repeat);
 	descriptors.emplace_back (desc);
 	desc->start ();
@@ -52,13 +48,25 @@ void nano::signal_manager::register_signal_handler (int signum, std::function<vo
 }
 
 /*
- * signal_descriptor
+ * descriptor
  */
 
-// nano::signal_manager::signal_descriptor::signal_descriptor (std::shared_ptr<boost::asio::signal_set> sigset_a, signal_manager & sigman_a, std::function<void (int)> handler_func_a, bool repeat_a) :
-// 	sigset (sigset_a), sigman (sigman_a), handler_func (handler_func_a), repeat (repeat_a)
-// {
-// }
+nano::signal_manager::descriptor::descriptor (signal_manager & sigman, int signum, handler_t handler, bool repeat) :
+	sigman{ sigman },
+	io_context{ sigman.io_context },
+	logger{ sigman.logger },
+	signum{ signum },
+	sigset{ io_context, signum },
+	handler{ std::move (handler) },
+	repeat{ repeat }
+{
+}
+
+nano::signal_manager::descriptor::~descriptor ()
+{
+	// Should be stopped before destruction
+	debug_assert (future.wait_for (std::chrono::seconds (0)) == std::future_status::ready);
+}
 
 void nano::signal_manager::descriptor::start ()
 {
@@ -72,7 +80,7 @@ void nano::signal_manager::descriptor::start ()
 		}
 		catch (boost::system::system_error const & ec)
 		{
-			logger.warn (nano::log::type::signal_manager, "Signal error: {} ({})", ec.what (), to_signal_name (signum));
+			logger.debug (nano::log::type::signal_manager, "Signal error: {} ({})", ec.what (), to_signal_name (signum));
 		}
 		catch (...)
 		{
