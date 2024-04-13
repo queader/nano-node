@@ -12,6 +12,8 @@
  */
 
 #include <nano/lib/signal_manager.hpp>
+#include <nano/test_common/system.hpp>
+#include <nano/test_common/testutil.hpp>
 
 #include <gtest/gtest.h>
 
@@ -19,87 +21,54 @@
 #include <iostream>
 #include <thread>
 
-static void handler_print_signal (int signum)
-{
-	std::cerr << "boost signal handler " << signum << std::endl
-			  << std::flush;
-}
-
-static int wait_for_sig_received (int millisecs, int & sig_received)
-{
-	for (int i = 0; i < millisecs && sig_received == 0; i++)
-	{
-		std::this_thread::sleep_for (std::chrono::microseconds (1));
-	}
-	return sig_received;
-}
-
-static int trap (int signum)
+TEST (signal_manager, basic)
 {
 	nano::signal_manager sigman;
-	int sig_received = 0;
-
-	std::function<void (int)> f = [&sig_received] (int signum) {
-		std::cerr << "boost signal handler " << signum << std::endl
-				  << std::flush;
-		sig_received = signum;
-	};
-
-	sigman.register_signal_handler (signum, f, false);
-
-	raise (signum);
-
-	exit (wait_for_sig_received (10000, sig_received));
 }
 
-static void repeattest (int signum, bool repeat)
+TEST (signal_manager, single)
 {
+	nano::test::system system;
+
 	nano::signal_manager sigman;
-	int sig_received = 0;
 
-	std::function<void (int)> f = [&sig_received] (int signum) {
-		std::cerr << "boost signal handler" << std::flush;
-		sig_received = signum;
-	};
+	std::atomic received{ 0 };
+	sigman.register_signal_handler (SIGINT, [&] (int sig) { received = sig; }, false);
 
-	sigman.register_signal_handler (signum, f, repeat);
-
-	for (int i = 0; i < 10; i++)
-	{
-		sig_received = 0;
-		raise (signum);
-		if (wait_for_sig_received (10000, sig_received) != signum)
-		{
-			exit (1);
-		}
-	}
-
-	exit (0);
+	raise (SIGINT);
+	ASSERT_TIMELY (5s, received.load ());
 }
 
-TEST (DISABLED_signal_manager_test, trap)
+TEST (signal_manager, multiple)
 {
-	int signum;
+	nano::test::system system;
 
-	signum = SIGINT;
-	ASSERT_EXIT (trap (signum), ::testing::ExitedWithCode (signum), "");
+	nano::signal_manager sigman;
 
-	signum = SIGTERM;
-	ASSERT_EXIT (trap (signum), ::testing::ExitedWithCode (signum), "");
+	std::atomic received{ 0 };
+	sigman.register_signal_handler (SIGINT, [&] (int sig) { received = sig; }, false);
+	sigman.register_signal_handler (SIGTERM, [&] (int sig) { received = sig; }, false);
+
+	raise (SIGINT);
+	ASSERT_TIMELY (5s, received.load () == SIGINT);
+
+	raise (SIGTERM);
+	ASSERT_TIMELY (5s, received.load () == SIGTERM);
 }
 
-TEST (DISABLED_signal_manager_test, repeat)
+TEST (signal_manager, repeat)
 {
-	int signum;
+	nano::test::system system;
 
-	signum = SIGINT;
-	ASSERT_EXIT (repeattest (signum, true), ::testing::ExitedWithCode (0), "");
-}
+	nano::signal_manager sigman;
 
-TEST (DISABLED_signal_manager_test, norepeat)
-{
-	int signum;
+	std::atomic received{ 0 };
+	sigman.register_signal_handler (SIGINT, [&] (int sig) { received = sig; }, true);
 
-	signum = SIGINT;
-	ASSERT_DEATH (repeattest (signum, false), "^boost signal handler$");
+	raise (SIGINT);
+	ASSERT_TIMELY (5s, received.load () == SIGINT);
+
+	received = 0;
+	raise (SIGINT);
+	ASSERT_TIMELY (5s, received.load () == SIGINT);
 }
