@@ -62,47 +62,52 @@ void nano::signal_manager::register_signal_handler (int signum, std::function<vo
 
 void nano::signal_manager::descriptor::start ()
 {
-	debug_assert (io_context.get_executor ().running_in_this_thread ());
-
-	sigset.async_wait ([self = shared_from_this ()] (boost::system::error_code const & ec, int signum) {
-		self->handle_signal (ec, signum);
-	});
+	future = asio::co_spawn (
+	io_context,
+	[this, self = shared_from_this () /* lifetime guard */] () -> asio::awaitable<void> {
+		// co_await asio::this_coro::executor;
+		try
+		{
+			co_await self->run ();
+		}
+		catch (boost::system::system_error const & ec)
+		{
+			logger.warn (nano::log::type::signal_manager, "Signal error: {} ({})", ec.what (), to_signal_name (signum));
+		}
+		catch (...)
+		{
+			logger.error (nano::log::type::signal_manager, "Signal error: unknown ({})", to_signal_name (signum));
+		}
+	},
+	asio::use_future);
 }
 
 void nano::signal_manager::descriptor::stop ()
 {
-	debug_assert (io_context.get_executor ().running_in_this_thread ());
+	asio::post (io_context, [this] () {
+		sigset.cancel ();
+	});
 
-	sigset.cancel ();
-	sigset.clear ();
+	future.wait ();
 }
 
-void nano::signal_manager::descriptor::handle_signal (boost::system::error_code const & ec, int signum)
+asio::awaitable<void> nano::signal_manager::descriptor::run ()
 {
-	if (!ec)
+	debug_assert (io_context.get_executor ().running_in_this_thread ());
+
+	do
 	{
-		logger.debug (nano::log::type::signal_manager, "Signal received: {}", to_signal_name (signum));
+		auto signal = co_await sigset.async_wait (boost::asio::use_awaitable);
+
+		logger.debug (nano::log::type::signal_manager, "Signal received: {}", to_signal_name (signal));
 
 		if (handler)
 		{
-			handler (signum);
+			handler (signal);
 		}
+	} while (repeat);
 
-		if (repeat)
-		{
-			start ();
-		}
-		else
-		{
-			logger.debug (nano::log::type::signal_manager, "Signal handler will not repeat: {}", to_signal_name (signum));
-
-			stop ();
-		}
-	}
-	else
-	{
-		logger.warn (nano::log::type::signal_manager, "Signal error: {} ({})", ec.message (), to_signal_name (signum));
-	}
+	logger.debug (nano::log::type::signal_manager, "Signal handler will not repeat: {}", to_signal_name (signum));
 }
 
 /*

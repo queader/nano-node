@@ -50,7 +50,7 @@ private:
 		void stop ();
 
 	private:
-		void handle_signal (boost::system::error_code const &, int signum);
+		asio::awaitable<void> run ();
 
 	private: // Dependencies
 		signal_manager & sigman;
@@ -58,6 +58,9 @@ private:
 		nano::logger & logger;
 
 	private:
+		/** the signal number to handle */
+		int const signum;
+
 		/** a signal set that maps signals to signal handler and provides the connection to boost asio */
 		asio::signal_set sigset;
 
@@ -66,6 +69,8 @@ private:
 
 		/** indicates if the signal handler should continue handling a signal after receiving one */
 		bool const repeat;
+
+		std::future<void> future;
 	};
 
 private:
