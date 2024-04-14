@@ -82,3 +82,22 @@ void nano::signal_manager::base_handler (nano::signal_manager::signal_descriptor
 		logger.debug (nano::log::type::signal_manager, "Signal error: {} ({})", ec.message (), to_signal_name (signum));
 	}
 }
+
+std::string_view nano::to_signal_name (int signum)
+{
+	switch (signum)
+	{
+		case SIGINT:
+			return "SIGINT";
+		case SIGTERM:
+			return "SIGTERM";
+		case SIGSEGV:
+			return "SIGSEGV";
+		case SIGABRT:
+			return "SIGABRT";
+		case SIGILL:
+			return "SIGILL";
+		default:
+			return "UNKNOWN";
+	}
+}
