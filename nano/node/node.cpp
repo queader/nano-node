@@ -1156,6 +1156,18 @@ void nano::node::add_initial_peers ()
 		return;
 	}
 
+	auto initial_peers = cached_peers ();
+
+	logger.info (nano::log::type::node, "Adding cached initial peers: {}", initial_peers.size ());
+
+	for (auto const & peer : initial_peers)
+	{
+		network.merge_peer (peer);
+	}
+}
+
+std::vector<nano::endpoint> nano::node::cached_peers () const
+{
 	std::vector<nano::endpoint> initial_peers;
 	{
 		auto transaction = store.tx_begin_read ();
@@ -1165,13 +1177,7 @@ void nano::node::add_initial_peers ()
 			initial_peers.push_back (endpoint);
 		}
 	}
-
-	logger.info (nano::log::type::node, "Adding cached initial peers: {}", initial_peers.size ());
-
-	for (auto const & peer : initial_peers)
-	{
-		network.merge_peer (peer);
-	}
+	return initial_peers;
 }
 
 void nano::node::start_election (std::shared_ptr<nano::block> const & block)
