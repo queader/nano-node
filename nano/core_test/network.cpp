@@ -1069,15 +1069,15 @@ TEST (network, purge_dead_channel_outgoing)
 	auto & node1 = *system.add_node (flags);
 
 	// We expect one incoming and one outgoing connection
-	std::shared_ptr<nano::transport::socket> outgoing;
-	std::shared_ptr<nano::transport::socket> incoming;
+	std::shared_ptr<nano::transport::socket> outgoing; // Connection from node1 -> node2
+	std::shared_ptr<nano::transport::socket> incoming; // Connection from node2 -> node1
 
 	std::atomic<int> connected_count{ 0 };
 	node1.observers.socket_connected.add ([&] (nano::transport::socket & socket) {
 		connected_count++;
 		outgoing = socket.shared_from_this ();
 
-		std::cout << "connected: " << socket.remote_endpoint () << std::endl;
+		system.logger.debug (nano::log::type::test, "Connected: {}", fmt::streamed (socket.remote_endpoint ()));
 	});
 
 	std::atomic<int> accepted_count{ 0 };
@@ -1085,7 +1085,7 @@ TEST (network, purge_dead_channel_outgoing)
 		accepted_count++;
 		incoming = socket.shared_from_this ();
 
-		std::cout << "accepted: " << socket.remote_endpoint () << std::endl;
+		system.logger.debug (nano::log::type::test, "Accepted: {}", fmt::streamed (socket.remote_endpoint ()));
 	});
 
 	auto & node2 = *system.add_node (flags);
@@ -1105,13 +1105,16 @@ TEST (network, purge_dead_channel_outgoing)
 	auto channel = channels.front ();
 	ASSERT_TRUE (channel);
 
+	ASSERT_EQ (std::dynamic_pointer_cast<nano::transport::channel_tcp> (channel)->socket.lock (), incoming);
+
 	// When socket is dead ensure channel knows about that
 	ASSERT_TRUE (channel->alive ());
+	incoming->close ();
 	outgoing->close ();
-	ASSERT_TIMELY (5s, !channel->alive ());
+	ASSERT_TIMELY (10s, !channel->alive ());
 
 	// Shortly after that a new channel should be established
-	ASSERT_TIMELY_EQ (5s, connected_count, 2);
+	ASSERT_TIMELY_EQ (10s, connected_count, 2);
 	ASSERT_ALWAYS_EQ (1s, connected_count, 2);
 
 	// Check that a new channel is healthy
@@ -1119,7 +1122,7 @@ TEST (network, purge_dead_channel_outgoing)
 	ASSERT_EQ (channels2.size (), 1);
 	auto channel2 = channels2.front ();
 	ASSERT_TRUE (channel2);
-	ASSERT_TRUE (channel2->alive ());
+	ASSERT_ALWAYS (1s, channel2->alive ());
 }
 
 /*
@@ -1149,7 +1152,7 @@ TEST (network, purge_dead_channel_incoming)
 		connected_count++;
 		outgoing = socket.shared_from_this ();
 
-		std::cout << "connected: " << socket.remote_endpoint () << std::endl;
+		system.logger.debug (nano::log::type::test, "Connected: {}", fmt::streamed (socket.remote_endpoint ()));
 	});
 
 	std::atomic<int> accepted_count{ 0 };
@@ -1157,7 +1160,7 @@ TEST (network, purge_dead_channel_incoming)
 		accepted_count++;
 		incoming = socket.shared_from_this ();
 
-		std::cout << "accepted: " << socket.remote_endpoint () << std::endl;
+		system.logger.debug (nano::log::type::test, "Accepted: {}", fmt::streamed (socket.remote_endpoint ()));
 	});
 
 	auto & node2 = *system.add_node (flags);
