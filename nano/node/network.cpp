@@ -363,6 +363,7 @@ public:
 		auto peer0 (message_a.peers[0]);
 		if (peer0.address () == boost::asio::ip::address_v6{} && peer0.port () != 0)
 		{
+			// TODO: Remove this as we do not need to establish a second connection to the same peer
 			nano::endpoint new_endpoint (channel->get_tcp_endpoint ().address (), peer0.port ());
 			node.network.merge_peer (new_endpoint);
 
