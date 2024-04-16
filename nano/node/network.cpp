@@ -220,7 +220,7 @@ void nano::network::run_reachout_cached ()
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
-		condition.wait_for (lock, node.network_params.network.merge_period);
+		condition.wait_for (lock, node.network_params.network.merge_cached_period);
 		if (stopped)
 		{
 			return;
@@ -242,7 +242,7 @@ void nano::network::run_reachout_cached ()
 			merge_peer (peer);
 
 			// Throttle reachout attempts
-			std::this_thread::sleep_for (node.network_params.network.merge_period);
+			std::this_thread::sleep_for (node.network_params.network.merge_cached_period);
 		}
 
 		lock.lock ();
