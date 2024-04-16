@@ -75,6 +75,7 @@ enum class type
 	rep_tiers,
 	syn_cookies,
 	thread_runner,
+	peer_cache,
 
 	// bootstrap
 	bulk_pull_client,
