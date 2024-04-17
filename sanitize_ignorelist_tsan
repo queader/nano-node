@@ -1,0 +1,3 @@
+src:*/liblmdb/mdb.c
+src:*mdb.c
+src:*/cryptopp/*.cpp
