@@ -37,6 +37,7 @@ nano::transport::socket::socket (nano::node & node_a, endpoint_type_t endpoint_t
 nano::transport::socket::~socket ()
 {
 	close_internal ();
+	closed = true;
 }
 
 void nano::transport::socket::start ()
@@ -280,12 +281,12 @@ void nano::transport::socket::ongoing_checkup ()
 			return;
 		}
 
-		// If the socket is already dead, close just in case, and stop doing checkups
-		if (!this_l->alive ())
-		{
-			this_l->close ();
-			return;
-		}
+		boost::asio::post (this_l->strand, [this_l] {
+			if (!this_l->tcp_socket.is_open ())
+			{
+				this_l->close ();
+			}
+		});
 
 		nano::seconds_t now = nano::seconds_since_epoch ();
 		auto condition_to_disconnect{ false };
