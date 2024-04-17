@@ -16,7 +16,7 @@ nano::millis_t nano::store::lmdb::peer::get (store::transaction const & transact
 	db_val value;
 	auto status = store.get (transaction, tables::peers, endpoint, value);
 	release_assert (store.success (status) || store.not_found (status));
-	if (store.success (status))
+	if (store.success (status) && value.size () > 0)
 	{
 		result = static_cast<nano::millis_t> (value);
 	}
