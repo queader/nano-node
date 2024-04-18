@@ -37,11 +37,14 @@ TEST (asio, multithreaded_context)
 	std::atomic<size_t> read_counter{ 0 };
 
 	auto reader_coro = [&] (asio::ip::tcp::socket socket) -> asio::awaitable<void> {
+		debug_assert (strand.running_in_this_thread ());
+
 		std::cout << "reader started" << std::endl;
 
 		while (true)
 		{
 			std::array<uint8_t, 1024> buffer;
+			debug_assert (strand.running_in_this_thread ());
 			auto size = co_await socket.async_read_some (asio::buffer (buffer), asio::use_awaitable);
 			read_counter += size;
 		}
@@ -55,10 +58,13 @@ TEST (asio, multithreaded_context)
 	std::vector<reader> readers;
 
 	auto acceptor_coro = [&] (asio::ip::tcp::acceptor & acceptor) -> asio::awaitable<void> {
+		debug_assert (strand.running_in_this_thread ());
+
 		std::cout << "listening started" << std::endl;
 
 		while (true)
 		{
+			debug_assert (strand.running_in_this_thread ());
 			auto socket = co_await acceptor.async_accept (asio::use_awaitable);
 
 			std::cout << "accepted connection" << std::endl;
@@ -76,6 +82,8 @@ TEST (asio, multithreaded_context)
 	auto acceptor_fut = asio::co_spawn (strand, acceptor_coro (acceptor), asio::use_future);
 
 	auto sender_coro = [&] () -> asio::awaitable<void> {
+		debug_assert (strand.running_in_this_thread ());
+
 		std::cout << "sender started" << std::endl;
 
 		asio::ip::tcp::socket socket{ strand };
@@ -84,6 +92,7 @@ TEST (asio, multithreaded_context)
 		std::array<uint8_t, 1024> buffer;
 		while (true)
 		{
+			debug_assert (strand.running_in_this_thread ());
 			co_await socket.async_write_some (asio::buffer (buffer), asio::use_awaitable);
 		}
 	};
