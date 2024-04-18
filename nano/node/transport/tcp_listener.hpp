@@ -1,6 +1,6 @@
 #pragma once
 
-#include <nano/lib/coroutines.hpp>
+#include <nano/lib/async.hpp>
 #include <nano/node/common.hpp>
 
 #include <boost/asio.hpp>
