@@ -59,6 +59,11 @@ void nano::transport::tcp_listener::start ()
 		throw std::runtime_error (ex.code ().message ());
 	}
 
+	{
+		std::lock_guard<nano::mutex> lock{ mutex };
+		acceptor_endpoint = acceptor.local_endpoint ();
+	}
+
 	future = asio::co_spawn (strand, [this] () -> asio::awaitable<void> {
 		co_await nano::async::setup_this_coro ();
 		try
@@ -96,6 +101,7 @@ void nano::transport::tcp_listener::stop ()
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
+		acceptor_endpoint = {};
 	}
 	condition.notify_all ();
 
@@ -362,14 +368,7 @@ size_t nano::transport::tcp_listener::count_per_subnetwork (asio::ip::address co
 asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	if (!stopped)
-	{
-		return { asio::ip::address_v6::loopback (), acceptor.local_endpoint ().port () };
-	}
-	else
-	{
-		return { asio::ip::address_v6::loopback (), 0 };
-	}
+	return { asio::ip::address_v6::loopback (), acceptor_endpoint.port () };
 }
 
 std::unique_ptr<nano::container_info_component> nano::transport::tcp_listener::collect_container_info (std::string const & name)

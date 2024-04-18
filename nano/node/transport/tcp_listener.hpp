@@ -113,6 +113,8 @@ private:
 	asio::ip::tcp::acceptor acceptor;
 	asio::ip::tcp::endpoint local;
 
+	asio::ip::tcp::acceptor::endpoint_type acceptor_endpoint;
+
 	std::atomic<bool> stopped;
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
