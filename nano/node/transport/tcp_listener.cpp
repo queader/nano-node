@@ -23,7 +23,7 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_
 	max_inbound_connections{ max_inbound_connections },
 	strand{ node_a.io_ctx.get_executor () },
 	cancellation{ strand },
-	acceptor{ node_a.io_ctx },
+	acceptor{ strand },
 	local{ asio::ip::tcp::endpoint{ asio::ip::address_v6::any (), port_a } }
 {
 	connection_accepted.add ([this] (auto const & socket, auto const & server) {
