@@ -1,4 +1,3 @@
-#include <nano/lib/coroutines.hpp>
 #include <nano/lib/interval.hpp>
 #include <nano/node/messages.hpp>
 #include <nano/node/node.hpp>
@@ -23,6 +22,7 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, nano::node & node_
 	port{ port_a },
 	max_inbound_connections{ max_inbound_connections },
 	strand{ node_a.io_ctx.get_executor () },
+	cancellation{ strand },
 	acceptor{ node_a.io_ctx },
 	local{ asio::ip::tcp::endpoint{ asio::ip::address_v6::any (), port_a } }
 {
@@ -60,6 +60,7 @@ void nano::transport::tcp_listener::start ()
 	}
 
 	future = asio::co_spawn (strand, [this] () -> asio::awaitable<void> {
+		co_await nano::async::setup_this_coro ();
 		try
 		{
 			logger.debug (nano::log::type::tcp_listener, "Starting acceptor");
@@ -68,10 +69,6 @@ void nano::transport::tcp_listener::start ()
 			debug_assert (strand.running_in_this_thread ());
 
 			logger.debug (nano::log::type::tcp_listener, "Stopped acceptor");
-		}
-		catch (boost::system::system_error const & ex)
-		{
-			logger.debug (nano::log::type::tcp_listener, "Error: {}", ex.what ());
 		}
 		catch (std::exception const & ex)
 		{
@@ -82,7 +79,7 @@ void nano::transport::tcp_listener::start ()
 		{
 			logger.critical (nano::log::type::tcp_listener, "Unknown error");
 			release_assert (false); // Unexpected error
-		} }, asio::bind_cancellation_slot (cancellation_signal.slot (), asio::use_future));
+		} }, asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
 
 	cleanup_thread = std::thread ([this] {
 		nano::thread_role::set (nano::thread_role::name::tcp_listener);
@@ -104,7 +101,7 @@ void nano::transport::tcp_listener::stop ()
 
 	if (future.valid ())
 	{
-		cancel ();
+		cancellation.emit ();
 		future.wait ();
 	}
 	if (cleanup_thread.joinable ())
@@ -136,15 +133,6 @@ void nano::transport::tcp_listener::stop ()
 			server->stop ();
 		}
 	}
-}
-
-// Cancel all asynchronous operations
-void nano::transport::tcp_listener::cancel ()
-{
-	asio::post (strand, asio::use_future ([this] () {
-		cancellation_signal.emit (asio::cancellation_type::terminal);
-	}))
-	.wait ();
 }
 
 void nano::transport::tcp_listener::run_cleanup ()
@@ -201,7 +189,7 @@ asio::awaitable<void> nano::transport::tcp_listener::run ()
 		}
 
 		// Sleep for a while to prevent busy loop
-		co_await nano::this_coro::sleep_for (10ms);
+		co_await nano::async::sleep_for (10ms);
 	}
 	if (!stopped)
 	{
@@ -273,7 +261,7 @@ asio::awaitable<void> nano::transport::tcp_listener::wait_available_slots () con
 			connection_count (), max_inbound_connections);
 		}
 
-		co_await nano::this_coro::sleep_for (100ms);
+		co_await nano::async::sleep_for (100ms);
 	}
 }
 

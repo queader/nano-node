@@ -6,45 +6,86 @@
 
 namespace asio = boost::asio;
 
-namespace nano::this_coro
+namespace nano::async
 {
-asio::awaitable<void> sleep_for (auto duration)
+using strand = asio::strand<asio::io_context::executor_type>;
+
+inline asio::awaitable<void> setup_this_coro ()
+{
+	co_await asio::this_coro::throw_if_cancelled(false);
+}
+
+inline asio::awaitable<void> sleep_for (auto duration)
 {
 	asio::steady_timer timer{ co_await asio::this_coro::executor };
 	timer.expires_after (duration);
-	co_await timer.async_wait (asio::use_awaitable);
-}
+	boost::system::error_code ec; // Swallow potential error from coroutine cancellation
+	co_await timer.async_wait (asio::redirect_error(asio::use_awaitable, ec));
+	debug_assert (!ec || ec == boost::asio::error::operation_aborted);
 }
 
-namespace nano
-{
-template <typename Executor>
-class async_condition
+class condition
 {
 public:
-	explicit async_condition (Executor & executor) :
-		executor{ executor },
-		timer{ executor }
+	explicit condition (strand & strand) :
+		strand{ strand },
+		timer{ strand }
 	{
 	}
 
 	void notify ()
 	{
-		debug_assert (executor.running_in_this_thread ());
-
-		timer.cancel ();
+		asio::dispatch (strand, asio::use_future ([this] ()
+        {
+			timer.cancel ();
+        }))
+		.wait ();
 	}
 
-	asio::awaitable<void> wait_for_async (auto duration)
+	asio::awaitable<void> wait_for (auto duration)
 	{
-		debug_assert (executor.running_in_this_thread ());
+		debug_assert (strand.running_in_this_thread ());
 
+		asio::steady_timer timer{ co_await asio::this_coro::executor };
 		timer.expires_after (duration);
-		co_await timer.async_wait (asio::use_awaitable);
+		boost::system::error_code ec; // Swallow potential error from coroutine cancellation
+		co_await timer.async_wait (asio::redirect_error(asio::use_awaitable, ec));
+		debug_assert (!ec || ec == boost::asio::error::operation_aborted);
 	}
 
 private:
-	Executor & executor;
+	strand & strand;
 	asio::steady_timer timer;
+};
+
+class cancellation
+{
+public:
+	explicit cancellation (strand & strand) :
+	    strand{ strand }
+	{
+	}
+
+	void emit (asio::cancellation_type type = asio::cancellation_type::all)
+	{
+		asio::dispatch (strand, asio::use_future ([this, type] ()
+		{
+			signal.emit (type);
+		}))
+		.wait ();
+	}
+
+	auto slot ()
+    {
+		// Ensure that the slot is only connected once
+		debug_assert (std::exchange (slotted, true) == false);
+        return signal.slot ();
+    }
+
+private:
+	strand & strand;
+	asio::cancellation_signal signal;
+
+	bool slotted{ false };
 };
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/coroutines.hpp>
 #include <nano/node/common.hpp>
 
 #include <boost/asio.hpp>
@@ -56,7 +57,6 @@ private: // Dependencies
 	nano::logger & logger;
 
 private:
-	void cancel ();
 	asio::awaitable<void> run ();
 	asio::awaitable<void> wait_available_slots () const;
 
@@ -107,8 +107,8 @@ private:
 	// clang-format on
 	ordered_connections connections;
 
-	asio::strand<asio::io_context::executor_type> strand;
-	asio::cancellation_signal cancellation_signal;
+	nano::async::strand strand;
+	nano::async::cancellation cancellation;
 
 	asio::ip::tcp::acceptor acceptor;
 	asio::ip::tcp::endpoint local;
