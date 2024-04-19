@@ -149,3 +149,22 @@ TEST (asio, multithreaded_context)
 		reader.fut.wait ();
 	}
 }
+
+TEST (asio, multithreaded_context_simple)
+{
+	asio::thread_pool io_ctx{ 8 };
+	asio::strand<decltype (io_ctx)::executor_type> strand{ io_ctx.get_executor () };
+
+	asio::ip::tcp::endpoint endpoint{ asio::ip::address_v6::loopback (), 0 };
+	asio::ip::tcp::acceptor acceptor{ strand };
+	acceptor.open (endpoint.protocol ());
+	acceptor.bind (endpoint);
+	acceptor.listen (boost::asio::socket_base::max_listen_connections);
+
+	asio::ip::tcp::socket socket{ strand };
+	auto connected_fut = socket.async_connect (acceptor.local_endpoint (), asio::use_future);
+	connected_fut.wait ();
+
+	socket.close ();
+	acceptor.close ();
+}
