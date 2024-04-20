@@ -2,6 +2,7 @@
 
 #include <nano/lib/async.hpp>
 #include <nano/node/common.hpp>
+#include <nano/node/transport/common.hpp>
 
 #include <boost/asio.hpp>
 #include <boost/multi_index/hashed_index.hpp>
@@ -89,9 +90,8 @@ private:
 	{
 		invalid,
 		accepted,
-		too_many_per_ip,
-		too_many_per_subnetwork,
-		excluded,
+		rejected,
+		error,
 	};
 
 	enum class connection_type
@@ -99,6 +99,9 @@ private:
 		inbound,
 		outbound,
 	};
+
+	asio::awaitable<accept_result> connect_impl (asio::ip::tcp::endpoint);
+	asio::awaitable<asio::ip::tcp::socket> connect_socket (asio::ip::tcp::endpoint);
 
 	accept_result accept_one (asio::ip::tcp::socket, connection_type);
 	accept_result check_limits (asio::ip::address const & ip, connection_type);
@@ -124,7 +127,7 @@ private:
 	struct attempt
 	{
 		asio::ip::tcp::endpoint endpoint;
-		std::future<void> future;
+		std::future<accept_result> future;
 		nano::async::cancellation cancellation;
 
 		std::chrono::steady_clock::time_point const start{ std::chrono::steady_clock::now () };
@@ -163,6 +166,7 @@ private:
 	std::future<void> future;
 	std::thread cleanup_thread;
 
+private:
 	static nano::stat::dir to_stat_dir (connection_type);
 	static std::string_view to_string (connection_type);
 	static nano::transport::socket_endpoint to_socket_type (connection_type);
