@@ -47,17 +47,26 @@ public:
 		return signal->slot ();
 	}
 
-private:
 	nano::async::strand & strand;
+
+private:
 	std::unique_ptr<asio::cancellation_signal> signal; // Wrap the signal in a unique_ptr to enable moving
 
 	bool slotted{ false };
 };
 
+auto spawn (nano::async::strand & strand, nano::async::cancellation & cancellation, auto && func)
+{
+	debug_assert (cancellation.strand == strand);
+
+	auto fut = asio::co_spawn (strand, std::forward<decltype (func)> (func), asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
+	return fut;
+}
+
 auto spawn (nano::async::strand & strand, auto && func)
 {
 	nano::async::cancellation cancellation{ strand };
-	auto fut = asio::co_spawn (strand, std::forward<decltype (func)> (func), asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
+	auto fut = spawn (strand, cancellation, std::forward<decltype (func)> (func));
 	return std::make_pair (std::move (fut), std::move (cancellation));
 }
 }

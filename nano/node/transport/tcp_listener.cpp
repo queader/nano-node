@@ -67,8 +67,8 @@ void nano::transport::tcp_listener::start ()
 		throw;
 	}
 
-	future = asio::co_spawn (
-	strand, [this] () -> asio::awaitable<void> {
+	future = nano::async::spawn (
+	strand, cancellation, [this] () -> asio::awaitable<void> {
 		try
 		{
 			logger.debug (nano::log::type::tcp_listener, "Starting acceptor");
@@ -95,7 +95,7 @@ void nano::transport::tcp_listener::start ()
 		{
 			logger.critical (nano::log::type::tcp_listener, "Unknown error");
 			release_assert (false); // Unexpected error
-		} }, asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
+		} });
 
 	cleanup_thread = std::thread ([this] {
 		nano::thread_role::set (nano::thread_role::name::tcp_listener);
@@ -241,12 +241,9 @@ bool nano::transport::tcp_listener::connect (asio::ip::address ip, uint16_t port
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_initiate, nano::stat::dir::out);
 	logger.debug (nano::log::type::tcp_listener, "Initiating outgoing connection to: {}", fmt::streamed (endpoint));
 
-	// auto future = asio::co_spawn (node.io_ctx, connect_impl (endpoint), asio::use_future);
 	auto [future, cancellation] = nano::async::spawn (strand, connect_impl (endpoint));
 
-	attempt att{ endpoint, std::move (future), std::move (cancellation) };
-
-	// attempts.emplace ();
+	attempts.emplace_back (attempt{ endpoint, std::move (future), std::move (cancellation) });
 
 	return true; // Attempt started
 }
