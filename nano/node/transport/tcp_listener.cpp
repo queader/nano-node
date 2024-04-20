@@ -534,6 +534,7 @@ std::unique_ptr<nano::container_info_component> nano::transport::tcp_listener::c
 {
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", connection_count (), sizeof (decltype (connections)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "attempts", attempt_count (), sizeof (decltype (attempts)::value_type) }));
 	return composite;
 }
 
