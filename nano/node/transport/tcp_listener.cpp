@@ -236,7 +236,7 @@ bool nano::transport::tcp_listener::connect (asio::ip::address ip, uint16_t port
 		return false; // Rejected
 	}
 
-	nano::tcp_endpoint endpoint{ ip, port };
+	nano::tcp_endpoint const endpoint{ ip, port };
 
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_initiate, nano::stat::dir::out);
 	logger.debug (nano::log::type::tcp_listener, "Initiating outgoing connection to: {}", fmt::streamed (endpoint));
@@ -250,6 +250,8 @@ bool nano::transport::tcp_listener::connect (asio::ip::address ip, uint16_t port
 
 auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoint) -> asio::awaitable<accept_result>
 {
+	debug_assert (strand.running_in_this_thread ());
+
 	try
 	{
 		auto raw_socket = co_await connect_socket (endpoint);
@@ -378,10 +380,10 @@ auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_success, to_stat_dir (type));
 	logger.debug (nano::log::type::tcp_listener, "Accepted connection to: {} ({})", fmt::streamed (remote_endpoint), to_string (type));
 
-	auto socket = std::make_shared<nano::transport::socket> (node, std::move (raw_socket), remote_endpoint, local_endpoint, to_socket_type (type));
+	auto socket = std::make_shared<nano::transport::socket> (node, std::move (raw_socket), remote_endpoint, local_endpoint, to_socket_endpoint (type));
 	auto server = std::make_shared<nano::transport::tcp_server> (socket, node.shared (), true);
 
-	connections.emplace (entry{ remote_endpoint, socket, server });
+	connections.emplace_back (connection{ remote_endpoint, socket, server });
 
 	lock.unlock ();
 
@@ -404,9 +406,6 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 	}
 
 	cleanup ();
-
-	// TODO: Distinguish between inbound and outbound connections
-	debug_assert (connections.size () <= config.max_inbound_connections); // Should be checked earlier (wait_available_slots)
 
 	if (node.network.excluded_peers.check (ip)) // true => error
 	{
@@ -441,13 +440,32 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 		}
 	}
 
+	if (type == connection_type::inbound)
+	{
+		debug_assert (connections.size () <= config.max_inbound_connections); // Should be checked earlier (wait_available_slots)
+
+		if (auto count = count_per_type (connection_type::inbound); count >= config.max_inbound_connections)
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts, to_stat_dir (type));
+			logger.debug (nano::log::type::tcp_listener, "Max inbound connections reached ({}), unable to accept new connection", count);
+
+			return accept_result::rejected;
+		}
+	}
 	if (type == connection_type::outbound)
 	{
+		if (auto count = count_per_type (connection_type::outbound); count >= config.max_outbound_connections)
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts, to_stat_dir (type));
+			logger.debug (nano::log::type::tcp_listener, "Max outbound connections reached ({}), unable to initiate new connection", count);
+
+			return accept_result::rejected;
+		}
+
 		if (attempts.size () > config.max_attempts)
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts, to_stat_dir (type));
-			logger.debug (nano::log::type::tcp_listener, "Max total connection attempts reached (ip: {}, count: {}), unable to initiate new connection ({})",
-			ip.to_string (), attempts.size (), to_string (type));
+			logger.debug (nano::log::type::tcp_listener, "Max connection attempts reached ({}), unable to initiate new connection", attempts.size ());
 
 			return accept_result::rejected;
 		}
@@ -455,8 +473,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 		if (auto count = count_attempts (ip); count >= config.max_attempts_per_ip)
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts_per_ip, to_stat_dir (type));
-			logger.debug (nano::log::type::tcp_listener, "Connection attempt already in progress (ip: {}), unable to initiate new connection ({})",
-			ip.to_string (), to_string (type));
+			logger.debug (nano::log::type::tcp_listener, "Connection attempt already in progress ({}), unable to initiate new connection", ip.to_string ());
 
 			return accept_result::rejected;
 		}
@@ -498,6 +515,19 @@ size_t nano::transport::tcp_listener::bootstrap_count () const
 		if (auto socket = connection.socket.lock ())
 		{
 			return socket->is_bootstrap_connection ();
+		}
+		return false;
+	});
+}
+
+size_t nano::transport::tcp_listener::count_per_type (connection_type type) const
+{
+	debug_assert (!mutex.try_lock ());
+
+	return std::count_if (connections.begin (), connections.end (), [type] (auto const & connection) {
+		if (auto socket = connection.socket.lock ())
+		{
+			return socket->endpoint_type () == to_socket_endpoint (type);
 		}
 		return false;
 	});
@@ -562,7 +592,7 @@ std::string_view nano::transport::tcp_listener::to_string (connection_type type)
 	return magic_enum::enum_name (type);
 }
 
-nano::transport::socket_endpoint nano::transport::tcp_listener::to_socket_type (connection_type type)
+nano::transport::socket_endpoint nano::transport::tcp_listener::to_socket_endpoint (connection_type type)
 {
 	switch (type)
 	{

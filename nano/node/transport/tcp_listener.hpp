@@ -107,12 +107,13 @@ private:
 	accept_result check_limits (asio::ip::address const & ip, connection_type);
 	asio::awaitable<asio::ip::tcp::socket> accept_socket ();
 
+	size_t count_per_type (connection_type) const;
 	size_t count_per_ip (asio::ip::address const & ip) const;
 	size_t count_per_subnetwork (asio::ip::address const & ip) const;
 	size_t count_attempts (asio::ip::address const & ip) const;
 
 private:
-	struct entry
+	struct connection
 	{
 		asio::ip::tcp::endpoint endpoint;
 		std::weak_ptr<nano::transport::socket> socket;
@@ -141,17 +142,7 @@ private:
 private:
 	uint16_t const port;
 
-	// clang-format off
-	class tag_address {};
-
-	using ordered_connections = boost::multi_index_container<entry,
-	mi::indexed_by<
-		mi::hashed_non_unique<mi::tag<tag_address>,
-			mi::const_mem_fun<entry, asio::ip::address, &entry::address>>
-	>>;
-	// clang-format on
-	ordered_connections connections;
-
+	std::list<connection> connections;
 	std::list<attempt> attempts;
 
 	nano::async::strand strand;
@@ -169,6 +160,6 @@ private:
 private:
 	static nano::stat::dir to_stat_dir (connection_type);
 	static std::string_view to_string (connection_type);
-	static nano::transport::socket_endpoint to_socket_type (connection_type);
+	static nano::transport::socket_endpoint to_socket_endpoint (connection_type);
 };
 }
