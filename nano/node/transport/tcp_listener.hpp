@@ -34,11 +34,23 @@ class tcp_server;
 class tcp_config
 {
 public:
+	explicit tcp_config (nano::network_constants const & network)
+	{
+		if (network.is_dev_network ())
+		{
+			max_inbound_connections = 128;
+			max_outbound_connections = 128;
+			max_attempts = 128;
+			max_attempts_per_ip = 128;
+			connect_timeout = std::chrono::seconds{ 5 };
+		}
+	}
+
+public:
 	size_t max_inbound_connections{ 2048 };
 	size_t max_outbound_connections{ 2048 };
 	size_t max_attempts{ 60 };
 	size_t max_attempts_per_ip{ 1 };
-	size_t max_attempts_per_subnetwork{ 4 };
 	std::chrono::seconds connect_timeout{ 60 };
 };
 
@@ -103,7 +115,14 @@ private:
 	asio::awaitable<accept_result> connect_impl (asio::ip::tcp::endpoint);
 	asio::awaitable<asio::ip::tcp::socket> connect_socket (asio::ip::tcp::endpoint);
 
-	accept_result accept_one (asio::ip::tcp::socket, connection_type);
+	struct accept_return
+	{
+		accept_result result;
+		std::shared_ptr<nano::transport::socket> socket;
+		std::shared_ptr<nano::transport::tcp_server> server;
+	};
+
+	accept_return accept_one (asio::ip::tcp::socket, connection_type);
 	accept_result check_limits (asio::ip::address const & ip, connection_type);
 	asio::awaitable<asio::ip::tcp::socket> accept_socket ();
 

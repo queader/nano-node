@@ -258,17 +258,19 @@ auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoi
 		debug_assert (strand.running_in_this_thread ());
 
 		auto result = accept_one (std::move (raw_socket), connection_type::outbound);
-		if (result != accept_result::accepted)
+		if (result.result == accept_result::accepted)
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_success, nano::stat::dir::out);
+			logger.debug (nano::log::type::tcp_listener, "Successfully connected to: {}", fmt::streamed (endpoint));
+
+			release_assert (result.server);
+		}
+		else
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_failure, nano::stat::dir::out);
 			// Refusal reason should be logged earlier
 
 			co_return result;
-		}
-		else
-		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_success, nano::stat::dir::out);
-			logger.debug (nano::log::type::tcp_listener, "Successfully connected to: {}", fmt::streamed (endpoint));
 		}
 	}
 	catch (boost::system::system_error const & ex)
@@ -296,7 +298,7 @@ asio::awaitable<void> nano::transport::tcp_listener::run ()
 			debug_assert (strand.running_in_this_thread ());
 
 			auto result = accept_one (std::move (socket), connection_type::inbound);
-			if (result != accept_result::accepted)
+			if (result.result != accept_result::accepted)
 			{
 				stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_failure, nano::stat::dir::in);
 				// Refusal reason should be logged earlier
@@ -350,7 +352,7 @@ asio::awaitable<void> nano::transport::tcp_listener::wait_available_slots () con
 	}
 }
 
-auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket, connection_type type) -> accept_result
+auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket, connection_type type) -> accept_return
 {
 	auto const remote_endpoint = raw_socket.remote_endpoint ();
 	auto const local_endpoint = raw_socket.local_endpoint ();
@@ -374,7 +376,7 @@ auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket
 			logger.debug (nano::log::type::tcp_listener, "Error while closing socket after refusing connection: {} ({})", ex.what (), to_string (type));
 		}
 
-		return result;
+		return { result };
 	}
 
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_success, to_stat_dir (type));
@@ -393,7 +395,7 @@ auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket
 
 	connection_accepted.notify (socket, server);
 
-	return accept_result::accepted;
+	return { accept_result::accepted, socket, server };
 }
 
 auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, connection_type type) -> accept_result
