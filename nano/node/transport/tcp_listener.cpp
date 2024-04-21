@@ -363,7 +363,8 @@ auto nano::transport::tcp_listener::accept_one (asio::ip::tcp::socket raw_socket
 	if (auto result = check_limits (remote_endpoint.address (), type); result != accept_result::accepted)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::accept_rejected, to_stat_dir (type));
-		// Refusal reason should be logged earlier
+		logger.debug (nano::log::type::tcp_listener, "Rejected connection from: {} ({})", fmt::streamed (remote_endpoint), to_string (type));
+		// Rejection reason should be logged earlier
 
 		try
 		{
@@ -412,7 +413,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 
 	if (node.network.excluded_peers.check (ip)) // true => error
 	{
-		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::excluded, to_stat_dir (type));
+		stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::excluded, to_stat_dir (type));
 		logger.debug (nano::log::type::tcp_listener, "Rejected connection from excluded peer: {}", ip.to_string ());
 
 		return accept_result::rejected;
@@ -422,7 +423,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 	{
 		if (auto count = count_per_ip (ip); count >= node.network_params.network.max_peers_per_ip)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_per_ip, to_stat_dir (type));
+			stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::max_per_ip, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Max connections per IP reached (ip: {}, count: {}), unable to open new connection",
 			ip.to_string (), count);
 
@@ -435,7 +436,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 	{
 		if (auto count = count_per_subnetwork (ip); count >= node.network_params.network.max_peers_per_subnetwork)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_per_subnetwork, to_stat_dir (type));
+			stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::max_per_subnetwork, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Max connections per subnetwork reached (ip: {}, count: {}), unable to open new connection",
 			ip.to_string (), count);
 
@@ -449,7 +450,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 
 		if (auto count = count_per_type (connection_type::inbound); count >= config.max_inbound_connections)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts, to_stat_dir (type));
+			stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::max_attempts, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Max inbound connections reached ({}), unable to accept new connection", count);
 
 			return accept_result::rejected;
@@ -459,7 +460,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 	{
 		if (auto count = count_per_type (connection_type::outbound); count >= config.max_outbound_connections)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts, to_stat_dir (type));
+			stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::max_attempts, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Max outbound connections reached ({}), unable to initiate new connection", count);
 
 			return accept_result::rejected;
@@ -467,7 +468,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 
 		if (attempts.size () > config.max_attempts)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts, to_stat_dir (type));
+			stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::max_attempts, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Max connection attempts reached ({}), unable to initiate new connection", attempts.size ());
 
 			return accept_result::rejected;
@@ -475,7 +476,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 
 		if (auto count = count_attempts (ip); count >= config.max_attempts_per_ip)
 		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::max_attempts_per_ip, to_stat_dir (type));
+			stats.inc (nano::stat::type::tcp_listener_rejected, nano::stat::detail::max_attempts_per_ip, to_stat_dir (type));
 			logger.debug (nano::log::type::tcp_listener, "Connection attempt already in progress ({}), unable to initiate new connection", ip.to_string ());
 
 			return accept_result::rejected;
