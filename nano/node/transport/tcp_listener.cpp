@@ -263,6 +263,11 @@ auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoi
 
 			co_return result;
 		}
+		else
+		{
+			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_success, nano::stat::dir::out);
+			logger.debug (nano::log::type::tcp_listener, "Successfully connected to: {}", fmt::streamed (endpoint));
+		}
 	}
 	catch (boost::system::system_error const & ex)
 	{
@@ -400,6 +405,7 @@ auto nano::transport::tcp_listener::check_limits (asio::ip::address const & ip, 
 
 	cleanup ();
 
+	// TODO: Distinguish between inbound and outbound connections
 	debug_assert (connections.size () <= config.max_inbound_connections); // Should be checked earlier (wait_available_slots)
 
 	if (node.network.excluded_peers.check (ip)) // true => error

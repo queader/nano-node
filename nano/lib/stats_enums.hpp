@@ -267,6 +267,7 @@ enum class detail
 	connect_failure,
 	connect_error,
 	connect_rejected,
+	connect_success,
 	attempt_timeout,
 
 	// tcp_server
