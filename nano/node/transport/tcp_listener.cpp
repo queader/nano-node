@@ -264,13 +264,14 @@ auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoi
 			logger.debug (nano::log::type::tcp_listener, "Successfully connected to: {}", fmt::streamed (endpoint));
 
 			release_assert (result.server);
+			result.server->initiate_handshake ();
 		}
 		else
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_failure, nano::stat::dir::out);
 			// Refusal reason should be logged earlier
 
-			co_return result;
+			co_return result.result;
 		}
 	}
 	catch (boost::system::system_error const & ex)
