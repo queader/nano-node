@@ -59,7 +59,11 @@ auto spawn (nano::async::strand & strand, nano::async::cancellation & cancellati
 {
 	debug_assert (cancellation.strand == strand);
 
-	auto fut = asio::co_spawn (strand, std::forward<decltype (func)> (func), asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
+	auto fut = asio::co_spawn (
+	strand,
+	std::forward<decltype (func)> (func),
+	asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
+
 	return fut;
 }
 
