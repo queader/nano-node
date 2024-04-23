@@ -55,6 +55,11 @@ void nano::block_memory_pool_purge ()
  * block
  */
 
+nano::block::block ()
+{
+	cached_hash = generate_hash ();
+}
+
 std::string nano::block::to_json () const
 {
 	std::string result;
@@ -105,14 +110,6 @@ nano::block_hash nano::block::generate_hash () const
 	status = blake2b_final (&hash_l, result.bytes.data (), sizeof (result.bytes));
 	debug_assert (status == 0);
 	return result;
-}
-
-void nano::block::refresh ()
-{
-	if (!cached_hash.is_zero ())
-	{
-		cached_hash = generate_hash ();
-	}
 }
 
 bool nano::block::is_send () const noexcept
