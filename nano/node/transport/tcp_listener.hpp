@@ -112,7 +112,7 @@ private:
 		outbound,
 	};
 
-	asio::awaitable<accept_result> connect_impl (asio::ip::tcp::endpoint);
+	asio::awaitable<void> connect_impl (asio::ip::tcp::endpoint);
 	asio::awaitable<asio::ip::tcp::socket> connect_socket (asio::ip::tcp::endpoint);
 
 	struct accept_return
@@ -147,8 +147,7 @@ private:
 	struct attempt
 	{
 		asio::ip::tcp::endpoint endpoint;
-		std::future<accept_result> future;
-		nano::async::cancellation cancellation;
+		nano::async::task task;
 
 		std::chrono::steady_clock::time_point const start{ std::chrono::steady_clock::now () };
 
@@ -165,7 +164,6 @@ private:
 	std::list<attempt> attempts;
 
 	nano::async::strand strand;
-	nano::async::cancellation cancellation;
 
 	asio::ip::tcp::acceptor acceptor;
 	asio::ip::tcp::endpoint local;
@@ -173,7 +171,7 @@ private:
 	std::atomic<bool> stopped;
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
-	std::future<void> future;
+	nano::async::task task;
 	std::thread cleanup_thread;
 
 private:

@@ -24,8 +24,8 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, tcp_config const &
 	logger{ node_a.logger },
 	port{ port_a },
 	strand{ node_a.io_ctx.get_executor () },
-	cancellation{ strand },
-	acceptor{ strand }
+	acceptor{ strand },
+	task{ strand }
 {
 	connection_accepted.add ([this] (auto const & socket, auto const & server) {
 		node.observers.socket_accepted.notify (*socket);
@@ -35,7 +35,7 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, tcp_config const &
 nano::transport::tcp_listener::~tcp_listener ()
 {
 	debug_assert (!cleanup_thread.joinable ());
-	debug_assert (!future.valid () || future.wait_for (0s) == std::future_status::ready);
+	debug_assert (!task.joinable ());
 	debug_assert (connection_count () == 0);
 	debug_assert (attempt_count () == 0);
 }
@@ -43,7 +43,7 @@ nano::transport::tcp_listener::~tcp_listener ()
 void nano::transport::tcp_listener::start ()
 {
 	debug_assert (!cleanup_thread.joinable ());
-	debug_assert (!future.valid ());
+	debug_assert (!task.joinable ());
 
 	try
 	{
@@ -67,8 +67,7 @@ void nano::transport::tcp_listener::start ()
 		throw;
 	}
 
-	future = nano::async::spawn (
-	strand, cancellation, [this] () -> asio::awaitable<void> {
+	task = nano::async::spawn (strand, [this] () -> asio::awaitable<void> {
 		try
 		{
 			logger.debug (nano::log::type::tcp_listener, "Starting acceptor");
@@ -116,10 +115,10 @@ void nano::transport::tcp_listener::stop ()
 	}
 	condition.notify_all ();
 
-	if (future.valid ())
+	if (task.joinable ())
 	{
-		cancellation.emit ();
-		future.wait ();
+		task.cancel ();
+		task.join ();
 	}
 	if (cleanup_thread.joinable ())
 	{
@@ -143,8 +142,9 @@ void nano::transport::tcp_listener::stop ()
 
 	for (auto & attempt : attempts_l)
 	{
-		attempt.cancellation.emit ();
-		attempt.future.wait ();
+		debug_assert (attempt.task.joinable ());
+		attempt.task.cancel ();
+		attempt.task.join ();
 	}
 
 	for (auto & connection : connections_l)
@@ -194,7 +194,7 @@ void nano::transport::tcp_listener::cleanup ()
 
 	// Erase completed attempts
 	erase_if (attempts, [this] (auto const & attempt) {
-		return attempt.future.wait_for (0s) == std::future_status::ready;
+		return attempt.task.ready ();
 	});
 }
 
@@ -207,11 +207,11 @@ void nano::transport::tcp_listener::timeout ()
 	// Cancel timed out attempts
 	for (auto & attempt : attempts)
 	{
-		if (auto status = attempt.future.wait_for (0s); status != std::future_status::ready)
+		if (!attempt.task.ready ())
 		{
 			if (attempt.start < cutoff)
 			{
-				attempt.cancellation.emit ();
+				attempt.task.cancel ();
 
 				stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::attempt_timeout);
 				logger.debug (nano::log::type::tcp_listener, "Connection attempt timed out: {} (started {}s ago)",
@@ -243,14 +243,14 @@ bool nano::transport::tcp_listener::connect (asio::ip::address ip, uint16_t port
 	stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_initiate, nano::stat::dir::out);
 	logger.debug (nano::log::type::tcp_listener, "Initiating outgoing connection to: {}", fmt::streamed (endpoint));
 
-	auto [future, cancellation] = nano::async::spawn (strand, connect_impl (endpoint));
+	auto task = nano::async::spawn (strand, connect_impl (endpoint));
 
-	attempts.emplace_back (attempt{ endpoint, std::move (future), std::move (cancellation) });
+	attempts.emplace_back (attempt{ endpoint, std::move (task) });
 
 	return true; // Attempt started
 }
 
-auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoint) -> asio::awaitable<accept_result>
+auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoint) -> asio::awaitable<void>
 {
 	debug_assert (strand.running_in_this_thread ());
 
@@ -272,19 +272,13 @@ auto nano::transport::tcp_listener::connect_impl (asio::ip::tcp::endpoint endpoi
 		{
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_failure, nano::stat::dir::out);
 			// Refusal reason should be logged earlier
-
-			co_return result.result;
 		}
 	}
 	catch (boost::system::system_error const & ex)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::connect_error, nano::stat::dir::out);
 		logger.log (nano::log::level::debug, nano::log::type::tcp_listener, "Error connecting to: {} ({})", fmt::streamed (endpoint), ex.what ());
-
-		co_return accept_result::error;
 	}
-
-	co_return accept_result::accepted;
 }
 
 asio::awaitable<void> nano::transport::tcp_listener::run ()

@@ -4,6 +4,8 @@
 
 #include <boost/asio.hpp>
 
+#include <future>
+
 namespace asio = boost::asio;
 
 namespace nano::async
@@ -32,6 +34,21 @@ public:
 	{
 	}
 
+	cancellation (cancellation && other) = default;
+
+	cancellation & operator= (cancellation && other)
+	{
+		// Can only move if the strands are the same
+		debug_assert (strand == other.strand);
+
+		if (this != &other)
+		{
+			signal = std::move (other.signal);
+		}
+		return *this;
+	};
+
+public:
 	void emit (asio::cancellation_type type = asio::cancellation_type::all)
 	{
 		asio::dispatch (strand, asio::use_future ([this, type] () {
@@ -55,22 +72,85 @@ private:
 	bool slotted{ false };
 };
 
-auto spawn (nano::async::strand & strand, nano::async::cancellation & cancellation, auto && func)
+class task
 {
-	debug_assert (cancellation.strand == strand);
+public:
+	// Only thread-like void tasks are supported for now
+	using value_type = void;
+
+	task (nano::async::strand & strand) :
+		strand{ strand },
+		cancellation{ strand }
+	{
+	}
+
+	task (nano::async::strand & strand, std::future<value_type> future, nano::async::cancellation cancellation) :
+		strand{ strand },
+		future{ std::move (future) },
+		cancellation{ std::move (cancellation) }
+	{
+	}
+
+	~task ()
+	{
+		release_assert (!joinable () || ready (), "async task not joined before destruction");
+	}
+
+	task (task && other) = default;
+
+	task & operator= (task && other)
+	{
+		// Can only move if the strands are the same
+		debug_assert (strand == other.strand);
+
+		if (this != &other)
+		{
+			future = std::move (other.future);
+			cancellation = std::move (other.cancellation);
+		}
+		return *this;
+	}
+
+public:
+	bool joinable () const
+	{
+		return future.valid ();
+	}
+
+	bool ready () const
+	{
+		return future.wait_for (std::chrono::seconds{ 0 }) == std::future_status::ready;
+	}
+
+	void join ()
+	{
+		debug_assert (joinable ());
+		future.wait ();
+		future = {};
+	}
+
+	void cancel ()
+	{
+		debug_assert (joinable ());
+		cancellation.emit ();
+	}
+
+	nano::async::strand & strand;
+
+private:
+	std::future<value_type> future;
+	nano::async::cancellation cancellation;
+};
+
+auto spawn (nano::async::strand & strand, auto && func)
+{
+	nano::async::cancellation cancellation{ strand };
 
 	auto fut = asio::co_spawn (
 	strand,
 	std::forward<decltype (func)> (func),
 	asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
 
-	return fut;
-}
-
-auto spawn (nano::async::strand & strand, auto && func)
-{
-	nano::async::cancellation cancellation{ strand };
-	auto fut = spawn (strand, cancellation, std::forward<decltype (func)> (func));
-	return std::make_pair (std::move (fut), std::move (cancellation));
+	return task{ strand, std::move (fut), std::move (cancellation) };
 }
 }
