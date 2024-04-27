@@ -166,8 +166,10 @@ void nano::transport::tcp_listener::run_cleanup ()
 	while (!stopped)
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::cleanup);
+
 		cleanup ();
 		timeout ();
+
 		condition.wait_for (lock, 1s, [this] () { return stopped.load (); });
 	}
 }
