@@ -73,10 +73,14 @@ public:
 	bool connect (asio::ip::address ip, uint16_t port = 0);
 
 	nano::tcp_endpoint endpoint () const;
+
 	size_t connection_count () const;
 	size_t attempt_count () const;
 	size_t realtime_count () const;
 	size_t bootstrap_count () const;
+
+	std::vector<std::shared_ptr<socket>> sockets () const;
+	std::vector<std::shared_ptr<tcp_server>> servers () const;
 
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 

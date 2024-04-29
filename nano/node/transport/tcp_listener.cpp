@@ -8,6 +8,7 @@
 #include <boost/asio/use_future.hpp>
 
 #include <memory>
+#include <ranges>
 
 #include <magic_enum.hpp>
 
@@ -564,6 +565,24 @@ asio::ip::tcp::endpoint nano::transport::tcp_listener::endpoint () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	return { asio::ip::address_v6::loopback (), local.port () };
+}
+
+auto nano::transport::tcp_listener::sockets () const -> std::vector<std::shared_ptr<socket>>
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	auto r = connections
+	| std::views::transform ([] (auto const & connection) { return connection.socket.lock (); })
+	| std::views::filter ([] (auto const & socket) { return socket != nullptr; });
+	return { r.begin (), r.end () };
+}
+
+auto nano::transport::tcp_listener::servers () const -> std::vector<std::shared_ptr<tcp_server>>
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	auto r = connections
+	| std::views::transform ([] (auto const & connection) { return connection.server.lock (); })
+	| std::views::filter ([] (auto const & server) { return server != nullptr; });
+	return { r.begin (), r.end () };
 }
 
 std::unique_ptr<nano::container_info_component> nano::transport::tcp_listener::collect_container_info (std::string const & name)
