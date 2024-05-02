@@ -2,6 +2,7 @@
 
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/node/fair_queue.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/transport/channel.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -20,6 +21,14 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
+class request_aggregator_config final
+{
+public:
+	size_t threads{ std::min (nano::hardware_concurrency (), 4u) };
+	size_t max_queue{ 128 };
+	size_t batch_size{ 16 };
+};
+
 /**
  * Pools together confirmation requests, separately for each endpoint.
  * Requests are added from network messages, and aggregated to minimize bandwidth and vote generation. Example:
@@ -55,26 +64,26 @@ class request_aggregator final
 	// clang-format on
 
 public:
-	request_aggregator (nano::node_config const & config, nano::stats & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
+	request_aggregator (request_aggregator_config const & config, nano::stats & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
 	~request_aggregator ();
 
 	void start ();
 	void stop ();
 
+	using request_type = std::vector<std::pair<nano::block_hash, nano::root>>;
+
 	/** Add a new request by \p channel_a for hashes \p hashes_roots_a */
-	void add (std::shared_ptr<nano::transport::channel> const &, std::vector<std::pair<nano::block_hash, nano::root>> const & hashes_roots);
+	bool request (request_type const & request, std::shared_ptr<nano::transport::channel> const &);
 
 	/** Returns the number of currently queued request pools */
 	std::size_t size () const;
 	bool empty () const;
 
-	std::chrono::milliseconds const max_delay;
-	std::chrono::milliseconds const small_delay;
-	std::size_t const max_channel_requests;
-	std::size_t const request_aggregator_threads;
-
 private:
 	void run ();
+	void run_batch (nano::unique_lock<nano::mutex> & lock);
+	void process (request_type const &, std::shared_ptr<nano::transport::channel> const &);
+
 	/** Remove duplicate requests **/
 	void erase_duplicates (std::vector<std::pair<nano::block_hash, nano::root>> &) const;
 
@@ -90,7 +99,7 @@ private:
 	void reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const;
 
 private: // Dependencies
-	nano::node_config const & config;
+	request_aggregator_config const & config;
 	nano::stats & stats;
 	nano::local_vote_history & local_votes;
 	nano::ledger & ledger;
@@ -100,15 +109,8 @@ private: // Dependencies
 	nano::vote_generator & final_generator;
 
 private:
-	// clang-format off
-	boost::multi_index_container<channel_pool,
-	mi::indexed_by<
-		mi::hashed_unique<mi::tag<tag_endpoint>,
-			mi::member<channel_pool, nano::endpoint, &channel_pool::endpoint>>,
-		mi::ordered_non_unique<mi::tag<tag_deadline>,
-			mi::member<channel_pool, std::chrono::steady_clock::time_point, &channel_pool::deadline>>>>
-	requests;
-	// clang-format on
+	using value_type = std::pair<request_type, std::shared_ptr<nano::transport::channel>>;
+	nano::fair_queue<value_type, nano::no_value> queue;
 
 	bool stopped{ false };
 	nano::condition_variable condition;
