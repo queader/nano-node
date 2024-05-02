@@ -3,11 +3,10 @@
 
 #include <magic_enum.hpp>
 
-nano::transport::message_deserializer::message_deserializer (nano::network_constants const & network_constants_a, nano::network_filter & publish_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a,
+nano::transport::message_deserializer::message_deserializer (nano::network_constants const & network_constants_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a,
 read_query read_op) :
 	read_buffer{ std::make_shared<std::vector<uint8_t>> () },
 	network_constants_m{ network_constants_a },
-	publish_filter_m{ publish_filter_a },
 	block_uniquer_m{ block_uniquer_a },
 	vote_uniquer_m{ vote_uniquer_a },
 	read_op{ std::move (read_op) }
@@ -130,16 +129,18 @@ std::unique_ptr<nano::message> nano::transport::message_deserializer::deserializ
 		case nano::message_type::publish:
 		{
 			// Early filtering to not waste time deserializing duplicate blocks
-			nano::uint128_t digest;
-			if (!publish_filter_m.apply (read_buffer->data (), payload_size, &digest))
-			{
-				return deserialize_publish (stream, header, digest);
-			}
-			else
-			{
-				status = parse_status::duplicate_publish_message;
-			}
-			break;
+			// nano::uint128_t digest;
+			// if (!publish_filter_m.apply (read_buffer->data (), payload_size, &digest))
+			// {
+			// 	return deserialize_publish (stream, header, digest);
+			// }
+			// else
+			// {
+			// 	status = parse_status::duplicate_publish_message;
+			// }
+			// break;
+
+			return deserialize_publish (stream, header);
 		}
 		case nano::message_type::confirm_req:
 		{
@@ -209,10 +210,10 @@ std::unique_ptr<nano::keepalive> nano::transport::message_deserializer::deserial
 	return {};
 }
 
-std::unique_ptr<nano::publish> nano::transport::message_deserializer::deserialize_publish (nano::stream & stream, nano::message_header const & header, nano::uint128_t const & digest_a)
+std::unique_ptr<nano::publish> nano::transport::message_deserializer::deserialize_publish (nano::stream & stream, nano::message_header const & header)
 {
 	auto error = false;
-	auto incoming = std::make_unique<nano::publish> (error, stream, header, digest_a, &block_uniquer_m);
+	auto incoming = std::make_unique<nano::publish> (error, stream, header, &block_uniquer_m);
 	if (!error && nano::at_end (stream))
 	{
 		release_assert (incoming->block);

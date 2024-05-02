@@ -298,12 +298,6 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 		{
 			node.observers.active_stopped.notify (hash);
 		}
-
-		if (!election->confirmed ())
-		{
-			// Clear from publish filter
-			node.network.publish_filter.clear (block);
-		}
 	}
 }
 

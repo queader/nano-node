@@ -2226,7 +2226,7 @@ TEST (node, vote_by_hash_republish)
 	ASSERT_TIMELY (5s, node2.active.active (*send1));
 
 	// give block send2 to node1 and wait until the block is received and processed by node1
-	node1.network.publish_filter.clear ();
+	// node1.network.publish_filter.clear ();
 	node1.process_active (send2);
 	ASSERT_TIMELY (5s, node1.active.active (*send2));
 
