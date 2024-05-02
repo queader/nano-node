@@ -269,6 +269,9 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.bootstrap_server.max_queue, defaults.node.bootstrap_server.max_queue);
 	ASSERT_EQ (conf.node.bootstrap_server.threads, defaults.node.bootstrap_server.threads);
 	ASSERT_EQ (conf.node.bootstrap_server.batch_size, defaults.node.bootstrap_server.batch_size);
+
+	ASSERT_EQ (conf.node.message_processor.threads, defaults.node.message_processor.threads);
+	ASSERT_EQ (conf.node.message_processor.max_queue, defaults.node.message_processor.max_queue);
 }
 
 TEST (toml, optional_child)
@@ -569,6 +572,10 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	threads = 999
 	batch_size = 999
 
+	[node.message_processor]
+	threads = 999
+	max_queue = 999
+
 	[opencl]
 	device = 999
 	enable = true
@@ -722,6 +729,9 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.bootstrap_server.max_queue, defaults.node.bootstrap_server.max_queue);
 	ASSERT_NE (conf.node.bootstrap_server.threads, defaults.node.bootstrap_server.threads);
 	ASSERT_NE (conf.node.bootstrap_server.batch_size, defaults.node.bootstrap_server.batch_size);
+
+	ASSERT_NE (conf.node.message_processor.threads, defaults.node.message_processor.threads);
+	ASSERT_NE (conf.node.message_processor.max_queue, defaults.node.message_processor.max_queue);
 }
 
 /** There should be no required values **/

@@ -275,3 +275,23 @@ std::unique_ptr<nano::container_info_component> nano::message_processor::collect
 	composite->add_component (queue.collect_container_info ("queue"));
 	return composite;
 }
+
+/*
+ * message_processor_config
+ */
+
+nano::error nano::message_processor_config::serialize (nano::tomlconfig & toml) const
+{
+	toml.put ("threads", threads, "Number of threads to use for message processing. \ntype:uint64");
+	toml.put ("max_queue", max_queue, "Maximum number of messages per peer to queue for processing. \ntype:uint64");
+
+	return toml.get_error ();
+}
+
+nano::error nano::message_processor_config::deserialize (nano::tomlconfig & toml)
+{
+	toml.get ("threads", threads);
+	toml.get ("max_queue", max_queue);
+
+	return toml.get_error ();
+}
