@@ -151,6 +151,7 @@ void nano::message_processor::run_batch (nano::unique_lock<nano::mutex> & lock)
 
 namespace
 {
+// TODO: This was moved, so compare with latest develop before merging to avoid merge bugs
 class process_visitor : public nano::message_visitor
 {
 public:
