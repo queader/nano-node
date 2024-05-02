@@ -43,7 +43,7 @@ namespace transport
 		parse_status status;
 
 		using read_query = std::function<void (std::shared_ptr<std::vector<uint8_t>> const &, size_t, std::function<void (boost::system::error_code const &, std::size_t)>)>;
-		message_deserializer (network_constants const &, network_filter &, block_uniquer &, vote_uniquer &, read_query read_op);
+		message_deserializer (network_constants const &, block_uniquer &, vote_uniquer &, read_query read_op);
 
 		/*
 		 * Asynchronously read next message from the channel_read_fn.
@@ -64,7 +64,7 @@ namespace transport
 		 */
 		std::unique_ptr<nano::message> deserialize (nano::message_header header, std::size_t payload_size);
 		std::unique_ptr<nano::keepalive> deserialize_keepalive (nano::stream &, nano::message_header const &);
-		std::unique_ptr<nano::publish> deserialize_publish (nano::stream &, nano::message_header const &, nano::uint128_t const & = 0);
+		std::unique_ptr<nano::publish> deserialize_publish (nano::stream &, nano::message_header const &);
 		std::unique_ptr<nano::confirm_req> deserialize_confirm_req (nano::stream &, nano::message_header const &);
 		std::unique_ptr<nano::confirm_ack> deserialize_confirm_ack (nano::stream &, nano::message_header const &);
 		std::unique_ptr<nano::node_id_handshake> deserialize_node_id_handshake (nano::stream &, nano::message_header const &);
@@ -85,7 +85,6 @@ namespace transport
 
 	private: // Dependencies
 		nano::network_constants const & network_constants_m;
-		nano::network_filter & publish_filter_m;
 		nano::block_uniquer & block_uniquer_m;
 		nano::vote_uniquer & vote_uniquer_m;
 		read_query read_op;
