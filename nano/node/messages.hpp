@@ -159,14 +159,13 @@ public: // Logging
 class publish final : public message
 {
 public:
-	publish (bool &, nano::stream &, nano::message_header const &, nano::uint128_t const & = 0, nano::block_uniquer * = nullptr);
+	publish (bool &, nano::stream &, nano::message_header const &, nano::block_uniquer * = nullptr);
 	publish (nano::network_constants const & constants, std::shared_ptr<nano::block> const &);
 	void visit (nano::message_visitor &) const override;
 	void serialize (nano::stream &) const override;
 	bool deserialize (nano::stream &, nano::block_uniquer * = nullptr);
 	bool operator== (nano::publish const &) const;
 	std::shared_ptr<nano::block> block;
-	nano::uint128_t digest{ 0 };
 
 public: // Logging
 	void operator() (nano::object_stream &) const override;

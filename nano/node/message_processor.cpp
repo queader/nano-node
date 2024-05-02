@@ -181,7 +181,6 @@ public:
 		bool added = node.block_processor.add (message.block, nano::block_source::live, channel);
 		if (!added)
 		{
-			node.network.publish_filter.clear (message.digest);
 			node.stats.inc (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::in);
 		}
 	}
