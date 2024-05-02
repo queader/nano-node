@@ -1881,10 +1881,7 @@ TEST (node, local_votes_cache)
 		node.network.inbound (message1, channel);
 		node.network.inbound (message2, channel);
 	}
-	for (int i = 0; i < 4; ++i)
-	{
-		ASSERT_NO_ERROR (system.poll (node.aggregator.max_delay));
-	}
+	WAIT (1s);
 	// Make sure a new vote was not generated
 	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes), 2);
 	// Max cache
@@ -1897,10 +1894,7 @@ TEST (node, local_votes_cache)
 	{
 		node.network.inbound (message3, channel);
 	}
-	for (int i = 0; i < 4; ++i)
-	{
-		ASSERT_NO_ERROR (system.poll (node.aggregator.max_delay));
-	}
+	WAIT (1s);
 	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes), 3);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
 	ASSERT_TIMELY (3s, !node.history.votes (send2->root (), send2->hash ()).empty ());
@@ -3065,7 +3059,7 @@ TEST (node, rollback_vote_self)
 		ASSERT_TRUE (node.history.votes (send2->root (), send2->hash ()).empty ());
 		ASSERT_TRUE (node.history.votes (fork->root (), fork->hash ()).empty ());
 		auto channel = std::make_shared<nano::transport::fake::channel> (node);
-		node.aggregator.add (channel, { { send2->hash (), send2->root () } });
+		node.aggregator.request ({ { send2->hash (), send2->root () } }, channel);
 		ASSERT_TIMELY (5s, !node.history.votes (fork->root (), fork->hash ()).empty ());
 		ASSERT_TRUE (node.history.votes (send2->root (), send2->hash ()).empty ());
 
