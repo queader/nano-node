@@ -61,7 +61,7 @@ public:
 private:
 	void run ();
 	void run_batch (nano::unique_lock<nano::mutex> & lock);
-	void process (request_type const &, std::shared_ptr<nano::transport::channel> const &);
+	void process (nano::secure::transaction const &, request_type const &, std::shared_ptr<nano::transport::channel> const &);
 
 	/** Remove duplicate requests **/
 	void erase_duplicates (std::vector<std::pair<nano::block_hash, nano::root>> &) const;
@@ -73,7 +73,7 @@ private:
 	};
 
 	/** Aggregate \p requests_a and send cached votes to \p channel_a . Return the remaining hashes that need vote generation for each block for regular & final vote generators **/
-	aggregate_result aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests, std::shared_ptr<nano::transport::channel> const &) const;
+	aggregate_result aggregate (nano::secure::transaction const &, request_type const &, std::shared_ptr<nano::transport::channel> const &) const;
 
 	void reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const;
 

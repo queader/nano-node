@@ -159,7 +159,7 @@ void nano::request_aggregator::run_batch (nano::unique_lock<nano::mutex> & lock)
 
 		if (!channel->max ())
 		{
-			process (request, channel);
+			process (transaction, request, channel);
 		}
 		else
 		{
@@ -168,9 +168,10 @@ void nano::request_aggregator::run_batch (nano::unique_lock<nano::mutex> & lock)
 	}
 }
 
-void nano::request_aggregator::process (request_type const & request, std::shared_ptr<nano::transport::channel> const & channel)
+void nano::request_aggregator::process (nano::secure::transaction const & transaction, request_type const & request, std::shared_ptr<nano::transport::channel> const & channel)
 {
-	auto const remaining = aggregate (request, channel);
+	auto const remaining = aggregate (transaction, request, channel);
+
 	if (!remaining.remaining_normal.empty ())
 	{
 		// Generate votes for the remaining hashes
@@ -202,9 +203,8 @@ void nano::request_aggregator::erase_duplicates (std::vector<std::pair<nano::blo
 	requests_a.end ());
 }
 
-auto nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash, nano::root>> const & requests_a, std::shared_ptr<nano::transport::channel> const & channel_a) const -> aggregate_result
+auto nano::request_aggregator::aggregate (nano::secure::transaction const & transaction, request_type const & requests_a, std::shared_ptr<nano::transport::channel> const & channel_a) const -> aggregate_result
 {
-	auto transaction = ledger.tx_begin_read ();
 	std::vector<std::shared_ptr<nano::block>> to_generate;
 	std::vector<std::shared_ptr<nano::block>> to_generate_final;
 	std::vector<std::shared_ptr<nano::vote>> cached_votes;
