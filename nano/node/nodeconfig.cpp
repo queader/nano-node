@@ -236,6 +236,10 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	peer_history.serialize (peer_history_l);
 	toml.put_child ("peer_history", peer_history_l);
 
+	nano::tomlconfig message_processor_l;
+	message_processor.serialize (message_processor_l);
+	toml.put_child ("message_processor", message_processor_l);
+
 	return toml.get_error ();
 }
 
@@ -333,6 +337,12 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 		{
 			auto config_l = toml.get_required_child ("peer_history");
 			peer_history.deserialize (config_l);
+		}
+
+		if (toml.has_key ("message_processor"))
+		{
+			auto config_l = toml.get_required_child ("message_processor");
+			message_processor.deserialize (config_l);
 		}
 
 		if (toml.has_key ("work_peers"))

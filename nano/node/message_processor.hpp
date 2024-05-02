@@ -24,6 +24,10 @@ namespace nano
 class message_processor_config final
 {
 public:
+	nano::error deserialize (nano::tomlconfig & toml);
+	nano::error serialize (nano::tomlconfig & toml) const;
+
+public:
 	size_t threads{ std::min (nano::hardware_concurrency (), 4u) };
 	size_t max_queue{ 256 };
 };
