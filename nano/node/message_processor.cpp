@@ -77,6 +77,8 @@ bool nano::message_processor::put (std::unique_ptr<nano::message> message, std::
 	release_assert (message != nullptr);
 	release_assert (channel != nullptr);
 
+	auto const type = message->type ();
+
 	bool added = false;
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
@@ -84,7 +86,15 @@ bool nano::message_processor::put (std::unique_ptr<nano::message> message, std::
 	}
 	if (added)
 	{
+		stats.inc (nano::stat::type::message_processor, nano::stat::detail::process);
+		stats.inc (nano::stat::type::message_processor_type, to_stat_detail (type));
+
 		condition.notify_all ();
+	}
+	else
+	{
+		stats.inc (nano::stat::type::message_processor, nano::stat::detail::overfill);
+		stats.inc (nano::stat::type::message_processor_overfill, to_stat_detail (type));
 	}
 	return added;
 }
