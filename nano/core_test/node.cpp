@@ -1881,7 +1881,6 @@ TEST (node, local_votes_cache)
 		node.network.inbound (message1, channel);
 		node.network.inbound (message2, channel);
 	}
-	WAIT (1s);
 	// Make sure a new vote was not generated
 	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes), 2);
 	// Max cache
@@ -1890,15 +1889,17 @@ TEST (node, local_votes_cache)
 		ASSERT_EQ (nano::block_status::progress, node.ledger.process (transaction, send3));
 	}
 	nano::confirm_req message3{ nano::dev::network_params.network, send3->hash (), send3->root () };
-	for (auto i (0); i < 100; ++i)
-	{
-		node.network.inbound (message3, channel);
-	}
-	WAIT (1s);
+	node.network.inbound (message3, channel);
 	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes), 3);
 	ASSERT_TIMELY (3s, !node.history.votes (send1->root (), send1->hash ()).empty ());
 	ASSERT_TIMELY (3s, !node.history.votes (send2->root (), send2->hash ()).empty ());
 	ASSERT_TIMELY (3s, !node.history.votes (send3->root (), send3->hash ()).empty ());
+	// All requests should be served from the cache
+	for (auto i (0); i < 100; ++i)
+	{
+		node.network.inbound (message3, channel);
+	}
+	ASSERT_TIMELY_EQ (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes), 3);
 }
 
 // Test disabled because it's failing intermittently.
