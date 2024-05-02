@@ -2,6 +2,7 @@
 
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/lib/threading.hpp>
 #include <nano/node/fair_queue.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/transport/channel.hpp>
@@ -39,32 +40,8 @@ public:
  */
 class request_aggregator final
 {
-	/**
-	 * Holds a buffer of incoming requests from an endpoint.
-	 * Extends the lifetime of the corresponding channel. The channel is updated on a new request arriving from the same endpoint, such that only the newest channel is held
-	 */
-	struct channel_pool final
-	{
-		channel_pool () = delete;
-		explicit channel_pool (std::shared_ptr<nano::transport::channel> const & channel_a) :
-			channel (channel_a),
-			endpoint (nano::transport::map_endpoint_to_v6 (channel_a->get_endpoint ()))
-		{
-		}
-		std::vector<std::pair<nano::block_hash, nano::root>> hashes_roots;
-		std::shared_ptr<nano::transport::channel> channel;
-		nano::endpoint endpoint;
-		std::chrono::steady_clock::time_point const start{ std::chrono::steady_clock::now () };
-		std::chrono::steady_clock::time_point deadline;
-	};
-
-	// clang-format off
-	class tag_endpoint {};
-	class tag_deadline {};
-	// clang-format on
-
 public:
-	request_aggregator (request_aggregator_config const & config, nano::stats & stats_a, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
+	request_aggregator (request_aggregator_config const &, nano::node &, nano::stats &, nano::vote_generator &, nano::vote_generator &, nano::local_vote_history &, nano::ledger &, nano::wallets &, nano::active_transactions &);
 	~request_aggregator ();
 
 	void start ();
@@ -78,6 +55,8 @@ public:
 	/** Returns the number of currently queued request pools */
 	std::size_t size () const;
 	bool empty () const;
+
+	std::unique_ptr<container_info_component> collect_container_info (std::string const &);
 
 private:
 	void run ();
@@ -100,6 +79,7 @@ private:
 
 private: // Dependencies
 	request_aggregator_config const & config;
+	nano::network_constants const & network_constants;
 	nano::stats & stats;
 	nano::local_vote_history & local_votes;
 	nano::ledger & ledger;
@@ -116,8 +96,5 @@ private:
 	nano::condition_variable condition;
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::request_aggregator) };
 	std::vector<std::thread> threads;
-
-	friend std::unique_ptr<container_info_component> collect_container_info (request_aggregator &, std::string const &);
 };
-std::unique_ptr<container_info_component> collect_container_info (request_aggregator &, std::string const &);
 }

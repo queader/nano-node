@@ -4,6 +4,7 @@
 #include <nano/node/common.hpp>
 #include <nano/node/local_vote_history.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/vote_generator.hpp>
@@ -12,8 +13,9 @@
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/store/component.hpp>
 
-nano::request_aggregator::request_aggregator (request_aggregator_config const & config_a, nano::stats & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a) :
+nano::request_aggregator::request_aggregator (request_aggregator_config const & config_a, nano::node & node_a, nano::stats & stats_a, nano::vote_generator & generator_a, nano::vote_generator & final_generator_a, nano::local_vote_history & history_a, nano::ledger & ledger_a, nano::wallets & wallets_a, nano::active_transactions & active_a) :
 	config{ config_a },
+	network_constants{ node_a.network_params.network },
 	stats (stats_a),
 	local_votes (history_a),
 	ledger (ledger_a),
@@ -87,7 +89,10 @@ bool nano::request_aggregator::empty () const
 bool nano::request_aggregator::request (request_type const & request, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	release_assert (channel != nullptr);
-	debug_assert (wallets.reps ().voting > 0); // This should be checked before calling request
+
+	// This should be checked before calling request
+	debug_assert (wallets.reps ().voting > 0);
+	debug_assert (!request.empty ());
 
 	bool added = false;
 	{
@@ -178,7 +183,7 @@ void nano::request_aggregator::process (request_type const & request, std::share
 
 void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const
 {
-	nano::confirm_ack confirm{ config.network_params.network, vote_a };
+	nano::confirm_ack confirm{ network_constants, vote_a };
 	channel_a->send (confirm);
 }
 
@@ -306,7 +311,7 @@ auto nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash
 				// Let the node know about the alternative block
 				if (block->hash () != hash)
 				{
-					nano::publish publish (config.network_params.network, block);
+					nano::publish publish (network_constants, block);
 					channel_a->send (publish);
 				}
 			}
@@ -334,11 +339,11 @@ auto nano::request_aggregator::aggregate (std::vector<std::pair<nano::block_hash
 	};
 }
 
-std::unique_ptr<nano::container_info_component> nano::collect_container_info (nano::request_aggregator & aggregator, std::string const & name)
+std::unique_ptr<nano::container_info_component> nano::request_aggregator::collect_container_info (std::string const & name)
 {
-	auto pools_count = aggregator.size ();
-	auto sizeof_element = sizeof (decltype (aggregator.requests)::value_type);
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pools", pools_count, sizeof_element }));
+	composite->add_component (queue.collect_container_info ("queue"));
 	return composite;
 }

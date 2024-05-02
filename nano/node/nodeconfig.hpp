@@ -15,6 +15,7 @@
 #include <nano/node/message_processor.hpp>
 #include <nano/node/peer_history.hpp>
 #include <nano/node/repcrawler.hpp>
+#include <nano/node/request_aggregator.hpp>
 #include <nano/node/scheduler/hinted.hpp>
 #include <nano/node/scheduler/optimistic.hpp>
 #include <nano/node/transport/tcp_listener.hpp>
@@ -152,6 +153,7 @@ public:
 	nano::peer_history_config peer_history;
 	nano::transport::tcp_config tcp;
 	nano::message_processor_config message_processor;
+	nano::request_aggregator_config request_aggregator;
 
 public:
 	std::string serialize_frontiers_confirmation (nano::frontiers_confirmation_mode) const;
