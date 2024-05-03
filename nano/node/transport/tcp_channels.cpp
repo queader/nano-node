@@ -212,28 +212,6 @@ std::shared_ptr<nano::transport::tcp_channel> nano::transport::tcp_channels::fin
 	return result;
 }
 
-nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
-{
-	nano::tcp_endpoint result (boost::asio::ip::address_v6::any (), 0);
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	for (auto i (channels.get<last_bootstrap_attempt_tag> ().begin ()), n (channels.get<last_bootstrap_attempt_tag> ().end ()); i != n;)
-	{
-		if (i->channel->get_network_version () >= node.network_params.network.protocol_version_min)
-		{
-			result = nano::transport::map_endpoint_to_tcp (i->channel->get_peering_endpoint ());
-			channels.get<last_bootstrap_attempt_tag> ().modify (i, [] (channel_entry & wrapper_a) {
-				wrapper_a.channel->set_last_bootstrap_attempt (std::chrono::steady_clock::now ());
-			});
-			i = n;
-		}
-		else
-		{
-			++i;
-		}
-	}
-	return result;
-}
-
 bool nano::transport::tcp_channels::max_ip_connections (nano::tcp_endpoint const & endpoint_a)
 {
 	if (node.flags.disable_max_peers_per_ip)

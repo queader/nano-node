@@ -454,11 +454,6 @@ void nano::network::fill_keepalive_self (std::array<nano::endpoint, 8> & target_
 	}
 }
 
-nano::tcp_endpoint nano::network::bootstrap_peer ()
-{
-	return tcp_channels.bootstrap_peer ();
-}
-
 std::shared_ptr<nano::transport::channel> nano::network::find_channel (nano::endpoint const & endpoint_a)
 {
 	return tcp_channels.find_channel (nano::transport::map_endpoint_to_tcp (endpoint_a));
