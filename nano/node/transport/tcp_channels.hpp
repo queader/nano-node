@@ -36,7 +36,7 @@ public:
 	void start ();
 	void stop ();
 
-	std::shared_ptr<nano::transport::tcp_channel> create (std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
+	std::shared_ptr<nano::transport::tcp_channel> create (std::shared_ptr<nano::transport::tcp_socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
 	void erase (nano::tcp_endpoint const &);
 	std::size_t size () const;
 	std::shared_ptr<nano::transport::tcp_channel> find_channel (nano::tcp_endpoint const &) const;
@@ -71,13 +71,13 @@ private:
 	{
 	public:
 		std::shared_ptr<nano::transport::tcp_channel> channel;
-		std::shared_ptr<nano::transport::socket> socket;
+		std::shared_ptr<nano::transport::tcp_socket> socket;
 		std::shared_ptr<nano::transport::tcp_server> server;
 
 		std::chrono::steady_clock::time_point last_bootstrap_attempt;
 
 	public:
-		channel_entry (std::shared_ptr<nano::transport::tcp_channel> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
+		channel_entry (std::shared_ptr<nano::transport::tcp_channel> channel_a, std::shared_ptr<nano::transport::tcp_socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
 			channel (std::move (channel_a)),
 			socket (std::move (socket_a)),
 			server (std::move (server_a))
