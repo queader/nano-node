@@ -214,7 +214,7 @@ std::shared_ptr<nano::transport::tcp_channel> nano::transport::tcp_channels::fin
 	return result;
 }
 
-nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
+nano::tcp_endpoint nano::transport::tcp_channels::next_bootstrap_peer ()
 {
 	nano::tcp_endpoint result (boost::asio::ip::address_v6::any (), 0);
 	nano::lock_guard<nano::mutex> lock{ mutex };
@@ -224,7 +224,7 @@ nano::tcp_endpoint nano::transport::tcp_channels::bootstrap_peer ()
 		{
 			result = nano::transport::map_endpoint_to_tcp (i->channel->get_peering_endpoint ());
 			channels.get<last_bootstrap_attempt_tag> ().modify (i, [] (channel_entry & wrapper_a) {
-				wrapper_a.channel->set_last_bootstrap_attempt (std::chrono::steady_clock::now ());
+				wrapper_a.last_bootstrap_attempt = std::chrono::steady_clock::now ();
 			});
 			i = n;
 		}
