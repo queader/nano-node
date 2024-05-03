@@ -56,18 +56,6 @@ public:
 		return true;
 	}
 
-	std::chrono::steady_clock::time_point get_last_bootstrap_attempt () const
-	{
-		nano::lock_guard<nano::mutex> lk (channel_mutex);
-		return last_bootstrap_attempt;
-	}
-
-	void set_last_bootstrap_attempt (std::chrono::steady_clock::time_point const time_a)
-	{
-		nano::lock_guard<nano::mutex> lk (channel_mutex);
-		last_bootstrap_attempt = time_a;
-	}
-
 	std::chrono::steady_clock::time_point get_last_packet_received () const
 	{
 		nano::lock_guard<nano::mutex> lk (channel_mutex);

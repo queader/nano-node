@@ -44,7 +44,7 @@ public:
 	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
 	std::shared_ptr<nano::transport::tcp_channel> find_node_id (nano::account const &);
 	// Get the next peer for attempting a tcp connection
-	nano::tcp_endpoint bootstrap_peer ();
+	nano::tcp_endpoint next_bootstrap_peer ();
 	bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
 	bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
 	bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
@@ -75,6 +75,8 @@ private:
 		std::shared_ptr<nano::transport::socket> socket;
 		std::shared_ptr<nano::transport::tcp_server> server;
 
+		std::chrono::steady_clock::time_point last_bootstrap_attempt;
+
 	public:
 		channel_entry (std::shared_ptr<nano::transport::tcp_channel> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
 			channel (std::move (channel_a)),
@@ -85,13 +87,10 @@ private:
 			release_assert (server);
 			release_assert (channel);
 		}
+
 		nano::tcp_endpoint endpoint () const
 		{
 			return channel->get_tcp_endpoint ();
-		}
-		std::chrono::steady_clock::time_point last_bootstrap_attempt () const
-		{
-			return channel->get_last_bootstrap_attempt ();
 		}
 		boost::asio::ip::address ip_address () const
 		{
@@ -144,7 +143,7 @@ private:
 	mi::indexed_by<
 		mi::random_access<mi::tag<random_access_tag>>,
 		mi::ordered_non_unique<mi::tag<last_bootstrap_attempt_tag>,
-			mi::const_mem_fun<channel_entry, std::chrono::steady_clock::time_point, &channel_entry::last_bootstrap_attempt>>,
+			mi::member<channel_entry, std::chrono::steady_clock::time_point, &channel_entry::last_bootstrap_attempt>>,
 		mi::hashed_unique<mi::tag<endpoint_tag>,
 			mi::const_mem_fun<channel_entry, nano::tcp_endpoint, &channel_entry::endpoint>>,
 		mi::hashed_non_unique<mi::tag<node_id_tag>,
