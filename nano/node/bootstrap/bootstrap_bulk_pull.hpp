@@ -102,7 +102,7 @@ class bulk_pull;
 class bulk_pull_server final : public std::enable_shared_from_this<nano::bulk_pull_server>
 {
 public:
-	bulk_pull_server (std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::bulk_pull>);
+	bulk_pull_server (std::shared_ptr<nano::node> const &, std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::bulk_pull>);
 	void set_current_end ();
 	std::shared_ptr<nano::block> get_next ();
 	void send_next ();
@@ -110,6 +110,7 @@ public:
 	void send_finished ();
 	void no_block_sent (boost::system::error_code const &, std::size_t);
 	bool ascending () const;
+	std::weak_ptr<nano::node> node_weak;
 	std::shared_ptr<nano::transport::tcp_server> connection;
 	std::unique_ptr<nano::bulk_pull> request;
 	nano::block_hash current;
@@ -121,7 +122,7 @@ class bulk_pull_account;
 class bulk_pull_account_server final : public std::enable_shared_from_this<nano::bulk_pull_account_server>
 {
 public:
-	bulk_pull_account_server (std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::bulk_pull_account>);
+	bulk_pull_account_server (std::shared_ptr<nano::node> const &, std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::bulk_pull_account>);
 	void set_params ();
 	std::pair<std::unique_ptr<nano::pending_key>, std::unique_ptr<nano::pending_info>> get_next ();
 	void send_frontier ();
@@ -129,6 +130,7 @@ public:
 	void sent_action (boost::system::error_code const &, std::size_t);
 	void send_finished ();
 	void complete (boost::system::error_code const &, std::size_t);
+	std::weak_ptr<nano::node> node_weak;
 	std::shared_ptr<nano::transport::tcp_server> connection;
 	std::unique_ptr<nano::bulk_pull_account> request;
 	std::unordered_set<nano::uint256_union> deduplication;

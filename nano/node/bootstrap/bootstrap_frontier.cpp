@@ -258,7 +258,8 @@ void nano::frontier_req_client::next ()
 	accounts.pop_front ();
 }
 
-nano::frontier_req_server::frontier_req_server (std::shared_ptr<nano::transport::tcp_server> const & connection_a, std::unique_ptr<nano::frontier_req> request_a) :
+nano::frontier_req_server::frontier_req_server (std::shared_ptr<nano::node> const & node_a, std::shared_ptr<nano::transport::tcp_server> const & connection_a, std::unique_ptr<nano::frontier_req> request_a) :
+	node_weak (node_a),
 	connection (connection_a),
 	current (request_a->start.number () - 1),
 	frontier (0),
@@ -270,7 +271,7 @@ nano::frontier_req_server::frontier_req_server (std::shared_ptr<nano::transport:
 
 void nano::frontier_req_server::send_next ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -305,7 +306,7 @@ void nano::frontier_req_server::send_next ()
 
 void nano::frontier_req_server::send_finished ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -328,7 +329,7 @@ void nano::frontier_req_server::send_finished ()
 
 void nano::frontier_req_server::no_block_sent (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -345,7 +346,7 @@ void nano::frontier_req_server::no_block_sent (boost::system::error_code const &
 
 void nano::frontier_req_server::sent_action (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -366,7 +367,7 @@ void nano::frontier_req_server::sent_action (boost::system::error_code const & e
 
 void nano::frontier_req_server::next ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;

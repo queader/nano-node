@@ -358,7 +358,7 @@ void nano::bulk_pull_account_client::receive_pending ()
  */
 void nano::bulk_pull_server::set_current_end ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -418,7 +418,7 @@ void nano::bulk_pull_server::set_current_end ()
 
 void nano::bulk_pull_server::send_next ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -448,7 +448,7 @@ void nano::bulk_pull_server::send_next ()
 
 std::shared_ptr<nano::block> nano::bulk_pull_server::get_next ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return nullptr;
@@ -524,7 +524,7 @@ std::shared_ptr<nano::block> nano::bulk_pull_server::get_next ()
 
 void nano::bulk_pull_server::sent_action (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -543,7 +543,7 @@ void nano::bulk_pull_server::sent_action (boost::system::error_code const & ec, 
 
 void nano::bulk_pull_server::send_finished ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -560,7 +560,7 @@ void nano::bulk_pull_server::send_finished ()
 
 void nano::bulk_pull_server::no_block_sent (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -581,7 +581,8 @@ bool nano::bulk_pull_server::ascending () const
 	return request->header.bulk_pull_ascending ();
 }
 
-nano::bulk_pull_server::bulk_pull_server (std::shared_ptr<nano::transport::tcp_server> const & connection_a, std::unique_ptr<nano::bulk_pull> request_a) :
+nano::bulk_pull_server::bulk_pull_server (std::shared_ptr<nano::node> const & node_a, std::shared_ptr<nano::transport::tcp_server> const & connection_a, std::unique_ptr<nano::bulk_pull> request_a) :
+	node_weak (node_a),
 	connection (connection_a),
 	request (std::move (request_a))
 {
@@ -593,7 +594,7 @@ nano::bulk_pull_server::bulk_pull_server (std::shared_ptr<nano::transport::tcp_s
  */
 void nano::bulk_pull_account_server::set_params ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -644,7 +645,7 @@ void nano::bulk_pull_account_server::send_frontier ()
 	 * so handle the invalid_request case by terminating the
 	 * request without any response
 	 */
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -680,7 +681,7 @@ void nano::bulk_pull_account_server::send_next_block ()
 	 * Get the next item from the queue, it is a tuple with the key (which
 	 * contains the account and hash) and data (which contains the amount)
 	 */
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -740,7 +741,7 @@ void nano::bulk_pull_account_server::send_next_block ()
 
 std::pair<std::unique_ptr<nano::pending_key>, std::unique_ptr<nano::pending_info>> nano::bulk_pull_account_server::get_next ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return { nullptr, nullptr };
@@ -810,7 +811,7 @@ std::pair<std::unique_ptr<nano::pending_key>, std::unique_ptr<nano::pending_info
 
 void nano::bulk_pull_account_server::sent_action (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -837,7 +838,7 @@ void nano::bulk_pull_account_server::send_finished ()
 	 * "pending_include_address" flag is not set) or 640-bits of zeros
 	 * (if that flag is set).
 	 */
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -870,7 +871,7 @@ void nano::bulk_pull_account_server::send_finished ()
 
 void nano::bulk_pull_account_server::complete (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -901,7 +902,8 @@ void nano::bulk_pull_account_server::complete (boost::system::error_code const &
 	}
 }
 
-nano::bulk_pull_account_server::bulk_pull_account_server (std::shared_ptr<nano::transport::tcp_server> const & connection_a, std::unique_ptr<nano::bulk_pull_account> request_a) :
+nano::bulk_pull_account_server::bulk_pull_account_server (std::shared_ptr<nano::node> const & node_a, std::shared_ptr<nano::transport::tcp_server> const & connection_a, std::unique_ptr<nano::bulk_pull_account> request_a) :
+	node_weak (node_a),
 	connection (connection_a),
 	request (std::move (request_a)),
 	current_key (0, 0)

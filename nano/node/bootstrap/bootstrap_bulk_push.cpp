@@ -124,7 +124,8 @@ void nano::bulk_push_client::push_block (nano::block const & block_a)
 	});
 }
 
-nano::bulk_push_server::bulk_push_server (std::shared_ptr<nano::transport::tcp_server> const & connection_a) :
+nano::bulk_push_server::bulk_push_server (std::shared_ptr<nano::node> const & node_a, std::shared_ptr<nano::transport::tcp_server> const & connection_a) :
+	node_weak (node_a),
 	receive_buffer (std::make_shared<std::vector<uint8_t>> ()),
 	connection (connection_a)
 {
@@ -133,7 +134,7 @@ nano::bulk_push_server::bulk_push_server (std::shared_ptr<nano::transport::tcp_s
 
 void nano::bulk_push_server::throttled_receive ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -146,7 +147,7 @@ void nano::bulk_push_server::throttled_receive ()
 	{
 		auto this_l (shared_from_this ());
 		node->workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (1), [this_l] () {
-			if (!this_l->connection->stopped)
+			if (this_l->connection->alive ())
 			{
 				this_l->throttled_receive ();
 			}
@@ -156,7 +157,7 @@ void nano::bulk_push_server::throttled_receive ()
 
 void nano::bulk_push_server::receive ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -169,7 +170,7 @@ void nano::bulk_push_server::receive ()
 	{
 		auto this_l (shared_from_this ());
 		connection->socket->async_read (receive_buffer, 1, [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
-			auto node = this_l->connection->node.lock ();
+			auto node = this_l->node_weak.lock ();
 			if (!node)
 			{
 				return;
@@ -188,7 +189,7 @@ void nano::bulk_push_server::receive ()
 
 void nano::bulk_push_server::received_type ()
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;
@@ -252,7 +253,7 @@ void nano::bulk_push_server::received_type ()
 
 void nano::bulk_push_server::received_block (boost::system::error_code const & ec, std::size_t size_a, nano::block_type type_a)
 {
-	auto node = connection->node.lock ();
+	auto node = node_weak.lock ();
 	if (!node)
 	{
 		return;

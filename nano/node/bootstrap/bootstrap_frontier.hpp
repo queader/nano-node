@@ -8,6 +8,7 @@
 
 namespace nano
 {
+class node;
 class bootstrap_attempt_legacy;
 class bootstrap_client;
 namespace transport
@@ -28,6 +29,7 @@ public:
 	bool bulk_push_available ();
 	void unsynced (nano::block_hash const &, nano::block_hash const &);
 	void next ();
+	std::weak_ptr<nano::node> node_weak;
 	std::shared_ptr<nano::bootstrap_client> connection;
 	std::shared_ptr<nano::bootstrap_attempt_legacy> attempt;
 	nano::account current;
@@ -52,13 +54,14 @@ class frontier_req;
 class frontier_req_server final : public std::enable_shared_from_this<nano::frontier_req_server>
 {
 public:
-	frontier_req_server (std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::frontier_req>);
+	frontier_req_server (std::shared_ptr<nano::node> const &, std::shared_ptr<nano::transport::tcp_server> const &, std::unique_ptr<nano::frontier_req>);
 	void send_next ();
 	void sent_action (boost::system::error_code const &, std::size_t);
 	void send_finished ();
 	void no_block_sent (boost::system::error_code const &, std::size_t);
 	void next ();
 	bool send_confirmed ();
+	std::weak_ptr<nano::node> node_weak;
 	std::shared_ptr<nano::transport::tcp_server> connection;
 	nano::account current;
 	nano::block_hash frontier;
