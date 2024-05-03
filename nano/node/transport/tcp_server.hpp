@@ -2,7 +2,7 @@
 
 #include <nano/node/common.hpp>
 #include <nano/node/messages.hpp>
-#include <nano/node/transport/socket.hpp>
+#include <nano/node/transport/tcp_socket.hpp>
 
 #include <atomic>
 
@@ -19,7 +19,7 @@ class tcp_server;
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
-	tcp_server (std::shared_ptr<nano::transport::socket>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
+	tcp_server (std::shared_ptr<nano::transport::tcp_socket>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
 	~tcp_server ();
 
 	void start ();
@@ -33,7 +33,7 @@ public:
 	std::optional<nano::keepalive> pop_last_keepalive ();
 
 	// FIXME: This needs to be public beacuse of legacy bootstrap code
-	std::shared_ptr<nano::transport::socket> const socket;
+	std::shared_ptr<nano::transport::tcp_socket> const socket;
 
 private:
 	enum class process_result

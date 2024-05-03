@@ -13,7 +13,7 @@
  * tcp_server
  */
 
-nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
+nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::tcp_socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
 	socket{ socket_a },
 	node_shared{ node_a },
 	node{ *node_shared },
