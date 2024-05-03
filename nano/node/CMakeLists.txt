@@ -159,8 +159,6 @@ add_library(
   transport/inproc.cpp
   transport/message_deserializer.hpp
   transport/message_deserializer.cpp
-  transport/socket.hpp
-  transport/socket.cpp
   transport/tcp.hpp
   transport/tcp.cpp
   transport/tcp_channel.hpp
@@ -171,6 +169,8 @@ add_library(
   transport/tcp_listener.cpp
   transport/tcp_server.hpp
   transport/tcp_server.cpp
+  transport/tcp_socket.hpp
+  transport/tcp_socket.cpp
   transport/transport.hpp
   transport/transport.cpp
   unchecked_map.cpp
