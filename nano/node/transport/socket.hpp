@@ -140,11 +140,9 @@ public:
 		return !is_closed ();
 	}
 
-private:
-	socket_queue send_queue;
-
 protected:
-	std::weak_ptr<nano::node> node_w;
+	std::shared_ptr<nano::node> node_shared;
+	nano::node & node;
 
 	boost::asio::strand<boost::asio::io_context::executor_type> strand;
 	boost::asio::ip::tcp::socket tcp_socket;
@@ -198,8 +196,8 @@ private:
 	nano::transport::socket_type type_m{ socket_type::undefined };
 	nano::transport::socket_endpoint endpoint_type_m;
 
-public:
 	std::size_t const max_queue_size;
+	socket_queue send_queue;
 
 public: // Logging
 	virtual void operator() (nano::object_stream &) const;
