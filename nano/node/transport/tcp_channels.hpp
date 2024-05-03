@@ -23,11 +23,11 @@ namespace nano::transport
 {
 class tcp_server;
 class tcp_channels;
-class channel_tcp;
+class tcp_channel;
 
 class tcp_channels final
 {
-	friend class channel_tcp;
+	friend class tcp_channel;
 
 public:
 	explicit tcp_channels (nano::node &);
@@ -36,13 +36,13 @@ public:
 	void start ();
 	void stop ();
 
-	std::shared_ptr<nano::transport::channel_tcp> create (std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
+	std::shared_ptr<nano::transport::tcp_channel> create (std::shared_ptr<nano::transport::socket> const &, std::shared_ptr<nano::transport::tcp_server> const &, nano::account const & node_id);
 	void erase (nano::tcp_endpoint const &);
 	std::size_t size () const;
-	std::shared_ptr<nano::transport::channel_tcp> find_channel (nano::tcp_endpoint const &) const;
+	std::shared_ptr<nano::transport::tcp_channel> find_channel (nano::tcp_endpoint const &) const;
 	void random_fill (std::array<nano::endpoint, 8> &) const;
 	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
-	std::shared_ptr<nano::transport::channel_tcp> find_node_id (nano::account const &);
+	std::shared_ptr<nano::transport::tcp_channel> find_node_id (nano::account const &);
 	// Get the next peer for attempting a tcp connection
 	nano::tcp_endpoint bootstrap_peer ();
 	bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
@@ -53,7 +53,7 @@ public:
 	std::unique_ptr<container_info_component> collect_container_info (std::string const &);
 	void purge (std::chrono::steady_clock::time_point cutoff_deadline);
 	void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
-	void modify (std::shared_ptr<nano::transport::channel_tcp> const &, std::function<void (std::shared_ptr<nano::transport::channel_tcp> const &)>);
+	void modify (std::shared_ptr<nano::transport::tcp_channel> const &, std::function<void (std::shared_ptr<nano::transport::tcp_channel> const &)>);
 	void keepalive ();
 	std::optional<nano::keepalive> sample_keepalive ();
 
@@ -71,12 +71,12 @@ private:
 	class channel_entry final
 	{
 	public:
-		std::shared_ptr<nano::transport::channel_tcp> channel;
+		std::shared_ptr<nano::transport::tcp_channel> channel;
 		std::shared_ptr<nano::transport::socket> socket;
 		std::shared_ptr<nano::transport::tcp_server> response_server;
 
 	public:
-		channel_entry (std::shared_ptr<nano::transport::channel_tcp> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
+		channel_entry (std::shared_ptr<nano::transport::tcp_channel> channel_a, std::shared_ptr<nano::transport::socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
 			channel (std::move (channel_a)), socket (std::move (socket_a)), response_server (std::move (server_a))
 		{
 		}

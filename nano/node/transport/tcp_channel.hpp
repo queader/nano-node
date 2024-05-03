@@ -20,13 +20,13 @@ namespace nano::transport
 {
 class tcp_server;
 
-class channel_tcp : public nano::transport::channel, public std::enable_shared_from_this<channel_tcp>
+class tcp_channel : public nano::transport::channel, public std::enable_shared_from_this<tcp_channel>
 {
 	friend class tcp_channels;
 
 public:
-	channel_tcp (nano::node &, std::weak_ptr<nano::transport::socket>);
-	~channel_tcp () override;
+	tcp_channel (nano::node &, std::weak_ptr<nano::transport::socket>);
+	~tcp_channel () override;
 
 	void update_endpoints ();
 
