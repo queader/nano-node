@@ -66,7 +66,8 @@ private:
 	void send_handshake_response (nano::node_id_handshake::query_payload const & query, bool v2);
 
 private:
-	std::weak_ptr<nano::node> const node;
+	std::shared_ptr<nano::node> node_shared;
+	nano::node & node;
 
 	bool const allow_bootstrap;
 
@@ -130,7 +131,8 @@ private: // Visitors
 	public:
 		bool processed{ false };
 
-		explicit bootstrap_message_visitor (std::shared_ptr<tcp_server>);
+		explicit bootstrap_message_visitor (tcp_server & server) :
+			server{ server } {};
 
 		void bulk_pull (nano::bulk_pull const &) override;
 		void bulk_pull_account (nano::bulk_pull_account const &) override;
@@ -138,7 +140,7 @@ private: // Visitors
 		void frontier_req (nano::frontier_req const &) override;
 
 	private:
-		std::shared_ptr<tcp_server> server;
+		tcp_server & server;
 	};
 
 	friend class handshake_message_visitor;
