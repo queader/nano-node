@@ -69,6 +69,11 @@ void nano::transport::tcp_server::stop ()
 	}
 }
 
+bool nano::transport::tcp_server::alive () const
+{
+	return !stopped && socket->alive ();
+}
+
 void nano::transport::tcp_server::receive_message ()
 {
 	if (stopped)
@@ -517,10 +522,10 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull (const na
 		return;
 	}
 
-	node->bootstrap_workers.push_task ([server = server, message = message] () {
+	node->bootstrap_workers.push_task ([node, server = server, message = message] () {
 		// TODO: Add completion callback to bulk pull server
 		// TODO: There should be no need to re-copy message as unique pointer, refactor those bulk/frontier pull/push servers
-		auto bulk_pull_server = std::make_shared<nano::bulk_pull_server> (server, std::make_unique<nano::bulk_pull> (message));
+		auto bulk_pull_server = std::make_shared<nano::bulk_pull_server> (node, server, std::make_unique<nano::bulk_pull> (message));
 		bulk_pull_server->send_next ();
 	});
 
@@ -539,10 +544,10 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull_account (
 		return;
 	}
 
-	node->bootstrap_workers.push_task ([server = server, message = message] () {
+	node->bootstrap_workers.push_task ([node, server = server, message = message] () {
 		// TODO: Add completion callback to bulk pull server
 		// TODO: There should be no need to re-copy message as unique pointer, refactor those bulk/frontier pull/push servers
-		auto bulk_pull_account_server = std::make_shared<nano::bulk_pull_account_server> (server, std::make_unique<nano::bulk_pull_account> (message));
+		auto bulk_pull_account_server = std::make_shared<nano::bulk_pull_account_server> (node, server, std::make_unique<nano::bulk_pull_account> (message));
 		bulk_pull_account_server->send_frontier ();
 	});
 
@@ -556,9 +561,9 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_push (const na
 	{
 		return;
 	}
-	node->bootstrap_workers.push_task ([server = server] () {
+	node->bootstrap_workers.push_task ([node, server = server] () {
 		// TODO: Add completion callback to bulk pull server
-		auto bulk_push_server = std::make_shared<nano::bulk_push_server> (server);
+		auto bulk_push_server = std::make_shared<nano::bulk_push_server> (node, server);
 		bulk_push_server->throttled_receive ();
 	});
 
@@ -573,9 +578,9 @@ void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const
 		return;
 	}
 
-	node->bootstrap_workers.push_task ([server = server, message = message] () {
+	node->bootstrap_workers.push_task ([node, server = server, message = message] () {
 		// TODO: There should be no need to re-copy message as unique pointer, refactor those bulk/frontier pull/push servers
-		auto response = std::make_shared<nano::frontier_req_server> (server, std::make_unique<nano::frontier_req> (message));
+		auto response = std::make_shared<nano::frontier_req_server> (node, server, std::make_unique<nano::frontier_req> (message));
 		response->send_next ();
 	});
 
