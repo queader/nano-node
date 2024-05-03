@@ -1,7 +1,7 @@
 #include <nano/boost/asio/bind_executor.hpp>
 #include <nano/boost/asio/read.hpp>
 #include <nano/node/node.hpp>
-#include <nano/node/transport/socket.hpp>
+#include <nano/node/transport/tcp_socket.hpp>
 #include <nano/node/transport/transport.hpp>
 
 #include <boost/format.hpp>
