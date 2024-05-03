@@ -222,7 +222,7 @@ TEST (request_aggregator, two_endpoints)
 	ASSERT_EQ (nano::block_status::progress, node1.ledger.process (node1.ledger.tx_begin_write (), send1));
 	auto dummy_channel1 = std::make_shared<nano::transport::inproc::channel> (node1, node1);
 	auto dummy_channel2 = std::make_shared<nano::transport::inproc::channel> (node2, node2);
-	ASSERT_NE (nano::transport::map_endpoint_to_v6 (dummy_channel1->get_endpoint ()), nano::transport::map_endpoint_to_v6 (dummy_channel2->get_endpoint ()));
+	ASSERT_NE (nano::transport::map_endpoint_to_v6 (dummy_channel1->get_remote_endpoint ()), nano::transport::map_endpoint_to_v6 (dummy_channel2->get_remote_endpoint ()));
 
 	// For the first request, aggregator should generate a new vote
 	node1.aggregator.request (request, dummy_channel1);

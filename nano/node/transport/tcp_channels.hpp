@@ -90,7 +90,7 @@ private:
 
 		nano::tcp_endpoint endpoint () const
 		{
-			return channel->get_tcp_endpoint ();
+			return channel->get_remote_endpoint ();
 		}
 		boost::asio::ip::address ip_address () const
 		{
