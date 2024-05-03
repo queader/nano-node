@@ -119,7 +119,9 @@ public:
 	void set_peering_endpoint (nano::endpoint endpoint);
 
 protected:
+	std::shared_ptr<nano::node> node_shared;
 	nano::node & node;
+
 	mutable nano::mutex mutex;
 
 private:

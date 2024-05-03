@@ -9,7 +9,8 @@
 #include <boost/format.hpp>
 
 nano::transport::channel::channel (nano::node & node_a) :
-	node{ node_a }
+	node_shared{ node_a.shared () },
+	node{ *node_shared }
 {
 	set_network_version (node_a.network_params.network.protocol_version);
 }
