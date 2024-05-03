@@ -51,7 +51,6 @@ public:
 	std::unique_ptr<container_info_component> collect_container_info (std::string const &);
 	void purge (std::chrono::steady_clock::time_point cutoff_deadline);
 	void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
-	void modify (std::shared_ptr<nano::transport::tcp_channel> const &, std::function<void (std::shared_ptr<nano::transport::tcp_channel> const &)>);
 	void keepalive ();
 	std::optional<nano::keepalive> sample_keepalive ();
 
