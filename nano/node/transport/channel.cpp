@@ -14,39 +14,10 @@ nano::transport::channel::channel (nano::node & node_a) :
 	set_network_version (node_a.network_params.network.protocol_version);
 }
 
-void nano::transport::channel::send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::transport::buffer_drop_policy drop_policy_a, nano::transport::traffic_type traffic_type)
+void nano::transport::channel::send (nano::message const & message, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy drop_policy, nano::transport::traffic_type traffic_type)
 {
-	auto node_l = node_w.lock ();
-	if (!node_l)
-	{
-		return;
-	}
-
-	auto buffer = message_a.to_shared_const_buffer ();
-
-	bool is_droppable_by_limiter = (drop_policy_a == nano::transport::buffer_drop_policy::limiter);
-	bool should_pass = node_l->outbound_limiter.should_pass (buffer.size (), to_bandwidth_limit_type (traffic_type));
-	bool pass = !is_droppable_by_limiter || should_pass;
-
-	node_l->stats.inc (pass ? nano::stat::type::message : nano::stat::type::drop, to_stat_detail (message_a.type ()), nano::stat::dir::out, /* aggregate all */ true);
-	node_l->logger.trace (nano::log::type::channel_sent, to_log_detail (message_a.type ()),
-	nano::log::arg{ "message", message_a },
-	nano::log::arg{ "channel", *this },
-	nano::log::arg{ "dropped", !pass });
-
-	if (pass)
-	{
-		send_buffer (buffer, callback_a, drop_policy_a, traffic_type);
-	}
-	else
-	{
-		if (callback_a)
-		{
-			node_l->background ([callback_a] () {
-				callback_a (boost::system::errc::make_error_code (boost::system::errc::not_supported), 0);
-			});
-		}
-	}
+	auto buffer = message.to_shared_const_buffer ();
+	send_buffer (buffer, callback, drop_policy, traffic_type);
 }
 
 void nano::transport::channel::set_peering_endpoint (nano::endpoint endpoint)
