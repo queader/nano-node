@@ -23,17 +23,23 @@ enum class transport_type : uint8_t
 class channel
 {
 public:
+	using callback_t = std::function<void (boost::system::error_code const &, std::size_t)>;
+
+public:
 	explicit channel (nano::node &);
 	virtual ~channel () = default;
 
-	void send (nano::message & message_a,
-	std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a = nullptr,
-	nano::transport::buffer_drop_policy policy_a = nano::transport::buffer_drop_policy::limiter,
+	/// @returns true if the message was sent (or queued to be sent), false if it was immediately dropped
+	bool send (nano::message const &,
+	callback_t const & callback = nullptr,
+	nano::transport::buffer_drop_policy policy = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic);
 
-	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
-	virtual void send_buffer (nano::shared_const_buffer const &,
-	std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr,
+	///	Implements the actual send operation
+	/// @returns true if the message was sent (or queued to be sent), false if it was immediately dropped
+	// TODO: Make this private, do not allow external direct calls
+	virtual bool send_buffer (nano::shared_const_buffer const &,
+	callback_t const & callback = nullptr,
 	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic)
 	= 0;
