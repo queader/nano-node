@@ -63,7 +63,7 @@ public:
 		socket->close ();
 	}
 
-public:
+private:
 	std::shared_ptr<nano::transport::tcp_socket> socket;
 
 public: // Logging

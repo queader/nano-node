@@ -129,13 +129,9 @@ TEST (network, last_contacted)
 	auto channel0 = node0->network.tcp_channels.find_node_id (node1->node_id.pub);
 	ASSERT_NE (nullptr, channel0);
 
-	{
-		// check that the endpoints are part of the same connection
-		std::shared_ptr<nano::transport::tcp_socket> sock0 = channel0->socket;
-		std::shared_ptr<nano::transport::tcp_socket> sock1 = channel1->socket;
-		ASSERT_EQ (sock0->local_endpoint (), sock1->remote_endpoint ());
-		ASSERT_EQ (sock1->local_endpoint (), sock0->remote_endpoint ());
-	}
+	// check that the endpoints are part of the same connection
+	ASSERT_EQ (channel0->get_local_endpoint (), channel1->get_remote_endpoint ());
+	ASSERT_EQ (channel1->get_local_endpoint (), channel0->get_remote_endpoint ());
 
 	// capture the state before and ensure the clock ticks at least once
 	auto timestamp_before_keepalive = channel0->get_last_packet_received ();
