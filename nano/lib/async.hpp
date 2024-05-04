@@ -21,6 +21,12 @@ inline asio::awaitable<void> sleep_for (auto duration)
 	debug_assert (!ec || ec == asio::error::operation_aborted);
 }
 
+inline asio::awaitable<bool> cancelled ()
+{
+	auto state = co_await asio::this_coro::cancellation_state;
+	co_return state.cancelled () == asio::cancellation_type::none;
+}
+
 /**
  * A cancellation signal that can be emitted from any thread.
  * It follows the same semantics as asio::cancellation_signal.
@@ -148,5 +154,34 @@ public:
 private:
 	std::future<value_type> future;
 	nano::async::cancellation cancellation;
+};
+
+class condition
+{
+public:
+	explicit condition (nano::async::strand & strand) :
+		strand{ strand },
+		timer{ std::make_shared<asio::steady_timer> (strand) }
+	{
+	}
+
+	void notify ()
+	{
+		asio::dispatch (strand, [timer_s = timer] () {
+			timer_s->cancel ();
+		});
+	}
+
+	asio::awaitable<void> wait_for (auto duration)
+	{
+		debug_assert (strand.running_in_this_thread ());
+		timer->expires_after (duration);
+		co_await timer->async_wait (asio::use_awaitable);
+	}
+
+	nano::async::strand & strand;
+
+private:
+	std::shared_ptr<asio::steady_timer> timer;
 };
 }
