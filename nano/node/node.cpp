@@ -705,7 +705,7 @@ void nano::node::stop ()
 	epoch_upgrader.stop ();
 	local_block_broadcaster.stop ();
 	message_processor.stop ();
-	network.stop (); // Stop network last to avoid killing in-use sockets
+	network.stop ();
 	monitor.stop ();
 
 	bootstrap_workers.stop ();
