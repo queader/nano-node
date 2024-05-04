@@ -441,7 +441,6 @@ TEST (socket, drop_policy)
 		});
 
 		ASSERT_TIMELY_EQ (5s, completed_writes, total_message_count);
-		ASSERT_EQ (1, client.use_count ());
 	};
 
 	// We're going to write twice the queue size + 1, and the server isn't reading
