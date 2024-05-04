@@ -16,11 +16,16 @@ nano::transport::fake::channel::channel (nano::node & node) :
  */
 void nano::transport::fake::channel::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::transport::buffer_drop_policy drop_policy_a, nano::transport::traffic_type traffic_type)
 {
-	// auto bytes = buffer_a.to_bytes ();
-	auto size = buffer_a.size ();
+	auto node_l = node_w.lock ();
+	if (!node_l)
+	{
+		return;
+	}
+
 	if (callback_a)
 	{
-		node.background ([callback_a, size] () {
+		auto size = buffer_a.size ();
+		node_l->background ([callback_a, size] () {
 			callback_a (boost::system::errc::make_error_code (boost::system::errc::success), size);
 		});
 	}

@@ -20,6 +20,12 @@ nano::transport::inproc::channel::channel (nano::node & node, nano::node & desti
  */
 void nano::transport::inproc::channel::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::transport::buffer_drop_policy drop_policy_a, nano::transport::traffic_type traffic_type)
 {
+	auto node_l = node_w.lock ();
+	if (!node_l)
+	{
+		return;
+	}
+
 	std::size_t offset{ 0 };
 	auto const buffer_read_fn = [&offset, buffer_v = buffer_a.to_bytes ()] (std::shared_ptr<std::vector<uint8_t>> const & data_a, std::size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a) {
 		debug_assert (buffer_v.size () >= (offset + size_a));
@@ -30,27 +36,28 @@ void nano::transport::inproc::channel::send_buffer (nano::shared_const_buffer co
 		callback_a (boost::system::errc::make_error_code (boost::system::errc::success), size_a);
 	};
 
-	auto const message_deserializer = std::make_shared<nano::transport::message_deserializer> (node.network_params.network, node.block_uniquer, node.vote_uniquer, buffer_read_fn);
+	auto const message_deserializer = std::make_shared<nano::transport::message_deserializer> (node_l->network_params.network, node_l->block_uniquer, node_l->vote_uniquer, buffer_read_fn);
 	message_deserializer->read (
-	[this] (boost::system::error_code ec_a, std::unique_ptr<nano::message> message_a) {
+	[this, node_l] (boost::system::error_code ec_a, std::unique_ptr<nano::message> message_a) {
 		if (ec_a || !message_a)
 		{
 			return;
 		}
 
+		// TODO: Allocate this once
 		// we create a temporary channel for the reply path, in case the receiver of the message wants to reply
-		auto remote_channel = std::make_shared<nano::transport::inproc::channel> (destination, node);
+		auto remote_channel = std::make_shared<nano::transport::inproc::channel> (destination, *node_l);
 
 		// process message
 		{
-			node.stats.inc (nano::stat::type::message, to_stat_detail (message_a->type ()), nano::stat::dir::in);
+			node_l->stats.inc (nano::stat::type::message, to_stat_detail (message_a->type ()), nano::stat::dir::in);
 			destination.network.inbound (*message_a, remote_channel);
 		}
 	});
 
 	if (callback_a)
 	{
-		node.background ([callback_l = std::move (callback_a), buffer_size = buffer_a.size ()] () {
+		node_l->background ([callback_l = std::move (callback_a), buffer_size = buffer_a.size ()] () {
 			callback_l (boost::system::errc::make_error_code (boost::system::errc::success), buffer_size);
 		});
 	}

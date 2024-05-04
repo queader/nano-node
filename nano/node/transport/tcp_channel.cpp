@@ -23,10 +23,16 @@ nano::transport::tcp_channel::~tcp_channel ()
 
 void nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::transport::buffer_drop_policy policy_a, nano::transport::traffic_type traffic_type)
 {
+	auto node_l = node_w.lock ();
+	if (!node_l)
+	{
+		return;
+	}
+
 	if (!socket->max (traffic_type) || (policy_a == nano::transport::buffer_drop_policy::no_socket_drop && !socket->full (traffic_type)))
 	{
 		socket->async_write (
-		buffer_a, [this_s = shared_from_this (), endpoint_a = socket->remote_endpoint (), node = std::weak_ptr<nano::node>{ node.shared () }, callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
+		buffer_a, [this_s = shared_from_this (), endpoint_a = socket->remote_endpoint (), node = node_w, callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
 			if (auto node_l = node.lock ())
 			{
 				if (!ec)
@@ -49,11 +55,11 @@ void nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 	{
 		if (policy_a == nano::transport::buffer_drop_policy::no_socket_drop)
 		{
-			node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_no_socket_drop, nano::stat::dir::out);
+			node_l->stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_no_socket_drop, nano::stat::dir::out);
 		}
 		else
 		{
-			node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out);
+			node_l->stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out);
 		}
 		if (callback_a)
 		{
