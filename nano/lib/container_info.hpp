@@ -10,7 +10,7 @@ namespace nano
  * It makes use of the composite design pattern to collect information
  * from sequence containers and sequence containers inside member variables.
  */
-struct container_info
+struct container_info_entry
 {
 	std::string name;
 	size_t count;
@@ -27,7 +27,7 @@ public:
 class container_info_composite : public container_info_component
 {
 public:
-	container_info_composite (std::string const & name);
+	container_info_composite (std::string name);
 	bool is_composite () const override;
 	void add_component (std::unique_ptr<container_info_component> child);
 	std::vector<std::unique_ptr<container_info_component>> const & get_children () const;
@@ -41,12 +41,12 @@ private:
 class container_info_leaf : public container_info_component
 {
 public:
-	container_info_leaf (container_info const & info);
+	container_info_leaf (container_info_entry);
 	bool is_composite () const override;
-	container_info const & get_info () const;
+	container_info_entry const & get_info () const;
 
 private:
-	container_info info;
+	container_info_entry info;
 };
 }
 
@@ -137,7 +137,7 @@ public:
 		// Add entries as leaf components
 		for (const auto & entry : entries_m)
 		{
-			nano::container_info info{ entry.name, entry.size, entry.sizeof_element };
+			nano::container_info_entry info{ entry.name, entry.size, entry.sizeof_element };
 			composite->add_component (std::make_unique<nano::container_info_leaf> (info));
 		}
 
