@@ -20,11 +20,12 @@ public:
 	thread_runner (std::shared_ptr<asio::io_context>, unsigned num_threads = nano::hardware_concurrency (), nano::thread_role::name thread_role = nano::thread_role::name::io);
 	~thread_runner ();
 
-	/** Tells the IO context to stop processing events.*/
-	void stop_event_processing ();
-
 	/** Wait for IO threads to complete */
 	void join ();
+
+	/** Tells the IO context to stop processing events.
+	 *  NOTE: This shouldn't really be used, node should stop gracefully by cancelling any outstanding async operations and calling join() */
+	void abort ();
 
 private:
 	void start ();
