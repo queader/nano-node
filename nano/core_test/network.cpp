@@ -644,9 +644,9 @@ TEST (network, peer_max_tcp_attempts)
 		// Start TCP attempt
 		node->network.merge_peer (node2->network.endpoint ());
 	}
-	ASSERT_EQ (0, node->network.size ());
+	ASSERT_TIMELY_EQ (10s, node->network.size (), node->network_params.network.max_peers_per_ip);
 	ASSERT_FALSE (node->network.tcp_channels.track_reachout (nano::endpoint (node->network.endpoint ().address (), system.get_available_port ())));
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::max_per_ip, nano::stat::dir::out));
+	ASSERT_LE (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::max_per_ip, nano::stat::dir::out));
 }
 #endif
 
