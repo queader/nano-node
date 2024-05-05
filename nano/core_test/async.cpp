@@ -21,6 +21,11 @@ public:
 	nano::logger logger;
 	nano::thread_runner runner{ io_ctx, logger, 1 };
 	nano::async::strand strand{ io_ctx->get_executor () };
+
+	test_context ()
+	{
+		runner.start ();
+	}
 };
 }
 
