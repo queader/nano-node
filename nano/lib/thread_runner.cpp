@@ -1,8 +1,6 @@
 #include <nano/lib/thread_runner.hpp>
 #include <nano/lib/timer.hpp>
 
-#include <boost/format.hpp>
-
 #include <iostream>
 #include <thread>
 
@@ -13,8 +11,8 @@
 nano::thread_runner::thread_runner (std::shared_ptr<asio::io_context> io_ctx_a, unsigned num_threads_a, const nano::thread_role::name thread_role_a) :
 	num_threads{ num_threads_a },
 	role{ thread_role_a },
-	io_ctx{ io_ctx_a },
-	io_guard{ asio::make_work_guard (*io_ctx_a) }
+	io_ctx{ std::move (io_ctx_a) },
+	io_guard{ asio::make_work_guard (*io_ctx) }
 {
 	debug_assert (io_ctx != nullptr);
 }
@@ -30,7 +28,7 @@ void nano::thread_runner::start ()
 
 	for (auto i = 0; i < num_threads; ++i)
 	{
-		threads.emplace_back (nano::thread_attributes::get_default (), [this, i] () {
+		threads.emplace_back (nano::thread_attributes::get_default (), [this] () {
 			nano::thread_role::set (role);
 			try
 			{
