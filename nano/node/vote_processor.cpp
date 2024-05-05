@@ -212,7 +212,7 @@ std::unique_ptr<nano::container_info_component> nano::vote_processor::collect_co
 		votes_count = queue.size ();
 	}
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "votes", votes_count, sizeof (decltype (queue)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "votes", votes_count, sizeof (decltype (queue)::value_type) }));
 	return composite;
 }
 

@@ -648,12 +648,12 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 	nano::lock_guard<nano::mutex> guard{ active_transactions.mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "roots", active_transactions.roots.size (), sizeof (decltype (active_transactions.roots)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks", active_transactions.blocks.size (), sizeof (decltype (active_transactions.blocks)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", active_transactions.election_winner_details_size (), sizeof (decltype (active_transactions.election_winner_details)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "normal", static_cast<std::size_t> (active_transactions.count_by_behavior[nano::election_behavior::normal]), 0 }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "hinted", static_cast<std::size_t> (active_transactions.count_by_behavior[nano::election_behavior::hinted]), 0 }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "optimistic", static_cast<std::size_t> (active_transactions.count_by_behavior[nano::election_behavior::optimistic]), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "roots", active_transactions.roots.size (), sizeof (decltype (active_transactions.roots)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "blocks", active_transactions.blocks.size (), sizeof (decltype (active_transactions.blocks)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "election_winner_details", active_transactions.election_winner_details_size (), sizeof (decltype (active_transactions.election_winner_details)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "normal", static_cast<std::size_t> (active_transactions.count_by_behavior[nano::election_behavior::normal]), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "hinted", static_cast<std::size_t> (active_transactions.count_by_behavior[nano::election_behavior::hinted]), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "optimistic", static_cast<std::size_t> (active_transactions.count_by_behavior[nano::election_behavior::optimistic]), 0 }));
 
 	composite->add_component (active_transactions.recently_confirmed.collect_container_info ("recently_confirmed"));
 	composite->add_component (active_transactions.recently_cemented.collect_container_info ("recently_cemented"));
@@ -721,7 +721,7 @@ std::unique_ptr<nano::container_info_component> nano::recently_confirmed_cache::
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "confirmed", confirmed.size (), sizeof (decltype (confirmed)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "confirmed", confirmed.size (), sizeof (decltype (confirmed)::value_type) }));
 	return composite;
 }
 
@@ -761,6 +761,6 @@ std::unique_ptr<nano::container_info_component> nano::recently_cemented_cache::c
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "cemented", cemented.size (), sizeof (decltype (cemented)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "cemented", cemented.size (), sizeof (decltype (cemented)::value_type) }));
 	return composite;
 }

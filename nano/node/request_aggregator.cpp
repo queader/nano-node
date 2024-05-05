@@ -316,6 +316,6 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (na
 	auto pools_count = aggregator.size ();
 	auto sizeof_element = sizeof (decltype (aggregator.requests)::value_type);
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pools", pools_count, sizeof_element }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "pools", pools_count, sizeof_element }));
 	return composite;
 }

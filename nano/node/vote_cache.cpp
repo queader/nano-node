@@ -297,8 +297,8 @@ std::unique_ptr<nano::container_info_component> nano::vote_cache::collect_contai
 	};
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "cache", cache.size (), sizeof (ordered_cache::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "unique", count_unique_votes (), sizeof (nano::vote) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "cache", cache.size (), sizeof (ordered_cache::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "unique", count_unique_votes (), sizeof (nano::vote) }));
 	return composite;
 }
 

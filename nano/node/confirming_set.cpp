@@ -114,7 +114,7 @@ std::unique_ptr<nano::container_info_component> nano::confirming_set::collect_co
 	std::lock_guard guard{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "set", set.size (), sizeof (typename decltype (set)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "processing", processing.size (), sizeof (typename decltype (processing)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "set", set.size (), sizeof (typename decltype (set)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "processing", processing.size (), sizeof (typename decltype (processing)::value_type) }));
 	return composite;
 }

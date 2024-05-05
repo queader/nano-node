@@ -144,7 +144,7 @@ std::unique_ptr<nano::container_info_component> nano::scheduler::buckets::collec
 	for (auto i = 0; i < buckets_m.size (); ++i)
 	{
 		auto const & bucket = buckets_m[i];
-		composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (i), bucket->size (), 0 }));
+		composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ std::to_string (i), bucket->size (), 0 }));
 	}
 	return composite;
 }
