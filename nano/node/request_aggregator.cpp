@@ -296,7 +296,7 @@ std::unique_ptr<nano::container_info_component> nano::request_aggregator::collec
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (queue.collect_container_info ("queue"));
+	composite->add_component (queue.container_info ().to_legacy ("queue"));
 	return composite;
 }
 

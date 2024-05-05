@@ -465,7 +465,7 @@ std::unique_ptr<nano::container_info_component> nano::block_processor::collect_c
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "blocks", queue.size (), 0 }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "forced", queue.size ({ nano::block_source::forced }), 0 }));
-	composite->add_component (queue.collect_container_info ("queue"));
+	composite->add_component (queue.container_info ().to_legacy ("queue"));
 	return composite;
 }
 
