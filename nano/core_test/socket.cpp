@@ -27,7 +27,7 @@ TEST (socket, max_connections)
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
 
-	nano::thread_runner runner{ node->io_ctx_shared, 1 };
+	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 	runner.start ();
 
 	auto server_port = system.get_available_port ();
@@ -136,7 +136,7 @@ TEST (socket, max_connections_per_ip)
 	auto node = inactivenode.node;
 	ASSERT_FALSE (node->flags.disable_max_peers_per_ip);
 
-	nano::thread_runner runner{ node->io_ctx_shared, 1 };
+	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 	runner.start ();
 
 	auto server_port = system.get_available_port ();
@@ -254,7 +254,7 @@ TEST (socket, max_connections_per_subnetwork)
 	ASSERT_TRUE (node->flags.disable_max_peers_per_ip);
 	ASSERT_FALSE (node->flags.disable_max_peers_per_subnetwork);
 
-	nano::thread_runner runner{ node->io_ctx_shared, 1 };
+	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 	runner.start ();
 
 	auto server_port = system.get_available_port ();
@@ -314,7 +314,7 @@ TEST (socket, disabled_max_peers_per_ip)
 
 	ASSERT_TRUE (node->flags.disable_max_peers_per_ip);
 
-	nano::thread_runner runner{ node->io_ctx_shared, 1 };
+	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 	runner.start ();
 
 	auto server_port = system.get_available_port ();
@@ -409,7 +409,7 @@ TEST (socket, drop_policy)
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
 
-	nano::thread_runner runner{ node->io_ctx_shared, 1 };
+	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 	runner.start ();
 
 	std::vector<std::shared_ptr<nano::transport::socket>> connections;
@@ -478,7 +478,7 @@ TEST (socket, concurrent_writes)
 
 	// This gives more realistic execution than using system#poll, allowing writes to
 	// queue up and drain concurrently.
-	nano::thread_runner runner{ node->io_ctx_shared, 1 };
+	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 	runner.start ();
 
 	constexpr size_t max_connections = 4;
