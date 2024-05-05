@@ -15,6 +15,7 @@ TEST (async, sleep)
 {
 	auto io_ctx = std::make_shared<asio::io_context> ();
 	nano::thread_runner runner{ io_ctx, 1 };
+	runner.start ();
 	nano::async::strand strand{ io_ctx->get_executor () };
 
 	auto fut = asio::co_spawn (
@@ -32,6 +33,7 @@ TEST (async, cancellation)
 {
 	auto io_ctx = std::make_shared<asio::io_context> ();
 	nano::thread_runner runner{ io_ctx, 1 };
+	runner.start ();
 	nano::async::strand strand{ io_ctx->get_executor () };
 
 	nano::async::cancellation cancellation{ strand };
@@ -57,6 +59,7 @@ TEST (async, task)
 
 	auto io_ctx = std::make_shared<asio::io_context> ();
 	nano::thread_runner runner{ io_ctx, 1 };
+	runner.start ();
 	nano::async::strand strand{ io_ctx->get_executor () };
 
 	nano::async::task task{ strand };
@@ -93,6 +96,7 @@ TEST (async, task_cancel)
 
 	auto io_ctx = std::make_shared<asio::io_context> ();
 	nano::thread_runner runner{ io_ctx, 1 };
+	runner.start ();
 	nano::async::strand strand{ io_ctx->get_executor () };
 
 	nano::async::task task = nano::async::task (strand, [&] () -> asio::awaitable<void> {

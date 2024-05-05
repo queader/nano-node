@@ -720,6 +720,7 @@ int main (int argc, char * const * argv)
 	});
 
 	nano::thread_runner runner (ioc_shared, simultaneous_process_calls);
+	runner.start ();
 	t.join ();
 	runner.join ();
 

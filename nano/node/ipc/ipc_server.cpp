@@ -484,6 +484,7 @@ public:
 		if (concurrency_a > 0)
 		{
 			runner = std::make_unique<nano::thread_runner> (io_ctx, static_cast<unsigned> (concurrency_a));
+			runner->start ();
 		}
 	}
 

@@ -1197,6 +1197,7 @@ int main (int argc, char * const * argv)
 			}
 			node1->start ();
 			nano::thread_runner runner1 (io_ctx1, node1->config.io_threads);
+			runner1.start ();
 
 			std::cout << boost::str (boost::format ("Processing %1% blocks\n") % (count * 2));
 			for (auto & block : blocks)
@@ -1244,6 +1245,7 @@ int main (int argc, char * const * argv)
 			auto node2 (std::make_shared<nano::node> (io_ctx2, path2, config2, work, flags, 1));
 			node2->start ();
 			nano::thread_runner runner2 (io_ctx2, node2->config.io_threads);
+			runner2.start ();
 			std::cout << boost::str (boost::format ("Processing %1% blocks (test node)\n") % (count * 2));
 			// Processing block
 			while (!blocks.empty ())

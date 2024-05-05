@@ -64,6 +64,7 @@ TEST (bootstrap_ascending, profile)
 {
 	nano::test::system system;
 	nano::thread_runner runner{ system.io_ctx, 2 };
+	runner.start ();
 	nano::networks network = nano::networks::nano_beta_network;
 	nano::network_params network_params{ network };
 
