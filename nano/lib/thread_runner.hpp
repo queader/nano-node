@@ -22,11 +22,12 @@ public:
 
 	void start ();
 
-	/** Tells the IO context to stop processing events.*/
-	void stop_event_processing ();
-
 	/** Wait for IO threads to complete */
 	void join ();
+
+	/** Tells the IO context to stop processing events.
+	 *  NOTE: This shouldn't really be used, node should stop gracefully by cancelling any outstanding async operations and calling join() */
+	void abort ();
 
 private:
 	unsigned const num_threads;

@@ -67,13 +67,14 @@ void nano::thread_runner::join ()
 			i.join ();
 		}
 	}
+	threads.clear ();
 
 	logger.debug (nano::log::type::thread_runner, "Stopped threads ({})", to_string (role));
 
 	io_ctx.reset (); // Release shared_ptr to io_context
 }
 
-void nano::thread_runner::stop_event_processing ()
+void nano::thread_runner::abort ()
 {
 	release_assert (io_ctx != nullptr);
 	io_ctx->stop ();
