@@ -138,13 +138,13 @@ public:
 
 public:
 	const nano::keypair node_id;
+	nano::node_config config;
 	std::shared_ptr<boost::asio::io_context> io_ctx_shared;
 	boost::asio::io_context & io_ctx;
 	nano::logger logger;
 	std::unique_ptr<nano::thread_runner> runner_impl;
 	nano::thread_runner & runner;
 	boost::latch node_initialized_latch;
-	nano::node_config config;
 	nano::network_params & network_params;
 	nano::stats stats;
 	nano::thread_pool workers;
