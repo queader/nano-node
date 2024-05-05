@@ -2,6 +2,7 @@
 
 #include <nano/lib/utility.hpp>
 #include <nano/node/common.hpp>
+#include <nano/node/fwd.hpp>
 #include <nano/node/messages.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/secure/common.hpp>
@@ -20,18 +21,6 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
-class node;
-class network;
-class node_observers;
-class stats;
-class ledger;
-class thread_pool;
-class unchecked_map;
-namespace transport
-{
-	class channel;
-}
-
 /**
  * This class periodically broadcasts and requests telemetry from peers.
  * Those intervals are configurable via `telemetry_request_interval` & `telemetry_broadcast_interval` network constants
@@ -85,8 +74,7 @@ public:
 	 */
 	std::unordered_map<nano::endpoint, nano::telemetry_data> get_all_telemetries () const;
 
-public: // Container info
-	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+	nano::container_info container_info () const;
 
 private: // Dependencies
 	nano::node & node;
