@@ -1,5 +1,6 @@
 #pragma once
 
+#include <list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -51,9 +52,9 @@ private:
 }
 
 /*
- * V2 Version
+ * New version
  */
-namespace nano::experimental
+namespace nano
 {
 template <typename T>
 concept sized_container = requires (T a) {
@@ -66,7 +67,8 @@ concept sized_container = requires (T a) {
 class container_info
 {
 public:
-	// Child represented as < name, container_info > pair
+	// Child represented as <name, container_info>
+	// Using pair to avoid problems with incomplete types
 	using child = std::pair<std::string, container_info>;
 
 	struct entry
@@ -86,14 +88,11 @@ public:
 	}
 
 	/**
-	 * TODO: Description
-	 * @param name
-	 * @param count
-	 * @param sizeof_element
+	 * Adds an entry to this container
 	 */
 	void put (std::string const & name, std::size_t size, std::size_t sizeof_element = 0)
 	{
-		entries_m.push_back ({ name, size, sizeof_element });
+		entries_m.emplace_back (entry{ name, size, sizeof_element });
 	}
 
 	template <class T>
@@ -114,7 +113,7 @@ public:
 		return children_m.empty ();
 	}
 
-	std::vector<child> const & children () const
+	auto const & children () const
 	{
 		return children_m;
 	}
@@ -124,7 +123,7 @@ public:
 		return entries_m.empty ();
 	}
 
-	std::vector<entry> const & entries () const
+	auto const & entries () const
 	{
 		return entries_m;
 	}
@@ -151,7 +150,7 @@ public:
 	}
 
 private:
-	std::vector<child> children_m;
-	std::vector<entry> entries_m;
+	std::list<child> children_m;
+	std::list<entry> entries_m;
 };
 }
