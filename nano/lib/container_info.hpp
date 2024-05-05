@@ -56,12 +56,21 @@ private:
  */
 namespace nano
 {
+class container_info;
+
 template <typename T>
 concept sized_container = requires (T a) {
 	typename T::value_type;
 	{
 		a.size ()
 	} -> std::convertible_to<std::size_t>;
+};
+
+template <typename T>
+concept container_info_collectable = requires (T a) {
+	{
+		a.collect_info ()
+	} -> std::convertible_to<container_info>;
 };
 
 class container_info
@@ -85,6 +94,12 @@ public:
 	void add (std::string const & name, container_info const & info)
 	{
 		children_m.emplace_back (name, info);
+	}
+
+	template <container_info_collectable T>
+	void add (std::string const & name, T const & container)
+	{
+		add (name, container.collect_info ());
 	}
 
 	/**
@@ -129,7 +144,8 @@ public:
 	}
 
 public:
-	std::unique_ptr<nano::container_info_component> to_legacy_component (std::string const & name) const
+	// Needed to convert to legacy container_info_component during transition period
+	std::unique_ptr<nano::container_info_component> to_legacy (std::string const & name) const
 	{
 		auto composite = std::make_unique<nano::container_info_composite> (name);
 
@@ -143,7 +159,7 @@ public:
 		// Recursively convert children to composites and add them
 		for (const auto & [child_name, child] : children_m)
 		{
-			composite->add_component (child.to_legacy_component (child_name));
+			composite->add_component (child.to_legacy (child_name));
 		}
 
 		return composite;
