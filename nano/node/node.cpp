@@ -1,5 +1,6 @@
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/stream.hpp>
+#include <nano/lib/thread_runner.hpp>
 #include <nano/lib/tomlconfig.hpp>
 #include <nano/lib/utility.hpp>
 #include <nano/node/active_transactions.hpp>
@@ -136,9 +137,11 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, uint16_t pe
 }
 
 nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesystem::path const & application_path_a, nano::node_config const & config_a, nano::work_pool & work_a, nano::node_flags flags_a, unsigned seq) :
-	io_ctx_shared{ io_ctx_a },
-	io_ctx{ *io_ctx_shared },
 	node_id{ load_or_create_node_id (application_path_a) },
+	io_ctx_shared{ std::make_shared<boost::asio::io_context> () },
+	io_ctx{ *io_ctx_shared },
+	runner_impl{ std::make_unique<nano::thread_runner> (io_ctx_shared) },
+	runner{ *runner_impl },
 	node_initialized_latch (1),
 	config (config_a),
 	network_params{ config.network_params },
@@ -627,6 +630,9 @@ void nano::node::process_local_async (std::shared_ptr<nano::block> const & block
 
 void nano::node::start ()
 {
+	// Start the IO runner first
+	runner.start ();
+
 	long_inactivity_cleanup ();
 
 	network.start ();
@@ -757,6 +763,13 @@ void nano::node::stop ()
 	network.stop (); // Stop network last to avoid killing in-use sockets
 
 	// work pool is not stopped on purpose due to testing setup
+
+	// Stop the IO runner last
+	runner.join ();
+
+	// Release shared_ptr to io_context, which should be the last reference to it
+	io_ctx_shared.reset ();
+	debug_assert (io_ctx_shared.use_count () == 0);
 }
 
 void nano::node::keepalive_preconfigured ()
