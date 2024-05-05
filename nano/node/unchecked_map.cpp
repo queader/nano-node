@@ -171,7 +171,7 @@ std::unique_ptr<nano::container_info_component> nano::unchecked_map::collect_con
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "entries", entries.size (), sizeof (decltype (entries)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "queries", buffer.size (), sizeof (decltype (buffer)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "entries", entries.size (), sizeof (decltype (entries)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info_entry{ "queries", buffer.size (), sizeof (decltype (buffer)::value_type) }));
 	return composite;
 }
