@@ -778,6 +778,7 @@ void nano::node::stop ()
 
 	// Stop the IO runner last
 	runner.join ();
+	debug_assert (io_ctx_shared.use_count () == 1); // Node should be the last user of the io_context
 }
 
 void nano::node::keepalive_preconfigured ()
