@@ -411,7 +411,6 @@ TEST (receivable_processor, send_with_receive)
 	nano::keypair key2;
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::block_hash latest1 (node1.latest (nano::dev::genesis_key.pub));
-	system.wallet (1)->insert_adhoc (key2.prv);
 	nano::block_builder builder;
 	auto block1 = builder
 				  .send ()
@@ -433,6 +432,7 @@ TEST (receivable_processor, send_with_receive)
 	ASSERT_EQ (0, node1.balance (key2.pub));
 	ASSERT_EQ (amount - node1.config.receive_minimum.number (), node2.balance (nano::dev::genesis_key.pub));
 	ASSERT_EQ (0, node2.balance (key2.pub));
+	system.wallet (1)->insert_adhoc (key2.prv);
 	ASSERT_TIMELY (10s, node1.balance (key2.pub) == node1.config.receive_minimum.number () && node2.balance (key2.pub) == node1.config.receive_minimum.number ());
 	ASSERT_EQ (amount - node1.config.receive_minimum.number (), node1.balance (nano::dev::genesis_key.pub));
 	ASSERT_EQ (node1.config.receive_minimum.number (), node1.balance (key2.pub));

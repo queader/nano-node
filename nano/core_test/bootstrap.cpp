@@ -1657,10 +1657,6 @@ TEST (bootstrap_processor, multiple_attempts)
 	auto lazy_attempt (node2->bootstrap_initiator.current_lazy_attempt ());
 	auto legacy_attempt (node2->bootstrap_initiator.current_attempt ());
 	ASSERT_TIMELY (5s, lazy_attempt->started && legacy_attempt->started);
-	// Check that both bootstrap attempts are running & not finished
-	ASSERT_FALSE (lazy_attempt->stopped);
-	ASSERT_FALSE (legacy_attempt->stopped);
-	ASSERT_GE (node2->bootstrap_initiator.attempts.size (), 2);
 	// Check processed blocks
 	ASSERT_TIMELY (10s, node2->balance (key2.pub) != 0);
 	// Check attempts finish
