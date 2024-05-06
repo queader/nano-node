@@ -362,7 +362,7 @@ TEST (socket, disconnection_of_silent_connections)
 	auto node = system.add_node (config);
 
 	// On a connection, a server data socket is created. The shared pointer guarantees the object's lifecycle until the end of this test.
-	std::shared_ptr<nano::transport::socket> server_data_socket;
+	std::atomic<std::shared_ptr<nano::transport::socket>> server_data_socket;
 	node->tcp_listener.connection_accepted.add ([&server_data_socket] (auto const & socket, auto const & server) {
 		server_data_socket = socket;
 	});
@@ -379,8 +379,8 @@ TEST (socket, disconnection_of_silent_connections)
 	});
 	ASSERT_TIMELY (4s, connected);
 	// Checking the connection was closed.
-	ASSERT_TIMELY (10s, server_data_socket != nullptr);
-	ASSERT_TIMELY (10s, server_data_socket->is_closed ());
+	ASSERT_TIMELY (10s, server_data_socket.load () != nullptr);
+	ASSERT_TIMELY (10s, server_data_socket.load ()->is_closed ());
 
 	// Just to ensure the disconnection wasn't due to the timer timeout.
 	ASSERT_EQ (0, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::in));
