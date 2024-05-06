@@ -290,7 +290,7 @@ TEST (bootstrap_processor, process_none)
 	auto node0 = system.nodes[0];
 	auto node1 = system.make_disconnected_node ();
 
-	bool done = false;
+	std::atomic<bool> done = false;
 	node0->observers.socket_connected.add ([&] (nano::transport::socket & socket) {
 		done = true;
 	});
