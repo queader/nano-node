@@ -958,15 +958,16 @@ TEST (network, cleanup_purge)
 	node1.network.cleanup (std::chrono::steady_clock::now ());
 	ASSERT_EQ (0, node1.network.size ());
 
-	std::weak_ptr<nano::node> node_w = node1.shared ();
-	node1.network.tcp_channels.start_tcp (node2->network.endpoint ());
+	node1.network.merge_peer (node2->network.endpoint ());
 
-	ASSERT_TIMELY_EQ (3s, node1.network.size (), 1);
+	ASSERT_TIMELY_EQ (5s, node1.network.size (), 1);
+
 	node1.network.cleanup (test_start);
 	ASSERT_EQ (1, node1.network.size ());
+	ASSERT_EQ (0, node1.stats.count (nano::stat::type::tcp_channels_purge));
 
 	node1.network.cleanup (std::chrono::steady_clock::now ());
-	ASSERT_TIMELY_EQ (5s, 0, node1.network.size ());
+	ASSERT_EQ (1, node1.stats.count (nano::stat::type::tcp_channels_purge, nano::stat::detail::idle));
 }
 
 TEST (network, loopback_channel)
