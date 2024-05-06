@@ -11,6 +11,7 @@
 
 #include <boost/asio/read.hpp>
 
+#include <future>
 #include <map>
 #include <memory>
 #include <utility>
@@ -362,9 +363,10 @@ TEST (socket, disconnection_of_silent_connections)
 	auto node = system.add_node (config);
 
 	// On a connection, a server data socket is created. The shared pointer guarantees the object's lifecycle until the end of this test.
-	std::atomic<std::shared_ptr<nano::transport::socket>> server_data_socket;
-	node->tcp_listener.connection_accepted.add ([&server_data_socket] (auto const & socket, auto const & server) {
-		server_data_socket = socket;
+	std::promise<std::shared_ptr<nano::transport::socket>> server_data_socket_promise;
+	std::future<std::shared_ptr<nano::transport::socket>> server_data_socket_future = server_data_socket_promise.get_future ();
+	node->tcp_listener.connection_accepted.add ([&server_data_socket_promise] (auto const & socket, auto const & server) {
+		server_data_socket_promise.set_value (socket);
 	});
 
 	boost::asio::ip::tcp::endpoint dst_endpoint{ boost::asio::ip::address_v6::loopback (), node->tcp_listener.endpoint ().port () };
@@ -378,9 +380,11 @@ TEST (socket, disconnection_of_silent_connections)
 		connected = true;
 	});
 	ASSERT_TIMELY (4s, connected);
+
 	// Checking the connection was closed.
-	ASSERT_TIMELY (10s, server_data_socket.load () != nullptr);
-	ASSERT_TIMELY (10s, server_data_socket.load ()->is_closed ());
+	ASSERT_TIMELY (10s, server_data_socket_future.wait_for (0s) == std::future_status::ready);
+	auto server_data_socket = server_data_socket_future.get ();
+	ASSERT_TIMELY (10s, server_data_socket->is_closed ());
 
 	// Just to ensure the disconnection wasn't due to the timer timeout.
 	ASSERT_EQ (0, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::in));
