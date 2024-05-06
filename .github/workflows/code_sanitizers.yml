@@ -88,6 +88,7 @@ jobs:
       ASAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:suppressions=../asan_suppressions
       TSAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:suppressions=../tsan_suppressions
       UBSAN_OPTIONS: log_exe_name=1:log_path=sanitizer_report:print_stacktrace=1
+      NANO_HARDWARE_CONCURRENCY: 1 # Investigate ASIO kqueue_reactor problems (seemingly false positives)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
