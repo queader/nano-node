@@ -778,10 +778,6 @@ void nano::node::stop ()
 
 	// Stop the IO runner last
 	runner.join ();
-
-	// Release shared_ptr to io_context, which should be the last reference to it
-	io_ctx_shared.reset ();
-	debug_assert (io_ctx_shared.use_count () == 0);
 }
 
 void nano::node::keepalive_preconfigured ()
