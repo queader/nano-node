@@ -27,8 +27,6 @@ TEST (socket, max_connections)
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
 
-	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
-
 	auto server_port = system.get_available_port ();
 
 	// successful incoming connections are stored in server_sockets to keep them alive (server side)
@@ -134,8 +132,6 @@ TEST (socket, max_connections_per_ip)
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
 	ASSERT_FALSE (node->flags.disable_max_peers_per_ip);
-
-	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 
 	auto server_port = system.get_available_port ();
 
@@ -252,8 +248,6 @@ TEST (socket, max_connections_per_subnetwork)
 	ASSERT_TRUE (node->flags.disable_max_peers_per_ip);
 	ASSERT_FALSE (node->flags.disable_max_peers_per_subnetwork);
 
-	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
-
 	auto server_port = system.get_available_port ();
 	boost::asio::ip::tcp::endpoint listen_endpoint{ boost::asio::ip::address_v6::any (), server_port };
 
@@ -310,8 +304,6 @@ TEST (socket, disabled_max_peers_per_ip)
 	auto node = inactivenode.node;
 
 	ASSERT_TRUE (node->flags.disable_max_peers_per_ip);
-
-	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 
 	auto server_port = system.get_available_port ();
 
@@ -405,8 +397,6 @@ TEST (socket, drop_policy)
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
 
-	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
-
 	std::vector<std::shared_ptr<nano::transport::socket>> connections;
 
 	auto func = [&] (size_t total_message_count, nano::transport::buffer_drop_policy drop_policy) {
@@ -454,12 +444,10 @@ TEST (socket, drop_policy)
 	// The stats are accumulated from before
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_no_socket_drop, nano::stat::dir::out));
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out));
-
-	node->stop ();
-	runner.abort ();
-	runner.join ();
 }
 
+// This is abusing the socket class, it's interfering with the normal node lifetimes and as a result deadlocks
+// TEST (socket, DISABLED_concurrent_writes)
 TEST (socket, concurrent_writes)
 {
 	nano::test::system system;
@@ -470,10 +458,6 @@ TEST (socket, concurrent_writes)
 	node_flags.disable_max_peers_per_subnetwork = true;
 	nano::inactive_node inactivenode (nano::unique_path (), node_flags);
 	auto node = inactivenode.node;
-
-	// This gives more realistic execution than using system#poll, allowing writes to
-	// queue up and drain concurrently.
-	nano::thread_runner runner{ node->io_ctx_shared, nano::default_logger (), 1 };
 
 	constexpr size_t max_connections = 4;
 	constexpr size_t client_count = max_connections;
@@ -566,10 +550,6 @@ TEST (socket, concurrent_writes)
 	}
 
 	ASSERT_TIMELY_EQ (10s, completed_reads, total_message_count);
-
-	node->stop ();
-	runner.abort ();
-	runner.join ();
 
 	for (auto & t : client_threads)
 	{
