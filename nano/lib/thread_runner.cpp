@@ -8,7 +8,7 @@
  * thread_runner
  */
 
-nano::thread_runner::thread_runner (std::shared_ptr<asio::io_context> io_ctx_a, nano::logger & logger_a, unsigned num_threads_a, const nano::thread_role::name thread_role_a) :
+nano::thread_runner::thread_runner (std::shared_ptr<asio::io_context> io_ctx_a, nano::logger & logger_a, unsigned num_threads_a, const nano::thread_role::name thread_role_a, bool auto_start) :
 	num_threads{ num_threads_a },
 	role{ thread_role_a },
 	logger{ logger_a },
@@ -16,7 +16,11 @@ nano::thread_runner::thread_runner (std::shared_ptr<asio::io_context> io_ctx_a, 
 	io_guard{ asio::make_work_guard (*io_ctx) }
 {
 	debug_assert (io_ctx != nullptr);
-	start ();
+
+	if (auto_start)
+	{
+		start ();
+	}
 }
 
 nano::thread_runner::~thread_runner ()
@@ -26,6 +30,8 @@ nano::thread_runner::~thread_runner ()
 
 void nano::thread_runner::start ()
 {
+	debug_assert (threads.empty ());
+
 	logger.debug (nano::log::type::thread_runner, "Starting threads: {} ({})", num_threads, to_string (role));
 
 	for (auto i = 0; i < num_threads; ++i)
