@@ -142,7 +142,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	io_ctx_shared{ std::make_shared<boost::asio::io_context> () },
 	io_ctx{ *io_ctx_shared },
 	logger{ make_logger_identifier (node_id) },
-	runner_impl{ std::make_unique<nano::thread_runner> (io_ctx_shared, logger, config.io_threads) },
+	runner_impl{ std::make_unique<nano::thread_runner> (io_ctx_shared, logger, 1) },
 	runner{ *runner_impl },
 	node_initialized_latch (1),
 	network_params{ config.network_params },
