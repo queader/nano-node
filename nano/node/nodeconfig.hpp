@@ -2,6 +2,7 @@
 
 #include <nano/lib/config.hpp>
 #include <nano/lib/diagnosticsconfig.hpp>
+#include <nano/lib/env.hpp>
 #include <nano/lib/errors.hpp>
 #include <nano/lib/lmdbconfig.hpp>
 #include <nano/lib/logging.hpp>
@@ -76,7 +77,7 @@ public:
 	 */
 	nano::amount representative_vote_weight_minimum{ 10 * nano::Mxrb_ratio };
 	unsigned password_fanout{ 1024 };
-	unsigned io_threads{ std::max (4u, nano::hardware_concurrency ()) };
+	unsigned io_threads{ nano::env::get_uint ("NANO_IO_THREADS").value_or (std::max (4u, nano::hardware_concurrency ())) };
 	unsigned network_threads{ std::max (4u, nano::hardware_concurrency ()) };
 	unsigned work_threads{ std::max (4u, nano::hardware_concurrency ()) };
 	unsigned background_threads{ std::max (4u, nano::hardware_concurrency ()) };
