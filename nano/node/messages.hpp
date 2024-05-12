@@ -152,6 +152,8 @@ public:
 	std::array<nano::endpoint, 8> peers;
 	static std::size_t constexpr size = 8 * (16 + 2);
 
+	std::optional<uint16_t> peering_port () const;
+
 public: // Logging
 	void operator() (nano::object_stream &) const override;
 };

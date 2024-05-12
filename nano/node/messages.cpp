@@ -412,6 +412,16 @@ bool nano::keepalive::operator== (nano::keepalive const & other_a) const
 	return peers == other_a.peers;
 }
 
+std::optional<uint16_t> nano::keepalive::peering_port () const
+{
+	auto peer0 = peers[0];
+	if (peer0.address () == boost::asio::ip::address_v6{} && peer0.port () != 0)
+	{
+		return peer0.port ();
+	}
+	return std::nullopt;
+}
+
 void nano::keepalive::operator() (nano::object_stream & obs) const
 {
 	nano::message::operator() (obs); // Write common data

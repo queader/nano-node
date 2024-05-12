@@ -169,12 +169,10 @@ public:
 
 	void keepalive (nano::keepalive const & message) override
 	{
-		// Check for special node port data
-		auto peer0 (message.peers[0]);
-		if (peer0.address () == boost::asio::ip::address_v6{} && peer0.port () != 0)
+		if (auto peering_port = message.peering_port ())
 		{
 			// TODO: Remove this as we do not need to establish a second connection to the same peer
-			nano::endpoint new_endpoint (channel->get_tcp_endpoint ().address (), peer0.port ());
+			nano::endpoint new_endpoint (channel->get_tcp_endpoint ().address (), *peering_port);
 			node.network.merge_peer (new_endpoint);
 
 			// Remember this for future forwarding to other peers
