@@ -215,6 +215,10 @@ TEST (peer_container, list_fanout)
 TEST (peer_container, reachout)
 {
 	nano::test::system system;
+	nano::node_config node_config = system.default_config ();
+	// Disable automatic reachout
+	node_config.network.cached_peer_reachout = 0s;
+	node_config.network.peer_reachout = 0s;
 	nano::node_flags node_flags;
 	auto & node1 = *system.add_node (node_flags);
 	auto outer_node1 = nano::test::add_outer_node (system);
