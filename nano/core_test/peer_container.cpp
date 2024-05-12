@@ -226,6 +226,7 @@ TEST (peer_container, reachout)
 	// Make sure having been contacted by them already indicates we shouldn't reach out
 	ASSERT_FALSE (node1.network.track_reachout (outer_node1->network.endpoint ()));
 	auto outer_node2 = nano::test::add_outer_node (system);
+	auto outer_node2_endpoint = outer_node2->network.endpoint ();
 	ASSERT_TRUE (node1.network.track_reachout (outer_node2->network.endpoint ()));
 	ASSERT_NE (nullptr, nano::test::establish_tcp (system, node1, outer_node2->network.endpoint ()));
 	// Reaching out to them once should signal we shouldn't reach out again.
@@ -234,9 +235,11 @@ TEST (peer_container, reachout)
 	node1.network.cleanup (std::chrono::steady_clock::now () - std::chrono::seconds (10));
 	ASSERT_FALSE (node1.network.track_reachout (outer_node2->network.endpoint ()));
 	// Make sure we purge old items
+	outer_node1->stop ();
+	outer_node2->stop ();
 	node1.network.cleanup (std::chrono::steady_clock::now () + std::chrono::seconds (10));
 	ASSERT_TIMELY (5s, node1.network.empty ());
-	ASSERT_TRUE (node1.network.track_reachout (outer_node2->network.endpoint ()));
+	ASSERT_TRUE (node1.network.track_reachout (outer_node2_endpoint));
 }
 
 // This test is similar to network.filter_invalid_version_using with the difference that
