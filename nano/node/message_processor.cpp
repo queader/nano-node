@@ -174,9 +174,6 @@ public:
 			// TODO: Remove this as we do not need to establish a second connection to the same peer
 			nano::endpoint new_endpoint (channel->get_tcp_endpoint ().address (), *peering_port);
 			node.network.merge_peer (new_endpoint);
-
-			// Remember this for future forwarding to other peers
-			channel->set_peering_endpoint (new_endpoint);
 		}
 	}
 

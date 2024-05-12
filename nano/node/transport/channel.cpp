@@ -63,6 +63,12 @@ nano::endpoint nano::transport::channel::get_peering_endpoint () const
 	}
 }
 
+bool nano::transport::channel::has_peering_endpoint () const
+{
+	nano::lock_guard<nano::mutex> lock{ channel_mutex };
+	return peering_endpoint.has_value ();
+}
+
 void nano::transport::channel::operator() (nano::object_stream & obs) const
 {
 	obs.write ("endpoint", get_endpoint ());

@@ -129,6 +129,7 @@ public:
 
 	nano::endpoint get_peering_endpoint () const;
 	void set_peering_endpoint (nano::endpoint endpoint);
+	bool has_peering_endpoint () const;
 
 	mutable nano::mutex channel_mutex;
 

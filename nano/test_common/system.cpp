@@ -139,9 +139,9 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 			node2->network.merge_peer (node1->network.endpoint ());
 
 			auto ec = poll_until_true (5s, [&node1, &node2] () {
-				bool result_1 = node1->network.find_node_id (node2->node_id.pub) != nullptr;
-				bool result_2 = node2->network.find_node_id (node1->node_id.pub) != nullptr;
-				return result_1 && result_2;
+				auto ch1 = node1->network.find_node_id (node2->node_id.pub);
+				auto ch2 = node2->network.find_node_id (node1->node_id.pub);
+				return ch1 && ch2 && ch1->has_peering_endpoint () && ch2->has_peering_endpoint ();
 			});
 			debug_assert (!ec);
 		}

@@ -90,6 +90,11 @@ namespace transport
 			}
 		}
 
+		void update_peering_port (uint16_t port)
+		{
+			set_peering_endpoint ({ get_tcp_endpoint ().address (), port });
+		}
+
 	public:
 		std::weak_ptr<nano::transport::socket> socket;
 

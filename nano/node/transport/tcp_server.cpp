@@ -605,10 +605,18 @@ void nano::transport::tcp_server::timeout ()
 
 void nano::transport::tcp_server::set_last_keepalive (nano::keepalive const & message)
 {
-	std::lock_guard<nano::mutex> lock{ mutex };
-	if (!last_keepalive)
+	// Update peering port independently of downstream message processing
+	release_assert (channel != nullptr);
+	if (auto peering_port = message.peering_port ())
 	{
-		last_keepalive = message;
+		channel->update_peering_port (*peering_port);
+	}
+	{
+		std::lock_guard<nano::mutex> lock{ mutex };
+		if (!last_keepalive)
+		{
+			last_keepalive = message;
+		}
 	}
 }
 
