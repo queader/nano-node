@@ -6453,7 +6453,8 @@ TEST (rpc, epoch_upgrade_multithreaded)
 	}
 }
 
-TEST (rpc, account_lazy_start)
+// FIXME: This test is testing legacy bootstrap, the current behavior is different
+TEST (rpc, DISABLED_account_lazy_start)
 {
 	nano::test::system system{};
 	nano::node_flags node_flags{};
