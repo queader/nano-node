@@ -92,12 +92,17 @@ bool nano::scheduler::bucket::activate ()
 		elections.get<tag_root> ().insert ({ result.election, result.election->qualified_root, priority });
 	}
 
+	return result.inserted;
+}
+
+void nano::scheduler::bucket::update ()
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
 	if (election_overfill ())
 	{
 		cancel_lowest_election ();
 	}
-
-	return result.inserted;
 }
 
 void nano::scheduler::bucket::push (uint64_t time, std::shared_ptr<nano::block> block)

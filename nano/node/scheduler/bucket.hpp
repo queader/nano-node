@@ -37,6 +37,7 @@ public:
 
 	bool available () const;
 	bool activate ();
+	void update ();
 
 	void push (uint64_t time, std::shared_ptr<nano::block> block);
 

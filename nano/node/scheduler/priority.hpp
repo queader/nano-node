@@ -60,7 +60,7 @@ private: // Dependencies
 
 private:
 	void run ();
-	bool empty_locked () const;
+	void run_cleanup ();
 	bool predicate () const;
 	bucket & find_bucket (nano::uint128_t priority);
 
@@ -71,5 +71,6 @@ private:
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;
+	std::thread cleanup_thread;
 };
 }

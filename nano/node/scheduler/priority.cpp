@@ -46,11 +46,13 @@ nano::scheduler::priority::~priority ()
 {
 	// Thread must be stopped before destruction
 	debug_assert (!thread.joinable ());
+	debug_assert (!cleanup_thread.joinable ());
 }
 
 void nano::scheduler::priority::start ()
 {
 	debug_assert (!thread.joinable ());
+	debug_assert (!cleanup_thread.joinable ());
 
 	if (!config.enabled)
 	{
@@ -61,6 +63,11 @@ void nano::scheduler::priority::start ()
 		nano::thread_role::set (nano::thread_role::name::scheduler_priority);
 		run ();
 	} };
+
+	cleanup_thread = std::thread{ [this] () {
+		nano::thread_role::set (nano::thread_role::name::scheduler_priority);
+		run_cleanup ();
+	} };
 }
 
 void nano::scheduler::priority::stop ()
@@ -69,8 +76,9 @@ void nano::scheduler::priority::stop ()
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		stopped = true;
 	}
-	notify ();
-	nano::join_or_pass (thread);
+	condition.notify_all ();
+	join_or_pass (thread);
+	join_or_pass (cleanup_thread);
 }
 
 bool nano::scheduler::priority::activate (secure::transaction const & transaction, nano::account const & account)
@@ -114,26 +122,16 @@ void nano::scheduler::priority::notify ()
 
 std::size_t nano::scheduler::priority::size () const
 {
-	nano::lock_guard<nano::mutex> lock{ mutex };
-
 	return std::accumulate (buckets.begin (), buckets.end (), std::size_t{ 0 }, [] (auto const & sum, auto const & bucket) {
 		return sum + bucket->size ();
 	});
 }
 
-bool nano::scheduler::priority::empty_locked () const
+bool nano::scheduler::priority::empty () const
 {
-	debug_assert (!mutex.try_lock ());
-
 	return std::all_of (buckets.begin (), buckets.end (), [] (auto const & bucket) {
 		return bucket->empty ();
 	});
-}
-
-bool nano::scheduler::priority::empty () const
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	return empty_locked ();
 }
 
 bool nano::scheduler::priority::predicate () const
@@ -158,6 +156,8 @@ void nano::scheduler::priority::run ()
 		{
 			stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
 
+			lock.unlock ();
+
 			for (auto & bucket : buckets)
 			{
 				if (bucket->available ())
@@ -166,28 +166,31 @@ void nano::scheduler::priority::run ()
 				}
 			}
 
-			// if (predicate ())
-			// {
-			// 	auto block = buckets->top ();
-			// 	buckets->pop ();
-			// 	lock.unlock ();
-			// 	stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
-			// 	auto result = node.active.insert (block);
-			// 	if (result.inserted)
-			// 	{
-			// 		stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority_success);
-			// 	}
-			// 	if (result.election != nullptr)
-			// 	{
-			// 		result.election->transition_active ();
-			// 	}
-			// }
-			// else
-			// {
-			// 	lock.unlock ();
-			// }
-			// notify ();
-			// lock.lock ();
+			lock.lock ();
+		}
+	}
+}
+
+void nano::scheduler::priority::run_cleanup ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		condition.wait_for (lock, 1s, [this] () {
+			return stopped;
+		});
+		if (!stopped)
+		{
+			stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::cleanup);
+
+			lock.unlock ();
+
+			for (auto & bucket : buckets)
+			{
+				bucket->update ();
+			}
+
+			lock.lock ();
 		}
 	}
 }
