@@ -276,6 +276,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			break;
 		case nano::election_state::expired_unconfirmed:
 		case nano::election_state::expired_confirmed:
+			return true; // Return true to indicate this election should be cleaned up
 			debug_assert (false);
 			break;
 	}
