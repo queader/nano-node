@@ -815,3 +815,8 @@ std::string_view nano::to_string (nano::election_state state)
 {
 	return nano::enum_util::name (state);
 }
+
+nano::stat::detail nano::to_stat_detail (nano::election_state state)
+{
+	return nano::enum_util::cast<nano::stat::detail> (state);
+}
