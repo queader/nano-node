@@ -1,15 +1,17 @@
 #include <nano/lib/blocks.hpp>
 #include <nano/node/active_elections.hpp>
 #include <nano/node/election.hpp>
+#include <nano/node/node.hpp>
 #include <nano/node/scheduler/bucket.hpp>
 
 /*
  * bucket
  */
 
-nano::scheduler::bucket::bucket (nano::uint128_t minimum_balance, nano::active_elections & active) :
+nano::scheduler::bucket::bucket (nano::uint128_t minimum_balance, nano::node & node) :
 	minimum_balance{ minimum_balance },
-	active{ active }
+	active{ node.active },
+	stats{ node.stats }
 {
 }
 
@@ -91,6 +93,12 @@ bool nano::scheduler::bucket::activate ()
 	{
 		release_assert (result.election);
 		elections.get<tag_root> ().insert ({ result.election, result.election->qualified_root, priority });
+
+		stats.inc (nano::stat::type::election_bucket, nano::stat::detail::activate_success);
+	}
+	else
+	{
+		stats.inc (nano::stat::type::election_bucket, nano::stat::detail::activate_failed);
 	}
 
 	return result.inserted;
@@ -139,6 +147,8 @@ void nano::scheduler::bucket::cancel_lowest_election ()
 	if (!elections.empty ())
 	{
 		elections.get<tag_priority> ().begin ()->election->cancel ();
+
+		stats.inc (nano::stat::type::election_bucket, nano::stat::detail::cancel_lowest);
 	}
 }
 

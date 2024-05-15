@@ -37,7 +37,7 @@ nano::scheduler::priority::priority (nano::node & node_a, nano::stats & stats_a)
 
 	for (size_t i = 0u, n = minimums.size (); i < n; ++i)
 	{
-		auto bucket = std::make_unique<scheduler::bucket> (minimums[i], node.active);
+		auto bucket = std::make_unique<scheduler::bucket> (minimums[i], node);
 		buckets.emplace_back (std::move (bucket));
 	}
 }
