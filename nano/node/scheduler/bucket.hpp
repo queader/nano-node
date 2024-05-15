@@ -44,6 +44,7 @@ public:
 	void push (uint64_t time, std::shared_ptr<nano::block> block);
 
 	size_t size () const;
+	size_t election_count () const;
 	bool empty () const;
 	void dump () const;
 

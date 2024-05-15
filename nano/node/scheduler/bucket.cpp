@@ -135,15 +135,19 @@ void nano::scheduler::bucket::push (uint64_t time, std::shared_ptr<nano::block> 
 size_t nano::scheduler::bucket::size () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-
 	return queue.size ();
 }
 
 bool nano::scheduler::bucket::empty () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-
 	return queue.empty ();
+}
+
+size_t nano::scheduler::bucket::election_count () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return elections.size ();
 }
 
 void nano::scheduler::bucket::cancel_lowest_election ()
