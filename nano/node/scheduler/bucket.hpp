@@ -98,7 +98,7 @@ private:
 
 private: // Config
 	static size_t constexpr max_blocks{ 1024 * 8 };
-	static size_t constexpr reserved_elections{ 128 };
-	static size_t constexpr max_elections{ 128 };
+	static size_t constexpr reserved_elections{ 100 };
+	static size_t constexpr max_elections{ 150 };
 };
 } // namespace nano::scheduler

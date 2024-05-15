@@ -48,7 +48,13 @@ bool nano::scheduler::bucket::election_vacancy (priority_t candidate) const
 	if (!elections.empty ())
 	{
 		auto lowest = elections.get<tag_priority> ().begin ()->priority;
-		return candidate <= lowest; // Compare to equal to drain duplicates
+
+		// Compare to equal to drain duplicates
+		if (candidate <= lowest)
+		{
+			// Bound number of reprioritizations
+			return elections.size () < max_elections * 2;
+		};
 	}
 	return false;
 }
