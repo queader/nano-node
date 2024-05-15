@@ -89,6 +89,7 @@ bool nano::scheduler::bucket::activate ()
 	auto result = active.insert (block, nano::election_behavior::priority, erase_callback);
 	if (result.inserted)
 	{
+		release_assert (result.election);
 		elections.get<tag_root> ().insert ({ result.election, result.election->qualified_root, priority });
 	}
 
