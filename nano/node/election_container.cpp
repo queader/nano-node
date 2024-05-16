@@ -5,6 +5,7 @@
 
 void nano::election_container::insert (std::shared_ptr<nano::election> const & election, nano::election_behavior behavior, nano::bucket_t bucket, nano::priority_t priority)
 {
+	debug_assert (election->behavior () == behavior);
 	debug_assert (!exists (election)); // Should be checked before inserting
 	debug_assert (!entries.get<tag_ptr> ().contains (election));
 
