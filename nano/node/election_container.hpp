@@ -20,8 +20,6 @@ using priority_t = uint64_t;
 class election_container
 {
 public:
-	using value_type = std::shared_ptr<nano::election>;
-
 	struct entry
 	{
 		std::shared_ptr<nano::election> election;
@@ -29,6 +27,8 @@ public:
 		bucket_t bucket;
 		priority_t priority;
 	};
+
+	using value_type = std::shared_ptr<entry>;
 
 public:
 	void insert (std::shared_ptr<nano::election> const &, nano::election_behavior, bucket_t, priority_t);
@@ -38,14 +38,14 @@ public:
 	bool exists (std::shared_ptr<nano::election> const &) const;
 
 	std::shared_ptr<nano::election> find (nano::qualified_root const &) const;
+	entry info (std::shared_ptr<nano::election> const &) const;
+	std::vector<entry> list () const;
 
 	size_t size () const;
 	size_t size (nano::election_behavior) const;
 	size_t size (nano::election_behavior, bucket_t) const;
 
 	std::shared_ptr<nano::election> top (nano::election_behavior, bucket_t) const;
-
-	std::vector<std::shared_ptr<nano::election>> list () const;
 
 	void clear ();
 

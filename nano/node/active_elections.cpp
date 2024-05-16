@@ -488,7 +488,7 @@ std::vector<std::shared_ptr<nano::election>> nano::active_elections::list_active
 		std::size_t count_l{ 0 };
 		for (auto i = listed.begin (), n = listed.end (); i != n && count_l < max_a; ++i, ++count_l)
 		{
-			result_l.push_back (*i);
+			result_l.push_back (i->election);
 		}
 	}
 	return result_l;
