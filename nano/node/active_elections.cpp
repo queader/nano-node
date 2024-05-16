@@ -111,7 +111,6 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block,
 	}
 
 	// Election does not exist, create a new one
-	// result.inserted = true;
 
 	auto observe_rep_cb = [&node = node] (auto const & rep_a) {
 		// Representative is defined as online if replying to live votes or rep_crawler queries
@@ -132,9 +131,11 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block,
 	nano::log::arg{ "behavior", behavior },
 	nano::log::arg{ "election", election });
 
-	node.logger.debug (nano::log::type::active_elections, "Started new election for block: {} (behavior: {})",
+	node.logger.debug (nano::log::type::active_elections, "Started new election for block: {} (behavior: {}, bucket: {}, priority: {})",
 	hash.to_string (),
-	to_string (behavior));
+	to_string (behavior),
+	bucket,
+	priority);
 
 	lock.unlock ();
 
