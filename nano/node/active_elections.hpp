@@ -49,6 +49,9 @@ public:
 	std::size_t confirmation_cache{ 65536 };
 };
 
+using bucket_t = uint64_t;
+using priority_t = uint64_t;
+
 /**
  * Core class for determining consensus
  * Holds all active blocks i.e. recently added blocks that need confirmation
@@ -67,10 +70,18 @@ public:
 	void start ();
 	void stop ();
 
-	/**
-	 * Starts new election with a specified behavior type
-	 */
-	nano::election_insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::priority, erased_callback_t = nullptr);
+	struct insert_result
+	{
+		std::shared_ptr<nano::election> election{ nullptr };
+		bool inserted{ false };
+	};
+
+	insert_result insert (
+	std::shared_ptr<nano::block> const &,
+	nano::election_behavior = nano::election_behavior::priority,
+	bucket_t bucket = 0,
+	priority_t priority = 0);
+
 	// Is the root of this block in the roots container
 	bool active (nano::block const &) const;
 	bool active (nano::qualified_root const &) const;
@@ -79,26 +90,30 @@ public:
 	std::vector<std::shared_ptr<nano::election>> list_active (std::size_t = std::numeric_limits<std::size_t>::max ());
 	bool erase (nano::block const &);
 	bool erase (nano::qualified_root const &);
-	bool empty () const;
-	std::size_t size () const;
 	bool publish (std::shared_ptr<nano::block> const &);
-	void block_cemented_callback (std::shared_ptr<nano::block> const &);
-	void block_already_cemented_callback (nano::block_hash const &);
 
-	/**
-	 * Maximum number of elections that should be present in this container
-	 * NOTE: This is only a soft limit, it is possible for this container to exceed this count
-	 */
+	bool empty () const;
+	size_t size () const;
+	size_t size (nano::election_behavior) const;
+	size_t size (nano::election_behavior, bucket_t) const;
+
+	// Returns election with the largerst "priority" number (highest timestamp). NOTE: Lower "priority" is better.
+	std::shared_ptr<nano::election> top (nano::election_behavior, bucket_t) const;
+
+	// Maximum number of elections that should be present in this container
+	// NOTE: This is only a soft limit, it is possible for this container to exceed this count
 	int64_t limit (nano::election_behavior behavior) const;
-	/**
-	 * How many election slots are available for specified election type
-	 */
+	// How many election slots are available for specified election type
 	int64_t vacancy (nano::election_behavior behavior) const;
-	std::function<void ()> vacancy_update{ [] () {} };
 
+public: // TODO: Move to a separate class
 	std::size_t election_winner_details_size ();
 	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
 	std::shared_ptr<nano::election> remove_election_winner_details (nano::block_hash const &);
+
+public: // Events
+	// TODO: Use observer_set
+	std::function<void ()> vacancy_update{ [] () {} };
 
 private:
 	void request_loop ();
@@ -110,6 +125,8 @@ private:
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 	void activate_successors (nano::secure::read_transaction const & transaction, std::shared_ptr<nano::block> const & block);
 	void notify_observers (nano::secure::read_transaction const & transaction, nano::election_status const & status, std::vector<nano::vote_with_weight_info> const & votes);
+	void block_cemented_callback (std::shared_ptr<nano::block> const &);
+	void block_already_cemented_callback (nano::block_hash const &);
 
 private: // Dependencies
 	active_elections_config const & config;
@@ -121,8 +138,8 @@ private: // Elections
 	struct key final
 	{
 		nano::election_behavior behavior;
-		uint64_t bucket;
-		uint64_t priority;
+		bucket_t bucket;
+		priority_t priority;
 
 		auto operator<=> (key const &) const = default;
 	};
