@@ -58,7 +58,7 @@ public:
 	bool exists (std::shared_ptr<nano::election> const &) const;
 
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
-	entry info (std::shared_ptr<nano::election> const &) const;
+	std::optional<entry> info (std::shared_ptr<nano::election> const &) const;
 	std::vector<entry> list () const;
 
 	size_t size () const;
@@ -70,9 +70,6 @@ public:
 	top_entry_t top (nano::election_behavior, nano::bucket_t) const;
 
 	void clear ();
-
-private:
-	void erase_impl (entry);
 
 private:
 	// clang-format off

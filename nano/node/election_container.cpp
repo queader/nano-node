@@ -5,134 +5,114 @@
 
 void nano::election_container::insert (std::shared_ptr<nano::election> const & election, nano::election_behavior behavior, nano::bucket_t bucket, nano::priority_t priority)
 {
-	debug_assert (!exists (election)); // Should be checked before calling insert
+	debug_assert (!exists (election)); // Should be checked before inserting
+	debug_assert (!entries.get<tag_ptr> ().contains (election));
 
-	entry entry{ election, election->qualified_root, behavior, bucket, priority };
-
-	debug_assert (!by_ptr.contains (election));
-	debug_assert (!by_root.contains (election->qualified_root));
-	debug_assert (!by_behavior[behavior].map[bucket].map.contains (entry));
-
-	by_ptr.insert ({ election, entry });
-	by_root.insert ({ election->qualified_root, entry });
-
-	auto & by_bucket = by_behavior[behavior];
-	auto & by_priority = by_bucket.map[bucket];
-
-	by_priority.map.insert (entry);
+	auto [it, inserted] = entries.emplace_back (entry{ election, election->qualified_root, behavior, bucket, priority });
+	debug_assert (inserted);
 
 	// Update cached size
-	++by_bucket.total;
-	++by_priority.total;
+	size_by_behavior[{ behavior }]++;
+	size_by_bucket[{ behavior, bucket }]++;
 }
 
 bool nano::election_container::erase (std::shared_ptr<nano::election> const & election)
 {
-	if (auto existing = by_ptr.find (election); existing != by_ptr.end ())
+	auto maybe_entry = info (election);
+	if (!maybe_entry)
 	{
-		erase_impl (existing->second);
-		return true; // Erased
+		return false; // Not found
 	}
-	return false;
-}
+	auto entry = *maybe_entry;
 
-void nano::election_container::erase_impl (entry entry)
-{
-	debug_assert (by_ptr.contains (entry.election));
-	debug_assert (by_root.contains (entry.root));
-	debug_assert (by_behavior[entry.behavior].map[entry.bucket].map.contains (entry));
-
-	auto & by_bucket = by_behavior[entry.behavior];
-	auto & by_priority = by_bucket.map[entry.bucket];
-
-	by_priority.map.erase (entry);
-	by_root.erase (entry.root);
-	by_ptr.erase (entry.election);
+	auto erased = entries.get<tag_ptr> ().erase (election);
+	release_assert (erased == 1);
 
 	// Update cached size
-	--by_bucket.total;
-	--by_priority.total;
+	size_by_behavior[{ entry.behavior }]--;
+	size_by_bucket[{ entry.behavior, entry.bucket }]--;
+
+	return true; // Erased
 }
 
 bool nano::election_container::exists (nano::qualified_root const & root) const
 {
-	return by_root.contains (root);
+	return entries.get<tag_root> ().contains (root);
 }
 
 bool nano::election_container::exists (std::shared_ptr<nano::election> const & election) const
 {
-	return by_ptr.contains (election);
+	return entries.get<tag_ptr> ().contains (election);
 }
 
 std::shared_ptr<nano::election> nano::election_container::election (nano::qualified_root const & root) const
 {
-	if (auto existing = by_root.find (root); existing != by_root.end ())
+	if (auto existing = entries.get<tag_root> ().find (root); existing != entries.get<tag_root> ().end ())
 	{
-		return existing->second.election;
+		return existing->election;
 	}
 	return nullptr;
 }
 
-nano::election_container::entry nano::election_container::info (std::shared_ptr<nano::election> const & election) const
+auto nano::election_container::info (std::shared_ptr<nano::election> const & election) const -> std::optional<entry>
 {
-	if (auto existing = by_ptr.find (election); existing != by_ptr.end ())
+	if (auto existing = entries.get<tag_ptr> ().find (election); existing != entries.get<tag_ptr> ().end ())
 	{
-		return existing->second;
+		return *existing;
 	}
-	return {};
+	return std::nullopt;
 }
 
 auto nano::election_container::list () const -> std::vector<entry>
 {
-	auto r = by_ptr | std::views::values;
+	auto r = entries.get<tag_sequenced> () | std::views::transform ([] (auto const & entry) { return entry; });
 	return { r.begin (), r.end () };
 }
 
 size_t nano::election_container::size () const
 {
-	return by_ptr.size ();
+	return entries.size ();
 }
 
 size_t nano::election_container::size (nano::election_behavior behavior) const
 {
-	if (auto existing = by_behavior.find (behavior); existing != by_behavior.end ())
+	if (auto existing = size_by_behavior.find ({ behavior }); existing != size_by_behavior.end ())
 	{
-		return existing->second.total;
+		return existing->second;
 	}
 	return 0;
 }
 
 size_t nano::election_container::size (nano::election_behavior behavior, nano::bucket_t bucket) const
 {
-	if (auto existing = by_behavior.find (behavior); existing != by_behavior.end ())
+	if (auto existing = size_by_bucket.find ({ behavior, bucket }); existing != size_by_bucket.end ())
 	{
-		if (auto existing_bucket = existing->second.map.find (bucket); existing_bucket != existing->second.map.end ())
-		{
-			return existing_bucket->second.total;
-		}
+		return existing->second;
 	}
 	return 0;
 }
 
 auto nano::election_container::top (nano::election_behavior behavior, nano::bucket_t bucket) const -> top_entry_t
 {
-	if (auto existing = by_behavior.find (behavior); existing != by_behavior.end ())
+	auto & index = entries.get<tag_key> ();
+
+	// Returns an iterator pointing to the first element with key greater than x
+	auto existing = index.upper_bound (key{ behavior, bucket, std::numeric_limits<nano::priority_t>::max () });
+	if (existing != index.begin () && existing != index.end ())
 	{
-		if (auto existing_bucket = existing->second.map.find (bucket); existing_bucket != existing->second.map.end ())
+		--existing;
+		if (existing->behavior == behavior && existing->bucket == bucket)
 		{
-			if (!existing_bucket->second.map.empty ())
-			{
-				auto top = existing_bucket->second.map.begin ();
-				return { top->election, top->priority };
-			}
+			return { existing->election, existing->priority };
 		}
 	}
+
 	return { nullptr, std::numeric_limits<nano::priority_t>::max () };
 }
 
 void nano::election_container::clear ()
 {
-	by_ptr.clear ();
-	by_root.clear ();
-	by_behavior.clear ();
+	entries.clear ();
+	size_by_behavior.clear ();
+	size_by_bucket.clear ();
 }
