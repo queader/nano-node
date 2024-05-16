@@ -98,7 +98,7 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block,
 	auto const hash = block->hash ();
 
 	// If the election already exists, return it
-	if (auto existing = elections.find (root))
+	if (auto existing = elections.election (root))
 	{
 		return { existing, /* inserted */ false };
 	}
@@ -146,7 +146,7 @@ bool nano::active_elections::publish (std::shared_ptr<nano::block> const & block
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
-	if (auto election = elections.find (block->qualified_root ()))
+	if (auto election = elections.election (block->qualified_root ()))
 	{
 		lock.unlock ();
 
@@ -192,7 +192,7 @@ bool nano::active_elections::empty () const
 	return size () == 0;
 }
 
-std::shared_ptr<nano::election> nano::active_elections::top (nano::election_behavior behavior, nano::bucket_t bucket) const
+auto nano::active_elections::top (nano::election_behavior behavior, nano::bucket_t bucket) const -> top_entry_t
 {
 	debug_assert (behavior == nano::election_behavior::priority); // We do not expect other behaviors to use buckets
 
@@ -214,14 +214,14 @@ bool nano::active_elections::active (nano::block const & block) const
 std::shared_ptr<nano::election> nano::active_elections::election (nano::qualified_root const & root) const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	return elections.find (root);
+	return elections.election (root);
 }
 
 bool nano::active_elections::erase (nano::qualified_root const & root)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
-	if (auto election = elections.find (root))
+	if (auto election = elections.election (root))
 	{
 		erase_impl (lock, election);
 		return true;

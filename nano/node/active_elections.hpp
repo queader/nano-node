@@ -93,7 +93,8 @@ public:
 	size_t size (nano::election_behavior, nano::bucket_t) const;
 
 	// Returns election with the largerst "priority" number (highest timestamp). NOTE: Lower "priority" is better.
-	std::shared_ptr<nano::election> top (nano::election_behavior, nano::bucket_t) const;
+	using top_entry_t = std::pair<std::shared_ptr<nano::election>, priority_t>;
+	top_entry_t top (nano::election_behavior, nano::bucket_t) const;
 
 	// Maximum number of elections that should be present in this container
 	// NOTE: This is only a soft limit, it is possible for this container to exceed this count
