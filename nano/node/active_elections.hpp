@@ -5,6 +5,7 @@
 #include <nano/node/election_behavior.hpp>
 #include <nano/node/election_insertion_result.hpp>
 #include <nano/node/election_status.hpp>
+#include <nano/node/fwd.hpp>
 #include <nano/node/recently_cemented_cache.hpp>
 #include <nano/node/recently_confirmed_cache.hpp>
 #include <nano/node/vote_router.hpp>
@@ -24,23 +25,6 @@
 #include <unordered_map>
 
 namespace mi = boost::multi_index;
-
-namespace nano
-{
-class node;
-class active_elections;
-class block;
-class block_sideband;
-class block_processor;
-class confirming_set;
-class election;
-class vote;
-class stats;
-}
-namespace nano::secure
-{
-class read_transaction;
-}
 
 namespace nano
 {
@@ -71,36 +55,10 @@ public:
  */
 class active_elections final
 {
-public:
-	using erased_callback_t = std::function<void (std::shared_ptr<nano::election>)>;
-
-private: // Elections
-	class entry final
-	{
-	public:
-		nano::qualified_root root;
-		std::shared_ptr<nano::election> election;
-		erased_callback_t erased_callback;
-	};
-
 	friend class nano::election;
 
-	// clang-format off
-	class tag_account {};
-	class tag_root {};
-	class tag_sequenced {};
-	class tag_uncemented {};
-	class tag_arrival {};
-	class tag_hash {};
-
-	using ordered_roots = boost::multi_index_container<entry,
-	mi::indexed_by<
-		mi::sequenced<mi::tag<tag_sequenced>>,
-		mi::hashed_unique<mi::tag<tag_root>,
-			mi::member<entry, nano::qualified_root, &entry::root>>
-	>>;
-	// clang-format on
-	ordered_roots roots;
+public:
+	using erased_callback_t = std::function<void (std::shared_ptr<nano::election>)>;
 
 public:
 	active_elections (nano::node &, nano::confirming_set &, nano::block_processor &);
@@ -158,6 +116,43 @@ private: // Dependencies
 	nano::node & node;
 	nano::confirming_set & confirming_set;
 	nano::block_processor & block_processor;
+
+private: // Elections
+	struct key final
+	{
+		nano::election_behavior behavior;
+		uint64_t bucket;
+		uint64_t priority;
+
+		auto operator<=> (key const &) const = default;
+	};
+
+	struct entry final
+	{
+		nano::qualified_root root;
+		std::shared_ptr<nano::election> election;
+		active_elections::key key;
+	};
+
+	// clang-format off
+	class tag_account {};
+	class tag_root {};
+	class tag_sequenced {};
+	class tag_uncemented {};
+	class tag_arrival {};
+	class tag_hash {};
+	class tag_key {};
+
+	using ordered_elections = boost::multi_index_container<entry,
+	mi::indexed_by<
+		mi::sequenced<mi::tag<tag_sequenced>>,
+		mi::hashed_unique<mi::tag<tag_root>,
+			mi::member<entry, nano::qualified_root, &entry::root>>,
+		mi::ordered_non_unique<mi::tag<tag_key>,
+			mi::member<entry, active_elections::key, &entry::key>>
+	>>;
+	// clang-format on
+	ordered_elections elections;
 
 public:
 	recently_confirmed_cache recently_confirmed;
