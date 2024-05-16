@@ -149,6 +149,11 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block,
 	return { election, /* inserted */ true };
 }
 
+size_t nano::active_elections::size (nano::election_behavior) const
+{
+
+}
+
 void nano::active_elections::block_cemented_callback (std::shared_ptr<nano::block> const & block)
 {
 	debug_assert (node.block_confirmed (block->hash ()));
