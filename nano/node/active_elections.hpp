@@ -84,26 +84,30 @@ public:
 	insert_result insert (
 	std::shared_ptr<nano::block> const &,
 	nano::election_behavior = nano::election_behavior::priority,
-	bucket_t bucket = 0,
-	priority_t priority = 0);
+	nano::bucket_t bucket = 0,
+	nano::priority_t priority = 0);
+
+	// Notify this container about a new block (potential fork)
+	bool publish (std::shared_ptr<nano::block> const &);
 
 	// Is the root of this block in the roots container
 	bool active (nano::block const &) const;
 	bool active (nano::qualified_root const &) const;
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
+
 	// Returns a list of elections sorted by difficulty
 	std::vector<std::shared_ptr<nano::election>> list_active (std::size_t = std::numeric_limits<std::size_t>::max ());
+
 	bool erase (nano::block const &);
 	bool erase (nano::qualified_root const &);
-	bool publish (std::shared_ptr<nano::block> const &);
 
 	bool empty () const;
 	size_t size () const;
 	size_t size (nano::election_behavior) const;
-	size_t size (nano::election_behavior, bucket_t) const;
+	size_t size (nano::election_behavior, nano::bucket_t) const;
 
 	// Returns election with the largerst "priority" number (highest timestamp). NOTE: Lower "priority" is better.
-	std::shared_ptr<nano::election> top (nano::election_behavior, bucket_t) const;
+	std::shared_ptr<nano::election> top (nano::election_behavior, nano::bucket_t) const;
 
 	// Maximum number of elections that should be present in this container
 	// NOTE: This is only a soft limit, it is possible for this container to exceed this count
@@ -124,7 +128,7 @@ private:
 	void request_loop ();
 	void request_confirm (nano::unique_lock<nano::mutex> &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
-	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
+	void erase_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::election>);
 	// Returns a list of elections sorted by difficulty, mutex must be locked
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 	void activate_successors (nano::secure::read_transaction const & transaction, std::shared_ptr<nano::block> const & block);
@@ -175,11 +179,14 @@ private: // Elections
 			mi::member<entry, active_elections::key, &entry::key>>
 	>>;
 	// clang-format on
-	ordered_elections elections;
+	// ordered_elections elections;
 
 public:
 	class container
 	{
+	public:
+		using value_type = std::shared_ptr<nano::election>;
+
 	private:
 		struct entry
 		{
@@ -195,23 +202,43 @@ public:
 		using by_root_map = std::unordered_map<nano::qualified_root, entry>;
 		by_root_map by_root;
 
+		template <typename T>
+		struct map_wrapper
+		{
+			T map;
+			size_t total;
+		};
+
 		using by_priority_map = std::map<priority_t, entry>;
-		using by_bucket_map = std::map<bucket_t, by_priority_map>;
-		using by_behavior_map = std::map<nano::election_behavior, by_bucket_map>;
+		using by_bucket_map = std::map<bucket_t, map_wrapper<by_priority_map>>;
+		using by_behavior_map = std::map<nano::election_behavior, map_wrapper<by_bucket_map>>;
 		by_behavior_map by_behavior;
 
 	public:
 		void insert (std::shared_ptr<nano::election> const &, nano::election_behavior, bucket_t, priority_t);
-
-		bool erase (nano::qualified_root const &);
 		bool erase (std::shared_ptr<nano::election> const &);
 
 		bool exists (nano::qualified_root const &) const;
 		bool exists (std::shared_ptr<nano::election> const &) const;
 
-		std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
-		std::shared_ptr<nano::election> election (std::shared_ptr<nano::block> const &) const;
+		std::shared_ptr<nano::election> find (nano::qualified_root const &) const;
+
+		size_t size () const;
+		size_t size (nano::election_behavior) const;
+		size_t size (nano::election_behavior, bucket_t) const;
+
+		std::shared_ptr<nano::election> top (nano::election_behavior, bucket_t) const;
+
+		std::vector<std::shared_ptr<nano::election>> list () const;
+
+		void clear ();
+
+	private:
+		void insert_impl (entry);
+		void erase_impl (entry);
 	};
+
+	active_elections::container elections;
 
 public:
 	recently_confirmed_cache recently_confirmed;
@@ -227,9 +254,6 @@ private:
 
 	// Maximum time an election can be kept active if it is extending the container
 	std::chrono::seconds const election_time_to_live;
-
-	/** Keeps track of number of elections by election behavior (normal, hinted, optimistic) */
-	nano::enum_array<nano::election_behavior, int64_t> count_by_behavior;
 
 	nano::condition_variable condition;
 	bool stopped{ false };
