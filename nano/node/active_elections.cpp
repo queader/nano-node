@@ -350,7 +350,7 @@ void nano::active_elections::cleanup_election (nano::unique_lock<nano::mutex> & 
 
 	node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::election_cleanup);
 	node.stats.inc (nano::stat::type::election_cleanup, to_stat_detail (election->state ()));
-	node.stats.inc (completion_type (*election), to_stat_detail (election->behavior ()));
+	node.stats.inc (to_completion_type (election->state ()), to_stat_detail (election->behavior ()));
 	node.logger.trace (nano::log::type::active_elections, nano::log::detail::active_stopped, nano::log::arg{ "election", election });
 
 	node.logger.debug (nano::log::type::active_elections, "Erased election for blocks: {} (behavior: {}, state: {})",
@@ -533,9 +533,9 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 	return composite;
 }
 
-nano::stat::type nano::active_elections::completion_type (nano::election const & election) const
+nano::stat::type nano::active_elections::to_completion_type (nano::election_state state)
 {
-	switch (election.state ())
+	switch (state)
 	{
 		case election_state::passive:
 		case election_state::active:
@@ -552,6 +552,8 @@ nano::stat::type nano::active_elections::completion_type (nano::election const &
 			return nano::stat::type::active_cancelled;
 			break;
 	}
+	debug_assert (false);
+	return {};
 }
 
 /*

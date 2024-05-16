@@ -28,6 +28,11 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
+enum class election_state;
+}
+
+namespace nano
+{
 class active_elections_config final
 {
 public:
@@ -120,13 +125,14 @@ private:
 	void request_confirm (nano::unique_lock<nano::mutex> &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
 	void cleanup_election (nano::unique_lock<nano::mutex> & lock_a, std::shared_ptr<nano::election>);
-	nano::stat::type completion_type (nano::election const & election) const;
 	// Returns a list of elections sorted by difficulty, mutex must be locked
 	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 	void activate_successors (nano::secure::read_transaction const & transaction, std::shared_ptr<nano::block> const & block);
 	void notify_observers (nano::secure::read_transaction const & transaction, nano::election_status const & status, std::vector<nano::vote_with_weight_info> const & votes);
 	void block_cemented_callback (std::shared_ptr<nano::block> const &);
 	void block_already_cemented_callback (nano::block_hash const &);
+
+	static nano::stat::type to_completion_type (nano::election_state);
 
 private: // Dependencies
 	active_elections_config const & config;
