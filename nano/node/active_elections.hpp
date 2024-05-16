@@ -3,6 +3,7 @@
 #include <nano/lib/enum_util.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/node/election_behavior.hpp>
+#include <nano/node/election_container.hpp>
 #include <nano/node/election_status.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/recently_cemented_cache.hpp>
@@ -11,19 +12,11 @@
 #include <nano/node/vote_with_weight_info.hpp>
 #include <nano/secure/common.hpp>
 
-#include <boost/multi_index/hashed_index.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/random_access_index.hpp>
-#include <boost/multi_index/sequenced_index.hpp>
-#include <boost/multi_index_container.hpp>
-
 #include <condition_variable>
 #include <deque>
 #include <memory>
 #include <thread>
 #include <unordered_map>
-
-namespace mi = boost::multi_index;
 
 namespace nano
 {
@@ -53,9 +46,6 @@ public:
 	std::size_t confirmation_cache{ 65536 };
 };
 
-using bucket_t = uint64_t;
-using priority_t = uint64_t;
-
 /**
  * Core class for determining consensus
  * Holds all active blocks i.e. recently added blocks that need confirmation
@@ -63,9 +53,6 @@ using priority_t = uint64_t;
 class active_elections final
 {
 	friend class nano::election;
-
-public:
-	using erased_callback_t = std::function<void (std::shared_ptr<nano::election>)>;
 
 public:
 	active_elections (nano::node &, nano::confirming_set &, nano::block_processor &);
@@ -143,111 +130,17 @@ private: // Dependencies
 	nano::confirming_set & confirming_set;
 	nano::block_processor & block_processor;
 
-private: // Elections
-	struct key final
-	{
-		nano::election_behavior behavior;
-		bucket_t bucket;
-		priority_t priority;
-
-		auto operator<=> (key const &) const = default;
-	};
-
-	struct entry final
-	{
-		nano::qualified_root root;
-		std::shared_ptr<nano::election> election;
-		active_elections::key key;
-	};
-
-	// clang-format off
-	class tag_account {};
-	class tag_root {};
-	class tag_sequenced {};
-	class tag_uncemented {};
-	class tag_arrival {};
-	class tag_hash {};
-	class tag_key {};
-
-	using ordered_elections = boost::multi_index_container<entry,
-	mi::indexed_by<
-		mi::sequenced<mi::tag<tag_sequenced>>,
-		mi::hashed_unique<mi::tag<tag_root>,
-			mi::member<entry, nano::qualified_root, &entry::root>>,
-		mi::ordered_non_unique<mi::tag<tag_key>,
-			mi::member<entry, active_elections::key, &entry::key>>
-	>>;
-	// clang-format on
-	// ordered_elections elections;
-
 public:
-	class container
-	{
-	public:
-		using value_type = std::shared_ptr<nano::election>;
-
-	private:
-		struct entry
-		{
-			std::shared_ptr<nano::election> election;
-			nano::qualified_root root;
-			bucket_t bucket;
-			priority_t priority;
-		};
-
-		using by_ptr_map = std::unordered_map<std::shared_ptr<nano::election>, entry>;
-		by_ptr_map by_ptr;
-
-		using by_root_map = std::unordered_map<nano::qualified_root, entry>;
-		by_root_map by_root;
-
-		template <typename T>
-		struct map_wrapper
-		{
-			T map;
-			size_t total;
-		};
-
-		using by_priority_map = std::map<priority_t, entry>;
-		using by_bucket_map = std::map<bucket_t, map_wrapper<by_priority_map>>;
-		using by_behavior_map = std::map<nano::election_behavior, map_wrapper<by_bucket_map>>;
-		by_behavior_map by_behavior;
-
-	public:
-		void insert (std::shared_ptr<nano::election> const &, nano::election_behavior, bucket_t, priority_t);
-		bool erase (std::shared_ptr<nano::election> const &);
-
-		bool exists (nano::qualified_root const &) const;
-		bool exists (std::shared_ptr<nano::election> const &) const;
-
-		std::shared_ptr<nano::election> find (nano::qualified_root const &) const;
-
-		size_t size () const;
-		size_t size (nano::election_behavior) const;
-		size_t size (nano::election_behavior, bucket_t) const;
-
-		std::shared_ptr<nano::election> top (nano::election_behavior, bucket_t) const;
-
-		std::vector<std::shared_ptr<nano::election>> list () const;
-
-		void clear ();
-
-	private:
-		void insert_impl (entry);
-		void erase_impl (entry);
-	};
-
-	active_elections::container elections;
-
-public:
-	recently_confirmed_cache recently_confirmed;
-	recently_cemented_cache recently_cemented;
+	nano::recently_confirmed_cache recently_confirmed;
+	nano::recently_cemented_cache recently_cemented;
 
 	// TODO: This mutex is currently public because many tests access it
 	// TODO: This is bad. Remove the need to explicitly lock this from any code outside of this class
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
 
 private:
+	nano::election_container elections;
+
 	nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> election_winner_details;
 
@@ -258,7 +151,6 @@ private:
 	bool stopped{ false };
 	std::thread thread;
 
-	friend class election;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_elections &, std::string const &);
 
 public: // Tests

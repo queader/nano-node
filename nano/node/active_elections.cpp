@@ -587,7 +587,3 @@ nano::error nano::active_elections_config::deserialize (nano::tomlconfig & toml)
 
 	return toml.get_error ();
 }
-
-/*
- * active_elections::container
- */

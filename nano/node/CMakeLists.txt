@@ -72,6 +72,8 @@ add_library(
   election.hpp
   election.cpp
   election_behavior.hpp
+  election_container.hpp
+  election_container.cpp
   election_status.hpp
   epoch_upgrader.hpp
   epoch_upgrader.cpp
