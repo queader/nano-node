@@ -1,5 +1,6 @@
 #include <nano/lib/blocks.hpp>
 #include <nano/test_common/chains.hpp>
+#include <nano/test_common/random.hpp>
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
 
