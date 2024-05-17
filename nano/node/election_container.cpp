@@ -8,6 +8,7 @@ void nano::election_container::insert (std::shared_ptr<nano::election> const & e
 	debug_assert (election->behavior () == behavior);
 	debug_assert (!exists (election)); // Should be checked before inserting
 	debug_assert (!entries.get<tag_ptr> ().contains (election));
+	debug_assert (!entries.get<tag_root> ().contains (election->qualified_root));
 
 	auto [it, inserted] = entries.emplace_back (entry{ election, election->qualified_root, behavior, bucket, priority });
 	debug_assert (inserted);
@@ -99,7 +100,7 @@ auto nano::election_container::top (nano::election_behavior behavior, nano::buck
 
 	// Returns an iterator pointing to the first element with key greater than x
 	auto existing = index.upper_bound (key{ behavior, bucket, std::numeric_limits<nano::priority_t>::max () });
-	if (existing != index.begin () && existing != index.end ())
+	if (existing != index.begin ())
 	{
 		--existing;
 		if (existing->behavior == behavior && existing->bucket == bucket)
