@@ -11,20 +11,27 @@ bool nano::scheduler::bucket::value_type::operator== (value_type const & other_a
 	return time == other_a.time && block->hash () == other_a.block->hash ();
 }
 
-nano::scheduler::bucket::bucket (size_t maximum) :
-	maximum{ maximum }
+/*
+ * bucket
+ */
+
+nano::scheduler::bucket::bucket (size_t max_blocks, nano::uint128_t min_balance, bucket_t index) :
+	max_blocks{ max_blocks },
+	min_balance{ min_balance },
+	index{ index }
 {
-	debug_assert (maximum > 0);
+	debug_assert (max_blocks > 0);
 }
 
 nano::scheduler::bucket::~bucket ()
 {
 }
 
-std::shared_ptr<nano::block> nano::scheduler::bucket::top () const
+auto nano::scheduler::bucket::top () const -> std::pair<std::shared_ptr<nano::block>, priority_t>
 {
 	debug_assert (!queue.empty ());
-	return queue.begin ()->block;
+	auto const & top = *queue.begin ();
+	return { top.block, top.time };
 }
 
 void nano::scheduler::bucket::pop ()
@@ -33,10 +40,10 @@ void nano::scheduler::bucket::pop ()
 	queue.erase (queue.begin ());
 }
 
-void nano::scheduler::bucket::push (uint64_t time, std::shared_ptr<nano::block> block)
+void nano::scheduler::bucket::push (std::shared_ptr<nano::block> block, priority_t time)
 {
 	queue.insert ({ time, block });
-	if (queue.size () > maximum)
+	if (queue.size () > max_blocks)
 	{
 		debug_assert (!queue.empty ());
 		queue.erase (--queue.end ());
@@ -51,12 +58,4 @@ size_t nano::scheduler::bucket::size () const
 bool nano::scheduler::bucket::empty () const
 {
 	return queue.empty ();
-}
-
-void nano::scheduler::bucket::dump () const
-{
-	for (auto const & item : queue)
-	{
-		std::cerr << item.time << ' ' << item.block->hash ().to_string () << '\n';
-	}
 }

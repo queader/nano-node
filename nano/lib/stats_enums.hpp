@@ -370,6 +370,7 @@ enum class detail
 
 	// active
 	insert,
+	insert_success,
 	insert_failed,
 	election_cleanup,
 
