@@ -2978,7 +2978,6 @@ TEST (node, rollback_vote_self)
 {
 	nano::test::system system;
 	nano::node_flags flags;
-	flags.disable_request_loop = true;
 	auto & node = *system.add_node (flags);
 	nano::state_block_builder builder;
 	nano::keypair key;
