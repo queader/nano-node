@@ -72,6 +72,7 @@ enum class type
 	gap_cache,
 	vote_processor,
 	election_scheduler,
+	priority_scheduler,
 	vote_generator,
 	rep_tiers,
 	syn_cookies,

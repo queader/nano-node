@@ -64,7 +64,9 @@ private:
 	bool empty_locked () const;
 	bool predicate () const;
 
-	std::unique_ptr<nano::scheduler::buckets> buckets;
+private:
+	std::unique_ptr<nano::scheduler::buckets> buckets_impl;
+	nano::scheduler::buckets & buckets;
 
 	bool stopped{ false };
 	nano::condition_variable condition;

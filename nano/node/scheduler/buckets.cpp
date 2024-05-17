@@ -29,7 +29,7 @@ void nano::scheduler::buckets::seek ()
  * Prioritization constructor, construct a container containing approximately 'maximum' number of blocks.
  * @param maximum number of blocks that this container can hold, this is a soft and approximate limit.
  */
-nano::scheduler::buckets::buckets (uint64_t maximum) :
+nano::scheduler::buckets::buckets (size_t maximum) :
 	maximum{ maximum }
 {
 	auto build_region = [this] (uint128_t const & begin, uint128_t const & end, size_t count) {

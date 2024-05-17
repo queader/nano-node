@@ -12,8 +12,10 @@ nano::scheduler::priority::priority (nano::node & node_a, nano::stats & stats_a)
 	config{ node_a.config.priority_scheduler },
 	node{ node_a },
 	stats{ stats_a },
-	buckets{ std::make_unique<scheduler::buckets> () }
+	buckets_impl{ std::make_unique<scheduler::buckets> () },
+	buckets{ *buckets_impl }
 {
+	node.logger.info (nano::log::type::priority_scheduler, "Number of buckets: {}", buckets.bucket_count ());
 }
 
 nano::scheduler::priority::~priority ()
@@ -63,16 +65,18 @@ bool nano::scheduler::priority::activate (secure::transaction const & transactio
 	auto const balance_priority = std::max (block->balance ().number (), node.ledger.confirmed.block_balance (transaction, head).value_or (0).number ());
 	auto const time_priority = !head.is_zero () ? node.ledger.confirmed.block_get (transaction, head)->sideband ().timestamp : nano::seconds_since_epoch (); // New accounts get current timestamp i.e. lowest priority
 
-	node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::activated);
-	node.logger.trace (nano::log::type::election_scheduler, nano::log::detail::block_activated,
+	node.stats.inc (nano::stat::type::priority_scheduler, nano::stat::detail::activated);
+	node.logger.trace (nano::log::type::priority_scheduler, nano::log::detail::block_activated,
 	nano::log::arg{ "account", account.to_account () }, // TODO: Convert to lazy eval
 	nano::log::arg{ "block", block },
 	nano::log::arg{ "time", time_priority },
 	nano::log::arg{ "priority", balance_priority });
 
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	buckets->push (time_priority, block, balance_priority);
-	notify ();
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		buckets.push (time_priority, block, balance_priority);
+	}
+	condition.notify_all ();
 
 	return true; // Activated
 }
@@ -85,12 +89,13 @@ void nano::scheduler::priority::notify ()
 std::size_t nano::scheduler::priority::size () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	return buckets->size ();
+	return buckets.size ();
 }
 
 bool nano::scheduler::priority::empty_locked () const
 {
-	return buckets->empty ();
+	debug_assert (!mutex.try_lock ());
+	return buckets.empty ();
 }
 
 bool nano::scheduler::priority::empty () const
@@ -101,7 +106,9 @@ bool nano::scheduler::priority::empty () const
 
 bool nano::scheduler::priority::predicate () const
 {
-	return node.active.vacancy (nano::election_behavior::priority) > 0 && !buckets->empty ();
+	debug_assert (!mutex.try_lock ());
+
+	return node.active.vacancy (nano::election_behavior::priority) > 0 && !buckets.empty ();
 }
 
 void nano::scheduler::priority::run ()
@@ -115,18 +122,18 @@ void nano::scheduler::priority::run ()
 		debug_assert ((std::this_thread::yield (), true)); // Introduce some random delay in debug builds
 		if (!stopped)
 		{
-			stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::loop);
+			stats.inc (nano::stat::type::priority_scheduler, nano::stat::detail::loop);
 
 			if (predicate ())
 			{
-				auto block = buckets->top ();
-				buckets->pop ();
+				auto block = buckets.top ();
+				buckets.pop ();
 				lock.unlock ();
-				stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority);
+				stats.inc (nano::stat::type::priority_scheduler, nano::stat::detail::insert_priority);
 				auto result = node.active.insert (block);
 				if (result.inserted)
 				{
-					stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_priority_success);
+					stats.inc (nano::stat::type::priority_scheduler, nano::stat::detail::insert_priority_success);
 				}
 				if (result.election != nullptr)
 				{
@@ -148,6 +155,6 @@ std::unique_ptr<nano::container_info_component> nano::scheduler::priority::colle
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (buckets->collect_container_info ("buckets"));
+	composite->add_component (buckets.collect_container_info ("buckets"));
 	return composite;
 }

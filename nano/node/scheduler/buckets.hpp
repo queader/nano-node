@@ -13,6 +13,9 @@ class block;
 }
 namespace nano::scheduler
 {
+using bucket_t = uint64_t;
+using priority_t = uint64_t;
+
 class bucket;
 /** A container for holding blocks and their arrival/creation time.
  *
@@ -43,9 +46,9 @@ class buckets final
 	void seek ();
 
 public:
-	buckets (uint64_t maximum = 250000u);
+	buckets (size_t maximum = 250000u);
 	~buckets ();
-	void push (uint64_t time, std::shared_ptr<nano::block> block, nano::amount const & priority);
+	void push (priority_t priority, std::shared_ptr<nano::block> block, nano::amount const & balance);
 	std::shared_ptr<nano::block> top () const;
 	void pop ();
 	std::size_t size () const;

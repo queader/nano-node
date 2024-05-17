@@ -69,6 +69,7 @@ enum class type
 	unchecked,
 	election_scheduler,
 	election_bucket,
+	priority_scheduler,
 	optimistic_scheduler,
 	handshake,
 	rep_crawler,
