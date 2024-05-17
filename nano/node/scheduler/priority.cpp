@@ -122,19 +122,13 @@ std::size_t nano::scheduler::priority::size () const
 	});
 }
 
-bool nano::scheduler::priority::empty_locked () const
+bool nano::scheduler::priority::empty () const
 {
-	debug_assert (!mutex.try_lock ());
+	nano::lock_guard<nano::mutex> lock{ mutex };
 
 	return std::all_of (buckets.begin (), buckets.end (), [] (auto const & bucket) {
 		return bucket->empty ();
 	});
-}
-
-bool nano::scheduler::priority::empty () const
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-	return empty_locked ();
 }
 
 bool nano::scheduler::priority::predicate () const
@@ -155,30 +149,29 @@ bool nano::scheduler::priority::available (nano::scheduler::bucket const & bucke
 		return false;
 	}
 
-	auto const num_elections = node.active.size (nano::election_behavior::priority, bucket.index);
+	auto const bucket_info = node.active.info (nano::election_behavior::priority, bucket.index);
 
-	if (num_elections < config.elections_reserved)
+	if (bucket_info.election_count < config.elections_reserved)
 	{
 		return true;
 	}
-	if (num_elections < config.elections_max)
+	if (bucket_info.election_count < config.elections_max)
 	{
 		return node.active.vacancy (nano::election_behavior::priority) > 0;
 	}
-	if (auto [top_election, top_time] = node.active.top (nano::election_behavior::priority, bucket.index); top_election)
+	// Check if the top election in the bucket should be reprioritized
+	if (bucket_info.top_election)
 	{
 		auto [candidate_block, candidate_time] = bucket.top ();
 
-		// Drain duplicates
-		if (top_election->qualified_root == candidate_block->qualified_root ())
+		if (bucket_info.top_election->qualified_root == candidate_block->qualified_root ())
 		{
-			return true;
+			return true; // Drain duplicates
 		}
-
-		if (candidate_time < top_time)
+		if (candidate_time < bucket_info.top_priority)
 		{
 			// Bound number of reprioritizations
-			return num_elections < config.elections_max * 2;
+			return bucket_info.election_count < config.elections_max * 2;
 		};
 	}
 	return false;

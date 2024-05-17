@@ -52,7 +52,6 @@ private: // Dependencies
 
 private:
 	void run ();
-	bool empty_locked () const;
 	bool predicate () const;
 	bool available (nano::scheduler::bucket const &) const;
 
