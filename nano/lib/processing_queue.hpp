@@ -84,13 +84,12 @@ public:
 	/**
 	 * Queues item for batch processing
 	 */
-	template <class Item>
-	void add (Item && item)
+	void add (T const & item)
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
 		if (queue.size () < max_queue_size)
 		{
-			queue.push_back (std::forward<T> (item));
+			queue.push_back (item);
 			lock.unlock ();
 			condition.notify_one ();
 			stats.inc (stat_type, nano::stat::detail::queue);

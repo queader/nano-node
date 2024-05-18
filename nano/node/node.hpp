@@ -52,6 +52,7 @@ class vote_router;
 class work_pool;
 class peer_history;
 class thread_runner;
+class vote_rebroadcaster;
 
 namespace scheduler
 {
@@ -211,6 +212,8 @@ public:
 	nano::process_live_dispatcher process_live_dispatcher;
 	std::unique_ptr<nano::peer_history> peer_history_impl;
 	nano::peer_history & peer_history;
+	std::unique_ptr<nano::vote_rebroadcaster> vote_rebroadcaster_impl;
+	nano::vote_rebroadcaster & vote_rebroadcaster;
 
 	std::chrono::steady_clock::time_point const startup_time;
 	std::chrono::seconds unchecked_cutoff = std::chrono::seconds (7 * 24 * 60 * 60); // Week

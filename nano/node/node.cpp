@@ -23,6 +23,7 @@
 #include <nano/node/transport/tcp_listener.hpp>
 #include <nano/node/vote_generator.hpp>
 #include <nano/node/vote_processor.hpp>
+#include <nano/node/vote_rebroadcaster.hpp>
 #include <nano/node/vote_router.hpp>
 #include <nano/node/websocket.hpp>
 #include <nano/secure/ledger.hpp>
@@ -217,6 +218,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	process_live_dispatcher{ ledger, scheduler.priority, vote_cache, websocket },
 	peer_history_impl{ std::make_unique<nano::peer_history> (config.peer_history, store, network, logger, stats) },
 	peer_history{ *peer_history_impl },
+	vote_rebroadcaster_impl{ std::make_unique<nano::vote_rebroadcaster> (*this) },
+	vote_rebroadcaster{ *vote_rebroadcaster_impl },
 	startup_time (std::chrono::steady_clock::now ()),
 	node_seq (seq)
 {
@@ -251,11 +254,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 		});
 		if (processed)
 		{
-			auto const reps = wallets.reps ();
-			if (!reps.have_half_rep () && !reps.exists (vote->account))
-			{
-				network.flood_vote (vote, 0.5f, /* rebroadcasted */ true);
-			}
+			vote_rebroadcaster.put (vote);
 		}
 	});
 
@@ -732,6 +731,7 @@ void nano::node::start ()
 	local_block_broadcaster.start ();
 	peer_history.start ();
 	vote_router.start ();
+	vote_rebroadcaster.start ();
 
 	add_initial_peers ();
 }
@@ -746,6 +746,7 @@ void nano::node::stop ()
 
 	logger.info (nano::log::type::node, "Node stopping...");
 
+	vote_rebroadcaster.stop ();
 	vote_router.stop ();
 	peer_history.stop ();
 	// Cancels ongoing work generation tasks, which may be blocking other threads

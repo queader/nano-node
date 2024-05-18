@@ -48,6 +48,7 @@ enum class type
 	telemetry,
 	vote_generator,
 	vote_cache,
+	vote_rebroadcaster,
 	hinting,
 	blockprocessor,
 	blockprocessor_source,
