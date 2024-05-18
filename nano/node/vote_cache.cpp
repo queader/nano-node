@@ -122,9 +122,8 @@ void nano::vote_cache::insert (std::shared_ptr<nano::vote> const & vote, std::un
 
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	// Cache votes with a corresponding active election (indicated by `vote_code::vote`) in case that election gets dropped
 	auto filter = [] (auto code) {
-		return code == nano::vote_code::vote || code == nano::vote_code::indeterminate;
+		return code == nano::vote_code::indeterminate;
 	};
 
 	// If results map is empty, insert all hashes (meant for testing)
