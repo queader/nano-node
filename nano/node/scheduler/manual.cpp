@@ -71,10 +71,7 @@ void nano::scheduler::manual::run ()
 				lock.unlock ();
 				node.stats.inc (nano::stat::type::election_scheduler, nano::stat::detail::insert_manual);
 				auto result = node.active.insert (block, election_behavior);
-				if (result.election != nullptr)
-				{
-					result.election->transition_active ();
-				}
+				node.stats.inc (nano::stat::type::manual_scheduler, result.inserted ? nano::stat::detail::insert_success : nano::stat::detail::insert_failed);
 			}
 			else
 			{

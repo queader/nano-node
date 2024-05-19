@@ -198,10 +198,6 @@ void nano::scheduler::priority::run ()
 
 					auto result = node.active.insert (block);
 					stats.inc (nano::stat::type::priority_scheduler, result.inserted ? nano::stat::detail::insert_success : nano::stat::detail::insert_failed);
-					if (result.election != nullptr)
-					{
-						result.election->transition_active ();
-					}
 
 					lock.lock ();
 				}

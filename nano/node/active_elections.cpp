@@ -138,6 +138,7 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block,
 
 	// Votes are immediately generated for inserted elections
 	election->broadcast_vote ();
+	election->transition_active ();
 
 	return { election, /* inserted */ true };
 }

@@ -70,6 +70,7 @@ enum class type
 	election_scheduler,
 	election_bucket,
 	priority_scheduler,
+	manual_scheduler,
 	optimistic_scheduler,
 	handshake,
 	rep_crawler,
