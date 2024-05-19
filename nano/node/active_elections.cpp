@@ -506,10 +506,24 @@ void nano::active_elections::request_loop ()
 	}
 }
 
-std::vector<std::shared_ptr<nano::election>> nano::active_elections::list () const
+auto nano::active_elections::list () const -> std::vector<std::shared_ptr<nano::election>>
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 	auto r = elections.list () | std::views::transform ([] (auto const & entry) { return entry.election; });
+	return { r.begin (), r.end () };
+}
+
+auto nano::active_elections::list_details () const -> std::vector<details_info>
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	auto r = elections.list () | std::views::transform ([] (auto const & entry) {
+		return details_info{
+			.election = entry.election,
+			.behavior = entry.behavior,
+			.bucket = entry.bucket,
+			.priority = entry.priority
+		};
+	});
 	return { r.begin (), r.end () };
 }
 

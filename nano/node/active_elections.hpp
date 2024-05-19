@@ -81,7 +81,15 @@ public:
 	bool active (nano::qualified_root const &) const;
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
 
+	struct details_info
+	{
+		std::shared_ptr<nano::election> election;
+		nano::election_behavior behavior;
+		nano::bucket_t bucket;
+		nano::priority_t priority;
+	};
 	std::vector<std::shared_ptr<nano::election>> list () const;
+	std::vector<details_info> list_details () const;
 
 	bool erase (nano::block const &);
 	bool erase (nano::qualified_root const &);
