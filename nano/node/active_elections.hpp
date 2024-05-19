@@ -81,8 +81,7 @@ public:
 	bool active (nano::qualified_root const &) const;
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
 
-	// Returns a list of elections sorted by difficulty
-	std::vector<std::shared_ptr<nano::election>> list_active (std::size_t = std::numeric_limits<std::size_t>::max ());
+	std::vector<std::shared_ptr<nano::election>> list () const;
 
 	bool erase (nano::block const &);
 	bool erase (nano::qualified_root const &);
@@ -124,8 +123,6 @@ private:
 	void request_confirm (nano::unique_lock<nano::mutex> &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
 	void erase_impl (nano::unique_lock<nano::mutex> &, std::shared_ptr<nano::election>);
-	// Returns a list of elections sorted by difficulty, mutex must be locked
-	std::vector<std::shared_ptr<nano::election>> list_active_impl (std::size_t) const;
 	void activate_successors (nano::secure::read_transaction const & transaction, std::shared_ptr<nano::block> const & block);
 	void notify_observers (nano::secure::read_transaction const & transaction, nano::election_status const & status, std::vector<nano::vote_with_weight_info> const & votes);
 	void block_cemented_callback (std::shared_ptr<nano::block> const &);

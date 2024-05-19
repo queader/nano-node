@@ -1983,7 +1983,7 @@ void nano::json_handler::confirmation_active ()
 		announcements = strtoul (announcements_text.get ().c_str (), NULL, 10);
 	}
 	boost::property_tree::ptree elections;
-	auto active_elections = node.active.list_active ();
+	auto active_elections = node.active.list ();
 	for (auto const & election : active_elections)
 	{
 		if (election->confirmation_request_count >= announcements)
@@ -2008,7 +2008,7 @@ void nano::json_handler::confirmation_active ()
 
 void nano::json_handler::election_statistics ()
 {
-	auto active_elections = node.active.list_active ();
+	auto active_elections = node.active.list ();
 	unsigned manual_count = 0;
 	unsigned priority_count = 0;
 	unsigned hinted_count = 0;

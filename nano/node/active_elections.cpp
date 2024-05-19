@@ -453,8 +453,7 @@ void nano::active_elections::request_confirm (nano::unique_lock<nano::mutex> & l
 {
 	debug_assert (lock_a.owns_lock ());
 
-	std::size_t const this_loop_target_l (elections.size ());
-	auto const elections_l{ list_active_impl (this_loop_target_l) };
+	auto const elections_l = elections.list ();
 
 	lock_a.unlock ();
 
@@ -471,40 +470,19 @@ void nano::active_elections::request_confirm (nano::unique_lock<nano::mutex> & l
 	 * Elections extending the soft config.size limit are flushed after a certain time-to-live cutoff
 	 * Flushed elections are later re-activated via frontier confirmation
 	 */
-	for (auto const & election_l : elections_l)
+	for (auto const & election : elections_l | std::views::transform ([] (auto const & entry) { return entry.election; }))
 	{
-		bool const confirmed_l (election_l->confirmed ());
+		bool const confirmed_l (election->confirmed ());
 		unconfirmed_count_l += !confirmed_l;
 
-		if (election_l->transition_time (solicitor))
+		if (election->transition_time (solicitor))
 		{
-			erase (election_l->qualified_root);
+			erase (election->qualified_root);
 		}
 	}
 
 	solicitor.flush ();
 	lock_a.lock ();
-}
-
-std::vector<std::shared_ptr<nano::election>> nano::active_elections::list_active (std::size_t max_a)
-{
-	nano::lock_guard<nano::mutex> guard{ mutex };
-	return list_active_impl (max_a);
-}
-
-std::vector<std::shared_ptr<nano::election>> nano::active_elections::list_active_impl (std::size_t max_a) const
-{
-	std::vector<std::shared_ptr<nano::election>> result_l;
-	result_l.reserve (std::min (max_a, elections.size ()));
-	{
-		auto listed (elections.list ());
-		std::size_t count_l{ 0 };
-		for (auto i = listed.begin (), n = listed.end (); i != n && count_l < max_a; ++i, ++count_l)
-		{
-			result_l.push_back (i->election);
-		}
-	}
-	return result_l;
 }
 
 void nano::active_elections::request_loop ()
@@ -526,6 +504,13 @@ void nano::active_elections::request_loop ()
 			condition.wait_until (lock, wakeup_l, [&wakeup_l, &stopped = stopped] { return stopped || std::chrono::steady_clock::now () >= wakeup_l; });
 		}
 	}
+}
+
+std::vector<std::shared_ptr<nano::election>> nano::active_elections::list () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	auto r = elections.list () | std::views::transform ([] (auto const & entry) { return entry.election; });
+	return { r.begin (), r.end () };
 }
 
 std::size_t nano::active_elections::election_winner_details_size ()

@@ -321,7 +321,7 @@ TEST (node, fork_storm)
 			else
 			{
 				nano::unique_lock<nano::mutex> lock{ node_a->active.mutex };
-				auto election = *node_a->active.list_active ().begin ();
+				auto election = *node_a->active.list ().begin ();
 				lock.unlock ();
 				if (election->votes ().size () == 1)
 				{
@@ -2168,7 +2168,7 @@ TEST (system, block_sequence)
 			{
 				message += boost::str (boost::format ("N:%1% b:%2% c:%3% a:%4% s:%5% p:%6%\n") % std::to_string (i->network.port) % std::to_string (i->ledger.block_count ()) % std::to_string (i->ledger.cemented_count ()) % std::to_string (i->active.size ()) % std::to_string (i->scheduler.priority.size ()) % std::to_string (i->network.size ()));
 				nano::lock_guard<nano::mutex> lock{ i->active.mutex };
-				for (auto const & j : i->active.list_active ())
+				for (auto const & j : i->active.list ())
 				{
 					auto election = j;
 					if (election->confirmation_request_count > 10)

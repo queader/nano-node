@@ -1281,14 +1281,7 @@ TEST (active_elections, list_active)
 
 	ASSERT_TRUE (nano::test::start_elections (system, node, { send, send2, open }));
 	ASSERT_EQ (3, node.active.size ());
-	ASSERT_EQ (1, node.active.list_active (1).size ());
-	ASSERT_EQ (2, node.active.list_active (2).size ());
-	ASSERT_EQ (3, node.active.list_active (3).size ());
-	ASSERT_EQ (3, node.active.list_active (4).size ());
-	ASSERT_EQ (3, node.active.list_active (99999).size ());
-	ASSERT_EQ (3, node.active.list_active ().size ());
-
-	auto active = node.active.list_active ();
+	ASSERT_EQ (3, node.active.list ().size ());
 }
 
 TEST (active_elections, vacancy)
