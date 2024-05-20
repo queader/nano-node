@@ -22,9 +22,21 @@ nano::confirming_set::~confirming_set ()
 
 void nano::confirming_set::add (nano::block_hash const & hash)
 {
-	std::lock_guard lock{ mutex };
-	set.insert (hash);
-	condition.notify_all ();
+	bool added = false;
+	{
+		std::lock_guard lock{ mutex };
+		auto [it, inserted] = set.insert (hash);
+		added = inserted;
+	}
+	if (added)
+	{
+		condition.notify_all ();
+		stats.inc (nano::stat::type::confirming_set, nano::stat::detail::insert);
+	}
+	else
+	{
+		stats.inc (nano::stat::type::confirming_set, nano::stat::detail::duplicate);
+	}
 }
 
 void nano::confirming_set::start ()
@@ -129,6 +141,7 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 
 	workers.push_task ([this, cemented = std::move (cemented), already = std::move (already)] () {
 		stats.inc (nano::stat::type::confirming_set, nano::stat::detail::notify);
+
 		for (auto const & i : cemented)
 		{
 			cemented_observers.notify (i);

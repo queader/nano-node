@@ -116,6 +116,7 @@ enum class detail
 	queue_overflow,
 	triggered,
 	notify,
+	duplicate,
 
 	// processing queue
 	queue,

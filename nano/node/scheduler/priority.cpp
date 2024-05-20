@@ -47,6 +47,7 @@ void nano::scheduler::priority::stop ()
 	nano::join_or_pass (thread);
 }
 
+// TODO: Track success/failure stats
 bool nano::scheduler::priority::activate (secure::transaction const & transaction, nano::account const & account)
 {
 	debug_assert (!account.is_zero ());
