@@ -139,6 +139,8 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block,
 
 	lock.unlock ();
 
+	condition.notify_all ();
+
 	node.vote_router.trigger_vote_cache (hash);
 	node.observers.active_started.notify (hash);
 	vacancy_update ();
