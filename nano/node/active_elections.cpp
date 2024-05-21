@@ -52,8 +52,8 @@ nano::active_elections::active_elections (nano::node & node_a, nano::confirming_
 
 nano::active_elections::~active_elections ()
 {
-	// Thread must be stopped before destruction
 	debug_assert (!thread.joinable ());
+	debug_assert (!cleanup_thread.joinable ());
 }
 
 void nano::active_elections::start ()
@@ -64,10 +64,16 @@ void nano::active_elections::start ()
 	}
 
 	debug_assert (!thread.joinable ());
+	debug_assert (!cleanup_thread.joinable ());
 
 	thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::request_loop);
 		request_loop ();
+	});
+
+	cleanup_thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::active_cleanup);
+		run_cleanup ();
 	});
 }
 
@@ -78,7 +84,8 @@ void nano::active_elections::stop ()
 		stopped = true;
 	}
 	condition.notify_all ();
-	nano::join_or_pass (thread);
+	join_or_pass (thread);
+	join_or_pass (cleanup_thread);
 	clear ();
 }
 
@@ -168,6 +175,11 @@ bool nano::active_elections::publish (std::shared_ptr<nano::block> const & block
 	return true; // Not added
 }
 
+bool nano::active_elections::erase (nano::block const & block)
+{
+	return erase (block.qualified_root ());
+}
+
 bool nano::active_elections::erase (nano::qualified_root const & root)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
@@ -183,9 +195,19 @@ bool nano::active_elections::erase (nano::qualified_root const & root)
 	}
 }
 
-bool nano::active_elections::erase (nano::block const & block)
+bool nano::active_elections::erase (std::shared_ptr<nano::election> const & election)
 {
-	return erase (block.qualified_root ());
+	nano::unique_lock<nano::mutex> lock{ mutex };
+
+	if (elections.exists (election))
+	{
+		erase_impl (lock, election);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void nano::active_elections::erase_impl (nano::unique_lock<nano::mutex> & lock, std::shared_ptr<nano::election> election)
@@ -200,7 +222,7 @@ void nano::active_elections::erase_impl (nano::unique_lock<nano::mutex> & lock, 
 
 	elections.erase (election);
 
-	node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::election_cleanup);
+	node.stats.inc (nano::stat::type::active, nano::stat::detail::election_cleanup);
 	node.stats.inc (nano::stat::type::election_cleanup, to_stat_detail (election->state ()));
 	node.stats.inc (to_completion_type (election->state ()), to_stat_detail (election->behavior ()));
 	node.logger.trace (nano::log::type::active_elections, nano::log::detail::active_stopped, nano::log::arg{ "election", election });
@@ -503,6 +525,45 @@ void nano::active_elections::request_loop ()
 			auto const wakeup_l = std::max (stamp_l + std::chrono::milliseconds (node.network_params.network.aec_loop_interval_ms), std::chrono::steady_clock::now () + min_sleep_l);
 			condition.wait_until (lock, wakeup_l, [&wakeup_l, &stopped = stopped] { return stopped || std::chrono::steady_clock::now () >= wakeup_l; });
 		}
+	}
+}
+
+void nano::active_elections::run_cleanup ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		trim (lock);
+		debug_assert (!lock.owns_lock ());
+		lock.lock ();
+
+		condition.wait_for (lock, 1s, [this] { return stopped; });
+	}
+}
+
+void nano::active_elections::trim (nano::unique_lock<nano::mutex> & lock)
+{
+	debug_assert (lock.owns_lock ());
+	debug_assert (!mutex.try_lock ());
+
+	std::deque<std::shared_ptr<nano::election>> to_erase;
+
+	auto sizes = elections.bucket_sizes ();
+	for (auto const & [bucket_key, size] : sizes)
+	{
+		auto const & [behavior, bucket] = bucket_key;
+		if (behavior == nano::election_behavior::priority && size > config.max_per_bucket)
+		{
+			to_erase.push_back (elections.top (behavior, bucket).first);
+		}
+	}
+
+	lock.unlock ();
+
+	for (auto const & election : to_erase)
+	{
+		node.stats.inc (nano::stat::type::active, nano::stat::detail::trim);
+		erase (election);
 	}
 }
 

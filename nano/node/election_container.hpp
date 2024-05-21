@@ -50,6 +50,9 @@ public:
 
 	using value_type = std::shared_ptr<entry>;
 
+	using behavior_key_t = nano::election_behavior;
+	using bucket_key_t = std::pair<nano::election_behavior, nano::bucket_t>;
+
 public:
 	void insert (std::shared_ptr<nano::election> const &, nano::election_behavior, nano::bucket_t, nano::priority_t);
 	bool erase (std::shared_ptr<nano::election> const &);
@@ -64,6 +67,8 @@ public:
 	size_t size () const;
 	size_t size (nano::election_behavior) const;
 	size_t size (nano::election_behavior, nano::bucket_t) const;
+
+	std::map<bucket_key_t, size_t> bucket_sizes () const;
 
 	// Returns election with the highest priority value. NOTE: Lower "priority" is better.
 	using top_entry_t = std::pair<std::shared_ptr<nano::election>, nano::priority_t>;
@@ -92,10 +97,7 @@ private:
 	ordered_entries entries;
 
 	// Keep track of the total number of elections to provide constat time lookups
-	using behavior_key_t = nano::election_behavior;
 	std::map<behavior_key_t, size_t> size_by_behavior;
-
-	using bucket_key_t = std::pair<nano::election_behavior, nano::bucket_t>;
 	std::map<bucket_key_t, size_t> size_by_bucket;
 };
 }

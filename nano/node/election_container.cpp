@@ -94,6 +94,19 @@ size_t nano::election_container::size (nano::election_behavior behavior, nano::b
 	return 0;
 }
 
+auto nano::election_container::bucket_sizes () const -> std::map<bucket_key_t, size_t>
+{
+	std::map<bucket_key_t, size_t> result;
+	for (auto const & [key, size] : size_by_bucket)
+	{
+		if (size != 0)
+		{
+			result[key] = size;
+		}
+	}
+	return result;
+}
+
 auto nano::election_container::top (nano::election_behavior behavior, nano::bucket_t bucket) const -> top_entry_t
 {
 	auto & index = entries.get<tag_key> ();

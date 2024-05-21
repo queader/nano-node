@@ -117,6 +117,7 @@ enum class detail
 	cache,
 	rebroadcast,
 	queue_overflow,
+	trim,
 
 	// processing queue
 	queue,

@@ -35,15 +35,18 @@ public:
 
 public:
 	// Maximum number of simultaneous active elections (AEC size)
-	std::size_t size{ 5000 };
+	size_t size{ 5000 };
 	// Limit of hinted elections as percentage of `active_elections_size`
-	std::size_t hinted_limit_percentage{ 20 };
+	size_t hinted_limit_percentage{ 20 };
 	// Limit of optimistic elections as percentage of `active_elections_size`
-	std::size_t optimistic_limit_percentage{ 10 };
+	size_t optimistic_limit_percentage{ 10 };
 	// Maximum confirmation history size
-	std::size_t confirmation_history_size{ 2048 };
+	size_t confirmation_history_size{ 2048 };
 	// Maximum cache size for recently_confirmed
-	std::size_t confirmation_cache{ 65536 };
+	size_t confirmation_cache{ 65536 };
+
+	size_t reserved_per_bucket{ 100 };
+	size_t max_per_bucket{ 150 };
 };
 
 /**
@@ -93,6 +96,7 @@ public:
 
 	bool erase (nano::block const &);
 	bool erase (nano::qualified_root const &);
+	bool erase (std::shared_ptr<nano::election> const &);
 
 	bool empty () const;
 	size_t size () const;
@@ -136,6 +140,9 @@ private:
 	void block_cemented_callback (std::shared_ptr<nano::block> const &);
 	void block_already_cemented_callback (nano::block_hash const &);
 
+	void run_cleanup ();
+	void trim (nano::unique_lock<nano::mutex> &);
+
 	static nano::stat::type to_completion_type (nano::election_state);
 
 private: // Dependencies
@@ -164,6 +171,7 @@ private:
 	nano::condition_variable condition;
 	bool stopped{ false };
 	std::thread thread;
+	std::thread cleanup_thread;
 
 	friend std::unique_ptr<container_info_component> collect_container_info (active_elections &, std::string const &);
 
