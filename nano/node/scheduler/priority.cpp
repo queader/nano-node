@@ -200,7 +200,7 @@ void nano::scheduler::priority::run ()
 
 					lock.unlock ();
 
-					auto result = node.active.insert (block);
+					auto result = node.active.insert (block, nano::election_behavior::priority, bucket->index, time);
 					stats.inc (nano::stat::type::priority_scheduler, result.inserted ? nano::stat::detail::insert_success : nano::stat::detail::insert_failed);
 
 					lock.lock ();
