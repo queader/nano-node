@@ -509,14 +509,24 @@ void nano::active_elections::request_loop ()
 auto nano::active_elections::list () const -> std::vector<std::shared_ptr<nano::election>>
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	auto r = elections.list () | std::views::transform ([] (auto const & entry) { return entry.election; });
-	return { r.begin (), r.end () };
+
+	auto const & entries = elections.list ();
+	std::vector<std::shared_ptr<nano::election>> result;
+	result.reserve (entries.size ());
+	std::ranges::transform (entries, std::back_inserter (result), [] (auto const & entry) {
+		return entry.election;
+	});
+	return result;
 }
 
 auto nano::active_elections::list_details () const -> std::vector<details_info>
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	auto r = elections.list () | std::views::transform ([] (auto const & entry) {
+
+	auto const & entries = elections.list ();
+	std::vector<details_info> result;
+	result.reserve (entries.size ());
+	std::ranges::transform (entries, std::back_inserter (result), [] (auto const & entry) {
 		return details_info{
 			.election = entry.election,
 			.behavior = entry.behavior,
@@ -524,7 +534,7 @@ auto nano::active_elections::list_details () const -> std::vector<details_info>
 			.priority = entry.priority
 		};
 	});
-	return { r.begin (), r.end () };
+	return result;
 }
 
 std::size_t nano::active_elections::election_winner_details_size ()
