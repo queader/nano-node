@@ -70,6 +70,7 @@ enum class type
 	election_scheduler,
 	election_bucket,
 	priority_scheduler,
+	priority_scheduler_check,
 	manual_scheduler,
 	optimistic_scheduler,
 	handshake,
@@ -455,6 +456,12 @@ enum class detail
 	activate_failed,
 	activate_success,
 	cancel_lowest,
+
+	// priority_scheduler_check
+	duplicate,
+	reprioritized,
+	reserved,
+	vacancy,
 
 	_last // Must be the last enum
 };

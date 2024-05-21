@@ -153,10 +153,12 @@ bool nano::scheduler::priority::available (nano::scheduler::bucket const & bucke
 
 	if (bucket_info.election_count < config.elections_reserved)
 	{
+		stats.inc (nano::stat::type::priority_scheduler_check, nano::stat::detail::reserved);
 		return true;
 	}
 	if (bucket_info.election_count < config.elections_max)
 	{
+		stats.inc (nano::stat::type::priority_scheduler_check, nano::stat::detail::vacancy);
 		return node.active.vacancy (nano::election_behavior::priority) > 0;
 	}
 	// Check if the top election in the bucket should be reprioritized
@@ -166,10 +168,12 @@ bool nano::scheduler::priority::available (nano::scheduler::bucket const & bucke
 
 		if (bucket_info.top_election->qualified_root == candidate_block->qualified_root ())
 		{
+			stats.inc (nano::stat::type::priority_scheduler_check, nano::stat::detail::duplicate);
 			return true; // Drain duplicates
 		}
 		if (candidate_time < bucket_info.top_priority)
 		{
+			stats.inc (nano::stat::type::priority_scheduler_check, nano::stat::detail::reprioritized);
 			// Bound number of reprioritizations
 			return bucket_info.election_count < config.elections_max * 2;
 		};
