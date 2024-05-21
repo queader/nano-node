@@ -366,6 +366,7 @@ enum class detail
 
 	// backlog
 	activated,
+	activate_failed,
 
 	// active
 	insert,
@@ -448,7 +449,6 @@ enum class detail
 	cancelled,
 
 	// election bucket
-	activate_failed,
 	activate_success,
 	cancel_lowest,
 
