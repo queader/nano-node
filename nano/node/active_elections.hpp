@@ -121,6 +121,8 @@ public:
 	// How many election slots are available for specified election type
 	int64_t vacancy (nano::election_behavior behavior) const;
 
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+
 public: // TODO: Move to a separate class
 	std::size_t election_winner_details_size ();
 	void add_election_winner_details (nano::block_hash const &, std::shared_ptr<nano::election> const &);
@@ -173,8 +175,6 @@ private:
 	std::thread thread;
 	std::thread cleanup_thread;
 
-	friend std::unique_ptr<container_info_component> collect_container_info (active_elections &, std::string const &);
-
 public: // Tests
 	void clear ();
 
@@ -190,6 +190,4 @@ public: // Tests
 	friend class active_elections_pessimistic_elections_Test;
 	friend class frontiers_confirmation_expired_optimistic_elections_removal_Test;
 };
-
-std::unique_ptr<container_info_component> collect_container_info (active_elections & active_elections, std::string const & name);
 }

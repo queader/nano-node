@@ -606,16 +606,28 @@ std::size_t nano::active_elections::election_winner_details_size ()
 	return election_winner_details.size ();
 }
 
-std::unique_ptr<nano::container_info_component> nano::collect_container_info (active_elections & active_elections, std::string const & name)
+std::unique_ptr<nano::container_info_component> nano::active_elections::collect_container_info (std::string const & name)
 {
-	nano::lock_guard<nano::mutex> guard{ active_elections.mutex };
+	nano::lock_guard<nano::mutex> guard{ mutex };
+
+	auto collect_buckets = [this] (auto const & name) {
+		auto composite = std::make_unique<container_info_composite> (name);
+		for (auto const & [bucket_key, size] : elections.bucket_sizes ())
+		{
+			auto const & [behavior, bucket] = bucket_key;
+			composite->add_component (std::make_unique<container_info_leaf> (container_info{ fmt::format ("{}-{}", to_string (behavior), bucket), size, sizeof (decltype (elections)::value_type) }));
+		}
+		return composite;
+	};
 
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "elections", active_elections.elections.size (), sizeof (decltype (active_elections.elections)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", active_elections.election_winner_details_size (), sizeof (decltype (active_elections.election_winner_details)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "elections", elections.size (), sizeof (decltype (elections)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "election_winner_details", election_winner_details_size (), sizeof (decltype (election_winner_details)::value_type) }));
 
-	composite->add_component (active_elections.recently_confirmed.collect_container_info ("recently_confirmed"));
-	composite->add_component (active_elections.recently_cemented.collect_container_info ("recently_cemented"));
+	composite->add_component (recently_confirmed.collect_container_info ("recently_confirmed"));
+	composite->add_component (recently_cemented.collect_container_info ("recently_cemented"));
+
+	composite->add_component (collect_buckets ("buckets"));
 
 	return composite;
 }
