@@ -15,6 +15,8 @@ class node;
 class node_config;
 class stats;
 class vote_generator;
+class vote_processor;
 class vote_router;
+class vote_spacing;
 class wallets;
 }
