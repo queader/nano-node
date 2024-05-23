@@ -48,11 +48,6 @@ void nano::vote_generator::start ()
 		nano::thread_role::set (nano::thread_role::name::voting); // TODO: Unique thread_roles
 		run_voting ();
 	});
-
-	reply_thread = std::thread ([this] {
-		nano::thread_role::set (nano::thread_role::name::voting); // TODO: Unique thread_roles
-		run_requests ();
-	});
 }
 
 void nano::vote_generator::stop ()
@@ -87,28 +82,11 @@ void nano::vote_generator::vote (std::shared_ptr<nano::block> const & candidate,
 	}
 }
 
-void nano::vote_generator::reply (std::vector<std::shared_ptr<nano::block>> const & candidates, std::shared_ptr<nano::transport::channel> const & channel, nano::vote_type type)
+auto nano::vote_generator::generate (nano::secure::transaction const & transaction, std::vector<std::shared_ptr<nano::block>> const & candidates) -> generate_result_t
 {
-	release_assert (channel != nullptr);
-
-	bool added = false;
-	{
-		// TODO: Dispatch to appropriate generator
-		nano::lock_guard<nano::mutex> guard{ mutex };
-		added = reply_requests.push ({ candidates }, { nano::no_value{}, channel });
-	}
-	if (added)
-	{
-		stats.inc (nano::stat::type::vote_generator, nano::stat::detail::reply);
-		condition.notify_all ();
-	}
-	else
-	{
-		stats.inc (nano::stat::type::vote_generator, nano::stat::detail::overfill);
-	}
 }
 
-auto nano::vote_generator::verify (std::deque<std::shared_ptr<nano::block>> const & candidates) -> std::unordered_set<root_hash_t>
+auto nano::vote_generator::verify_candidates (std::deque<std::shared_ptr<nano::block>> const & candidates) -> std::unordered_set<root_hash_t>
 {
 	debug_assert (!candidates.empty ());
 
@@ -142,7 +120,7 @@ auto nano::vote_generator::verify (std::deque<std::shared_ptr<nano::block>> cons
 	return { filtered.begin (), filtered.end () };
 }
 
-std::deque<std::shared_ptr<nano::vote>> nano::vote_generator::generate (std::unordered_set<root_hash_t> const & verified)
+std::deque<std::shared_ptr<nano::vote>> nano::vote_generator::generate_votes (std::unordered_set<root_hash_t> const & verified)
 {
 }
 

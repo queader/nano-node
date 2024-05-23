@@ -37,10 +37,21 @@ enum class vote_type
 	final,
 };
 
-class vote_verifier
+using root_hash_t = std::pair<nano::root, nano::block_hash>;
+
+class normal_vote_checker final
 {
 public:
-	virtual bool should_vote (nano::root, nano::block_hash) = 0;
+	bool check (nano::secure::transaction const &, root_hash_t candidate) const;
+	std::shared_ptr<nano::vote> generate (std::unordered_set<root_hash_t> const & verified) const;
+};
+
+class final_vote_checker final
+{
+public:
+	bool check (nano::secure::transaction const &, root_hash_t candidate) const;
+	bool check_and_put (nano::secure::transaction const &, root_hash_t candidate) const;
+	std::shared_ptr<nano::vote> generate (std::unordered_set<root_hash_t> const & verified) const;
 };
 
 class vote_generator final
@@ -60,8 +71,9 @@ public:
 	/** Request vote to be generated and broadcasted. Called from active elections. */
 	void vote (std::shared_ptr<nano::block> const &, nano::vote_type);
 
-	/** Request vote reply to be generated and sent. Called from request aggregator. */
-	void reply (std::vector<std::shared_ptr<nano::block>> const &, std::shared_ptr<nano::transport::channel> const &, nano::vote_type);
+	/** Check candidates and generate vote for each. Called from request aggregator. Returns results synchronously. */
+	using generate_result_t = std::pair<std::deque<std::shared_ptr<nano::vote>>, size_t>; // <votes, total hashes>
+	generate_result_t generate (nano::secure::transaction const &, std::vector<std::shared_ptr<nano::block>> const &);
 
 	/** Queue items for vote generation, or broadcast votes already in cache */
 	// void add (nano::root const &, nano::block_hash const &);
@@ -75,12 +87,14 @@ public:
 private:
 	void run_voting ();
 	void run_voting_batch (nano::unique_lock<nano::mutex> &);
-	void run_requests ();
-	void run_requests_batch (nano::unique_lock<nano::mutex> &);
+
+	nano::vote_type decide_vote (nano::root const &, nano::block_hash const &);
 
 	std::unique_ptr<vote_verifier> make_verifier ();
-	std::unordered_set<root_hash_t> verify (std::deque<std::shared_ptr<nano::block>> const & candidates);
-	std::deque<std::shared_ptr<nano::vote>> generate (std::unordered_set<root_hash_t> const & verified);
+	std::unordered_set<root_hash_t> verify_candidates (std::deque<std::shared_ptr<nano::block>> const & candidates);
+
+	std::shared_ptr<nano::vote> make_vote (std::deque<nano::block_hash> hashes);
+	std::deque<std::shared_ptr<nano::vote>> generate_votes (std::unordered_set<root_hash_t> const & verified);
 
 	void broadcast (nano::unique_lock<nano::mutex> &);
 	void reply (nano::unique_lock<nano::mutex> &, request_t &&);
@@ -124,9 +138,6 @@ private:
 
 	using vote_request_t = std::shared_ptr<nano::block>;
 	nano::fair_queue<vote_request_t, nano::no_value> vote_requests;
-
-	using reply_request_t = std::vector<std::shared_ptr<nano::block>>;
-	nano::fair_queue<reply_request_t, nano::no_value> reply_requests;
 
 private:
 	mutable nano::mutex mutex;
