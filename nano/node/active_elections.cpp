@@ -26,6 +26,7 @@ nano::active_elections::active_elections (nano::node & node_a, nano::confirming_
 	block_processor{ block_processor_a },
 	recently_confirmed{ config.confirmation_cache },
 	recently_cemented{ config.confirmation_history_size },
+	activate_workers{ 1, nano::thread_role::name::successor_activation },
 	election_time_to_live{ node_a.network_params.network.is_dev_network () ? 0s : 2s }
 {
 	count_by_behavior.fill (0); // Zero initialize array
@@ -87,6 +88,7 @@ void nano::active_elections::stop ()
 		stopped = true;
 	}
 	condition.notify_all ();
+	activate_workers.stop ();
 	nano::join_or_pass (thread);
 	clear ();
 }
@@ -134,7 +136,9 @@ void nano::active_elections::block_cemented_callback (nano::secure::transaction 
 	// Next-block activations are only done for blocks with previously active elections
 	if (cemented_bootstrap_count_reached && was_active && !node.flags.disable_activate_successors)
 	{
-		activate_successors (transaction, block);
+		activate_workers.push_task ([this, block = block] () {
+			activate_successors (node.ledger.tx_begin_read (), block);
+		});
 	}
 }
 
@@ -175,11 +179,13 @@ void nano::active_elections::notify_observers (nano::secure::transaction const &
 
 void nano::active_elections::activate_successors (nano::secure::transaction const & transaction, std::shared_ptr<nano::block> const & block)
 {
+	node.stats.inc (nano::stat::type::active, nano::stat::detail::activate_account);
 	node.scheduler.priority.activate (transaction, block->account ());
 
 	// Start or vote for the next unconfirmed block in the destination account
 	if (block->is_send () && !block->destination ().is_zero () && block->destination () != block->account ())
 	{
+		node.stats.inc (nano::stat::type::active, nano::stat::detail::activate_destination);
 		node.scheduler.priority.activate (transaction, block->destination ());
 	}
 }
@@ -565,6 +571,8 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (ac
 
 	composite->add_component (active_elections.recently_confirmed.collect_container_info ("recently_confirmed"));
 	composite->add_component (active_elections.recently_cemented.collect_container_info ("recently_cemented"));
+
+	composite->add_component (active_elections.activate_workers.collect_container_info ("activate_workers"));
 
 	return composite;
 }

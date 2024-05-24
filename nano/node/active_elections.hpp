@@ -2,6 +2,7 @@
 
 #include <nano/lib/enum_util.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/lib/thread_pool.hpp>
 #include <nano/node/election_behavior.hpp>
 #include <nano/node/election_insertion_result.hpp>
 #include <nano/node/election_status.hpp>
@@ -157,14 +158,16 @@ private: // Dependencies
 	nano::block_processor & block_processor;
 
 public:
-	recently_confirmed_cache recently_confirmed;
-	recently_cemented_cache recently_cemented;
+	nano::recently_confirmed_cache recently_confirmed;
+	nano::recently_cemented_cache recently_cemented;
 
 	// TODO: This mutex is currently public because many tests access it
 	// TODO: This is bad. Remove the need to explicitly lock this from any code outside of this class
 	mutable nano::mutex mutex{ mutex_identifier (mutexes::active) };
 
 private:
+	nano::thread_pool activate_workers;
+
 	nano::mutex election_winner_details_mutex{ mutex_identifier (mutexes::election_winner_details) };
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::election>> election_winner_details;
 

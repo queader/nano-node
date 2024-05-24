@@ -58,6 +58,7 @@ enum class name
 	port_mapping,
 	stats,
 	vote_router,
+	successor_activation,
 };
 
 std::string_view to_string (name);

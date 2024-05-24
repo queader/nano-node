@@ -380,6 +380,8 @@ enum class detail
 	// active
 	insert,
 	insert_failed,
+	activate_account,
+	activate_destination,
 
 	// active_elections
 	started,
