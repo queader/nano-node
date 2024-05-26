@@ -475,6 +475,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 				std::exit (1);
 			}
 		}
+
 		confirming_set.cemented_observers.add ([this] (auto const & block) {
 			if (block->is_send ())
 			{
@@ -483,6 +484,11 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 				});
 			}
 		});
+
+		if (flags.fast_bootstrap)
+		{
+			logger.warn (nano::log::type::node, "Fast bootstrap is enabled, this mode is less secure and should only be used for initial syncronization");
+		}
 	}
 	node_initialized_latch.count_down ();
 }
