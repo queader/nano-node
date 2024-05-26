@@ -43,7 +43,7 @@ namespace bootstrap_ascending
 	class service
 	{
 	public:
-		service (nano::node_config &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &);
+		service (nano::node_config const &, nano::node_flags const &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &);
 		~service ();
 
 		void start ();
@@ -61,8 +61,9 @@ namespace bootstrap_ascending
 		std::size_t score_size () const;
 
 	private: // Dependencies
-		nano::node_config & config;
-		nano::network_constants & network_consts;
+		nano::node_config const & config;
+		nano::node_flags const & flags;
+		nano::network_constants const & network_constants;
 		nano::block_processor & block_processor;
 		nano::ledger & ledger;
 		nano::network & network;

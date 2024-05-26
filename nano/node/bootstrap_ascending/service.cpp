@@ -18,9 +18,10 @@ using namespace std::chrono_literals;
  * bootstrap_ascending
  */
 
-nano::bootstrap_ascending::service::service (nano::node_config & config_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stats & stat_a) :
+nano::bootstrap_ascending::service::service (nano::node_config const & config_a, nano::node_flags const & flags_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stats & stat_a) :
 	config{ config_a },
-	network_consts{ config.network_params.network },
+	flags{ flags_a },
+	network_constants{ config.network_params.network },
 	block_processor{ block_processor_a },
 	ledger{ ledger_a },
 	network{ network_a },
@@ -86,7 +87,7 @@ void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::
 {
 	debug_assert (tag.type == async_tag::query_type::blocks_by_hash || tag.type == async_tag::query_type::blocks_by_account);
 
-	nano::asc_pull_req request{ network_consts };
+	nano::asc_pull_req request{ network_constants };
 	request.id = tag.id;
 	request.type = nano::asc_pull_type::blocks;
 

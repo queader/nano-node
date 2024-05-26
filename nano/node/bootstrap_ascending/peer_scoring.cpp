@@ -6,7 +6,7 @@
  * peer_scoring
  */
 
-nano::bootstrap_ascending::peer_scoring::peer_scoring (nano::bootstrap_ascending_config & config, nano::network_constants const & network_constants) :
+nano::bootstrap_ascending::peer_scoring::peer_scoring (nano::bootstrap_ascending_config const & config, nano::network_constants const & network_constants) :
 	network_constants{ network_constants },
 	config{ config }
 {
