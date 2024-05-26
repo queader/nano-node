@@ -70,16 +70,16 @@ namespace bootstrap_ascending
 		nano::stats & stats;
 
 	public: // async_tag
+		enum class query_type
+		{
+			invalid = 0, // Default initialization
+			blocks_by_hash,
+			blocks_by_account,
+			// TODO: account_info,
+		};
+
 		struct async_tag
 		{
-			enum class query_type
-			{
-				invalid = 0, // Default initialization
-				blocks_by_hash,
-				blocks_by_account,
-				// TODO: account_info,
-			};
-
 			query_type type{ query_type::invalid };
 			nano::bootstrap_ascending::id_t id{ 0 };
 			nano::hash_or_account start{ 0 };
@@ -88,7 +88,7 @@ namespace bootstrap_ascending
 		};
 
 	public: // Events
-		nano::observer_set<async_tag const &, std::shared_ptr<nano::transport::channel> &> on_request;
+		nano::observer_set<async_tag const &, std::shared_ptr<nano::transport::channel> const &> on_request;
 		nano::observer_set<async_tag const &> on_reply;
 		nano::observer_set<async_tag const &> on_timeout;
 
@@ -109,8 +109,9 @@ namespace bootstrap_ascending
 		nano::account available_account ();
 		nano::account wait_available_account ();
 
-		bool request (nano::account &, std::shared_ptr<nano::transport::channel> &);
-		void send (std::shared_ptr<nano::transport::channel>, async_tag tag);
+		bool request (nano::account const &, std::shared_ptr<nano::transport::channel> const &);
+		std::pair<query_type, nano::hash_or_account> request_target (nano::account const &) const;
+		void send (std::shared_ptr<nano::transport::channel> const &, async_tag const & tag);
 		void track (async_tag const & tag);
 
 		void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);

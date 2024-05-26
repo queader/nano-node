@@ -9,6 +9,7 @@
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>
+#include <nano/secure/ledger_set_confirmed.hpp>
 #include <nano/store/account.hpp>
 #include <nano/store/component.hpp>
 
@@ -83,9 +84,9 @@ void nano::bootstrap_ascending::service::stop ()
 	nano::join_or_pass (timeout_thread);
 }
 
-void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::channel> channel, async_tag tag)
+void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::channel> const & channel, async_tag const & tag)
 {
-	debug_assert (tag.type == async_tag::query_type::blocks_by_hash || tag.type == async_tag::query_type::blocks_by_account);
+	debug_assert (tag.type == query_type::blocks_by_hash || tag.type == query_type::blocks_by_account);
 
 	nano::asc_pull_req request{ network_constants };
 	request.id = tag.id;
@@ -94,7 +95,7 @@ void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::
 	nano::asc_pull_req::blocks_payload request_payload;
 	request_payload.start = tag.start;
 	request_payload.count = config.bootstrap_ascending.pull_count;
-	request_payload.start_type = (tag.type == async_tag::query_type::blocks_by_hash) ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
+	request_payload.start_type = (tag.type == query_type::blocks_by_hash) ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
 
 	request.payload = request_payload;
 	request.update_header ();
@@ -242,25 +243,39 @@ nano::account nano::bootstrap_ascending::service::wait_available_account ()
 	return { 0 };
 }
 
-bool nano::bootstrap_ascending::service::request (nano::account & account, std::shared_ptr<nano::transport::channel> & channel)
+auto nano::bootstrap_ascending::service::request_target (nano::account const & account) const -> std::pair<query_type, nano::hash_or_account>
+{
+	auto transaction = ledger.tx_begin_read ();
+
+	// With fast_bootstrap enabled, use the unconfirmed account frontier which is faster but won't resolve forks
+	if (flags.fast_bootstrap)
+	{
+		if (auto head = ledger.any.account_head (transaction, account); !head.is_zero ())
+		{
+			return { query_type::blocks_by_hash, head };
+		}
+	}
+	else
+	{
+		if (auto conf_head = ledger.confirmed.account_head (transaction, account); !conf_head.is_zero ())
+		{
+			return { query_type::blocks_by_hash, conf_head };
+		}
+	}
+
+	return { query_type::blocks_by_account, account };
+}
+
+bool nano::bootstrap_ascending::service::request (nano::account const & account, std::shared_ptr<nano::transport::channel> const & channel)
 {
 	async_tag tag{};
 	tag.id = nano::bootstrap_ascending::generate_id ();
 	tag.account = account;
 	tag.time = nano::milliseconds_since_epoch ();
 
-	// Check if the account picked has blocks, if it does, start the pull from the highest block
-	auto info = ledger.store.account.get (ledger.store.tx_begin_read (), account);
-	if (info)
-	{
-		tag.type = async_tag::query_type::blocks_by_hash;
-		tag.start = info->head;
-	}
-	else
-	{
-		tag.type = async_tag::query_type::blocks_by_account;
-		tag.start = account;
-	}
+	auto [type, start] = request_target (account);
+	tag.type = type;
+	tag.start = start;
 
 	on_request.notify (tag, channel);
 
@@ -435,7 +450,7 @@ nano::bootstrap_ascending::service::verify_result nano::bootstrap_ascending::ser
 	auto const & first = blocks.front ();
 	switch (tag.type)
 	{
-		case async_tag::query_type::blocks_by_hash:
+		case query_type::blocks_by_hash:
 		{
 			if (first->hash () != tag.start.as_block_hash ())
 			{
@@ -444,7 +459,7 @@ nano::bootstrap_ascending::service::verify_result nano::bootstrap_ascending::ser
 			}
 		}
 		break;
-		case async_tag::query_type::blocks_by_account:
+		case query_type::blocks_by_account:
 		{
 			// Open & state blocks always contain account field
 			if (first->account_field () != tag.start.as_account ())
