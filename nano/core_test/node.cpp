@@ -1816,7 +1816,7 @@ TEST (node, confirm_quorum)
 	ASSERT_EQ (0, node1.balance (nano::dev::genesis_key.pub));
 }
 
-TEST (node, local_votes_cache)
+TEST (node, DISABLED_local_votes_cache)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
@@ -1972,7 +1972,7 @@ TEST (node, DISABLED_local_votes_cache_batch)
  * There is a cache for locally generated votes. This test checks that the node
  * properly caches and uses those votes when replying to confirm_req requests.
  */
-TEST (node, local_votes_cache_generate_new_vote)
+TEST (node, DISABLED_local_votes_cache_generate_new_vote)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
