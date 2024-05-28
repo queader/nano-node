@@ -3047,13 +3047,10 @@ TEST (node, rollback_vote_self)
 		// Insert genesis key in the wallet
 		system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
-		// Even without the rollback being finished, the aggregator must reply with a vote for the new winner, not the old one
-		ASSERT_TRUE (node.history.votes (send2->root (), send2->hash ()).empty ());
-		ASSERT_TRUE (node.history.votes (fork->root (), fork->hash ()).empty ());
+		// Without the rollback being finished, the aggregator should not reply with any vote
 		auto channel = std::make_shared<nano::transport::fake::channel> (node);
 		node.aggregator.request ({ { send2->hash (), send2->root () } }, channel);
-		ASSERT_TIMELY (5s, !node.history.votes (fork->root (), fork->hash ()).empty ());
-		ASSERT_TRUE (node.history.votes (send2->root (), send2->hash ()).empty ());
+		ASSERT_ALWAYS_EQ (1s, node.stats.count (nano::stat::type::request_aggregator_replies), 0);
 
 		// Going out of the scope allows the rollback to complete
 	}
