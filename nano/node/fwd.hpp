@@ -24,6 +24,7 @@ class vote_cache;
 class vote_generator;
 class vote_processor;
 class vote_router;
+class vote_spacing;
 class wallets;
 
 enum class vote_code;
