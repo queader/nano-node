@@ -30,20 +30,22 @@ class vote_generator final
 private:
 	using candidate_t = std::pair<nano::root, nano::block_hash>;
 	using request_t = std::pair<std::vector<candidate_t>, std::shared_ptr<nano::transport::channel>>;
-	using queue_entry_t = std::pair<nano::root, nano::block_hash>;
 
 public:
 	vote_generator (nano::node_config const &, nano::node &, nano::ledger &, nano::wallets &, nano::vote_processor &, nano::local_vote_history &, nano::network &, nano::stats &, nano::logger &, bool is_final);
 	~vote_generator ();
 
-	/** Queue items for vote generation, or broadcast votes already in cache */
-	void add (nano::root const &, nano::block_hash const &);
-	/** Queue blocks for vote generation, returning the number of successful candidates.*/
-	std::size_t generate (std::vector<std::shared_ptr<nano::block>> const & blocks_a, std::shared_ptr<nano::transport::channel> const & channel_a);
-	void set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)>);
-
 	void start ();
 	void stop ();
+
+	/** Queue items for vote generation, or broadcast votes already in cache */
+	void add (nano::root const &, nano::block_hash const &);
+
+	/** Queue blocks for vote generation, returning the number of successful candidates.*/
+	std::size_t generate (std::vector<std::shared_ptr<nano::block>> const & blocks, std::shared_ptr<nano::transport::channel> const &);
+
+	// TODO: This is unnecessary
+	void set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)>);
 
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
 
@@ -51,11 +53,13 @@ private:
 	using transaction_variant_t = std::variant<nano::secure::read_transaction, nano::secure::write_transaction>;
 
 	void run ();
+	void run_verification ();
 	void broadcast (nano::unique_lock<nano::mutex> &);
 	void reply (nano::unique_lock<nano::mutex> &, request_t &&);
 	void vote (std::vector<nano::block_hash> const &, std::vector<nano::root> const &, std::function<void (std::shared_ptr<nano::vote> const &)> const &);
 	void broadcast_action (std::shared_ptr<nano::vote> const &) const;
-	void process_batch (std::deque<queue_entry_t> & batch);
+	std::deque<candidate_t> next_batch (size_t max_count);
+	void verify_batch (std::deque<candidate_t> & batch);
 	bool should_vote (transaction_variant_t const &, nano::root const &, nano::block_hash const &) const;
 
 private:
@@ -77,17 +81,19 @@ private:
 	nano::vote_spacing & spacing;
 
 private:
-	nano::processing_queue<queue_entry_t> vote_generation_queue;
-
-private:
 	const bool is_final;
-	mutable nano::mutex mutex;
-	nano::condition_variable condition;
 	static std::size_t constexpr max_requests{ 2048 };
+
+	std::shared_ptr<nano::transport::channel> inproc_channel;
+
+	std::unordered_set<candidate_t> queued;
 	std::deque<request_t> requests;
 	std::deque<candidate_t> candidates;
+
+	mutable nano::mutex mutex;
+	nano::condition_variable condition;
 	std::atomic<bool> stopped{ false };
 	std::thread thread;
-	std::shared_ptr<nano::transport::channel> inproc_channel;
+	std::thread verification_thread;
 };
 }

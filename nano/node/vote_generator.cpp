@@ -28,18 +28,47 @@ nano::vote_generator::vote_generator (nano::node_config const & config_a, nano::
 	stats (stats_a),
 	logger (logger_a),
 	is_final (is_final_a),
-	vote_generation_queue{ stats, nano::stat::type::vote_generator, nano::thread_role::name::vote_generator_queue, /* single threaded */ 1, /* max queue size */ 1024 * 32, /* max batch size */ 256 },
 	inproc_channel{ std::make_shared<nano::transport::inproc::channel> (node, node) }
 {
-	vote_generation_queue.process_batch = [this] (auto & batch) {
-		process_batch (batch);
-	};
 }
 
 nano::vote_generator::~vote_generator ()
 {
 	debug_assert (stopped);
 	debug_assert (!thread.joinable ());
+	debug_assert (!verification_thread.joinable ());
+}
+
+void nano::vote_generator::start ()
+{
+	debug_assert (!thread.joinable ());
+
+	thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::voting);
+		run ();
+	});
+
+	verification_thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::voting_verification);
+		run_verification ();
+	});
+}
+
+void nano::vote_generator::stop ()
+{
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		stopped = true;
+	}
+	condition.notify_all ();
+
+	join_or_pass (thread);
+	join_or_pass (verification_thread);
+}
+
+void nano::vote_generator::add (const root & root, const block_hash & hash)
+{
+	// TODO: ...
 }
 
 bool nano::vote_generator::should_vote (transaction_variant_t const & transaction_variant, nano::root const & root_a, nano::block_hash const & hash_a) const
@@ -72,40 +101,11 @@ bool nano::vote_generator::should_vote (transaction_variant_t const & transactio
 	return should_vote;
 }
 
-void nano::vote_generator::start ()
-{
-	debug_assert (!thread.joinable ());
-	thread = std::thread ([this] () { run (); });
-
-	vote_generation_queue.start ();
-}
-
-void nano::vote_generator::stop ()
-{
-	vote_generation_queue.stop ();
-
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	stopped = true;
-
-	lock.unlock ();
-	condition.notify_all ();
-
-	if (thread.joinable ())
-	{
-		thread.join ();
-	}
-}
-
-void nano::vote_generator::add (const root & root, const block_hash & hash)
-{
-	vote_generation_queue.add (std::make_pair (root, hash));
-}
-
-void nano::vote_generator::process_batch (std::deque<queue_entry_t> & batch)
+void nano::vote_generator::verify_batch (std::deque<candidate_t> & batch)
 {
 	std::deque<candidate_t> verified;
 
-	auto verify_batch = [this, &verified] (auto && transaction_variant, auto && batch) {
+	auto verify_batch_impl = [this, &verified] (auto && transaction_variant, auto && batch) {
 		for (auto & [root, hash] : batch)
 		{
 			if (should_vote (transaction_variant, root, hash))
@@ -120,7 +120,7 @@ void nano::vote_generator::process_batch (std::deque<queue_entry_t> & batch)
 		auto guard = ledger.store.write_queue.wait (nano::store::writer::voting_final);
 		transaction_variant_t transaction_variant{ ledger.tx_begin_write ({ tables::final_votes }) };
 
-		verify_batch (transaction_variant, batch);
+		verify_batch_impl (transaction_variant, batch);
 
 		// Commit write transaction
 	}
@@ -128,7 +128,7 @@ void nano::vote_generator::process_batch (std::deque<queue_entry_t> & batch)
 	{
 		transaction_variant_t transaction_variant{ ledger.tx_begin_read () };
 
-		verify_batch (transaction_variant, batch);
+		verify_batch_impl (transaction_variant, batch);
 	}
 
 	// Submit verified candidates to the main processing thread
@@ -141,6 +141,15 @@ void nano::vote_generator::process_batch (std::deque<queue_entry_t> & batch)
 			lock.unlock ();
 			condition.notify_all ();
 		}
+	}
+}
+
+void nano::vote_generator::run_verification ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		// TODO: ...
 	}
 }
 
@@ -280,7 +289,6 @@ void nano::vote_generator::broadcast_action (std::shared_ptr<nano::vote> const &
 
 void nano::vote_generator::run ()
 {
-	nano::thread_role::set (nano::thread_role::name::voting);
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
@@ -323,6 +331,6 @@ std::unique_ptr<nano::container_info_component> nano::vote_generator::collect_co
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "candidates", candidates_count, sizeof_candidate_element }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "requests", requests_count, sizeof_request_element }));
-	composite->add_component (vote_generation_queue.collect_container_info ("vote_generation_queue"));
+	// composite->add_component (vote_generation_queue.collect_container_info ("vote_generation_queue"));
 	return composite;
 }
