@@ -6,7 +6,6 @@
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/address_v4.hpp>
 #include <boost/asio/ip/address_v6.hpp>
-#include <boost/format.hpp>
 
 nano::transport::channel::channel (nano::node & node_a) :
 	node{ node_a }

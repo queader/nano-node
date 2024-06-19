@@ -5,8 +5,6 @@
 #include <nano/node/transport/tcp_socket.hpp>
 #include <nano/node/transport/transport.hpp>
 
-#include <boost/format.hpp>
-
 #include <cstdint>
 #include <cstdlib>
 #include <iterator>
