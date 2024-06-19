@@ -14,10 +14,8 @@ class tcp_channel : public nano::transport::channel, public std::enable_shared_f
 	friend class nano::transport::tcp_channels;
 
 public:
-	tcp_channel (nano::node &, std::weak_ptr<nano::transport::tcp_socket>);
+	tcp_channel (nano::node &, std::shared_ptr<nano::transport::tcp_socket>);
 	~tcp_channel () override;
-
-	void update_endpoints ();
 
 	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions//
 	void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
@@ -26,13 +24,11 @@ public:
 
 	nano::endpoint get_remote_endpoint () const override
 	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
 		return remote_endpoint;
 	}
 
 	nano::endpoint get_local_endpoint () const override
 	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
 		return local_endpoint;
 	}
 
@@ -68,12 +64,12 @@ public:
 		}
 	}
 
-public:
+public: // TODO: This shouldn't be public, used by legacy bootstrap
 	std::weak_ptr<nano::transport::tcp_socket> socket;
 
 private:
-	nano::endpoint remote_endpoint;
-	nano::endpoint local_endpoint;
+	nano::endpoint const remote_endpoint;
+	nano::endpoint const local_endpoint;
 
 public: // Logging
 	void operator() (nano::object_stream &) const override;

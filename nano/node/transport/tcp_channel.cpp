@@ -8,9 +8,11 @@
  * tcp_channel
  */
 
-nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::weak_ptr<nano::transport::tcp_socket> socket_a) :
-	channel (node_a),
-	socket (std::move (socket_a))
+nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a) :
+	nano::transport::channel (node_a),
+	socket{ socket_a },
+	remote_endpoint{ socket_a->remote_endpoint () },
+	local_endpoint{ socket_a->local_endpoint () }
 {
 }
 
@@ -19,20 +21,6 @@ nano::transport::tcp_channel::~tcp_channel ()
 	if (auto socket_l = socket.lock ())
 	{
 		socket_l->close ();
-	}
-}
-
-void nano::transport::tcp_channel::update_endpoints ()
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-
-	debug_assert (remote_endpoint == nano::endpoint{}); // Not initialized endpoint value
-	debug_assert (local_endpoint == nano::endpoint{}); // Not initialized endpoint value
-
-	if (auto socket_l = socket.lock ())
-	{
-		remote_endpoint = socket_l->remote_endpoint ();
-		local_endpoint = socket_l->local_endpoint ();
 	}
 }
 
