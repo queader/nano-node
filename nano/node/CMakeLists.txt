@@ -173,6 +173,7 @@ add_library(
   transport/tcp_server.cpp
   transport/tcp_socket.hpp
   transport/tcp_socket.cpp
+  transport/traffic_queue.hpp
   transport/transport.hpp
   transport/transport.cpp
   unchecked_map.cpp

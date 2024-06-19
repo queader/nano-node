@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/node/transport/channel.hpp>
+#include <nano/node/transport/traffic_queue.hpp>
 #include <nano/node/transport/transport.hpp>
 
 namespace nano::transport
@@ -70,6 +71,11 @@ public: // TODO: This shouldn't be public, used by legacy bootstrap
 private:
 	nano::endpoint const remote_endpoint;
 	nano::endpoint const local_endpoint;
+
+	using callback_t = std::function<void (boost::system::error_code const &, std::size_t)>;
+	using entry_t = std::pair<nano::shared_const_buffer, callback_t>;
+
+	nano::transport::traffic_queue<nano::transport::traffic_type, entry_t> queue;
 
 public: // Logging
 	void operator() (nano::object_stream &) const override;
