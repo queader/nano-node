@@ -64,7 +64,7 @@ bool nano::transport::tcp_channel::max (nano::transport::traffic_type traffic_ty
 	return queue.max (traffic_type);
 }
 
-void nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const & buffer, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy policy, nano::transport::traffic_type traffic_type)
+bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const & buffer, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy policy, nano::transport::traffic_type traffic_type)
 {
 	bool added = false;
 	{
@@ -83,7 +83,17 @@ void nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 	else
 	{
 		// TODO: Stat & log
+		if (policy == nano::transport::buffer_drop_policy::no_socket_drop)
+		{
+			node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_no_socket_drop, nano::stat::dir::out);
+		}
+		else
+		{
+			node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out);
+		}
 	}
+
+	return added;
 
 	// if (auto socket_l = socket.lock ())
 	// {

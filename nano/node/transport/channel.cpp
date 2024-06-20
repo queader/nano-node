@@ -13,10 +13,26 @@ nano::transport::channel::channel (nano::node & node_a) :
 	set_network_version (node_a.network_params.network.protocol_version);
 }
 
-void nano::transport::channel::send (nano::message const & message, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy drop_policy, nano::transport::traffic_type traffic_type)
+bool nano::transport::channel::send (nano::message const & message, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy drop_policy, nano::transport::traffic_type traffic_type)
 {
 	auto buffer = message.to_shared_const_buffer ();
-	send_buffer (buffer, callback, drop_policy, traffic_type);
+	bool sent = send_buffer (buffer, callback, drop_policy, traffic_type);
+
+	node.stats.inc (sent ? nano::stat::type::message : nano::stat::type::drop, to_stat_detail (message.type ()), nano::stat::dir::out, /* aggregate all */ true);
+	node.logger.trace (nano::log::type::channel_sent, to_log_detail (message.type ()),
+	nano::log::arg{ "message", message },
+	nano::log::arg{ "channel", *this },
+	nano::log::arg{ "dropped", !sent });
+
+	// if (!sent && callback)
+	// {
+	// 	node.background ([callback] () {
+	// 		// TODO: Maybe find a better error code to indicate the message was dropped due to bandwidth limits
+	// 		callback (boost::system::errc::make_error_code (boost::system::errc::not_supported), 0);
+	// 	});
+	// }
+
+	return sent;
 
 	// auto buffer = message_a.to_shared_const_buffer ();
 	//

@@ -20,7 +20,7 @@ public:
 	~tcp_channel () override;
 
 	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
-	void send_buffer (nano::shared_const_buffer const &,
+	bool send_buffer (nano::shared_const_buffer const &,
 	nano::transport::channel::callback_t const & callback = nullptr,
 	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic)
