@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/async.hpp>
 #include <nano/node/transport/channel.hpp>
 #include <nano/node/transport/traffic_queue.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -18,8 +19,12 @@ public:
 	tcp_channel (nano::node &, std::shared_ptr<nano::transport::tcp_socket>);
 	~tcp_channel () override;
 
-	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions//
-	void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
+	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
+	void send_buffer (nano::shared_const_buffer const &,
+	nano::transport::channel::callback_t const & callback = nullptr,
+	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
+	nano::transport::traffic_type = nano::transport::traffic_type::generic)
+	override;
 
 	std::string to_string () const override;
 
@@ -38,19 +43,11 @@ public:
 		return nano::transport::transport_type::tcp;
 	}
 
-	bool max (nano::transport::traffic_type traffic_type) override
-	{
-		bool result = true;
-		if (auto socket_l = socket.lock ())
-		{
-			result = socket_l->max (traffic_type);
-		}
-		return result;
-	}
+	bool max (nano::transport::traffic_type traffic_type) override;
 
 	bool alive () const override
 	{
-		if (auto socket_l = socket.lock ())
+		if (auto socket_l = socket_w.lock ())
 		{
 			return socket_l->alive ();
 		}
@@ -59,23 +56,33 @@ public:
 
 	void close () override
 	{
-		if (auto socket_l = socket.lock ())
-		{
-			socket_l->close ();
-		}
+		close_impl ();
 	}
 
 public: // TODO: This shouldn't be public, used by legacy bootstrap
-	std::weak_ptr<nano::transport::tcp_socket> socket;
+	std::weak_ptr<nano::transport::tcp_socket> socket_w;
+
+private:
+	using entry_t = std::pair<nano::shared_const_buffer, nano::transport::channel::callback_t>;
+
+	asio::awaitable<void> run ();
+	asio::awaitable<void> send_one (nano::transport::traffic_type, entry_t const &);
+	asio::awaitable<void> wait_avaialble_bandwidth (nano::transport::traffic_type, size_t size);
+	asio::awaitable<void> wait_available_socket ();
+
+	void close_impl ();
 
 private:
 	nano::endpoint const remote_endpoint;
 	nano::endpoint const local_endpoint;
 
-	using callback_t = std::function<void (boost::system::error_code const &, std::size_t)>;
-	using entry_t = std::pair<nano::shared_const_buffer, callback_t>;
-
 	nano::transport::traffic_queue<nano::transport::traffic_type, entry_t> queue;
+
+	nano::async::strand strand;
+	nano::async::task task;
+	nano::async::condition condition;
+
+	std::atomic<size_t> allocated_bandwidth{ 0 };
 
 public: // Logging
 	void operator() (nano::object_stream &) const override;

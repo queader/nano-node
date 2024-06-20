@@ -54,7 +54,9 @@ public:
 	 * Check whether packet falls withing bandwidth limits and should be allowed
 	 * @return true if OK, false if needs to be dropped
 	 */
+	bool should_pass (std::size_t buffer_size, nano::transport::traffic_type);
 	bool should_pass (std::size_t buffer_size, bandwidth_limit_type);
+
 	/**
 	 * Reset limits of selected limiter type to values passed in arguments
 	 */

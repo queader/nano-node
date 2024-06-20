@@ -22,21 +22,17 @@ public:
 	}
 
 	using entry_t = Entry;
-	using value_t = std::pair<TrafficType, Entry>;
-	using batch_t = std::deque<value_t>;
+	using value_type = std::pair<TrafficType, Entry>;
 
 	bool empty () const
 	{
-		return std::all_of (queues.begin (), queues.end (), [] (auto const & queue) {
-			return queue.second.empty ();
-		});
+		return size () == 0;
 	}
 
 	size_t size () const
 	{
-		return std::accumulate (queues.begin (), queues.end (), size_t{ 0 }, [] (size_t acc, auto const & queue) {
-			return acc + queue.second.size ();
-		});
+		debug_assert (total_size == calculate_total_size ());
+		return total_size;
 	}
 
 	size_t size (TrafficType type) const
@@ -58,9 +54,10 @@ public:
 	{
 		debug_assert (!full (type)); // Should be checked before calling this function
 		queues.at (type).second.push_back (entry);
+		++total_size;
 	}
 
-	value_t next ()
+	value_type next ()
 	{
 		debug_assert (!empty ()); // Should be checked before calling next
 
@@ -75,7 +72,7 @@ public:
 				return true;
 			}
 			// Allow up to `priority` requests to be processed before moving to the next queue
-			if (counter >= priority (current->first))
+			if (counter >= priority_query (current->first))
 			{
 				return true;
 			}
@@ -93,22 +90,12 @@ public:
 		auto & queue = current->second;
 
 		++counter;
+		--total_size;
 
 		release_assert (!queue.empty ());
 		auto entry = queue.front ();
 		queue.pop_front ();
 		return { source, entry };
-	}
-
-	batch_t next_batch (size_t max_count)
-	{
-		// TODO: Naive implementation, could be optimized
-		std::deque<value_t> result;
-		while (!empty () && result.size () < max_count)
-		{
-			result.emplace_back (next ());
-		}
-		return result;
 	}
 
 public:
@@ -136,9 +123,18 @@ private:
 		} while (current->second.empty ());
 	}
 
+	size_t calculate_total_size () const
+	{
+		return std::accumulate (queues.begin (), queues.end (), size_t{ 0 }, [] (size_t total, auto const & queue) {
+			return total + queue.second.size ();
+		});
+	}
+
+private:
 	using queue_t = std::pair<TrafficType, std::deque<entry_t>>;
 	magic_enum::containers::array<TrafficType, queue_t> queues{};
 	magic_enum::containers::array<TrafficType, queue_t>::iterator current{ queues.end () };
 	size_t counter{ 0 };
+	size_t total_size{ 0 };
 };
 }

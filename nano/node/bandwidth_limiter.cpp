@@ -46,6 +46,11 @@ nano::bandwidth_limiter & nano::outbound_bandwidth_limiter::select_limiter (nano
 	return limiter_standard;
 }
 
+bool nano::outbound_bandwidth_limiter::should_pass (std::size_t buffer_size, nano::transport::traffic_type type)
+{
+	return should_pass (buffer_size, to_bandwidth_limit_type (type));
+}
+
 bool nano::outbound_bandwidth_limiter::should_pass (std::size_t buffer_size, nano::bandwidth_limit_type type)
 {
 	auto & limiter = select_limiter (type);

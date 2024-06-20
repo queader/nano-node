@@ -132,8 +132,8 @@ TEST (network, last_contacted)
 
 	{
 		// check that the endpoints are part of the same connection
-		std::shared_ptr<nano::transport::tcp_socket> sock0 = channel0->socket.lock ();
-		std::shared_ptr<nano::transport::tcp_socket> sock1 = channel1->socket.lock ();
+		std::shared_ptr<nano::transport::tcp_socket> sock0 = channel0->socket_w.lock ();
+		std::shared_ptr<nano::transport::tcp_socket> sock1 = channel1->socket_w.lock ();
 		ASSERT_EQ (sock0->local_endpoint (), sock1->remote_endpoint ());
 		ASSERT_EQ (sock1->local_endpoint (), sock0->remote_endpoint ());
 	}
