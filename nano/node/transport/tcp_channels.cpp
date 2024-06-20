@@ -34,17 +34,16 @@ void nano::transport::tcp_channels::close ()
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
-	for (auto const & channel : channels)
+	// This should close all channels managed by this node
+	for (auto const & entry : channels)
 	{
-		if (channel.socket)
-		{
-			channel.socket->close ();
-		}
-		// Remove response server
-		if (channel.response_server)
-		{
-			channel.response_server->stop ();
-		}
+		release_assert (entry.socket);
+		release_assert (entry.server);
+		release_assert (entry.channel);
+
+		entry.socket->close ();
+		entry.server->stop ();
+		entry.channel->close ();
 	}
 
 	channels.clear ();
@@ -411,7 +410,7 @@ std::optional<nano::keepalive> nano::transport::tcp_channels::sample_keepalive (
 	while (counter++ < channels.size ())
 	{
 		auto index = rng.random (channels.size ());
-		if (auto server = channels.get<random_access_tag> ()[index].response_server)
+		if (auto server = channels.get<random_access_tag> ()[index].server)
 		{
 			if (auto keepalive = server->pop_last_keepalive ())
 			{

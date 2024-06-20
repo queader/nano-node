@@ -54,10 +54,7 @@ public:
 		return false;
 	}
 
-	void close () override
-	{
-		close_impl ();
-	}
+	void close () override;
 
 public: // TODO: This shouldn't be public, used by legacy bootstrap
 	std::weak_ptr<nano::transport::tcp_socket> socket_w;
@@ -70,6 +67,7 @@ private:
 	asio::awaitable<void> wait_avaialble_bandwidth (nano::transport::traffic_type, size_t size);
 	asio::awaitable<void> wait_available_socket ();
 
+	std::once_flag closed_flag;
 	void close_impl ();
 
 private:

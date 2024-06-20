@@ -40,14 +40,17 @@ nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<
 
 nano::transport::tcp_channel::~tcp_channel ()
 {
-	close_impl ();
-
-	if (task.joinable ())
-	{
-		task.cancel ();
-		task.join ();
-	}
+	std::call_once (closed_flag, [this] () {
+		close_impl ();
+	});
 	debug_assert (!task.joinable ());
+}
+
+void nano::transport::tcp_channel::close ()
+{
+	std::call_once (closed_flag, [this] () {
+		close_impl ();
+	});
 }
 
 void nano::transport::tcp_channel::close_impl ()
@@ -55,6 +58,12 @@ void nano::transport::tcp_channel::close_impl ()
 	if (auto socket_l = socket_w.lock ())
 	{
 		socket_l->close ();
+	}
+
+	if (task.joinable ())
+	{
+		task.cancel ();
+		task.join ();
 	}
 }
 

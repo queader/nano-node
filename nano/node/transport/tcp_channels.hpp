@@ -70,13 +70,13 @@ private:
 	public:
 		std::shared_ptr<nano::transport::tcp_channel> channel;
 		std::shared_ptr<nano::transport::tcp_socket> socket;
-		std::shared_ptr<nano::transport::tcp_server> response_server;
+		std::shared_ptr<nano::transport::tcp_server> server;
 
 		std::chrono::steady_clock::time_point last_bootstrap_attempt;
 
 	public:
 		channel_entry (std::shared_ptr<nano::transport::tcp_channel> channel_a, std::shared_ptr<nano::transport::tcp_socket> socket_a, std::shared_ptr<nano::transport::tcp_server> server_a) :
-			channel (std::move (channel_a)), socket (std::move (socket_a)), response_server (std::move (server_a))
+			channel{ std::move (channel_a) }, socket{ std::move (socket_a) }, server{ std::move (server_a) }
 		{
 		}
 

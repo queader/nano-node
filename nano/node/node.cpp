@@ -760,6 +760,7 @@ void nano::node::stop ()
 	bootstrap_server.stop ();
 	bootstrap_initiator.stop ();
 	tcp_listener.stop ();
+	network.stop ();
 	port_mapping.stop ();
 	wallets.stop ();
 	stats.stop ();
@@ -767,7 +768,6 @@ void nano::node::stop ()
 	workers.stop ();
 	local_block_broadcaster.stop ();
 	message_processor.stop ();
-	network.stop (); // Stop network last to avoid killing in-use sockets
 
 	// work pool is not stopped on purpose due to testing setup
 

@@ -20,6 +20,7 @@ nano::message_processor::message_processor (message_processor_config const & con
 nano::message_processor::~message_processor ()
 {
 	debug_assert (threads.empty ());
+	debug_assert (queue.empty ());
 }
 
 void nano::message_processor::start ()
