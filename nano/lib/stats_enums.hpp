@@ -93,6 +93,7 @@ enum class detail
 {
 	_invalid = 0, // Default value, should not be used
 
+	// common
 	all,
 	ok,
 	test,
@@ -122,6 +123,7 @@ enum class detail
 	confirmed,
 	unconfirmed,
 	cemented,
+	cooldown,
 
 	// processing queue
 	queue,

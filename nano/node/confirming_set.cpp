@@ -49,7 +49,7 @@ void nano::confirming_set::start ()
 	debug_assert (!thread.joinable ());
 
 	thread = std::thread{ [this] () {
-		nano::thread_role::set (nano::thread_role::name::confirmation_height_processing);
+		nano::thread_role::set (nano::thread_role::name::confirmation_height);
 		run ();
 	} };
 }
@@ -139,6 +139,13 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 			cemented_notification notification{};
 			notification.cemented.swap (cemented);
 			notification.already_cemented.swap (already);
+
+			// Wait for the worker thread if too many notifications are queued
+			while (notification_workers.num_queued_tasks () >= config.max_queued_notifications)
+			{
+				stats.inc (nano::stat::type::confirming_set, nano::stat::detail::cooldown);
+				std::this_thread::sleep_for (100ms);
+			}
 
 			notification_workers.push_task ([this, notification = std::move (notification)] () {
 				stats.inc (nano::stat::type::confirming_set, nano::stat::detail::notify);
