@@ -5,7 +5,8 @@
 #include <nano/store/component.hpp>
 #include <nano/store/write_queue.hpp>
 
-nano::confirming_set::confirming_set (nano::ledger & ledger_a, nano::stats & stats_a) :
+nano::confirming_set::confirming_set (confirming_set_config const & config_a, nano::ledger & ledger_a, nano::stats & stats_a) :
+	config{ config_a },
 	ledger{ ledger_a },
 	stats{ stats_a },
 	notification_workers{ 1, nano::thread_role::name::confirmation_height_notifications }
@@ -131,7 +132,7 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 
 	// We might need to issue multiple notifications if the block we're confirming implicitly confirms more
 	auto notify_maybe = [this, &transaction, &cemented, &already] (bool force) {
-		if (force || cemented.size () >= max_blocks)
+		if (force || cemented.size () >= config.max_blocks)
 		{
 			transaction.commit ();
 
@@ -165,7 +166,7 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 
 				stats.inc (nano::stat::type::confirming_set, nano::stat::detail::cementing_hash);
 
-				auto added = ledger.confirm (transaction, hash, max_blocks);
+				auto added = ledger.confirm (transaction, hash, config.max_blocks);
 				debug_assert (!added.empty ());
 
 				// Confirming this block may implicitly confirm more
