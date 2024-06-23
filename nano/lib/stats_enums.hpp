@@ -456,6 +456,7 @@ enum class detail
 	notify_cemented,
 	notify_already_cemented,
 	already_cemented,
+	cementing_hash,
 
 	// election_state
 	passive,

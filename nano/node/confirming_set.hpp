@@ -32,10 +32,11 @@ public:
 	confirming_set (nano::ledger &, nano::stats &);
 	~confirming_set ();
 
-	// Adds a block to the set of blocks to be confirmed
-	void add (nano::block_hash const & hash);
 	void start ();
 	void stop ();
+
+	// Adds a block to the set of blocks to be confirmed
+	void add (nano::block_hash const & hash);
 	// Added blocks will remain in this set until after ledger has them marked as confirmed.
 	bool exists (nano::block_hash const & hash) const;
 	std::size_t size () const;
@@ -54,7 +55,6 @@ public: // Events
 
 	nano::observer_set<cemented_notification const &> batch_cemented;
 	nano::observer_set<std::shared_ptr<nano::block>> cemented_observers;
-	nano::observer_set<nano::block_hash const &> block_already_cemented_observers;
 
 private:
 	void run ();
@@ -67,6 +67,7 @@ private:
 	std::unordered_set<nano::block_hash> set;
 
 	nano::thread_pool notification_workers;
+	static size_t constexpr max_blocks{ 1024 * 128 };
 
 	bool stopped{ false };
 	mutable std::mutex mutex;
