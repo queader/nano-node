@@ -317,7 +317,7 @@ bool nano::rep_crawler::track_rep_request (hash_root_t hash_root, std::shared_pt
 		return false; // Duplicate, not tracked
 	}
 
-	// Find and update the timestamp on all reps available on the endpoint (a single host may have multiple reps)
+	// Find and update the request timestamp on all reps available on the endpoint (a single host may have multiple reps)
 	auto & index = reps.get<tag_channel> ();
 	auto [begin, end] = index.equal_range (channel);
 	for (auto it = begin; it != end; ++it)
@@ -356,6 +356,7 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 			auto const & [hash, root] = hash_root;
 			nano::confirm_req req{ network_constants, hash, root };
 
+			// TODO: Check if message was dropped by bandwidth limiter and handle it
 			channel->send (
 			req,
 			[this] (auto & ec, auto size) {
@@ -368,7 +369,7 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 		}
 		else
 		{
-			logger.debug (nano::log::type::rep_crawler, "Ignoring duplicate query for block {} to {}", hash_root.first.to_string (), channel->to_string ());
+			logger.debug (nano::log::type::rep_crawler, "Skipping duplicate query for block {} to {}", hash_root.first.to_string (), channel->to_string ());
 			stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_duplicate);
 		}
 	}
