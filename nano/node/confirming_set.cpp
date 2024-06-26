@@ -128,68 +128,68 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 
 	lock.unlock ();
 
-	auto transaction = ledger.tx_begin_write ({ nano::tables::confirmation_height }, nano::store::writer::confirmation_height);
+	auto notify = [this, &cemented, &already] () {
+		cemented_notification notification{};
+		notification.cemented.swap (cemented);
+		notification.already_cemented.swap (already);
+
+		// Wait for the worker thread if too many notifications are queued
+		while (notification_workers.num_queued_tasks () >= config.max_queued_notifications)
+		{
+			stats.inc (nano::stat::type::confirming_set, nano::stat::detail::cooldown);
+			std::this_thread::sleep_for (100ms);
+		}
+
+		notification_workers.push_task ([this, notification = std::move (notification)] () {
+			stats.inc (nano::stat::type::confirming_set, nano::stat::detail::notify);
+			batch_cemented.notify (notification);
+		});
+	};
 
 	// We might need to issue multiple notifications if the block we're confirming implicitly confirms more
-	auto notify_maybe = [this, &transaction, &cemented, &already] (bool force) {
-		if (force || cemented.size () >= config.max_blocks)
+	auto notify_maybe = [this, &cemented, &already, &notify] (auto & transaction) {
+		if (cemented.size () >= config.max_blocks)
 		{
 			transaction.commit ();
-
-			cemented_notification notification{};
-			notification.cemented.swap (cemented);
-			notification.already_cemented.swap (already);
-
-			// Wait for the worker thread if too many notifications are queued
-			while (notification_workers.num_queued_tasks () >= config.max_queued_notifications)
-			{
-				stats.inc (nano::stat::type::confirming_set, nano::stat::detail::cooldown);
-				std::this_thread::sleep_for (100ms);
-			}
-
-			notification_workers.push_task ([this, notification = std::move (notification)] () {
-				stats.inc (nano::stat::type::confirming_set, nano::stat::detail::notify);
-				batch_cemented.notify (notification);
-			});
-
+			notify ();
 			transaction.renew ();
 		}
 	};
 
-	for (auto const & hash : batch)
 	{
-		if (ledger.confirmed.block_exists (transaction, hash))
+		auto transaction = ledger.tx_begin_write ({ nano::tables::confirmation_height }, nano::store::writer::confirmation_height);
+
+		for (auto const & hash : batch)
 		{
-			already.push_back (hash);
-			stats.inc (nano::stat::type::confirming_set, nano::stat::detail::already_cemented);
-		}
-		else
-		{
-			// There is no guarantee that ledger.confirm will cement the target block in a single call
-			// Keep cementing dependent blocks until the target is cemented
-			while (!ledger.confirmed.block_exists (transaction, hash))
+			do
 			{
 				transaction.refresh_if_needed ();
 
 				stats.inc (nano::stat::type::confirming_set, nano::stat::detail::cementing_hash);
 
+				// Issue notifications here, so that `cemented` set is not too large before we add more blocks
+				notify_maybe (transaction);
+
 				auto added = ledger.confirm (transaction, hash, config.max_blocks);
-				debug_assert (!added.empty ());
-
-				// Confirming this block may implicitly confirm more
-				for (auto & block : added)
+				if (!added.empty ())
 				{
-					cemented.emplace_back (block, hash);
+					// Confirming this block may implicitly confirm more
+					stats.add (nano::stat::type::confirming_set, nano::stat::detail::cemented, added.size ());
+					for (auto & block : added)
+					{
+						cemented.emplace_back (block, hash);
+					}
 				}
-
-				stats.add (nano::stat::type::confirming_set, nano::stat::detail::cemented, added.size ());
-
-				notify_maybe (false);
-			}
+				else
+				{
+					stats.inc (nano::stat::type::confirming_set, nano::stat::detail::already_cemented);
+					already.push_back (hash);
+				}
+			} while (!ledger.confirmed.block_exists (transaction, hash));
 		}
 	}
 
-	notify_maybe (true);
+	notify ();
 
 	release_assert (cemented.empty ());
 	release_assert (already.empty ());
