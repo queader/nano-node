@@ -457,6 +457,7 @@ enum class detail
 	// confirming_set
 	notify_cemented,
 	notify_already_cemented,
+	notify_intermediate,
 	already_cemented,
 	cementing_hash,
 

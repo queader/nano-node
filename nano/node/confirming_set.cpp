@@ -14,7 +14,6 @@ nano::confirming_set::confirming_set (confirming_set_config const & config_a, na
 	batch_cemented.add ([this] (auto const & notification) {
 		for (auto const & [block, confirmation_root] : notification.cemented)
 		{
-			stats.inc (nano::stat::type::confirming_set, nano::stat::detail::notify_cemented);
 			cemented_observers.notify (block);
 		}
 	});
@@ -150,6 +149,7 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 	auto notify_maybe = [this, &cemented, &already, &notify] (auto & transaction) {
 		if (cemented.size () >= config.max_blocks)
 		{
+			stats.inc (nano::stat::type::confirming_set, nano::stat::detail::notify_intermediate);
 			transaction.commit ();
 			notify ();
 			transaction.renew ();
