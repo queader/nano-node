@@ -328,3 +328,21 @@ TEST (rep_crawler, ignore_rebroadcasted)
 
 	ASSERT_NEVER (1s, tick () || node1.rep_crawler.representative_count () > 0);
 }
+
+// Ensure we're not sending more than one query with the same hash to the same peer when previous query is still pending
+TEST (rep_crawler, skip_duplicate_queries)
+{
+	nano::test::system system;
+
+	nano::node_config config = system.default_config ();
+	config.rep_crawler.query_timeout = 999s;
+	auto & node1 = *system.add_node (config);
+	auto & node2 = *system.add_node (config);
+
+	auto channel = node1.network.find_node_id (node2.node_id.pub);
+	ASSERT_NE (nullptr, channel);
+
+	ASSERT_TIMELY (5s, node1.stats.count (nano::stat::type::rep_crawler, nano::stat::detail::query_sent) > 0);
+	ASSERT_TIMELY (5s, node1.stats.count (nano::stat::type::rep_crawler, nano::stat::detail::query_duplicate) > 0);
+	ASSERT_ALWAYS (1s, node1.stats.count (nano::stat::type::rep_crawler, nano::stat::detail::query_sent) == 1);
+}
