@@ -5523,6 +5523,13 @@ TEST (ledger, head_block)
 	ASSERT_EQ (*nano::dev::genesis, *ledger.any.block_get (tx, ledger.any.account_head (tx, nano::dev::genesis_key.pub)));
 }
 
+TEST (ledger, cement_bounded)
+{
+	auto ctx = nano::test::ledger_diamond (5);
+	auto & ledger = ctx.ledger ();
+	std::cout << ledger.block_count () << std::endl;
+}
+
 // Test that nullopt can be returned when there are no receivable entries
 TEST (ledger_receivable, upper_bound_account_none)
 {
