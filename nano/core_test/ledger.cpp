@@ -5543,13 +5543,42 @@ TEST (ledger, cement_unbounded)
 // Tests that bounded cementing works when recursion stack is large
 TEST (ledger, cement_bounded)
 {
-	
+	auto ctx = nano::test::ledger_single_chain (64);
+	auto & ledger = ctx.ledger ();
+	auto bottom = ctx.blocks ().back ();
+
+	// This should only cement some of the dependencies
+	auto confirmed1 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 3);
+	ASSERT_FALSE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
+	ASSERT_EQ (confirmed1.size (), 3);
+	// Only topmost dependencies should get cemented during this call
+	ASSERT_TRUE (std::all_of (confirmed1.begin (), confirmed1.end (), [&] (auto const & block) {
+		return ledger.dependents_confirmed (ledger.tx_begin_read (), *block);
+	}));
+
+	// This should cement a few more dependencies
+	auto confirmed2 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 16);
+	ASSERT_FALSE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
+	ASSERT_EQ (confirmed2.size (), 16);
+	// Only topmost dependencies should get cemented during this call
+	ASSERT_TRUE (std::all_of (confirmed2.begin (), confirmed2.end (), [&] (auto const & block) {
+		return ledger.dependents_confirmed (ledger.tx_begin_read (), *block);
+	}));
+
+	// This should cement the remaining dependencies
+	auto confirmed3 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 64);
+	ASSERT_TRUE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
+	ASSERT_LE (confirmed3.size (), 64);
+	// Every block in the ledger should be cemented
+	ASSERT_TRUE (std::all_of (ctx.blocks ().begin (), ctx.blocks ().end (), [&] (auto const & block) {
+		return ledger.confirmed.block_exists (ledger.tx_begin_read (), block->hash ());
+	}));
 }
 
 // Tests that bounded cementing works when mumber of blocks is large but tree height is small (recursion stack is small)
 TEST (ledger, cement_bounded_diamond)
 {
-	auto ctx = nano::test::ledger_diamond (5);
+	auto ctx = nano::test::ledger_diamond (4);
 	auto & ledger = ctx.ledger ();
 	auto bottom = ctx.blocks ().back ();
 
@@ -5572,17 +5601,17 @@ TEST (ledger, cement_bounded_diamond)
 	}));
 
 	// A few more bounded calls should confirm the whole tree
-	auto confirmed3 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 128);
+	auto confirmed3 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 64);
 	ASSERT_FALSE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
-	ASSERT_EQ (confirmed3.size (), 128);
+	ASSERT_EQ (confirmed3.size (), 64);
 	// Only topmost dependencies should get cemented during this call
 	ASSERT_TRUE (std::all_of (confirmed2.begin (), confirmed2.end (), [&] (auto const & block) {
 		return ledger.dependents_confirmed (ledger.tx_begin_read (), *block);
 	}));
 
-	auto confirmed4 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 128);
+	auto confirmed4 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 64);
 	ASSERT_TRUE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
-	ASSERT_LT (confirmed4.size (), 128);
+	ASSERT_LT (confirmed4.size (), 64);
 	// Every block in the ledger should be cemented
 	ASSERT_TRUE (std::all_of (ctx.blocks ().begin (), ctx.blocks ().end (), [&] (auto const & block) {
 		return ledger.confirmed.block_exists (ledger.tx_begin_read (), block->hash ());

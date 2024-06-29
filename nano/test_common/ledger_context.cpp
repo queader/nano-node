@@ -262,3 +262,67 @@ auto nano::test::ledger_diamond (unsigned height) -> ledger_context
 
 	return ledger_context{ std::move (blocks) };
 }
+
+auto nano::test::ledger_single_chain (unsigned height) -> nano::test::ledger_context
+{
+	std::deque<std::shared_ptr<nano::block>> blocks;
+	nano::work_pool pool{ nano::dev::network_params.network, std::numeric_limits<unsigned>::max () };
+
+	nano::block_builder builder;
+	auto previous = nano::dev::genesis;
+	for (unsigned i = 0; i < height / 4; ++i)
+	{
+		auto send1 = builder.state ()
+					 .make_block ()
+					 .account (nano::dev::genesis_key.pub)
+					 .previous (previous->hash ())
+					 .representative (nano::dev::genesis_key.pub)
+					 .balance (nano::dev::constants.genesis_amount - 1)
+					 .link (nano::dev::genesis_key.pub)
+					 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+					 .work (*pool.generate (previous->hash ()))
+					 .build ();
+
+		auto send2 = builder.state ()
+					 .make_block ()
+					 .account (nano::dev::genesis_key.pub)
+					 .previous (send1->hash ())
+					 .representative (nano::dev::genesis_key.pub)
+					 .balance (nano::dev::constants.genesis_amount - 2)
+					 .link (nano::dev::genesis_key.pub)
+					 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+					 .work (*pool.generate (send1->hash ()))
+					 .build ();
+
+		auto receive1 = builder.state ()
+						.make_block ()
+						.account (nano::dev::genesis_key.pub)
+						.previous (send2->hash ())
+						.representative (nano::dev::genesis_key.pub)
+						.balance (nano::dev::constants.genesis_amount - 1)
+						.link (send1->hash ())
+						.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+						.work (*pool.generate (send2->hash ()))
+						.build ();
+
+		auto receive2 = builder.state ()
+						.make_block ()
+						.account (nano::dev::genesis_key.pub)
+						.previous (receive1->hash ())
+						.representative (nano::dev::genesis_key.pub)
+						.balance (nano::dev::constants.genesis_amount)
+						.link (send2->hash ())
+						.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+						.work (*pool.generate (receive1->hash ()))
+						.build ();
+
+		blocks.push_back (send1);
+		blocks.push_back (send2);
+		blocks.push_back (receive1);
+		blocks.push_back (receive2);
+
+		previous = receive2;
+	}
+
+	return ledger_context{ std::move (blocks) };
+}
