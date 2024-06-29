@@ -5540,7 +5540,14 @@ TEST (ledger, cement_unbounded)
 	}));
 }
 
+// Tests that bounded cementing works when recursion stack is large
 TEST (ledger, cement_bounded)
+{
+	
+}
+
+// Tests that bounded cementing works when mumber of blocks is large but tree height is small (recursion stack is small)
+TEST (ledger, cement_bounded_diamond)
 {
 	auto ctx = nano::test::ledger_diamond (5);
 	auto & ledger = ctx.ledger ();
@@ -5557,6 +5564,29 @@ TEST (ledger, cement_bounded)
 
 	// This should cement a few more dependencies
 	auto confirmed2 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 16);
+	ASSERT_FALSE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
+	ASSERT_EQ (confirmed2.size (), 16);
+	// Only topmost dependencies should get cemented during this call
+	ASSERT_TRUE (std::all_of (confirmed2.begin (), confirmed2.end (), [&] (auto const & block) {
+		return ledger.dependents_confirmed (ledger.tx_begin_read (), *block);
+	}));
+
+	// A few more bounded calls should confirm the whole tree
+	auto confirmed3 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 128);
+	ASSERT_FALSE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
+	ASSERT_EQ (confirmed3.size (), 128);
+	// Only topmost dependencies should get cemented during this call
+	ASSERT_TRUE (std::all_of (confirmed2.begin (), confirmed2.end (), [&] (auto const & block) {
+		return ledger.dependents_confirmed (ledger.tx_begin_read (), *block);
+	}));
+
+	auto confirmed4 = ledger.confirm (ledger.tx_begin_write (), bottom->hash (), /* max cementing batch size */ 128);
+	ASSERT_TRUE (ledger.confirmed.block_exists (ledger.tx_begin_read (), bottom->hash ()));
+	ASSERT_LT (confirmed4.size (), 128);
+	// Every block in the ledger should be cemented
+	ASSERT_TRUE (std::all_of (ctx.blocks ().begin (), ctx.blocks ().end (), [&] (auto const & block) {
+		return ledger.confirmed.block_exists (ledger.tx_begin_read (), block->hash ());
+	}));
 }
 
 // Test that nullopt can be returned when there are no receivable entries
