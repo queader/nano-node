@@ -336,6 +336,7 @@ void nano::active_elections::cleanup_election (nano::unique_lock<nano::mutex> & 
 	{
 		entry.erased_callback (election);
 	}
+
 	vacancy_update ();
 
 	for (auto const & [hash, block] : blocks_l)

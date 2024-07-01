@@ -1390,3 +1390,10 @@ TEST (active_elections, limit_vote_hinted_elections)
 	// Ensure there was no overflow of elections
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::active_elections_dropped, nano::stat::detail::priority));
 }
+
+/*
+ * Tests that active election slots taken by a single balance bucket are limited
+ */
+TEST (active_elections, bounded_buckets)
+{
+}
