@@ -1,7 +1,7 @@
 #pragma once
 
-#include <nano/secure/account_iterator.hpp>
 #include <nano/secure/receivable_iterator.hpp>
+#include <nano/store/iterator.hpp>
 
 #include <optional>
 
@@ -25,7 +25,7 @@ namespace nano
 class ledger_set_any
 {
 public:
-	using account_iterator = nano::account_iterator<ledger_set_any>;
+	using account_iterator = nano::store::iterator<nano::account, nano::account_info>;
 	using receivable_iterator = nano::receivable_iterator<ledger_set_any>;
 
 	ledger_set_any (nano::ledger const & ledger);

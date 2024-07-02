@@ -27,7 +27,7 @@ auto nano::ledger_set_any::account_begin (secure::transaction const & transactio
 
 auto nano::ledger_set_any::account_end () const -> account_iterator
 {
-	return account_iterator{};
+	return ledger.store.account.end ();
 }
 
 std::optional<nano::account_info> nano::ledger_set_any::account_get (secure::transaction const & transaction, nano::account const & account) const
@@ -59,12 +59,7 @@ uint64_t nano::ledger_set_any::account_height (secure::transaction const & trans
 
 auto nano::ledger_set_any::account_lower_bound (secure::transaction const & transaction, nano::account const & account) const -> account_iterator
 {
-	auto disk = ledger.store.account.begin (transaction, account);
-	if (disk == ledger.store.account.end ())
-	{
-		return account_iterator{};
-	}
-	return account_iterator{ transaction, *this, *disk };
+	return ledger.store.account.begin (transaction, account);
 }
 
 auto nano::ledger_set_any::account_upper_bound (secure::transaction const & transaction, nano::account const & account) const -> account_iterator
