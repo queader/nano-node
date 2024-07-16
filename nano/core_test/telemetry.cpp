@@ -129,6 +129,10 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	data.maker = 1;
 	data.timestamp = std::chrono::system_clock::time_point (100ms);
 	data.active_difficulty = 10;
+	data.database_backend = nano::telemetry_backend::rocksdb;
+	data.database_version_major = 33;
+	data.database_version_minor = 2;
+	data.database_version_patch = 7;
 
 	// Insert 20 of these, and 2 outliers at the lower and upper bounds which should get removed
 	std::vector<nano::telemetry_data> all_data (20, data);
@@ -151,6 +155,10 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	lower_bound_outlier_data.maker = 1;
 	lower_bound_outlier_data.timestamp = std::chrono::system_clock::time_point (1ms);
 	lower_bound_outlier_data.active_difficulty = 1;
+	lower_bound_outlier_data.database_backend = nano::telemetry_backend::lmdb;
+	lower_bound_outlier_data.database_version_major = 8;
+	lower_bound_outlier_data.database_version_minor = 1;
+	lower_bound_outlier_data.database_version_patch = 1;
 	all_data.push_back (lower_bound_outlier_data);
 	all_data.push_back (lower_bound_outlier_data);
 
@@ -171,6 +179,10 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	upper_bound_outlier_data.maker = 9;
 	upper_bound_outlier_data.timestamp = std::chrono::system_clock::time_point (999ms);
 	upper_bound_outlier_data.active_difficulty = 99;
+	upper_bound_outlier_data.database_backend = nano::telemetry_backend::lmdb;
+	upper_bound_outlier_data.database_version_major = 99;
+	upper_bound_outlier_data.database_version_minor = 9;
+	upper_bound_outlier_data.database_version_patch = 9;
 	all_data.push_back (upper_bound_outlier_data);
 	all_data.push_back (upper_bound_outlier_data);
 
@@ -572,12 +584,12 @@ TEST (telemetry, majority_database_backend_information_missing)
 	data2.maker = 1;
 	data2.timestamp = std::chrono::system_clock::time_point (100ms);
 	data2.active_difficulty = 10;
-	data1.database_backend = 1;
+	data1.database_backend = nano::telemetry_backend::rocksdb;
 
 	all_data.push_back (data2);
 
 	auto consolidated_telemetry_data2 = nano::consolidate_telemetry_data (all_data);
-	ASSERT_EQ (consolidated_telemetry_data2.database_backend, 0);
+	ASSERT_EQ (consolidated_telemetry_data2.database_backend, nano::telemetry_backend::unknown);
 }
 
 TEST (telemetry, majority_database_backend_information_included)
@@ -600,7 +612,7 @@ TEST (telemetry, majority_database_backend_information_included)
 	data1.maker = 1;
 	data1.timestamp = std::chrono::system_clock::time_point (100ms);
 	data1.active_difficulty = 10;
-	data1.database_backend = 1;
+	data1.database_backend = nano::telemetry_backend::rocksdb;
 	std::vector<nano::telemetry_data> all_data (100, data1);
 
 	nano::telemetry_data data2;
@@ -624,5 +636,5 @@ TEST (telemetry, majority_database_backend_information_included)
 	all_data.push_back (data2);
 
 	auto consolidated_telemetry_data2 = nano::consolidate_telemetry_data (all_data);
-	ASSERT_EQ (consolidated_telemetry_data2.database_backend, 1);
+	ASSERT_EQ (consolidated_telemetry_data2.database_backend, nano::telemetry_backend::rocksdb);
 }

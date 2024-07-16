@@ -16,6 +16,8 @@
 #include <numeric>
 #include <set>
 
+#include <fmt/core.h>
+
 using namespace std::chrono_literals;
 
 nano::telemetry::telemetry (const config & config_a, nano::node & node_a, nano::network & network_a, nano::node_observers & observers_a, nano::network_params & network_params_a, nano::stats & stats_a) :
@@ -312,7 +314,7 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 
 	std::unordered_map<uint8_t, int> protocol_versions;
 	std::unordered_map<std::string, int> vendor_versions;
-	std::unordered_map<uint8_t, int> database_backends;
+	std::unordered_map<std::string, int> database_backends;
 	std::unordered_map<uint64_t, int> bandwidth_caps;
 	std::unordered_map<nano::block_hash, int> genesis_blocks;
 
@@ -333,9 +335,19 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 		block_counts.insert (telemetry_data.block_count);
 		cemented_counts.insert (telemetry_data.cemented_count);
 
-		std::ostringstream ss;
-		ss << telemetry_data.major_version << "." << telemetry_data.minor_version << "." << telemetry_data.patch_version << "." << telemetry_data.pre_release_version << "." << telemetry_data.maker;
-		++vendor_versions[ss.str ()];
+		++vendor_versions[fmt::format ("{}_{}_{}_{}_{}",
+		telemetry_data.major_version,
+		telemetry_data.minor_version,
+		telemetry_data.patch_version,
+		telemetry_data.pre_release_version,
+		telemetry_data.maker)];
+
+		++database_backends[fmt::format ("{}_{}_{}_{}",
+		to_string (telemetry_data.database_backend),
+		telemetry_data.database_version_major,
+		telemetry_data.database_version_minor,
+		telemetry_data.database_version_patch)];
+
 		timestamps.insert (std::chrono::duration_cast<std::chrono::milliseconds> (telemetry_data.timestamp.time_since_epoch ()).count ());
 		++protocol_versions[telemetry_data.protocol_version];
 		peer_counts.insert (telemetry_data.peer_count);
@@ -350,7 +362,6 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 		++bandwidth_caps[telemetry_data.bandwidth_cap];
 		++genesis_blocks[telemetry_data.genesis_block];
 		active_difficulties.insert (telemetry_data.active_difficulty);
-		++database_backends[telemetry_data.database_backend];
 	}
 
 	// Remove 10% of the results from the lower and upper bounds to catch any outliers. Need at least 10 responses before any are removed.
@@ -426,7 +437,8 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 	set_mode_or_average (bandwidth_caps, consolidated_data.bandwidth_cap, bandwidth_sum, size);
 	set_mode (protocol_versions, consolidated_data.protocol_version, size);
 	set_mode (genesis_blocks, consolidated_data.genesis_block, size);
-	set_mode (database_backends, consolidated_data.database_backend, size);
+
+	// TODO: Is there any value in having this consolidated version data?
 
 	// Vendor version, needs to be parsed out of the string
 	std::string version;
@@ -434,13 +446,25 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 
 	// May only have major version, but check for optional parameters as well, only output if all are used
 	std::vector<std::string> version_fragments;
-	boost::split (version_fragments, version, boost::is_any_of ("."));
-	debug_assert (version_fragments.size () == 5);
-	consolidated_data.major_version = boost::lexical_cast<uint8_t> (version_fragments.front ());
-	consolidated_data.minor_version = boost::lexical_cast<uint8_t> (version_fragments[1]);
-	consolidated_data.patch_version = boost::lexical_cast<uint8_t> (version_fragments[2]);
-	consolidated_data.pre_release_version = boost::lexical_cast<uint8_t> (version_fragments[3]);
-	consolidated_data.maker = boost::lexical_cast<uint8_t> (version_fragments[4]);
+	boost::split (version_fragments, version, boost::is_any_of ("_"));
+	release_assert (version_fragments.size () == 5);
+	consolidated_data.major_version = boost::lexical_cast<unsigned> (version_fragments[0]);
+	consolidated_data.minor_version = boost::lexical_cast<unsigned> (version_fragments[1]);
+	consolidated_data.patch_version = boost::lexical_cast<unsigned> (version_fragments[2]);
+	consolidated_data.pre_release_version = boost::lexical_cast<unsigned> (version_fragments[3]);
+	consolidated_data.maker = boost::lexical_cast<unsigned> (version_fragments[4]);
+
+	// Database version, needs to be parsed out of the string
+	std::string database_version;
+	set_mode (database_backends, database_version, size);
+
+	std::vector<std::string> database_fragments;
+	boost::split (database_fragments, database_version, boost::is_any_of ("_"));
+	release_assert (database_fragments.size () == 4);
+	consolidated_data.database_backend = nano::to_telemetry_backend (database_fragments[0]);
+	consolidated_data.database_version_major = boost::lexical_cast<unsigned> (database_fragments[1]);
+	consolidated_data.database_version_minor = boost::lexical_cast<unsigned> (database_fragments[2]);
+	consolidated_data.database_version_patch = boost::lexical_cast<unsigned> (database_fragments[3]);
 
 	return consolidated_data;
 }
