@@ -340,7 +340,7 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 		telemetry_data.minor_version,
 		telemetry_data.patch_version,
 		telemetry_data.pre_release_version,
-		telemetry_data.maker)];
+		to_string (telemetry_data.maker))];
 
 		++database_backends[fmt::format ("{}_{}_{}_{}",
 		to_string (telemetry_data.database_backend),
@@ -452,7 +452,7 @@ nano::telemetry_data nano::consolidate_telemetry_data (std::vector<nano::telemet
 	consolidated_data.minor_version = boost::lexical_cast<unsigned> (version_fragments[1]);
 	consolidated_data.patch_version = boost::lexical_cast<unsigned> (version_fragments[2]);
 	consolidated_data.pre_release_version = boost::lexical_cast<unsigned> (version_fragments[3]);
-	consolidated_data.maker = boost::lexical_cast<unsigned> (version_fragments[4]);
+	consolidated_data.maker = nano::to_telemetry_maker (version_fragments[4]);
 
 	// Database version, needs to be parsed out of the string
 	std::string database_version;

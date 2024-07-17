@@ -29,7 +29,7 @@ TEST (telemetry, consolidate_data)
 	data.minor_version = 1;
 	data.patch_version = 4;
 	data.pre_release_version = 6;
-	data.maker = 2;
+	data.maker = nano::telemetry_maker::nf_pruned_node;
 	data.timestamp = std::chrono::system_clock::time_point (std::chrono::milliseconds (time));
 	data.active_difficulty = 2;
 
@@ -47,7 +47,7 @@ TEST (telemetry, consolidate_data)
 	data1.minor_version = 2;
 	data1.patch_version = 3;
 	data1.pre_release_version = 6;
-	data1.maker = 2;
+	data1.maker = nano::telemetry_maker::nf_pruned_node;
 	data1.timestamp = std::chrono::system_clock::time_point (std::chrono::milliseconds (time + 1));
 	data1.active_difficulty = 3;
 
@@ -65,7 +65,7 @@ TEST (telemetry, consolidate_data)
 	data2.minor_version = 1;
 	data2.patch_version = 4;
 	data2.pre_release_version = 6;
-	data2.maker = 2;
+	data2.maker = nano::telemetry_maker::nf_node;
 	data2.timestamp = std::chrono::system_clock::time_point (std::chrono::milliseconds (time));
 	data2.active_difficulty = 2;
 
@@ -85,7 +85,7 @@ TEST (telemetry, consolidate_data)
 	ASSERT_EQ (consolidated_telemetry_data.minor_version, 1);
 	ASSERT_EQ (consolidated_telemetry_data.patch_version, 4);
 	ASSERT_EQ (consolidated_telemetry_data.pre_release_version, 6);
-	ASSERT_EQ (consolidated_telemetry_data.maker, 2);
+	ASSERT_EQ (consolidated_telemetry_data.maker, nano::telemetry_maker::nf_pruned_node);
 	ASSERT_EQ (consolidated_telemetry_data.timestamp, std::chrono::system_clock::time_point (std::chrono::milliseconds (time)));
 	ASSERT_EQ (consolidated_telemetry_data.active_difficulty, 2);
 
@@ -97,14 +97,14 @@ TEST (telemetry, consolidate_data)
 	all_data[2].minor_version = 2;
 	all_data[2].patch_version = 3;
 	all_data[2].pre_release_version = 6;
-	all_data[2].maker = 2;
+	all_data[2].maker = nano::telemetry_maker::nf_pruned_node;
 
 	auto consolidated_telemetry_data1 = nano::consolidate_telemetry_data (all_data);
 	ASSERT_EQ (consolidated_telemetry_data1.major_version, 10);
 	ASSERT_EQ (consolidated_telemetry_data1.minor_version, 2);
 	ASSERT_EQ (consolidated_telemetry_data1.patch_version, 3);
 	ASSERT_EQ (consolidated_telemetry_data1.pre_release_version, 6);
-	ASSERT_EQ (consolidated_telemetry_data1.maker, 2);
+	ASSERT_EQ (consolidated_telemetry_data1.maker, nano::telemetry_maker::nf_pruned_node);
 	ASSERT_TRUE (consolidated_telemetry_data1.protocol_version == 11 || consolidated_telemetry_data1.protocol_version == 12 || consolidated_telemetry_data1.protocol_version == 13);
 	ASSERT_EQ (consolidated_telemetry_data1.bandwidth_cap, 51);
 	ASSERT_EQ (consolidated_telemetry_data1.genesis_block, nano::block_hash (3));
@@ -126,7 +126,7 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	data.minor_version = 1;
 	data.patch_version = 5;
 	data.pre_release_version = 2;
-	data.maker = 1;
+	data.maker = nano::telemetry_maker::nf_node;
 	data.timestamp = std::chrono::system_clock::time_point (100ms);
 	data.active_difficulty = 10;
 	data.database_backend = nano::telemetry_backend::rocksdb;
@@ -152,7 +152,7 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	lower_bound_outlier_data.minor_version = 1;
 	lower_bound_outlier_data.patch_version = 1;
 	lower_bound_outlier_data.pre_release_version = 1;
-	lower_bound_outlier_data.maker = 1;
+	lower_bound_outlier_data.maker = nano::telemetry_maker::nf_pruned_node;
 	lower_bound_outlier_data.timestamp = std::chrono::system_clock::time_point (1ms);
 	lower_bound_outlier_data.active_difficulty = 1;
 	lower_bound_outlier_data.database_backend = nano::telemetry_backend::lmdb;
@@ -176,7 +176,7 @@ TEST (telemetry, consolidate_data_remove_outliers)
 	upper_bound_outlier_data.minor_version = 9;
 	upper_bound_outlier_data.patch_version = 9;
 	upper_bound_outlier_data.pre_release_version = 9;
-	upper_bound_outlier_data.maker = 9;
+	upper_bound_outlier_data.maker = nano::telemetry_maker::nf_pruned_node;
 	upper_bound_outlier_data.timestamp = std::chrono::system_clock::time_point (999ms);
 	upper_bound_outlier_data.active_difficulty = 99;
 	upper_bound_outlier_data.database_backend = nano::telemetry_backend::lmdb;
@@ -206,7 +206,6 @@ TEST (telemetry, consolidate_data_remove_outliers_with_zero_bandwidth)
 	data1.minor_version = 1;
 	data1.patch_version = 5;
 	data1.pre_release_version = 2;
-	data1.maker = 1;
 	data1.timestamp = std::chrono::system_clock::time_point (100ms);
 	data1.active_difficulty = 10;
 
@@ -227,7 +226,6 @@ TEST (telemetry, consolidate_data_remove_outliers_with_zero_bandwidth)
 	data2.minor_version = 1;
 	data2.patch_version = 5;
 	data2.pre_release_version = 2;
-	data2.maker = 1;
 	data2.timestamp = std::chrono::system_clock::time_point (100ms);
 	data2.active_difficulty = 10;
 
@@ -251,13 +249,13 @@ TEST (telemetry, signatures)
 	data.minor_version = 1;
 	data.patch_version = 5;
 	data.pre_release_version = 2;
-	data.maker = 1;
+	data.maker = nano::telemetry_maker::nf_pruned_node;
 	data.timestamp = std::chrono::system_clock::time_point (100ms);
 	data.sign (node_id);
 	ASSERT_FALSE (data.validate_signature ());
 	auto signature = data.signature;
 	// Check that the signature is different if changing a piece of data
-	data.maker = 2;
+	data.maker = nano::telemetry_maker::nf_node;
 	data.sign (node_id);
 	ASSERT_NE (data.signature, signature);
 }
@@ -271,7 +269,6 @@ TEST (telemetry, unknown_data)
 	data.minor_version = 1;
 	data.patch_version = 5;
 	data.pre_release_version = 2;
-	data.maker = 1;
 	data.timestamp = std::chrono::system_clock::time_point (100ms);
 	data.unknown_data.push_back (1);
 	data.sign (node_id);
@@ -562,7 +559,6 @@ TEST (telemetry, majority_database_backend_information_missing)
 	data1.minor_version = 0;
 	data1.patch_version = 0;
 	data1.pre_release_version = 1;
-	data1.maker = 1;
 	data1.timestamp = std::chrono::system_clock::time_point (100ms);
 	data1.active_difficulty = 10;
 	std::vector<nano::telemetry_data> all_data (100, data1);
@@ -581,7 +577,6 @@ TEST (telemetry, majority_database_backend_information_missing)
 	data2.minor_version = 0;
 	data2.patch_version = 0;
 	data2.pre_release_version = 2;
-	data2.maker = 1;
 	data2.timestamp = std::chrono::system_clock::time_point (100ms);
 	data2.active_difficulty = 10;
 	data1.database_backend = nano::telemetry_backend::rocksdb;
@@ -609,7 +604,6 @@ TEST (telemetry, majority_database_backend_information_included)
 	data1.minor_version = 0;
 	data1.patch_version = 0;
 	data1.pre_release_version = 1;
-	data1.maker = 1;
 	data1.timestamp = std::chrono::system_clock::time_point (100ms);
 	data1.active_difficulty = 10;
 	data1.database_backend = nano::telemetry_backend::rocksdb;
@@ -629,7 +623,6 @@ TEST (telemetry, majority_database_backend_information_included)
 	data2.minor_version = 0;
 	data2.patch_version = 0;
 	data2.pre_release_version = 2;
-	data2.maker = 1;
 	data2.timestamp = std::chrono::system_clock::time_point (100ms);
 	data2.active_difficulty = 10;
 
