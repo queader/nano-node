@@ -79,12 +79,16 @@ namespace bootstrap_ascending
 			account_info_by_hash,
 		};
 
+		using callback_t = std::function<void (nano::block_status)>;
+
 		struct async_tag
 		{
 			query_type type{ query_type::invalid };
 			nano::hash_or_account start{ 0 };
 			nano::account account{ 0 };
 			nano::block_hash hash{ 0 };
+			size_t count{ 0 };
+			callback_t callback{ nullptr };
 
 			id_t id{ generate_id () };
 			std::chrono::steady_clock::time_point timestamp{ std::chrono::steady_clock::now () };
@@ -128,7 +132,7 @@ namespace bootstrap_ascending
 		nano::account next_dependency ();
 		nano::account wait_dependency ();
 
-		bool request (nano::account, std::shared_ptr<nano::transport::channel> const &);
+		bool request (nano::account account, size_t count, std::shared_ptr<nano::transport::channel> const &, callback_t = nullptr);
 		bool request_info (nano::block_hash, std::shared_ptr<nano::transport::channel> const &);
 		void send (std::shared_ptr<nano::transport::channel> const &, async_tag tag);
 

@@ -126,11 +126,13 @@ void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::
 		case query_type::blocks_by_hash:
 		case query_type::blocks_by_account:
 		{
+			debug_assert (tag.count > 0);
+
 			request.type = nano::asc_pull_type::blocks;
 
 			nano::asc_pull_req::blocks_payload pld;
 			pld.start = tag.start;
-			pld.count = config.bootstrap_ascending.pull_count;
+			pld.count = tag.count;
 			pld.start_type = tag.type == query_type::blocks_by_hash ? nano::asc_pull_req::hash_type::block : nano::asc_pull_req::hash_type::account;
 			request.payload = pld;
 		}
@@ -437,10 +439,12 @@ nano::account nano::bootstrap_ascending::service::wait_dependency ()
 	return { 0 };
 }
 
-bool nano::bootstrap_ascending::service::request (nano::account account, std::shared_ptr<nano::transport::channel> const & channel)
+bool nano::bootstrap_ascending::service::request (nano::account account, size_t count, std::shared_ptr<nano::transport::channel> const & channel, callback_t callback)
 {
 	async_tag tag{};
 	tag.account = account;
+	tag.count = count;
+	tag.callback = std::move (callback);
 
 	// Check if the account picked has blocks, if it does, start the pull from the highest block
 	auto info = ledger.store.account.get (ledger.store.tx_begin_read (), account);
@@ -491,7 +495,9 @@ void nano::bootstrap_ascending::service::run_one_priority ()
 	{
 		return;
 	}
-	request (account, channel);
+	request (account, config.bootstrap_ascending.pull_count, channel, [this] (auto result) {
+		stats.inc (nano::stat::type::bootstrap_ascending_priority, to_stat_detail (result));
+	});
 }
 
 void nano::bootstrap_ascending::service::run_priorities ()
@@ -534,7 +540,9 @@ void nano::bootstrap_ascending::service::run_one_database (bool should_throttle)
 	{
 		return;
 	}
-	request (account, channel);
+	request (account, 2, channel, [this] (auto result) {
+		stats.inc (nano::stat::type::bootstrap_ascending_database, to_stat_detail (result));
+	});
 }
 
 void nano::bootstrap_ascending::service::run_one_blocking ()
@@ -579,7 +587,9 @@ void nano::bootstrap_ascending::service::run_one_dependency ()
 	{
 		return;
 	}
-	request (account, channel);
+	request (account, 2, channel, [this] (auto result) {
+		stats.inc (nano::stat::type::bootstrap_ascending_dependency, to_stat_detail (result));
+	});
 }
 
 void nano::bootstrap_ascending::service::run_dependencies ()
@@ -672,7 +682,12 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::bloc
 				if (block == response.blocks.back ())
 				{
 					// It's the last block submitted for this account chanin, reset timestamp to allow more requests
-					block_processor.add (block, nano::block_source::bootstrap, nullptr, [this, account = tag.account] (auto result) {
+					block_processor.add (block, nano::block_source::bootstrap, nullptr, [this, account = tag.account, callback = tag.callback] (auto result) {
+						if (callback)
+						{
+							callback (result);
+						}
+
 						stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::timestamp_reset);
 						{
 							nano::lock_guard<nano::mutex> guard{ mutex };
@@ -683,7 +698,7 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::bloc
 				}
 				else
 				{
-					block_processor.add (block, nano::block_source::bootstrap);
+					block_processor.add (block, nano::block_source::bootstrap, nullptr, tag.callback);
 				}
 			}
 
@@ -748,6 +763,10 @@ nano::bootstrap_ascending::service::verify_result nano::bootstrap_ascending::ser
 	if (blocks.size () == 1 && blocks.front ()->hash () == tag.start.as_block_hash ())
 	{
 		return verify_result::nothing_new;
+	}
+	if (blocks.size () > tag.count)
+	{
+		return verify_result::invalid;
 	}
 
 	auto const & first = blocks.front ();
