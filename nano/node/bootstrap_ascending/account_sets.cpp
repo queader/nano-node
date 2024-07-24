@@ -173,9 +173,8 @@ void nano::bootstrap_ascending::account_sets::timestamp_reset (const nano::accou
 	auto iter = priorities.get<tag_account> ().find (account);
 	if (iter != priorities.get<tag_account> ().end ())
 	{
-		auto const cutoff = std::chrono::steady_clock::now () - config.cooldown;
-		priorities.get<tag_account> ().modify (iter, [cutoff] (auto & entry) {
-			entry.timestamp = cutoff + 11ms;
+		priorities.get<tag_account> ().modify (iter, [] (auto & entry) {
+			entry.timestamp = {};
 		});
 	}
 }
