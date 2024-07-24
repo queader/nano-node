@@ -430,6 +430,7 @@ enum class detail
 	loop_database,
 	loop_blocking,
 	loop_dependencies,
+	timestamp_reset,
 
 	// bootstrap ascending accounts
 	prioritize,
