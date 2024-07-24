@@ -291,11 +291,6 @@ nano::account nano::bootstrap_ascending::service::next_priority ()
 	{
 		return { 0 };
 	}
-	// Check if request for this account is already in progress
-	if (tags.get<tag_account> ().count (account) > 0)
-	{
-		return { 0 };
-	}
 	return account;
 }
 
