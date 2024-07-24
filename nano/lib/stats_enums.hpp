@@ -423,6 +423,7 @@ enum class detail
 	nothing_new,
 	account_info_empty,
 	loop_database,
+	loop_blocking,
 	loop_dependencies,
 
 	// bootstrap ascending accounts
@@ -435,6 +436,7 @@ enum class detail
 	next_none,
 	next_priority,
 	next_database,
+	next_blocking,
 	next_dependency,
 
 	blocking_insert,

@@ -17,6 +17,7 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 
+#include <set>
 #include <thread>
 
 namespace mi = boost::multi_index;
@@ -101,6 +102,8 @@ namespace bootstrap_ascending
 		void run_one_priority ();
 		void run_database ();
 		void run_one_database (bool should_throttle);
+		void run_blocking ();
+		void run_one_blocking ();
 		void run_dependencies ();
 		void run_one_dependency ();
 		void run_timeouts ();
@@ -115,9 +118,11 @@ namespace bootstrap_ascending
 		/* Gets the next account from the database */
 		nano::account next_database (bool should_throttle);
 		nano::account wait_database (bool should_throttle);
-		/* Waits for next available dependency (blocking block) */
-		nano::block_hash next_dependency ();
-		nano::block_hash wait_dependency ();
+		/* Waits for next blocking block hash */
+		nano::block_hash next_blocking ();
+		nano::block_hash wait_blocking ();
+		/* Waits for next dependency account */
+		nano::account wait_dependency ();
 
 		bool request (nano::account, std::shared_ptr<nano::transport::channel> const &);
 		bool request_info (nano::block_hash, std::shared_ptr<nano::transport::channel> const &);
@@ -153,6 +158,10 @@ namespace bootstrap_ascending
 		nano::bootstrap_ascending::throttle throttle;
 		nano::bootstrap_ascending::peer_scoring scoring;
 
+		// Requests for accounts from database have much lower hitrate and could introduce strain on the network
+		// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
+		nano::bandwidth_limiter database_limiter;
+
 		// clang-format off
 		class tag_sequenced {};
 		class tag_id {};
@@ -166,20 +175,27 @@ namespace bootstrap_ascending
 			mi::hashed_non_unique<mi::tag<tag_account>,
 				mi::member<async_tag, nano::account , &async_tag::account>>
 		>>;
-		// clang-format on
-		ordered_tags tags;
 
-		// Requests for accounts from database have much lower hitrate and could introduce strain on the network
-		// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
-		nano::bandwidth_limiter database_limiter;
+		using ordered_dependencies = boost::multi_index_container<nano::account,
+		mi::indexed_by<
+			mi::sequenced<mi::tag<tag_sequenced>>,
+			mi::hashed_unique<mi::tag<tag_account>, mi::identity<nano::account>>
+		>>;
+		// clang-format on
+
+		ordered_tags tags;
+		ordered_dependencies dependencies;
 
 		bool stopped{ false };
 		mutable nano::mutex mutex;
 		mutable nano::condition_variable condition;
 		std::thread priorities_thread;
 		std::thread database_thread;
+		std::thread blocking_thread;
 		std::thread dependencies_thread;
 		std::thread timeout_thread;
+
+		static size_t constexpr max_dependencies{ 256 };
 	};
 }
 }

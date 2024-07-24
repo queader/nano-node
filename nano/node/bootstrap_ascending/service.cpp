@@ -53,6 +53,7 @@ nano::bootstrap_ascending::service::~service ()
 	// All threads must be stopped before destruction
 	debug_assert (!priorities_thread.joinable ());
 	debug_assert (!database_thread.joinable ());
+	debug_assert (!blocking_thread.joinable ());
 	debug_assert (!dependencies_thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 }
@@ -61,6 +62,7 @@ void nano::bootstrap_ascending::service::start ()
 {
 	debug_assert (!priorities_thread.joinable ());
 	debug_assert (!database_thread.joinable ());
+	debug_assert (!blocking_thread.joinable ());
 	debug_assert (!dependencies_thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 
@@ -72,6 +74,11 @@ void nano::bootstrap_ascending::service::start ()
 	database_thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
 		run_database ();
+	});
+
+	blocking_thread = std::thread ([this] () {
+		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
+		run_blocking ();
 	});
 
 	dependencies_thread = std::thread ([this] () {
@@ -95,6 +102,7 @@ void nano::bootstrap_ascending::service::stop ()
 
 	nano::join_or_pass (priorities_thread);
 	nano::join_or_pass (database_thread);
+	nano::join_or_pass (blocking_thread);
 	nano::join_or_pass (dependencies_thread);
 	nano::join_or_pass (timeout_thread);
 }
@@ -172,6 +180,8 @@ std::size_t nano::bootstrap_ascending::service::score_size () const
  */
 void nano::bootstrap_ascending::service::inspect (secure::transaction const & tx, nano::block_status const & result, nano::block const & block)
 {
+	debug_assert (!mutex.try_lock ());
+
 	auto const hash = block.hash ();
 
 	switch (result)
@@ -307,28 +317,51 @@ nano::account nano::bootstrap_ascending::service::wait_database (bool should_thr
 	return { 0 };
 }
 
-nano::block_hash nano::bootstrap_ascending::service::next_dependency ()
+nano::block_hash nano::bootstrap_ascending::service::next_blocking ()
 {
 	debug_assert (!mutex.try_lock ());
 
-	auto dependency = accounts.next_blocking ();
-	if (!dependency.is_zero ())
+	if (dependencies.size () < max_dependencies)
 	{
-		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_dependency);
-		return dependency;
+		auto dependency = accounts.next_blocking ();
+		if (!dependency.is_zero ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_blocking);
+			return dependency;
+		}
 	}
 	return { 0 };
 }
 
-nano::block_hash nano::bootstrap_ascending::service::wait_dependency ()
+nano::block_hash nano::bootstrap_ascending::service::wait_blocking ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
-		auto dependency = next_dependency ();
+		auto dependency = next_blocking ();
 		if (!dependency.is_zero ())
 		{
 			return dependency;
+		}
+		else
+		{
+			condition.wait_for (lock, 100ms);
+		}
+	}
+	return { 0 };
+}
+
+nano::account nano::bootstrap_ascending::service::wait_dependency ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		if (!dependencies.empty ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::next_dependency);
+			auto account = dependencies.front ();
+			dependencies.pop_front ();
+			return account;
 		}
 		else
 		{
@@ -436,6 +469,33 @@ void nano::bootstrap_ascending::service::run_one_database (bool should_throttle)
 	request (account, channel);
 }
 
+void nano::bootstrap_ascending::service::run_one_blocking ()
+{
+	auto channel = wait_channel ();
+	if (!channel)
+	{
+		return;
+	}
+	auto blocking = wait_blocking ();
+	if (blocking.is_zero ())
+	{
+		return;
+	}
+	request_info (blocking, channel);
+}
+
+void nano::bootstrap_ascending::service::run_blocking ()
+{
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		lock.unlock ();
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::loop_blocking);
+		run_one_blocking ();
+		lock.lock ();
+	}
+}
+
 void nano::bootstrap_ascending::service::run_one_dependency ()
 {
 	wait_blockprocessor ();
@@ -444,12 +504,12 @@ void nano::bootstrap_ascending::service::run_one_dependency ()
 	{
 		return;
 	}
-	auto dependency = wait_dependency ();
-	if (dependency.is_zero ())
+	auto account = wait_dependency ();
+	if (account.is_zero ())
 	{
 		return;
 	}
-	request_info (dependency, channel);
+	request (account, channel);
 }
 
 void nano::bootstrap_ascending::service::run_dependencies ()
@@ -572,10 +632,8 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::acco
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::account_info);
 
 	// Prioritize account containing the dependency
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		accounts.priority_up (response.account);
-	}
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	dependencies.push_back (response.account);
 }
 
 void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::frontiers_payload & response, const nano::bootstrap_ascending::service::async_tag & tag)
@@ -673,6 +731,7 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::servi
 
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "tags", tags.size (), sizeof (decltype (tags)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "dependencies", dependencies.size (), sizeof (decltype (dependencies)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle", throttle.size (), 0 }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle_successes", throttle.successes (), 0 }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
