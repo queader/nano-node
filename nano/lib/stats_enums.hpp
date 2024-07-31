@@ -60,11 +60,13 @@ enum class type
 	blockprocessor_overfill,
 	bootstrap_ascending,
 	bootstrap_ascending_accounts,
-	bootstrap_ascending_verify,
+	bootstrap_ascending_verify_blocks,
+	bootstrap_ascending_verify_frontiers,
 	bootstrap_ascending_process,
 	bootstrap_ascending_request,
 	bootstrap_ascending_reply,
 	bootstrap_ascending_next,
+	bootstrap_ascending_frontiers,
 	bootstrap_server,
 	bootstrap_server_request,
 	bootstrap_server_overfill,
@@ -419,7 +421,7 @@ enum class detail
 	missing_cookie,
 	invalid_genesis,
 
-	// bootstrap ascending
+	// bootstrap_ascending
 	missing_tag,
 	reply,
 	throttled,
@@ -427,13 +429,16 @@ enum class detail
 	timeout,
 	nothing_new,
 	account_info_empty,
+	frontiers_empty,
 	loop_database,
 	loop_dependencies,
+	loop_frontiers,
+	loop_frontiers_processing,
 	duplicate_request,
 	invalid_response_type,
 	timestamp_reset,
 
-	// bootstrap ascending accounts
+	// bootstrap_ascending_accounts
 	prioritize,
 	prioritize_failed,
 	block,
@@ -442,11 +447,18 @@ enum class detail
 	dependency_update,
 	dependency_update_failed,
 
+	// bootstrap_ascending_frontiers
+	done,
+	done_range,
+	next_by_requests,
+	next_by_timestamp,
+
 	next_none,
 	next_priority,
 	next_database,
 	next_blocking,
 	next_dependency,
+	next_frontier,
 
 	blocking_insert,
 	blocking_erase_overflow,
@@ -457,6 +469,8 @@ enum class detail
 	deprioritize,
 	deprioritize_failed,
 	sync_dependencies,
+	frontier_processed,
+	frontier_outdated,
 
 	request_blocks,
 	request_account_info,
@@ -464,6 +478,7 @@ enum class detail
 	// active
 	started_hinted,
 	started_optimistic,
+
 	// rep_crawler
 	channel_dead,
 	query_target_failed,

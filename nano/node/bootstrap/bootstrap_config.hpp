@@ -21,6 +21,17 @@ public:
 	std::chrono::milliseconds cooldown{ 1000 * 3 };
 };
 
+// TODO: This should be moved next to `frontier_scan` class
+class frontier_scan_config final
+{
+public:
+	// TODO: Serialize & deserialize
+
+	unsigned head_parallelistm{ 128 };
+	unsigned consideration_count{ 4 };
+	std::chrono::milliseconds cooldown{ 1000 * 5 };
+};
+
 // TODO: This should be moved next to `bootstrap_ascending` class
 class bootstrap_ascending_config final
 {
@@ -38,6 +49,7 @@ public:
 	std::size_t block_wait_count{ 1000 };
 	std::size_t max_requests{ 1024 * 16 }; // TODO: Adjust for live network
 
-	nano::account_sets_config account_sets;
+	account_sets_config account_sets;
+	frontier_scan_config frontier_scan;
 };
 }

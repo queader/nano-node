@@ -321,6 +321,18 @@ std::size_t nano::bootstrap_ascending::account_sets::blocked_size () const
 	return blocking.size ();
 }
 
+std::size_t nano::bootstrap_ascending::account_sets::priority_vacancy () const
+{
+	debug_assert (priorities.size () <= config.priorities_max);
+	return config.priorities_max - priorities.size ();
+}
+
+std::size_t nano::bootstrap_ascending::account_sets::blocked_vacancy () const
+{
+	debug_assert (blocking.size () <= config.blocking_max);
+	return config.blocking_max - blocking.size ();
+}
+
 double nano::bootstrap_ascending::account_sets::priority (nano::account const & account) const
 {
 	if (!blocked (account))
