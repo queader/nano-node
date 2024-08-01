@@ -13,7 +13,8 @@ nano::bootstrap_ascending::frontier_scan::frontier_scan (frontier_scan_config co
 
 	for (unsigned i = 0; i < config.head_parallelistm; ++i)
 	{
-		nano::uint256_t start = i * range_size;
+		// Start at 1 to avoid the burn account
+		nano::uint256_t start = (i == 0) ? 1 : i * range_size;
 		nano::uint256_t end = (i == config.head_parallelistm - 1) ? max_account : start + range_size;
 
 		heads.emplace_back (frontier_head{ nano::account{ start }, nano::account{ end } });
@@ -62,7 +63,6 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, std
 	auto it = heads_by_start.upper_bound (start);
 	release_assert (it != heads_by_start.begin ());
 	it = std::prev (it);
-	release_assert (it != heads_by_start.end ());
 
 	bool done = false;
 	heads_by_start.modify (it, [this, &response, &done] (frontier_head & entry) {
