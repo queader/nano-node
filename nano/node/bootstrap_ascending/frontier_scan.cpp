@@ -143,8 +143,19 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::front
 		return composite;
 	};
 
+	auto collect_responses = [&] () {
+		auto composite = std::make_unique<container_info_composite> ("responses");
+		for (int n = 0; n < heads.size (); ++n)
+		{
+			auto const & head = heads[n];
+			composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), head.completed, 0 }));
+		}
+		return composite;
+	};
+
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (collect_progress ());
 	composite->add_component (collect_candidates ());
+	composite->add_component (collect_responses ());
 	return composite;
 }
