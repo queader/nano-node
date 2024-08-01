@@ -896,7 +896,7 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::fron
 
 			nano::lock_guard<nano::mutex> lock{ mutex };
 
-			frontiers.process (tag.start.as_account (), response.frontiers.back ().first);
+			frontiers.process (tag.start.as_account (), response.frontiers);
 			pending_frontiers.push_back (response.frontiers);
 		}
 		break;

@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <map>
+#include <set>
 
 namespace mi = boost::multi_index;
 
@@ -25,7 +26,7 @@ public:
 	frontier_scan (frontier_scan_config const &, nano::stats &);
 
 	nano::account next ();
-	bool process (nano::account start, nano::account end);
+	bool process (nano::account start, std::deque<std::pair<nano::account, nano::block_hash>> const & response);
 
 	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
 
@@ -39,8 +40,7 @@ private:
 		frontier_head (nano::account start_a, nano::account end_a) :
 			start{ start_a },
 			end{ end_a },
-			next{ start_a },
-			candidate{ end_a }
+			next{ start_a }
 		{
 		}
 
@@ -49,11 +49,16 @@ private:
 		nano::account end;
 
 		nano::account next;
-		nano::account candidate;
+		std::set<nano::account> candidates;
 
 		unsigned requests{ 0 };
 		unsigned completed{ 0 };
 		std::chrono::steady_clock::time_point timestamp{};
+
+		nano::account last_candidate () const
+		{
+			return candidates.empty () ? next : *candidates.rbegin ();
+		}
 	};
 
 	// clang-format off

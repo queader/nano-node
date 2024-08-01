@@ -29,6 +29,7 @@ public:
 
 	unsigned head_parallelistm{ 128 };
 	unsigned consideration_count{ 4 };
+	size_t candidates{ 1000 };
 	std::chrono::milliseconds cooldown{ 1000 * 5 };
 };
 

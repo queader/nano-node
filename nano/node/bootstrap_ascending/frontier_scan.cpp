@@ -48,9 +48,9 @@ nano::account nano::bootstrap_ascending::frontier_scan::next ()
 	return { 0 };
 }
 
-bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nano::account end)
+bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, std::deque<std::pair<nano::account, nano::block_hash>> const & response)
 {
-	debug_assert (start.number () <= end.number ());
+	debug_assert (std::all_of (response.begin (), response.end (), [&] (auto const & pair) { return pair.first.number () >= start.number (); }));
 
 	stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::process);
 
@@ -62,27 +62,34 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nan
 	release_assert (it != heads_by_start.end ());
 
 	bool done = false;
-	heads_by_start.modify (it, [this, end, &done] (auto & entry) {
-		if (end.number () > entry.next.number ())
-		{
-			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::advance);
+	heads_by_start.modify (it, [this, &response, &done] (frontier_head & entry) {
+		entry.completed += 1;
 
-			entry.completed += 1;
-			entry.candidate = std::min (entry.candidate, end);
-		}
-		else
+		for (auto const & [account, _] : response)
 		{
-			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::advance_failed);
+			// Only consider candidates that actually advance the current frontier
+			if (account.number () > entry.next.number ())
+			{
+				entry.candidates.insert (account);
+			}
 		}
 
 		// Check if done
-		if (entry.completed >= config.consideration_count)
+		if (entry.completed >= config.consideration_count && !entry.candidates.empty ())
 		{
 			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done);
 
-			debug_assert (entry.candidate.number () > entry.next.number ());
-			entry.next = entry.candidate;
-			entry.candidate = entry.end;
+			// Take the 1000th (or last) candidate as the next frontier
+			auto it = entry.candidates.begin ();
+			std::advance (it, std::min (entry.candidates.size (), config.candidates) - 1);
+			release_assert (it != entry.candidates.end ());
+
+			debug_assert (entry.next.number () < it->number ());
+			entry.next = *it;
+			entry.candidates.clear ();
+			entry.requests = 0;
+			entry.completed = 0;
+			entry.timestamp = {};
 
 			// Bound the search range
 			if (entry.next.number () >= entry.end.number ())
@@ -90,10 +97,6 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nan
 				stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done_range);
 				entry.next = entry.start;
 			}
-
-			entry.requests = 0;
-			entry.completed = 0;
-			entry.timestamp = {};
 
 			done = true;
 		}
@@ -110,12 +113,29 @@ bool nano::bootstrap_ascending::frontier_scan::check_timestamp (std::chrono::ste
 
 std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::frontier_scan::collect_container_info (std::string const & name)
 {
+	auto collect_progress = [&] () {
+		auto composite = std::make_unique<container_info_composite> ("progress");
+		for (int n = 0; n < heads.size (); ++n)
+		{
+			auto const & head = heads[n];
+			auto progress_raw = (head.next.number () - head.start.number ()) * 1000000 / (head.end.number () - head.start.number ());
+			composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), static_cast<std::uint64_t> (progress_raw), 6 }));
+		}
+		return composite;
+	};
+
+	auto collect_candidates = [&] () {
+		auto composite = std::make_unique<container_info_composite> ("candidates");
+		for (int n = 0; n < heads.size (); ++n)
+		{
+			auto const & head = heads[n];
+			composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), head.candidates.size (), 0 }));
+		}
+		return composite;
+	};
+
 	auto composite = std::make_unique<container_info_composite> (name);
-	for (int n = 0; n < heads.size (); ++n)
-	{
-		auto const & head = heads[n];
-		auto progress_raw = (head.next.number () - head.start.number ()) * 1000000 / (head.end.number () - head.start.number ());
-		composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), static_cast<std::uint64_t> (progress_raw), 6 }));
-	}
+	composite->add_component (collect_progress ());
+	composite->add_component (collect_candidates ());
 	return composite;
 }
