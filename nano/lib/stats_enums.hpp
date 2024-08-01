@@ -453,6 +453,8 @@ enum class detail
 	done_range,
 	next_by_requests,
 	next_by_timestamp,
+	advance,
+	advance_failed,
 
 	next_none,
 	next_priority,

@@ -50,6 +50,8 @@ nano::account nano::bootstrap_ascending::frontier_scan::next ()
 
 bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nano::account end)
 {
+	debug_assert (start.number () <= end.number ());
+
 	stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::process);
 
 	// Find the first head with head.start <= start
@@ -61,22 +63,32 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nan
 
 	bool done = false;
 	heads_by_start.modify (it, [this, end, &done] (auto & entry) {
-		entry.completed += 1;
-		entry.candidate = std::min (entry.candidate, end);
+		if (end.number () > entry.next.number ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::advance);
+
+			entry.completed += 1;
+			entry.candidate = std::min (entry.candidate, end);
+		}
+		else
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::advance_failed);
+		}
 
 		// Check if done
 		if (entry.completed >= config.consideration_count)
 		{
 			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done);
 
+			debug_assert (entry.candidate.number () > entry.next.number ());
 			entry.next = entry.candidate;
+			entry.candidate = entry.end;
 
 			// Bound the search range
 			if (entry.next.number () >= entry.end.number ())
 			{
 				stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done_range);
 				entry.next = entry.start;
-				entry.candidate = entry.end;
 			}
 
 			entry.requests = 0;
