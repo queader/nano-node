@@ -150,7 +150,7 @@ namespace bootstrap_ascending
 		bool request (nano::account, size_t count, std::shared_ptr<nano::transport::channel> const &, query_source);
 		bool request_info (nano::block_hash, std::shared_ptr<nano::transport::channel> const &, query_source);
 		bool request_frontiers (nano::account, std::shared_ptr<nano::transport::channel> const &, query_source);
-		void send (std::shared_ptr<nano::transport::channel> const &, async_tag tag);
+		bool send (std::shared_ptr<nano::transport::channel> const &, async_tag tag);
 
 		void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
 		void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);

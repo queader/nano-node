@@ -26,13 +26,13 @@ public:
 	explicit channel (nano::node &);
 	virtual ~channel () = default;
 
-	void send (nano::message & message_a,
+	bool send (nano::message & message_a,
 	std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a = nullptr,
 	nano::transport::buffer_drop_policy policy_a = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic);
 
 	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
-	virtual void send_buffer (nano::shared_const_buffer const &,
+	virtual bool send_buffer (nano::shared_const_buffer const &,
 	std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr,
 	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic)

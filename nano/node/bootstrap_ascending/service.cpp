@@ -117,16 +117,10 @@ void nano::bootstrap_ascending::service::stop ()
 	nano::join_or_pass (timeout_thread);
 }
 
-void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::channel> const & channel, async_tag tag)
+bool nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::channel> const & channel, async_tag tag)
 {
 	debug_assert (tag.type != query_type::invalid);
 	debug_assert (tag.source != query_source::invalid);
-
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		debug_assert (tags.get<tag_id> ().count (tag.id) == 0);
-		tags.get<tag_id> ().insert (tag);
-	}
 
 	nano::asc_pull_req request{ network_consts };
 	request.id = tag.id;
@@ -171,13 +165,33 @@ void nano::bootstrap_ascending::service::send (std::shared_ptr<nano::transport::
 
 	request.update_header ();
 
-	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
-	stats.inc (nano::stat::type::bootstrap_ascending_request, to_stat_detail (tag.type));
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		debug_assert (tags.get<tag_id> ().count (tag.id) == 0);
+		tags.get<tag_id> ().insert (tag);
+	}
 
-	// TODO: There is no feedback mechanism if bandwidth limiter starts dropping our requests
-	channel->send (
+	bool sent = channel->send (
 	request, nullptr,
 	nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type::bootstrap);
+
+	if (sent)
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request, nano::stat::dir::out);
+		stats.inc (nano::stat::type::bootstrap_ascending_request, to_stat_detail (tag.type), nano::stat::dir::out);
+	}
+	else
+	{
+		stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::request_failed, nano::stat::dir::in);
+		stats.inc (nano::stat::type::bootstrap_ascending_request, to_stat_detail (tag.type), nano::stat::dir::in);
+
+		// Avoid holding the lock during send operation, this should be infrequent case
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		debug_assert (tags.get<tag_id> ().count (tag.id) > 0);
+		tags.get<tag_id> ().erase (tag.id);
+	}
+
+	return sent;
 }
 
 std::size_t nano::bootstrap_ascending::service::priority_size () const
@@ -317,7 +331,6 @@ std::pair<nano::account, double> nano::bootstrap_ascending::service::next_priori
 	}
 
 	stats.inc (nano::stat::type::bootstrap_ascending_next, nano::stat::detail::next_priority);
-	accounts.timestamp_set (account);
 
 	// TODO: Priority could be returned by the accounts.next_priority() call
 	return { account, accounts.priority (account) };
@@ -457,9 +470,7 @@ bool nano::bootstrap_ascending::service::request (nano::account account, size_t 
 		tag.start = account;
 	}
 
-	send (channel, tag);
-
-	return true; // Request sent
+	return send (channel, tag);
 }
 
 bool nano::bootstrap_ascending::service::request_info (nano::block_hash hash, std::shared_ptr<nano::transport::channel> const & channel, query_source source)
@@ -470,9 +481,7 @@ bool nano::bootstrap_ascending::service::request_info (nano::block_hash hash, st
 	tag.start = hash;
 	tag.hash = hash;
 
-	send (channel, tag);
-
-	return true; // Request sent
+	return send (channel, tag);
 }
 
 bool nano::bootstrap_ascending::service::request_frontiers (nano::account start, std::shared_ptr<nano::transport::channel> const & channel, query_source source)
@@ -482,9 +491,7 @@ bool nano::bootstrap_ascending::service::request_frontiers (nano::account start,
 	tag.source = source;
 	tag.start = start;
 
-	send (channel, tag);
-
-	return true; // Request sent
+	return send (channel, tag);
 }
 
 void nano::bootstrap_ascending::service::run_one_priority ()
@@ -502,7 +509,12 @@ void nano::bootstrap_ascending::service::run_one_priority ()
 		return;
 	}
 	auto count = std::clamp (static_cast<size_t> (priority), 2ul, nano::bootstrap_server::max_blocks);
-	request (account, count, channel, query_source::priority);
+	bool sent = request (account, count, channel, query_source::priority);
+	if (sent)
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		accounts.timestamp_set (account);
+	}
 }
 
 void nano::bootstrap_ascending::service::run_priorities ()

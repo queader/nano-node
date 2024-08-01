@@ -119,6 +119,7 @@ enum class detail
 	inserted,
 	erased,
 	request,
+	request_failed,
 	broadcast,
 	cleanup,
 	top,
