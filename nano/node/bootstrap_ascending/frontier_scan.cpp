@@ -1,5 +1,8 @@
 #include <nano/node/bootstrap_ascending/frontier_scan.hpp>
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
+
 nano::bootstrap_ascending::frontier_scan::frontier_scan (frontier_scan_config const & config_a, nano::stats & stats_a) :
 	config{ config_a },
 	stats{ stats_a }
@@ -118,8 +121,14 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::front
 		for (int n = 0; n < heads.size (); ++n)
 		{
 			auto const & head = heads[n];
-			auto progress_raw = (head.next.number () - head.start.number ()) * 1000000 / (head.end.number () - head.start.number ());
-			composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), static_cast<std::uint64_t> (progress_raw), 6 }));
+
+			boost::multiprecision::cpp_dec_float_50 start{ head.start.number ().str () };
+			boost::multiprecision::cpp_dec_float_50 next{ head.next.number ().str () };
+			boost::multiprecision::cpp_dec_float_50 end{ head.end.number ().str () };
+
+			boost::multiprecision::cpp_dec_float_50 progress = (next - start) * boost::multiprecision::cpp_dec_float_50 (1000000) / (end - start);
+
+			composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), progress.convert_to<std::uint64_t> (), 6 }));
 		}
 		return composite;
 	};
