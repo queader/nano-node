@@ -54,7 +54,9 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nan
 
 	// Find the first head with head.start <= start
 	auto & heads_by_start = heads.get<tag_start> ();
-	auto it = heads_by_start.lower_bound (start);
+	auto it = heads_by_start.upper_bound (start);
+	release_assert (it != heads_by_start.begin ());
+	it = std::prev (it);
 	release_assert (it != heads_by_start.end ());
 
 	bool done = false;
@@ -74,7 +76,7 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, nan
 			{
 				stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done_range);
 				entry.next = entry.start;
-				entry.candidate = entry.start;
+				entry.candidate = entry.end;
 			}
 
 			entry.requests = 0;

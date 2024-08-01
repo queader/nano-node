@@ -40,7 +40,7 @@ private:
 			start{ start_a },
 			end{ end_a },
 			next{ start_a },
-			candidate{ start_a }
+			candidate{ end_a }
 		{
 		}
 
