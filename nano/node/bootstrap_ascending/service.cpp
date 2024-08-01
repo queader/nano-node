@@ -1031,6 +1031,7 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::servi
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle_successes", throttle.successes (), 0 }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pending_frontiers", pending_frontiers.size (), sizeof (decltype (pending_frontiers)::value_type) }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
+	composite->add_component (frontiers.collect_container_info ("frontiers"));
 	return composite;
 }
 

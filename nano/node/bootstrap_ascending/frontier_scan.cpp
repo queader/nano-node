@@ -93,3 +93,15 @@ bool nano::bootstrap_ascending::frontier_scan::check_timestamp (std::chrono::ste
 	auto const cutoff = std::chrono::steady_clock::now () - config.cooldown;
 	return timestamp < cutoff;
 }
+
+std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::frontier_scan::collect_container_info (std::string const & name)
+{
+	auto composite = std::make_unique<container_info_composite> (name);
+	for (int n = 0; n < heads.size (); ++n)
+	{
+		auto const & head = heads[n];
+		auto progress_raw = (head.next.number () - head.start.number ()) * 1000000 / (head.end.number () - head.start.number ());
+		composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), static_cast<std::uint64_t> (progress_raw), 6 }));
+	}
+	return composite;
+}

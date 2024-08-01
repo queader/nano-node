@@ -27,6 +27,8 @@ public:
 	nano::account next ();
 	bool process (nano::account start, nano::account end);
 
+	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+
 private: // Dependencies
 	frontier_scan_config const & config;
 	nano::stats & stats;
@@ -61,7 +63,7 @@ private:
 
 	using ordered_heads = boost::multi_index_container<frontier_head,
 	mi::indexed_by<
-		mi::sequenced<mi::tag<tag_sequenced>>,
+		mi::random_access<mi::tag<tag_sequenced>>,
 		mi::ordered_unique<mi::tag<tag_start>,
 			mi::member<frontier_head, nano::account, &frontier_head::start>>,
 		mi::ordered_non_unique<mi::tag<tag_timestamp>,
