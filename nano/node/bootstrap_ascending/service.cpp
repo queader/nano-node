@@ -592,7 +592,7 @@ void nano::bootstrap_ascending::service::run_dependencies ()
 void nano::bootstrap_ascending::service::run_one_frontier ()
 {
 	wait ([this] () {
-		return accounts.priority_size () < 1000 && accounts.blocked_vacancy () > 1000;
+		return accounts.priority_size () < 1000 && accounts.blocked_vacancy () > 10000;
 	});
 	wait ([this] () {
 		return frontiers_limiter.should_pass (1);
