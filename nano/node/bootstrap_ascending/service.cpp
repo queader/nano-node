@@ -865,9 +865,10 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::fron
 			stats.inc (nano::stat::type::bootstrap_ascending_verify_frontiers, nano::stat::detail::ok);
 			stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontiers, nano::stat::dir::in, response.frontiers.size ());
 
-			nano::lock_guard<nano::mutex> lock{ mutex };
-
-			frontiers.process (tag.start.as_account (), response.frontiers);
+			{
+				nano::lock_guard<nano::mutex> lock{ mutex };
+				frontiers.process (tag.start.as_account (), response.frontiers);
+			}
 
 			if (workers.num_queued_tasks () < config.bootstrap_ascending.max_pending_frontiers * 2)
 			{
