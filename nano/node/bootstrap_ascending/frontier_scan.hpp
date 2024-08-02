@@ -54,11 +54,6 @@ private:
 		unsigned requests{ 0 };
 		unsigned completed{ 0 };
 		std::chrono::steady_clock::time_point timestamp{};
-
-		nano::account last_candidate () const
-		{
-			return candidates.empty () ? next : *candidates.rbegin ();
-		}
 	};
 
 	// clang-format off

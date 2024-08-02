@@ -77,15 +77,21 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, std
 			}
 		}
 
+		// Trim the candidates
+		while (entry.candidates.size () > config.candidates)
+		{
+			release_assert (!entry.candidates.empty ());
+			entry.candidates.erase (std::prev (entry.candidates.end ()));
+		}
+
 		// Check if done
 		if (entry.completed >= config.consideration_count && !entry.candidates.empty ())
 		{
 			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done);
 
-			// Take the 1000th (or last) candidate as the next frontier
-			auto it = entry.candidates.begin ();
-			std::advance (it, std::min (entry.candidates.size (), config.candidates) - 1);
-			release_assert (it != entry.candidates.end ());
+			// Take the last candidate as the next frontier
+			release_assert (!entry.candidates.empty ());
+			auto it = std::prev (entry.candidates.end ());
 
 			debug_assert (entry.next.number () < it->number ());
 			entry.next = *it;
