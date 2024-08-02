@@ -170,7 +170,12 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::front
 		return composite;
 	};
 
+	auto total_processed = std::accumulate (heads.begin (), heads.end (), std::size_t{ 0 }, [] (auto total, auto const & head) {
+		return total + head.processed;
+	});
+
 	auto composite = std::make_unique<container_info_composite> (name);
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "total_processed", total_processed, 0 }));
 	composite->add_component (collect_progress ());
 	composite->add_component (collect_candidates ());
 	composite->add_component (collect_responses ());
