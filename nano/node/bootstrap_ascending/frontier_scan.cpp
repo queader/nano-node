@@ -84,6 +84,13 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, std
 			entry.candidates.erase (std::prev (entry.candidates.end ()));
 		}
 
+		// Special case for the last frontier head that won't receive larger than max frontier
+		if (entry.completed >= config.consideration_count * 2 && entry.candidates.empty ())
+		{
+			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, nano::stat::detail::done_empty);
+			entry.candidates.insert (entry.end);
+		}
+
 		// Check if done
 		if (entry.completed >= config.consideration_count && !entry.candidates.empty ())
 		{

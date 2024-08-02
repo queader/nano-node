@@ -453,6 +453,7 @@ enum class detail
 	// bootstrap_ascending_frontiers
 	done,
 	done_range,
+	done_empty,
 	next_by_requests,
 	next_by_timestamp,
 	advance,
