@@ -32,7 +32,7 @@ nano::bootstrap_ascending::service::service (nano::node_config const & config_a,
 	scoring{ config.bootstrap_ascending, config.network_params.network },
 	frontiers{ config.bootstrap_ascending.frontier_scan, stats },
 	database_limiter{ config.bootstrap_ascending.database_rate_limit, 1.0 },
-	frontiers_limiter{ 10, 1.0 },
+	frontiers_limiter{ 100, 1.0 },
 	workers{ 1, nano::thread_role::name::ascending_bootstrap }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
