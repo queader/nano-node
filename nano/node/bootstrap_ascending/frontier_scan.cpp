@@ -25,12 +25,14 @@ nano::bootstrap_ascending::frontier_scan::frontier_scan (frontier_scan_config co
 
 nano::account nano::bootstrap_ascending::frontier_scan::next ()
 {
+	auto const cutoff = std::chrono::steady_clock::now () - config.cooldown;
+
 	auto & heads_by_timestamp = heads.get<tag_timestamp> ();
 	for (auto it = heads_by_timestamp.begin (); it != heads_by_timestamp.end (); ++it)
 	{
 		auto const & head = *it;
 
-		if (head.requests < config.consideration_count || check_timestamp (head.timestamp))
+		if (head.requests < config.consideration_count || head.timestamp < cutoff)
 		{
 			stats.inc (nano::stat::type::bootstrap_ascending_frontiers, (head.requests < config.consideration_count) ? nano::stat::detail::next_by_requests : nano::stat::detail::next_by_timestamp);
 
@@ -120,12 +122,6 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, std
 	});
 
 	return done;
-}
-
-bool nano::bootstrap_ascending::frontier_scan::check_timestamp (std::chrono::steady_clock::time_point timestamp) const
-{
-	auto const cutoff = std::chrono::steady_clock::now () - config.cooldown;
-	return timestamp < cutoff;
 }
 
 std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::frontier_scan::collect_container_info (std::string const & name)

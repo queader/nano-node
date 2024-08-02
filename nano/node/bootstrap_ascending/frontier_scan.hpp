@@ -72,8 +72,5 @@ private:
 	// clang-format on
 
 	ordered_heads heads;
-
-private:
-	bool check_timestamp (std::chrono::steady_clock::time_point timestamp) const;
 };
 }
