@@ -875,6 +875,10 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::fron
 					process_frontiers (frontiers);
 				});
 			}
+			else
+			{
+				stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::dropped_frontiers);
+			}
 		}
 		break;
 		case verify_result::nothing_new:

@@ -439,6 +439,7 @@ enum class detail
 	invalid_response_type,
 	timestamp_reset,
 	process_frontiers,
+	dropped_frontiers,
 
 	// bootstrap_ascending_accounts
 	prioritize,
