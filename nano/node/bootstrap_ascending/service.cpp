@@ -587,7 +587,7 @@ void nano::bootstrap_ascending::service::run_dependencies ()
 void nano::bootstrap_ascending::service::run_one_frontier ()
 {
 	wait ([this] () {
-		return accounts.priority_size () < 1000 && accounts.blocked_vacancy () > 10000;
+		return accounts.priority_size () < accounts.priority_vacancy ();
 	});
 	wait ([this] () {
 		return frontiers_limiter.should_pass (1);
@@ -625,21 +625,53 @@ void nano::bootstrap_ascending::service::process_frontiers (std::deque<std::pair
 {
 	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::process_frontiers);
 
+	size_t outdated = 0;
+	size_t pending = 0;
+
 	// Accounts with outdated frontiers to sync
 	std::deque<nano::account> result;
 	{
 		auto transaction = ledger.tx_begin_read ();
+
+		auto should_prioritize = [&] (nano::account const & account, nano::block_hash const & frontier) {
+			if (ledger.any.block_exists_or_pruned (transaction, frontier))
+			{
+				return false;
+			}
+			if (auto info = ledger.any.account_get (transaction, account))
+			{
+				if (info->head != frontier)
+				{
+					outdated++;
+					return true; // Frontier is outdated
+				}
+				return false;
+			}
+			if (auto receivable = ledger.any.receivable_lower_bound (transaction, account, { 0 }))
+			{
+				if (receivable->first.account == account)
+				{
+					pending++;
+					return true; // Account doesn't exist but has pending blocks in the ledger
+				}
+				return false;
+			}
+			return false;
+		};
+
 		for (auto const & [account, frontier] : frontiers)
 		{
-			if (!ledger.any.block_exists_or_pruned (transaction, frontier))
+			if (should_prioritize (account, frontier))
 			{
 				result.push_back (account);
 			}
 		}
 	}
 
-	stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontier_processed, frontiers.size ());
-	stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontier_outdated, result.size ());
+	stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontiers_processed, frontiers.size ());
+	stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontiers_prioritized, result.size ());
+	stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontiers_outdated, outdated);
+	stats.add (nano::stat::type::bootstrap_ascending, nano::stat::detail::frontiers_pending, pending);
 
 	nano::lock_guard<nano::mutex> guard{ mutex };
 

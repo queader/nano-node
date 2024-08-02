@@ -474,8 +474,10 @@ enum class detail
 	deprioritize,
 	deprioritize_failed,
 	sync_dependencies,
-	frontier_processed,
-	frontier_outdated,
+	frontiers_processed,
+	frontiers_prioritized,
+	frontiers_outdated,
+	frontiers_pending,
 
 	request_blocks,
 	request_account_info,
