@@ -19,7 +19,6 @@ namespace mi = boost::multi_index;
 
 namespace nano::bootstrap_ascending
 {
-
 class frontier_scan
 {
 public:
@@ -54,6 +53,7 @@ private:
 		unsigned requests{ 0 };
 		unsigned completed{ 0 };
 		std::chrono::steady_clock::time_point timestamp{};
+		size_t processed{ 0 }; // Total number of accounts processed
 	};
 
 	// clang-format off

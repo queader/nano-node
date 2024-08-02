@@ -95,6 +95,7 @@ bool nano::bootstrap_ascending::frontier_scan::process (nano::account start, std
 
 			debug_assert (entry.next.number () < it->number ());
 			entry.next = *it;
+			entry.processed += entry.candidates.size ();
 			entry.candidates.clear ();
 			entry.requests = 0;
 			entry.completed = 0;
@@ -159,9 +160,20 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::front
 		return composite;
 	};
 
+	auto collect_processed = [&] () {
+		auto composite = std::make_unique<container_info_composite> ("processed");
+		for (int n = 0; n < heads.size (); ++n)
+		{
+			auto const & head = heads[n];
+			composite->add_component (std::make_unique<container_info_leaf> (container_info{ std::to_string (n), head.processed, 0 }));
+		}
+		return composite;
+	};
+
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (collect_progress ());
 	composite->add_component (collect_candidates ());
 	composite->add_component (collect_responses ());
+	composite->add_component (collect_processed ());
 	return composite;
 }
