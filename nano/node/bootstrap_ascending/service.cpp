@@ -32,7 +32,8 @@ nano::bootstrap_ascending::service::service (nano::node_config const & config_a,
 	scoring{ config.bootstrap_ascending, config.network_params.network },
 	frontiers{ config.bootstrap_ascending.frontier_scan, stats },
 	database_limiter{ config.bootstrap_ascending.database_rate_limit, 1.0 },
-	frontiers_limiter{ 10, 1.0 }
+	frontiers_limiter{ 10, 1.0 },
+	workers{ 1, nano::thread_role::name::ascending_bootstrap }
 {
 	// TODO: This is called from a very congested blockprocessor thread. Offload this work to a dedicated processing thread
 	block_processor.batch_processed.add ([this] (auto const & batch) {
@@ -57,7 +58,6 @@ nano::bootstrap_ascending::service::~service ()
 	debug_assert (!database_thread.joinable ());
 	debug_assert (!dependencies_thread.joinable ());
 	debug_assert (!frontiers_thread.joinable ());
-	debug_assert (!frontiers_processing_thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 }
 
@@ -67,7 +67,6 @@ void nano::bootstrap_ascending::service::start ()
 	debug_assert (!database_thread.joinable ());
 	debug_assert (!dependencies_thread.joinable ());
 	debug_assert (!frontiers_thread.joinable ());
-	debug_assert (!frontiers_processing_thread.joinable ());
 	debug_assert (!timeout_thread.joinable ());
 
 	priorities_thread = std::thread ([this] () {
@@ -90,11 +89,6 @@ void nano::bootstrap_ascending::service::start ()
 		run_frontiers ();
 	});
 
-	frontiers_processing_thread = std::thread ([this] () {
-		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
-		run_frontiers_processing ();
-	});
-
 	timeout_thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::ascending_bootstrap);
 		run_timeouts ();
@@ -109,11 +103,12 @@ void nano::bootstrap_ascending::service::stop ()
 	}
 	condition.notify_all ();
 
+	workers.stop ();
+
 	nano::join_or_pass (priorities_thread);
 	nano::join_or_pass (database_thread);
 	nano::join_or_pass (dependencies_thread);
 	nano::join_or_pass (frontiers_thread);
-	nano::join_or_pass (frontiers_processing_thread);
 	nano::join_or_pass (timeout_thread);
 }
 
@@ -598,7 +593,7 @@ void nano::bootstrap_ascending::service::run_one_frontier ()
 		return frontiers_limiter.should_pass (1);
 	});
 	wait ([this] () {
-		return pending_frontiers.size () < 16;
+		return workers.num_queued_tasks () < config.bootstrap_ascending.max_pending_frontiers;
 	});
 	wait_tags ();
 	auto channel = wait_channel ();
@@ -626,34 +621,10 @@ void nano::bootstrap_ascending::service::run_frontiers ()
 	}
 }
 
-void nano::bootstrap_ascending::service::run_frontiers_processing ()
-{
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	while (!stopped)
-	{
-		if (!pending_frontiers.empty ())
-		{
-			stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::loop_frontiers_processing);
-
-			auto frontiers = pending_frontiers.front ();
-			pending_frontiers.pop_front ();
-			lock.unlock ();
-
-			process_frontiers (frontiers);
-
-			lock.lock ();
-		}
-		else
-		{
-			condition.wait (lock, [this] () {
-				return !pending_frontiers.empty () || stopped;
-			});
-		}
-	}
-}
-
 void nano::bootstrap_ascending::service::process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers)
 {
+	stats.inc (nano::stat::type::bootstrap_ascending, nano::stat::detail::process_frontiers);
+
 	// Accounts with outdated frontiers to sync
 	std::deque<nano::account> result;
 	{
@@ -897,7 +868,13 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::fron
 			nano::lock_guard<nano::mutex> lock{ mutex };
 
 			frontiers.process (tag.start.as_account (), response.frontiers);
-			pending_frontiers.push_back (response.frontiers);
+
+			if (workers.num_queued_tasks () < config.bootstrap_ascending.max_pending_frontiers * 2)
+			{
+				workers.push_task ([this, frontiers = response.frontiers] {
+					process_frontiers (frontiers);
+				});
+			}
 		}
 		break;
 		case verify_result::nothing_new:
@@ -1029,7 +1006,7 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::servi
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "tags", tags.size (), sizeof (decltype (tags)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle", throttle.size (), 0 }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle_successes", throttle.successes (), 0 }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pending_frontiers", pending_frontiers.size (), sizeof (decltype (pending_frontiers)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "pending_frontiers", workers.num_queued_tasks (), 0 }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
 	composite->add_component (frontiers.collect_container_info ("frontiers"));
 	return composite;

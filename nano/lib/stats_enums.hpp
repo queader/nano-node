@@ -438,6 +438,7 @@ enum class detail
 	duplicate_request,
 	invalid_response_type,
 	timestamp_reset,
+	process_frontiers,
 
 	// bootstrap_ascending_accounts
 	prioritize,

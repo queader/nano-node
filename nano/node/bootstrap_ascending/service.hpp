@@ -4,6 +4,7 @@
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/lib/thread_pool.hpp>
 #include <nano/lib/timer.hpp>
 #include <nano/node/bandwidth_limiter.hpp>
 #include <nano/node/bootstrap/bootstrap_config.hpp>
@@ -121,7 +122,6 @@ namespace bootstrap_ascending
 		void run_one_blocking ();
 		void run_one_frontier ();
 		void run_frontiers ();
-		void run_frontiers_processing ();
 		void run_timeouts ();
 		void cleanup_and_sync ();
 		void process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers);
@@ -186,9 +186,6 @@ namespace bootstrap_ascending
 		nano::bootstrap_ascending::peer_scoring scoring;
 		nano::bootstrap_ascending::frontier_scan frontiers;
 
-		using frontiers_response = std::deque<std::pair<nano::account, nano::block_hash>>;
-		std::deque<frontiers_response> pending_frontiers;
-
 		// clang-format off
 		class tag_sequenced {};
 		class tag_id {};
@@ -222,8 +219,9 @@ namespace bootstrap_ascending
 		std::thread database_thread;
 		std::thread dependencies_thread;
 		std::thread frontiers_thread;
-		std::thread frontiers_processing_thread;
 		std::thread timeout_thread;
+
+		nano::thread_pool workers;
 	};
 
 	nano::stat::detail to_stat_detail (service::query_type);

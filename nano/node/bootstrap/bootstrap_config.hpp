@@ -49,6 +49,8 @@ public:
 	std::chrono::milliseconds throttle_wait{ 100 };
 	std::size_t block_wait_count{ 1000 };
 	std::size_t max_requests{ 1024 * 16 }; // TODO: Adjust for live network
+	// Maximum number of pending frontier responses waiting to be processed
+	std::size_t max_pending_frontiers{ 16 };
 
 	account_sets_config account_sets;
 	frontier_scan_config frontier_scan;
