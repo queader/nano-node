@@ -67,7 +67,7 @@ public:
 	 */
 	void notify ();
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
+	nano::container_info container_info () const;
 
 private:
 	bool activate_predicate (nano::account_info const &, nano::confirmation_height_info const &) const;

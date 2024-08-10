@@ -101,7 +101,7 @@ public:
 	void force (std::shared_ptr<nano::block> const &);
 	bool should_log ();
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+	nano::container_info container_info () const;
 
 	std::atomic<bool> flushing{ false };
 

@@ -66,7 +66,7 @@ public:
 	void start ();
 	void stop ();
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
+	nano::container_info container_info () const;
 
 private:
 	using transaction_variant_t = std::variant<nano::secure::read_transaction, nano::secure::write_transaction>;

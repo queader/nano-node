@@ -41,6 +41,6 @@ public:
 	// Call action with confirmed block, may be different than what we started with
 	void push (std::shared_ptr<nano::block> const &, boost::optional<nano::uint128_t> const & = boost::none);
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name) const;
+	nano::container_info container_info () const;
 }; // class manual
 } // nano::scheduler

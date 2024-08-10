@@ -91,6 +91,6 @@ private:
 	mutable std::recursive_mutex entries_mutex;
 
 public: // Container info
-	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+	nano::container_info container_info () const;
 };
 }

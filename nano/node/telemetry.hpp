@@ -86,7 +86,7 @@ public:
 	std::unordered_map<nano::endpoint, nano::telemetry_data> get_all_telemetries () const;
 
 public: // Container info
-	std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+	nano::container_info container_info () const;
 
 private: // Dependencies
 	nano::node & node;

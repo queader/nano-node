@@ -36,7 +36,7 @@ public:
 	bool put (std::unique_ptr<nano::message>, std::shared_ptr<nano::transport::channel> const &);
 	void process (nano::message const &, std::shared_ptr<nano::transport::channel> const &);
 
-	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
+	nano::container_info container_info () const;
 
 private:
 	void run ();

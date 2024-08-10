@@ -72,7 +72,7 @@ namespace bootstrap_ascending
 		std::size_t priority_size () const;
 		std::size_t blocked_size () const;
 
-		std::unique_ptr<nano::container_info_component> collect_container_info (std::string const & name);
+		nano::container_info container_info () const;
 
 	private: // Dependencies
 		account_sets_config const & config;
