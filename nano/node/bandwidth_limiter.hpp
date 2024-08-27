@@ -24,11 +24,11 @@ nano::bandwidth_limit_type to_bandwidth_limit_type (nano::transport::traffic_typ
 class bandwidth_limiter final
 {
 public:
-	// initialize with limit 0 = unbounded
-	bandwidth_limiter (std::size_t limit, double burst_ratio);
+	// Limit 0 = unbounded
+	explicit bandwidth_limiter (std::size_t limit, double burst_ratio = 1.0);
 
 	bool should_pass (std::size_t buffer_size);
-	void reset (std::size_t limit, double burst_ratio);
+	void reset (std::size_t limit, double burst_ratio = 1.0);
 
 private:
 	nano::rate::token_bucket bucket;
