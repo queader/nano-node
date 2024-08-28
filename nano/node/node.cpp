@@ -1286,10 +1286,21 @@ bool nano::node::init_error () const
 
 std::pair<uint64_t, std::unordered_map<nano::account, nano::uint128_t>> nano::node::get_bootstrap_weights () const
 {
-	std::vector<std::pair<std::string, std::string>> preconfigured_weights = network_params.network.is_live_network () ? nano::weights::preconfigured_weights_live : nano::weights::preconfigured_weights_beta;
-	uint64_t max_blocks = network_params.network.is_live_network () ? nano::weights::max_blocks_live : nano::weights::max_blocks_beta;
-	std::unordered_map<nano::account, nano::uint128_t> weights;
+	std::vector<std::pair<std::string, std::string>> preconfigured_weights;
+	uint64_t max_blocks = 0;
 
+	if (network_params.network.is_live_network ())
+	{
+		preconfigured_weights = nano::weights::preconfigured_weights_live;
+		max_blocks = nano::weights::max_blocks_live;
+	}
+	if (network_params.network.is_beta_network ())
+	{
+		preconfigured_weights = nano::weights::preconfigured_weights_beta;
+		max_blocks = nano::weights::max_blocks_beta;
+	}
+
+	std::unordered_map<nano::account, nano::uint128_t> weights;
 	for (const auto & entry : preconfigured_weights)
 	{
 		nano::account account;
