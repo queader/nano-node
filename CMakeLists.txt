@@ -697,6 +697,7 @@ add_subdirectory(nano/node)
 add_subdirectory(nano/nano_node)
 add_subdirectory(nano/rpc)
 add_subdirectory(nano/nano_rpc)
+add_subdirectory(nano/bootstrap_weights)
 
 add_custom_target(
   executables

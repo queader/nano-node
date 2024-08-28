@@ -1,3 +1,4 @@
+#include <nano/bootstrap_weights/bootstrap_weights.hpp>
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/stream.hpp>
 #include <nano/lib/thread_runner.hpp>
@@ -5,8 +6,6 @@
 #include <nano/lib/utility.hpp>
 #include <nano/node/active_elections.hpp>
 #include <nano/node/bootstrap_ascending/service.hpp>
-#include <nano/node/bootstrap_weights_beta.hpp>
-#include <nano/node/bootstrap_weights_live.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/daemonconfig.hpp>
@@ -47,14 +46,6 @@
 
 double constexpr nano::node::price_max;
 double constexpr nano::node::free_cutoff;
-
-namespace nano::weights
-{
-extern std::vector<std::pair<std::string, std::string>> preconfigured_weights_live;
-extern uint64_t max_blocks_live;
-extern std::vector<std::pair<std::string, std::string>> preconfigured_weights_beta;
-extern uint64_t max_blocks_beta;
-}
 
 /*
  * configs
