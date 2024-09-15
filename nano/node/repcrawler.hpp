@@ -83,7 +83,10 @@ public:
 	std::vector<representative> principal_representatives (std::size_t count = std::numeric_limits<std::size_t>::max (), std::optional<decltype (nano::network_constants::protocol_version)> const & minimum_protocol_version = {});
 
 	/** Total number of representatives */
-	std::size_t representative_count ();
+	std::size_t representative_count () const;
+
+	/** Whether a representative is tracked */
+	bool representative_exists (nano::account const &) const;
 
 	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
 

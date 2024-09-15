@@ -185,7 +185,6 @@ void nano::rep_crawler::run ()
 			last_query = std::chrono::steady_clock::now ();
 
 			auto targets = prepare_crawl_targets (sufficient_weight);
-
 			lock.unlock ();
 			query (targets);
 			lock.lock ();
@@ -466,10 +465,16 @@ std::vector<nano::representative> nano::rep_crawler::principal_representatives (
 	return representatives (count, node.minimum_principal_weight (), minimum_protocol_version);
 }
 
-std::size_t nano::rep_crawler::representative_count ()
+std::size_t nano::rep_crawler::representative_count () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	return reps.size ();
+}
+
+bool nano::rep_crawler::representative_exists (nano::account const & account) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return reps.find (account) != reps.end ();
 }
 
 std::unique_ptr<nano::container_info_component> nano::rep_crawler::collect_container_info (const std::string & name)

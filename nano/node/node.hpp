@@ -251,6 +251,7 @@ public: // Testing convenience functions
 	[[nodiscard]] nano::block_status process (secure::write_transaction const &, std::shared_ptr<nano::block> block);
 	nano::block_hash latest (nano::account const &);
 	nano::uint128_t balance (nano::account const &);
+	std::shared_ptr<nano::wallet> wallet () const;
 
 private:
 	void long_inactivity_cleanup ();

@@ -1320,6 +1320,13 @@ void nano::node::bootstrap_block (const nano::block_hash & hash)
 	}
 }
 
+std::shared_ptr<nano::wallet> nano::node::wallet () const
+{
+	release_assert (!wallets.items.empty ());
+	debug_assert (wallets.items.size () == 1);
+	return wallets.items.begin ()->second;
+}
+
 nano::account nano::node::get_node_id () const
 {
 	return node_id.pub;
