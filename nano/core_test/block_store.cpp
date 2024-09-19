@@ -1761,3 +1761,17 @@ TEST (rocksdb_block_store, tombstone_count)
 	ASSERT_TIMELY_EQ (5s, store->tombstone_map.at (nano::tables::accounts).num_since_last_flush.load (), 1);
 }
 }
+
+TEST (block_store_DeathTest, transaction_mismatch)
+{
+	bool init;
+	nano::store::lmdb::env env{ init, nano::unique_path () / "test.ldb" };
+	ASSERT_FALSE (init);
+	auto transaction = env.tx_begin_write ();
+
+	nano::logger logger;
+	auto store = nano::make_store (logger, nano::unique_path (), nano::dev::constants);
+	ASSERT_FALSE (store->init_error ());
+
+	ASSERT_DEATH (store->block.begin (transaction), "");
+}
