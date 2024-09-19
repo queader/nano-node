@@ -32,6 +32,11 @@ void nano::rep_crawler::start ()
 {
 	debug_assert (!thread.joinable ());
 
+	if (!config.enable)
+	{
+		return;
+	}
+
 	thread = std::thread{ [this] () {
 		nano::thread_role::set (nano::thread_role::name::rep_crawler);
 		run ();
@@ -45,6 +50,7 @@ void nano::rep_crawler::stop ()
 		stopped = true;
 	}
 	condition.notify_all ();
+
 	if (thread.joinable ())
 	{
 		thread.join ();
@@ -160,6 +166,12 @@ void nano::rep_crawler::run ()
 
 		lock.lock ();
 
+		logger.debug (nano::log::type::rep_crawler, "Total principal weight: {} (minimum: {}), sufficient: {}",
+		nano::util::to_str (current_total_weight),
+		nano::util::to_str (node.online_reps.delta ()),
+		sufficient_weight);
+		logger.debug (nano::log::type::rep_crawler, "Query interval: {} ms", query_interval (sufficient_weight).count ());
+
 		condition.wait_for (lock, query_interval (sufficient_weight), [this, sufficient_weight] {
 			return stopped || query_predicate (sufficient_weight) || !responses.empty ();
 		});
@@ -185,9 +197,17 @@ void nano::rep_crawler::run ()
 			last_query = std::chrono::steady_clock::now ();
 
 			auto targets = prepare_crawl_targets (sufficient_weight);
-			lock.unlock ();
-			query (targets);
-			lock.lock ();
+			if (!targets.empty ())
+			{
+				lock.unlock ();
+				query (targets);
+				lock.lock ();
+			}
+			else
+			{
+				logger.debug (nano::log::type::rep_crawler, "No targets to query");
+				// stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::query_targets_empty);
+			}
 		}
 
 		debug_assert (lock.owns_lock ());
@@ -270,7 +290,7 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 
 auto nano::rep_crawler::prepare_query_target () -> std::optional<hash_root_t>
 {
-	constexpr int max_attempts = 4;
+	constexpr int max_attempts = 40;
 
 	auto transaction = node.ledger.tx_begin_read ();
 

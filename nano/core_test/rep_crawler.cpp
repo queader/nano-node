@@ -127,13 +127,19 @@ TEST (rep_crawler, rep_remove)
 	nano::keypair key_rep2; // Principal representative 2
 	nano::block_builder builder;
 
+	std::cout << "minimum principal weight: " << system.minimum_principal_weight () << std::endl;
+
+	// The default bases the minimum principal weight on the minimum possible weight, but we will vote with full genesis balance
+	// Adjust accordingly
+	auto pr_amount = nano::dev::genesis->balance ().number () / 100;
+
 	// Send enough nanos to rep1 to make it a principal representative
 	auto send_to_rep1 = builder
 						.state ()
 						.account (nano::dev::genesis_key.pub)
 						.previous (nano::dev::genesis->hash ())
 						.representative (nano::dev::genesis_key.pub)
-						.balance (nano::dev::constants.genesis_amount - system.minimum_principal_weight () * 2)
+						.balance (nano::dev::constants.genesis_amount - pr_amount)
 						.link (key_rep1.pub)
 						.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 						.work (*system.work.generate (nano::dev::genesis->hash ()))
@@ -145,7 +151,7 @@ TEST (rep_crawler, rep_remove)
 						.account (key_rep1.pub)
 						.previous (0)
 						.representative (key_rep1.pub)
-						.balance (system.minimum_principal_weight () * 2)
+						.balance (pr_amount)
 						.link (send_to_rep1->hash ())
 						.sign (key_rep1.prv, key_rep1.pub)
 						.work (*system.work.generate (key_rep1.pub))
@@ -157,7 +163,7 @@ TEST (rep_crawler, rep_remove)
 						.account (nano::dev::genesis_key.pub)
 						.previous (send_to_rep1->hash ())
 						.representative (nano::dev::genesis_key.pub)
-						.balance (nano::dev::constants.genesis_amount - system.minimum_principal_weight () * 4)
+						.balance (nano::dev::constants.genesis_amount - pr_amount * 2)
 						.link (key_rep2.pub)
 						.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 						.work (*system.work.generate (send_to_rep1->hash ()))
@@ -169,19 +175,24 @@ TEST (rep_crawler, rep_remove)
 						.account (key_rep2.pub)
 						.previous (0)
 						.representative (key_rep2.pub)
-						.balance (system.minimum_principal_weight () * 2)
+						.balance (pr_amount)
 						.link (send_to_rep2->hash ())
 						.sign (key_rep2.prv, key_rep2.pub)
 						.work (*system.work.generate (key_rep2.pub))
 						.build ();
 
-	system.set_initialization_blocks ({ send_to_rep1, receive_rep1, send_to_rep2, receive_rep2 });
+	system.set_cemented_initialization_blocks ({ send_to_rep1, receive_rep1, send_to_rep2, receive_rep2 });
 
 	auto & searching_node = *system.add_node (); // will be used to find principal representatives
 	std::cout << "searching_node node_id: " << searching_node.node_id.pub.to_node_id () << std::endl;
 
 	// Start a node for rep1
+	auto node_config = system.default_config ();
+	node_config.rep_crawler.enable = false;
+
+	// auto node_rep1 = system.add_node (node_config);
 	auto node_rep1 = system.add_node ();
+	std::cout << "node_rep1 node_id: " << node_rep1->node_id.pub.to_node_id () << std::endl;
 	node_rep1->wallet ()->insert_adhoc (key_rep1.prv);
 
 	// Ensure rep1 is found by the rep_crawler after receiving a vote from it
@@ -190,7 +201,7 @@ TEST (rep_crawler, rep_remove)
 
 	auto reps = searching_node.rep_crawler.representatives ();
 	ASSERT_EQ (1, reps.size ());
-	ASSERT_EQ (searching_node.minimum_principal_weight () * 2, searching_node.ledger.weight (reps[0].account));
+	ASSERT_EQ (pr_amount, searching_node.ledger.weight (reps[0].account));
 	ASSERT_EQ (key_rep1.pub, reps[0].account);
 
 	// When node_rep1 disconnects then rep1 should not be found anymore
@@ -198,19 +209,23 @@ TEST (rep_crawler, rep_remove)
 	ASSERT_TIMELY_EQ (10s, searching_node.rep_crawler.representative_count (), 0);
 
 	// Add working node for genesis representative
-	auto node_genesis_rep = system.add_node ();
+	auto node_genesis_rep = system.add_node (node_config);
+	std::cout << "node_genesis_rep node_id: " << node_genesis_rep->node_id.pub.to_node_id () << std::endl;
 	node_genesis_rep->wallet ()->insert_adhoc (nano::dev::genesis_key.prv);
 
+	ASSERT_TIMELY (5s, searching_node.network.find_node_id (node_genesis_rep->node_id.pub));
+
 	// Genesis_rep should be found as principal representative after receiving a vote from it
-	ASSERT_TIMELY (5s, searching_node.rep_crawler.representative_exists (nano::dev::genesis_key.pub));
+	ASSERT_TIMELY (15s, searching_node.rep_crawler.representative_exists (nano::dev::genesis_key.pub));
 	ASSERT_TIMELY_EQ (5s, searching_node.rep_crawler.representative_count (), 1);
 
 	// Start a node for rep2
-	auto node_rep2 = system.add_node ();
+	auto node_rep2 = system.add_node (node_config);
+	std::cout << "node_rep2 node_id: " << node_rep2->node_id.pub.to_node_id () << std::endl;
 	node_rep2->wallet ()->insert_adhoc (key_rep2.prv);
 
 	// Ensure rep2 is found
-	ASSERT_TIMELY (5s, searching_node.rep_crawler.representative_exists (key_rep2.pub));
+	ASSERT_TIMELY (15s, searching_node.rep_crawler.representative_exists (key_rep2.pub));
 	ASSERT_TIMELY_EQ (5s, searching_node.rep_crawler.representative_count (), 2);
 
 	// When rep2 is stopped, it should not be found as principal representative anymore
