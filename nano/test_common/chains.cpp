@@ -3,7 +3,7 @@
 
 using namespace std::chrono_literals;
 
-nano::block_list_t nano::test::setup_chain (nano::test::system & system, nano::node & node, int count, nano::keypair target, bool confirm)
+auto nano::test::setup_chain (nano::test::system & system, nano::node & node, int count, nano::keypair target, bool confirm) -> block_list_t
 {
 	auto latest = node.latest (target.pub);
 	auto balance = node.balance (target.pub);
@@ -42,7 +42,7 @@ nano::block_list_t nano::test::setup_chain (nano::test::system & system, nano::n
 	return blocks;
 }
 
-std::vector<std::pair<nano::account, nano::block_list_t>> nano::test::setup_chains (nano::test::system & system, nano::node & node, int chain_count, int block_count, nano::keypair source, bool confirm)
+auto nano::test::setup_chains (nano::test::system & system, nano::node & node, int chain_count, int block_count, nano::keypair source, bool confirm) -> std::vector<std::pair<nano::account, block_list_t>>
 {
 	auto latest = node.latest (source.pub);
 	auto balance = node.balance (source.pub);
@@ -97,7 +97,7 @@ std::vector<std::pair<nano::account, nano::block_list_t>> nano::test::setup_chai
 	return chains;
 }
 
-nano::block_list_t nano::test::setup_independent_blocks (nano::test::system & system, nano::node & node, int count, nano::keypair source)
+auto nano::test::setup_independent_blocks (nano::test::system & system, nano::node & node, int count, nano::keypair source) -> block_list_t
 {
 	std::vector<std::shared_ptr<nano::block>> blocks;
 
@@ -142,6 +142,51 @@ nano::block_list_t nano::test::setup_independent_blocks (nano::test::system & sy
 
 	// Confirm whole genesis chain at once
 	nano::test::confirm (node.ledger, latest);
+
+	return blocks;
+}
+
+auto nano::test::prepare_independent_blocks (nano::test::system & system, int count) -> block_list_t
+{
+	std::vector<std::shared_ptr<nano::block>> blocks;
+
+	auto source = nano::dev::genesis_key;
+	auto latest = nano::dev::genesis->hash ();
+	auto balance = nano::dev::genesis->balance ().number ();
+
+	for (int n = 0; n < count; ++n)
+	{
+		nano::keypair key;
+		nano::block_builder builder;
+
+		balance -= 1;
+		auto send = builder
+					.state ()
+					.account (source.pub)
+					.previous (latest)
+					.representative (source.pub)
+					.balance (balance)
+					.link (key.pub)
+					.sign (source.prv, source.pub)
+					.work (*system.work.generate (latest))
+					.build ();
+
+		latest = send->hash ();
+
+		auto open = builder
+					.state ()
+					.account (key.pub)
+					.previous (0)
+					.representative (key.pub)
+					.balance (1)
+					.link (send->hash ())
+					.sign (key.prv, key.pub)
+					.work (*system.work.generate (key.pub))
+					.build ();
+
+		blocks.push_back (send);
+		blocks.push_back (open);
+	}
 
 	return blocks;
 }

@@ -122,7 +122,7 @@ TEST (bootstrap_server, serve_hash)
 	auto [account, blocks] = chains.front ();
 
 	// Skip a few blocks to request hash in the middle of the chain
-	blocks = nano::block_list_t{ std::next (blocks.begin (), 9), blocks.end () };
+	blocks = nano::test::block_list_t{ std::next (blocks.begin (), 9), blocks.end () };
 
 	// Request blocks from the middle of the chain
 	nano::asc_pull_req request{ node.network_params.network };
@@ -167,7 +167,7 @@ TEST (bootstrap_server, serve_hash_one)
 	auto [account, blocks] = chains.front ();
 
 	// Skip a few blocks to request hash in the middle of the chain
-	blocks = nano::block_list_t{ std::next (blocks.begin (), 9), blocks.end () };
+	blocks = nano::test::block_list_t{ std::next (blocks.begin (), 9), blocks.end () };
 
 	// Request blocks from the middle of the chain
 	nano::asc_pull_req request{ node.network_params.network };

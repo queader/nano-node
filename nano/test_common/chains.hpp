@@ -8,34 +8,32 @@
 #include <memory>
 #include <vector>
 
-namespace nano
-{
-using block_list_t = std::vector<std::shared_ptr<nano::block>>;
-}
-
 /*
  * Helper functions to deal with common chain setup scenarios
  */
 namespace nano::test
 {
+using block_list_t = std::vector<std::shared_ptr<nano::block>>;
+
 /**
  * Creates `count` random 1 raw send blocks in a `source` account chain
  * @returns created blocks
  */
-nano::block_list_t setup_chain (nano::test::system & system, nano::node & node, int count, nano::keypair source = nano::dev::genesis_key, bool confirm = true);
+block_list_t setup_chain (nano::test::system & system, nano::node & node, int count, nano::keypair source = nano::dev::genesis_key, bool confirm = true);
 
 /**
  * Creates `chain_count` account chains, each with `block_count` 1 raw random send blocks, all accounts are seeded from `source` account
  * @returns list of created accounts and their blocks
  */
-std::vector<std::pair<nano::account, nano::block_list_t>> setup_chains (nano::test::system & system, nano::node & node, int chain_count, int block_count, nano::keypair source = nano::dev::genesis_key, bool confirm = true);
+std::vector<std::pair<nano::account, block_list_t>> setup_chains (nano::test::system & system, nano::node & node, int chain_count, int block_count, nano::keypair source = nano::dev::genesis_key, bool confirm = true);
 
 /**
  * Creates `count` 1 raw send blocks from `source` account, each to randomly created account
  * The `source` account chain is then confirmed, but leaves open blocks unconfirmed
  * @returns list of unconfirmed (open) blocks
  */
-nano::block_list_t setup_independent_blocks (nano::test::system & system, nano::node & node, int count, nano::keypair source = nano::dev::genesis_key);
+block_list_t setup_independent_blocks (nano::test::system & system, nano::node & node, int count, nano::keypair source = nano::dev::genesis_key);
+block_list_t prepare_independent_blocks (nano::test::system & system, int count); // Source is genesis
 
 /**
  * \brief Create a pair of send/receive blocks to implement the transfer of "amount" raw from "source" to the unopened account "dest".
