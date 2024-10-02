@@ -278,7 +278,6 @@ TEST (node, auto_bootstrap)
 	system.nodes.push_back (node1);
 	ASSERT_NE (nullptr, nano::test::establish_tcp (system, *node1, node0->network.endpoint ()));
 	ASSERT_TIMELY_EQ (10s, node1->balance (key2.pub), node0->config.receive_minimum.number ());
-	ASSERT_TIMELY (10s, !node1->bootstrap_initiator.in_progress ());
 	ASSERT_TRUE (node1->block_or_pruned_exists (send1->hash ()));
 	// Wait block receive
 	ASSERT_TIMELY_EQ (5s, node1->ledger.block_count (), 3);
@@ -305,27 +304,6 @@ TEST (node, auto_bootstrap_reverse)
 	system.nodes.push_back (node1);
 	ASSERT_NE (nullptr, nano::test::establish_tcp (system, *node0, node1->network.endpoint ()));
 	ASSERT_TIMELY_EQ (10s, node1->balance (key2.pub), node0->config.receive_minimum.number ());
-}
-
-TEST (node, auto_bootstrap_age)
-{
-	nano::test::system system;
-	nano::node_config config (system.get_available_port ());
-	config.backlog_population.enable = false;
-	nano::node_flags node_flags;
-	node_flags.disable_bootstrap_bulk_push_client = true;
-	node_flags.disable_lazy_bootstrap = true;
-	node_flags.bootstrap_interval = 1;
-	auto node0 = system.add_node (config, node_flags);
-	auto node1 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.work, node_flags));
-	ASSERT_FALSE (node1->init_error ());
-	node1->start ();
-	system.nodes.push_back (node1);
-	ASSERT_NE (nullptr, nano::test::establish_tcp (system, *node1, node0->network.endpoint ()));
-	// 4 bootstraps with frontiers age
-	ASSERT_TIMELY (10s, node0->stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate_legacy_age, nano::stat::dir::out) >= 3);
-	// More attempts with frontiers age
-	ASSERT_GE (node0->stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate_legacy_age, nano::stat::dir::out), node0->stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate, nano::stat::dir::out));
 }
 
 TEST (node, merge_peers)
@@ -1121,7 +1099,6 @@ TEST (node, DISABLED_fork_stale)
 	nano::test::system system2 (1);
 	auto & node1 (*system1.nodes[0]);
 	auto & node2 (*system2.nodes[0]);
-	node2.bootstrap_initiator.bootstrap (node1.network.endpoint (), false);
 
 	auto channel = nano::test::establish_tcp (system1, node2, node1.network.endpoint ());
 	auto vote = std::make_shared<nano::vote> (nano::dev::genesis_key.pub, nano::dev::genesis_key.prv, 0, 0, std::vector<nano::block_hash> ());
@@ -1176,7 +1153,6 @@ TEST (node, DISABLED_fork_stale)
 	node1.process_active (send2);
 	node2.process_active (send1);
 	node2.process_active (send2);
-	node2.bootstrap_initiator.bootstrap (node1.network.endpoint (), false);
 	while (node2.block (send1->hash ()) == nullptr)
 	{
 		system1.poll ();
@@ -1390,8 +1366,6 @@ TEST (node, DISABLED_bootstrap_no_publish)
 		auto transaction = node0->ledger.tx_begin_write ();
 		ASSERT_EQ (nano::block_status::progress, node0->ledger.process (transaction, send0));
 	}
-	ASSERT_FALSE (node1->bootstrap_initiator.in_progress ());
-	node1->bootstrap_initiator.bootstrap (node0->network.endpoint (), false);
 	ASSERT_TRUE (node1->active.empty ());
 	system1.deadline_set (10s);
 	while (node1->block (send0->hash ()) == nullptr)
@@ -1402,51 +1376,6 @@ TEST (node, DISABLED_bootstrap_no_publish)
 		// There should never be an active transaction because the only activity is bootstrapping 1 block which shouldn't be publishing.
 		ASSERT_TRUE (node1->active.empty ());
 		ASSERT_NO_ERROR (ec);
-	}
-}
-
-// Check that an outgoing bootstrap request can push blocks
-// Test disabled because it's failing intermittently.
-// PR in which it got disabled: https://github.com/nanocurrency/nano-node/pull/3512
-// Issue for investigating it: https://github.com/nanocurrency/nano-node/issues/3515
-TEST (node, DISABLED_bootstrap_bulk_push)
-{
-	nano::test::system system;
-	nano::test::system system0;
-	nano::test::system system1;
-	nano::node_config config0 (system.get_available_port ());
-	config0.backlog_population.enable = false;
-	auto node0 (system0.add_node (config0));
-	nano::node_config config1 (system.get_available_port ());
-	config1.backlog_population.enable = false;
-	auto node1 (system1.add_node (config1));
-	nano::keypair key0;
-	// node0 knows about send0 but node1 doesn't.
-	auto send0 = nano::send_block_builder ()
-				 .previous (nano::dev::genesis->hash ())
-				 .destination (key0.pub)
-				 .balance (500)
-				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
-				 .work (*node0->work_generate_blocking (nano::dev::genesis->hash ()))
-				 .build ();
-	ASSERT_EQ (nano::block_status::progress, node0->process (send0));
-
-	ASSERT_FALSE (node0->bootstrap_initiator.in_progress ());
-	ASSERT_FALSE (node1->bootstrap_initiator.in_progress ());
-	ASSERT_TRUE (node1->active.empty ());
-	node0->bootstrap_initiator.bootstrap (node1->network.endpoint (), false);
-	system1.deadline_set (10s);
-	while (node1->block (send0->hash ()) == nullptr)
-	{
-		ASSERT_NO_ERROR (system0.poll ());
-		ASSERT_NO_ERROR (system1.poll ());
-	}
-	// since this uses bulk_push, the new block should be republished
-	system1.deadline_set (10s);
-	while (node1->active.empty ())
-	{
-		ASSERT_NO_ERROR (system0.poll ());
-		ASSERT_NO_ERROR (system1.poll ());
 	}
 }
 
@@ -1500,8 +1429,6 @@ TEST (node, bootstrap_fork_open)
 	ASSERT_EQ (nano::block_status::progress, node1->process (open1));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	ASSERT_FALSE (node1->block_or_pruned_exists (open0->hash ()));
-	ASSERT_FALSE (node1->bootstrap_initiator.in_progress ());
-	node1->bootstrap_initiator.bootstrap (node0->network.endpoint (), false);
 	ASSERT_TIMELY (1s, node1->active.empty ());
 	ASSERT_TIMELY (10s, !node1->block_or_pruned_exists (open1->hash ()) && node1->block_or_pruned_exists (open0->hash ()));
 }
@@ -1509,12 +1436,10 @@ TEST (node, bootstrap_fork_open)
 // Unconfirmed blocks from bootstrap should be confirmed
 TEST (node, bootstrap_confirm_frontiers)
 {
-	// create 2 separate systems, the 2 system do not interact with each other automatically
-	nano::test::system system0 (1);
-	nano::test::system system1 (1);
-	auto node0 = system0.nodes[0];
-	auto node1 = system1.nodes[0];
-	system0.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
+	nano::test::system system;
+	auto node0 = system.add_node ();
+	auto node1 = system.add_node ();
+	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair key0;
 
 	// create block to send 500 raw from genesis to key0 and save into node0 ledger without immediately triggering an election
@@ -1526,25 +1451,7 @@ TEST (node, bootstrap_confirm_frontiers)
 				 .work (*node0->work_generate_blocking (nano::dev::genesis->hash ()))
 				 .build ();
 	ASSERT_EQ (nano::block_status::progress, node0->process (send0));
-
-	// each system only has one node, so there should be no bootstrapping going on
-	ASSERT_FALSE (node0->bootstrap_initiator.in_progress ());
-	ASSERT_FALSE (node1->bootstrap_initiator.in_progress ());
-	ASSERT_TRUE (node1->active.empty ());
-
-	// create a bootstrap connection from node1 to node0
-	// this also has the side effect of adding node0 to node1's list of peers, which will trigger realtime connections too
-	node1->bootstrap_initiator.bootstrap (node0->network.endpoint ());
-
-	// Wait until the block is confirmed on node1. Poll more than usual because we are polling
-	// on 2 different systems at once and in sequence and there might be strange timing effects.
-	system0.deadline_set (10s);
-	system1.deadline_set (10s);
-	while (!node1->ledger.confirmed.block_exists_or_pruned (node1->ledger.tx_begin_read (), send0->hash ()))
-	{
-		ASSERT_NO_ERROR (system0.poll (std::chrono::milliseconds (1)));
-		ASSERT_NO_ERROR (system1.poll (std::chrono::milliseconds (1)));
-	}
+	ASSERT_TIMELY (10s, node1->block_confirmed (send0->hash ()));
 }
 
 // Test that if we create a block that isn't confirmed, the bootstrapping processes sync the missing block.
@@ -1656,37 +1563,6 @@ TEST (node, balance_observer)
 		done = balances.load () == 2;
 		ASSERT_NO_ERROR (ec);
 	}
-}
-
-TEST (node, bootstrap_connection_scaling)
-{
-	nano::test::system system (1);
-	auto & node1 (*system.nodes[0]);
-	ASSERT_EQ (34, node1.bootstrap_initiator.connections->target_connections (5000, 1));
-	ASSERT_EQ (4, node1.bootstrap_initiator.connections->target_connections (0, 1));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (50000, 1));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (10000000000, 1));
-	ASSERT_EQ (32, node1.bootstrap_initiator.connections->target_connections (5000, 0));
-	ASSERT_EQ (1, node1.bootstrap_initiator.connections->target_connections (0, 0));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (50000, 0));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (10000000000, 0));
-	ASSERT_EQ (36, node1.bootstrap_initiator.connections->target_connections (5000, 2));
-	ASSERT_EQ (8, node1.bootstrap_initiator.connections->target_connections (0, 2));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (50000, 2));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (10000000000, 2));
-	node1.config.bootstrap_connections = 128;
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (0, 1));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (50000, 1));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (0, 2));
-	ASSERT_EQ (64, node1.bootstrap_initiator.connections->target_connections (50000, 2));
-	node1.config.bootstrap_connections_max = 256;
-	ASSERT_EQ (128, node1.bootstrap_initiator.connections->target_connections (0, 1));
-	ASSERT_EQ (256, node1.bootstrap_initiator.connections->target_connections (50000, 1));
-	ASSERT_EQ (256, node1.bootstrap_initiator.connections->target_connections (0, 2));
-	ASSERT_EQ (256, node1.bootstrap_initiator.connections->target_connections (50000, 2));
-	node1.config.bootstrap_connections_max = 0;
-	ASSERT_EQ (1, node1.bootstrap_initiator.connections->target_connections (0, 1));
-	ASSERT_EQ (1, node1.bootstrap_initiator.connections->target_connections (50000, 1));
 }
 
 TEST (node, online_reps)

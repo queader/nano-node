@@ -100,7 +100,6 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	network (*this, config.peering_port.has_value () ? *config.peering_port : 0),
 	telemetry_impl{ std::make_unique<nano::telemetry> (flags, *this, network, observers, network_params, stats) },
 	telemetry{ *telemetry_impl },
-	bootstrap_initiator (*this),
 	bootstrap_server{ config.bootstrap_server, store, ledger, network_params.network, stats },
 	// BEWARE: `bootstrap` takes `network.port` instead of `config.peering_port` because when the user doesn't specify
 	//         a peering port and wants the OS to pick one, the picking happens when `network` gets initialized
@@ -524,7 +523,6 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (collect_container_info (node.work, "work"));
 	composite->add_component (node.ledger.collect_container_info ("ledger"));
 	composite->add_component (collect_container_info (node.active, "active"));
-	composite->add_component (collect_container_info (node.bootstrap_initiator, "bootstrap_initiator"));
 	composite->add_component (node.tcp_listener.collect_container_info ("tcp_listener"));
 	composite->add_component (collect_container_info (node.network, "network"));
 	composite->add_component (node.telemetry.collect_container_info ("telemetry"));
@@ -593,10 +591,6 @@ void nano::node::start ()
 	network.start ();
 	message_processor.start ();
 
-	if (!flags.disable_legacy_bootstrap && !flags.disable_ongoing_bootstrap)
-	{
-		ongoing_bootstrap ();
-	}
 	if (flags.enable_pruning)
 	{
 		auto this_l (shared ());
@@ -636,14 +630,6 @@ void nano::node::start ()
 	if (!flags.disable_search_pending)
 	{
 		search_receivable_all ();
-	}
-	if (!flags.disable_wallet_bootstrap)
-	{
-		// Delay to start wallet lazy bootstrap
-		auto this_l (shared ());
-		workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::minutes (1), [this_l] () {
-			this_l->bootstrap_wallet ();
-		});
 	}
 	// Start port mapping if external address is not defined and TCP ports are enabled
 	if (config.external_address == boost::asio::ip::address_v6::any ().to_string () && tcp_enabled)
@@ -715,7 +701,6 @@ void nano::node::stop ()
 	telemetry.stop ();
 	websocket.stop ();
 	bootstrap_server.stop ();
-	bootstrap_initiator.stop ();
 	port_mapping.stop ();
 	wallets.stop ();
 	stats.stop ();
@@ -804,69 +789,6 @@ void nano::node::long_inactivity_cleanup ()
 	}
 }
 
-void nano::node::ongoing_bootstrap ()
-{
-	auto next_wakeup = network_params.network.bootstrap_interval;
-	if (warmed_up < 3)
-	{
-		// Re-attempt bootstrapping more aggressively on startup
-		next_wakeup = std::chrono::seconds (5);
-		if (!bootstrap_initiator.in_progress () && !network.empty ())
-		{
-			++warmed_up;
-		}
-	}
-	if (network_params.network.is_dev_network () && flags.bootstrap_interval != 0)
-	{
-		// For test purposes allow faster automatic bootstraps
-		next_wakeup = std::chrono::seconds (flags.bootstrap_interval);
-		++warmed_up;
-	}
-	// Differential bootstrap with max age (75% of all legacy attempts)
-	uint32_t frontiers_age (std::numeric_limits<uint32_t>::max ());
-	auto bootstrap_weight_reached (ledger.block_count () >= ledger.bootstrap_weight_max_blocks);
-	auto previous_bootstrap_count (stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate, nano::stat::dir::out) + stats.count (nano::stat::type::bootstrap, nano::stat::detail::initiate_legacy_age, nano::stat::dir::out));
-	/*
-	- Maximum value for 25% of attempts or if block count is below preconfigured value (initial bootstrap not finished)
-	- Node shutdown time minus 1 hour for start attempts (warm up)
-	- Default age value otherwise (1 day for live network, 1 hour for beta)
-	*/
-	if (bootstrap_weight_reached)
-	{
-		if (warmed_up < 3)
-		{
-			// Find last online weight sample (last active time for node)
-			uint64_t last_sample_time (0);
-			{
-				auto transaction = store.tx_begin_read ();
-				auto last_record = store.online_weight.rbegin (transaction);
-				if (last_record != store.online_weight.end ())
-				{
-					last_sample_time = last_record->first;
-				}
-			}
-			uint64_t time_since_last_sample = std::chrono::duration_cast<std::chrono::seconds> (std::chrono::system_clock::now ().time_since_epoch ()).count () - static_cast<uint64_t> (last_sample_time / std::pow (10, 9)); // Nanoseconds to seconds
-			if (time_since_last_sample + 60 * 60 < std::numeric_limits<uint32_t>::max ())
-			{
-				frontiers_age = std::max<uint32_t> (static_cast<uint32_t> (time_since_last_sample + 60 * 60), network_params.bootstrap.default_frontiers_age_seconds);
-			}
-		}
-		else if (previous_bootstrap_count % 4 != 0)
-		{
-			frontiers_age = network_params.bootstrap.default_frontiers_age_seconds;
-		}
-	}
-	// Bootstrap and schedule for next attempt
-	bootstrap_initiator.bootstrap (false, boost::str (boost::format ("auto_bootstrap_%1%") % previous_bootstrap_count), frontiers_age);
-	std::weak_ptr<nano::node> node_w (shared_from_this ());
-	workers.add_timed_task (std::chrono::steady_clock::now () + next_wakeup, [node_w] () {
-		if (auto node_l = node_w.lock ())
-		{
-			node_l->ongoing_bootstrap ();
-		}
-	});
-}
-
 void nano::node::backup_wallet ()
 {
 	auto transaction (wallets.tx_begin_read ());
@@ -895,29 +817,6 @@ void nano::node::search_receivable_all ()
 	workers.add_timed_task (std::chrono::steady_clock::now () + network_params.node.search_pending_interval, [this_l] () {
 		this_l->search_receivable_all ();
 	});
-}
-
-void nano::node::bootstrap_wallet ()
-{
-	std::deque<nano::account> accounts;
-	{
-		nano::lock_guard<nano::mutex> lock{ wallets.mutex };
-		auto const transaction (wallets.tx_begin_read ());
-		for (auto i (wallets.items.begin ()), n (wallets.items.end ()); i != n && accounts.size () < 128; ++i)
-		{
-			auto & wallet (*i->second);
-			nano::lock_guard<std::recursive_mutex> wallet_lock{ wallet.store.mutex };
-			for (auto j (wallet.store.begin (transaction)), m (wallet.store.end ()); j != m && accounts.size () < 128; ++j)
-			{
-				nano::account account (j->first);
-				accounts.push_back (account);
-			}
-		}
-	}
-	if (!accounts.empty ())
-	{
-		bootstrap_initiator.bootstrap_wallet (accounts);
-	}
 }
 
 bool nano::node::collect_ledger_pruning_targets (std::deque<nano::block_hash> & pruning_targets_a, nano::account & last_account_a, uint64_t const batch_read_size_a, uint64_t const max_depth_a, uint64_t const cutoff_time_a)

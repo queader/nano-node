@@ -399,11 +399,6 @@ nano_qt::import::import (nano_qt::wallet & wallet_a) :
 					{
 						this->wallet.account = this->wallet.wallet_m->change_seed (transaction, seed_l);
 						successful = true;
-						// Pending check for accounts to restore if bootstrap is in progress
-						if (this->wallet.node.bootstrap_initiator.in_progress ())
-						{
-							this->wallet.needs_deterministic_restore = true;
-						}
 					}
 					else
 					{
@@ -1379,31 +1374,6 @@ void nano_qt::wallet::start ()
 			}));
 		}
 	});
-	node.bootstrap_initiator.add_observer ([this_w] (bool active_a) {
-		if (auto this_l = this_w.lock ())
-		{
-			this_l->application.postEvent (&this_l->processor, new eventloop_event ([this_w, active_a] () {
-				if (auto this_l = this_w.lock ())
-				{
-					if (active_a)
-					{
-						this_l->active_status.insert (nano_qt::status_types::synchronizing);
-					}
-					else
-					{
-						this_l->active_status.erase (nano_qt::status_types::synchronizing);
-						// Check for accounts to restore
-						if (this_l->needs_deterministic_restore)
-						{
-							this_l->needs_deterministic_restore = false;
-							auto transaction (this_l->wallet_m->wallets.tx_begin_write ());
-							this_l->wallet_m->deterministic_restore (transaction);
-						}
-					}
-				}
-			}));
-		}
-	});
 	node.work.work_observers.add ([this_w] (bool working) {
 		if (auto this_l = this_w.lock ())
 		{
@@ -1785,7 +1755,6 @@ nano_qt::advanced_actions::advanced_actions (nano_qt::wallet & wallet_a) :
 	bootstrap_label (new QLabel ("IPV6:port \"::ffff:192.168.0.1:7075\"")),
 	peer_count_label (new QLabel ("")),
 	bootstrap_line (new QLineEdit),
-	peers_bootstrap (new QPushButton ("Initiate Bootstrap")),
 	peers_refresh (new QPushButton ("Refresh")),
 	peers_back (new QPushButton ("Back")),
 	wallet (wallet_a)
@@ -1827,7 +1796,6 @@ nano_qt::advanced_actions::advanced_actions (nano_qt::wallet & wallet_a) :
 	peer_summary_layout->addWidget (peer_count_label);
 	peers_layout->addLayout (peer_summary_layout);
 	peers_layout->addWidget (bootstrap_line);
-	peers_layout->addWidget (peers_bootstrap);
 	peers_layout->addWidget (peers_refresh);
 	peers_layout->addWidget (peers_back);
 	peers_layout->setContentsMargins (0, 0, 0, 0);
@@ -1887,20 +1855,6 @@ nano_qt::advanced_actions::advanced_actions (nano_qt::wallet & wallet_a) :
 	QObject::connect (peers_back, &QPushButton::released, [this] () {
 		this->wallet.pop_main_stack ();
 	});
-	QObject::connect (peers_bootstrap, &QPushButton::released, [this] () {
-		nano::endpoint endpoint;
-		auto error (nano::parse_endpoint (bootstrap_line->text ().toStdString (), endpoint));
-		if (!error)
-		{
-			show_line_ok (*bootstrap_line);
-			bootstrap_line->clear ();
-			this->wallet.node.bootstrap_initiator.bootstrap (endpoint);
-		}
-		else
-		{
-			show_line_error (*bootstrap_line);
-		}
-	});
 	QObject::connect (peers_refresh, &QPushButton::released, [this] () {
 		refresh_peers ();
 	});
@@ -1914,7 +1868,6 @@ nano_qt::advanced_actions::advanced_actions (nano_qt::wallet & wallet_a) :
 		std::thread ([this] { this->wallet.wallet_m->search_receivable (this->wallet.wallet_m->wallets.tx_begin_read ()); }).detach ();
 	});
 	QObject::connect (bootstrap, &QPushButton::released, [this] () {
-		std::thread ([this] { this->wallet.node.bootstrap_initiator.bootstrap (); }).detach ();
 	});
 	QObject::connect (create_block, &QPushButton::released, [this] () {
 		this->wallet.push_main_stack (this->wallet.block_creation.window);

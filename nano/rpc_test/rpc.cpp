@@ -6518,59 +6518,6 @@ TEST (rpc, epoch_upgrade_multithreaded)
 	}
 }
 
-// FIXME: This test is testing legacy bootstrap, the current behavior is different
-TEST (rpc, DISABLED_account_lazy_start)
-{
-	nano::test::system system{};
-	nano::node_flags node_flags{};
-	node_flags.disable_legacy_bootstrap = true;
-	auto node1 = system.add_node (node_flags);
-	nano::keypair key{};
-	nano::block_builder builder;
-	// Generating test chain
-	auto send1 = builder
-				 .state ()
-				 .account (nano::dev::genesis_key.pub)
-				 .previous (nano::dev::genesis->hash ())
-				 .representative (nano::dev::genesis_key.pub)
-				 .balance (nano::dev::constants.genesis_amount - nano::Gxrb_ratio)
-				 .link (key.pub)
-				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
-				 .work (*system.work.generate (nano::dev::genesis->hash ()))
-				 .build ();
-	ASSERT_EQ (nano::block_status::progress, node1->process (send1));
-	auto open = builder
-				.open ()
-				.source (send1->hash ())
-				.representative (key.pub)
-				.account (key.pub)
-				.sign (key.prv, key.pub)
-				.work (*system.work.generate (key.pub))
-				.build ();
-	ASSERT_EQ (nano::block_status::progress, node1->process (open));
-
-	// Start lazy bootstrap with account
-	nano::node_config node_config = system.default_config ();
-	node_config.ipc_config.transport_tcp.enabled = true;
-	node_config.ipc_config.transport_tcp.port = system.get_available_port ();
-	auto node2 = system.add_node (node_config, node_flags);
-	nano::test::establish_tcp (system, *node2, node1->network.endpoint ());
-	auto const rpc_ctx = add_rpc (system, node2);
-	boost::property_tree::ptree request;
-	request.put ("action", "account_info");
-	request.put ("account", key.pub.to_account ());
-	auto response = wait_response (system, rpc_ctx, request);
-	boost::optional<std::string> account_error{ response.get_optional<std::string> ("error") };
-	ASSERT_TRUE (account_error.is_initialized ());
-
-	// Check processed blocks
-	ASSERT_TIMELY (10s, !node2->bootstrap_initiator.in_progress ());
-
-	// needs timed assert because the writing (put) operation is done by a different
-	// thread, it might not get done before DB get operation.
-	ASSERT_TIMELY (15s, nano::test::block_or_pruned_all_exists (*node2, { send1, open }));
-}
-
 TEST (rpc, receive)
 {
 	nano::test::system system;

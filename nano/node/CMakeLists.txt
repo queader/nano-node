@@ -24,24 +24,8 @@ add_library(
   blockprocessor.cpp
   bootstrap/block_deserializer.hpp
   bootstrap/block_deserializer.cpp
-  bootstrap/bootstrap_attempt.hpp
-  bootstrap/bootstrap_attempt.cpp
-  bootstrap/bootstrap_bulk_pull.hpp
-  bootstrap/bootstrap_bulk_pull.cpp
-  bootstrap/bootstrap_bulk_push.hpp
-  bootstrap/bootstrap_bulk_push.cpp
   bootstrap/bootstrap_config.hpp
   bootstrap/bootstrap_config.cpp
-  bootstrap/bootstrap_connections.hpp
-  bootstrap/bootstrap_connections.cpp
-  bootstrap/bootstrap_frontier.hpp
-  bootstrap/bootstrap_frontier.cpp
-  bootstrap/bootstrap_lazy.hpp
-  bootstrap/bootstrap_lazy.cpp
-  bootstrap/bootstrap_legacy.hpp
-  bootstrap/bootstrap_legacy.cpp
-  bootstrap/bootstrap.hpp
-  bootstrap/bootstrap.cpp
   bootstrap/bootstrap_server.hpp
   bootstrap/bootstrap_server.cpp
   bootstrap_ascending/account_sets.hpp
