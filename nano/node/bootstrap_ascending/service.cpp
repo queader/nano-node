@@ -13,6 +13,7 @@
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/store/account.hpp>
 #include <nano/store/component.hpp>
+#include <nano/store/confirmation_height.hpp>
 
 using namespace std::chrono_literals;
 
@@ -484,18 +485,35 @@ bool nano::bootstrap_ascending::service::request (nano::account account, size_t 
 	tag.account = account;
 	tag.count = count;
 
-	// Check if the account picked has blocks, if it does, start the pull from the highest block
-	auto info = ledger.store.account.get (ledger.store.tx_begin_read (), account);
-	if (info)
 	{
-		tag.type = query_type::blocks_by_hash;
-		tag.start = info->head;
-		tag.hash = info->head;
-	}
-	else
-	{
-		tag.type = query_type::blocks_by_account;
-		tag.start = account;
+		auto transaction = ledger.store.tx_begin_read ();
+
+		// Check if the account picked has blocks, if it does, start the pull from the highest block
+		if (auto info = ledger.store.account.get (transaction, account))
+		{
+			tag.type = query_type::blocks_by_hash;
+
+			// Probabilistically choose between requesting blocks from account frontier or confirmed frontier
+			bool safe_request = nano::random_pool::generate_word32 (0, 1) == 0;
+			if (safe_request)
+			{
+				if (auto conf_info = ledger.store.confirmation_height.get (transaction, account))
+				{
+					tag.start = conf_info->frontier;
+					tag.hash = conf_info->height;
+				}
+			}
+			if (tag.start.is_zero ())
+			{
+				tag.start = info->head;
+				tag.hash = info->head;
+			}
+		}
+		else
+		{
+			tag.type = query_type::blocks_by_account;
+			tag.start = account;
+		}
 	}
 
 	return send (channel, tag);
