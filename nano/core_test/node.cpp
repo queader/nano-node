@@ -1436,12 +1436,10 @@ TEST (node, bootstrap_fork_open)
 // Unconfirmed blocks from bootstrap should be confirmed
 TEST (node, bootstrap_confirm_frontiers)
 {
-	// create 2 separate systems, the 2 system do not interact with each other automatically
-	nano::test::system system0 (1);
-	nano::test::system system1 (1);
-	auto node0 = system0.nodes[0];
-	auto node1 = system1.nodes[0];
-	system0.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
+	nano::test::system system;
+	auto node0 = system.add_node ();
+	auto node1 = system.add_node ();
+	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair key0;
 
 	// create block to send 500 raw from genesis to key0 and save into node0 ledger without immediately triggering an election
@@ -1453,16 +1451,7 @@ TEST (node, bootstrap_confirm_frontiers)
 				 .work (*node0->work_generate_blocking (nano::dev::genesis->hash ()))
 				 .build ();
 	ASSERT_EQ (nano::block_status::progress, node0->process (send0));
-
-	// Wait until the block is confirmed on node1. Poll more than usual because we are polling
-	// on 2 different systems at once and in sequence and there might be strange timing effects.
-	system0.deadline_set (10s);
-	system1.deadline_set (10s);
-	while (!node1->ledger.confirmed.block_exists_or_pruned (node1->ledger.tx_begin_read (), send0->hash ()))
-	{
-		ASSERT_NO_ERROR (system0.poll (std::chrono::milliseconds (1)));
-		ASSERT_NO_ERROR (system1.poll (std::chrono::milliseconds (1)));
-	}
+	ASSERT_TIMELY (10s, node1->block_confirmed (send0->hash ()));
 }
 
 // Test that if we create a block that isn't confirmed, the bootstrapping processes sync the missing block.
