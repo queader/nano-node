@@ -96,6 +96,8 @@ void nano::vote_generator::stop ()
 	{
 		thread.join ();
 	}
+
+	inproc_channel = nullptr;
 }
 
 void nano::vote_generator::add (const root & root, const block_hash & hash)
