@@ -8,11 +8,11 @@
 #include <boost/asio/ip/address_v6.hpp>
 #include <boost/format.hpp>
 
-nano::transport::channel::channel (nano::node & node_a) :
-	node_w{ node_a.shared () },
-	node{ node_a }
+nano::transport::channel::channel (std::shared_ptr<nano::node> node_a) :
+	node_w{ node_a },
+	node{ *node_a }
 {
-	set_network_version (node_a.network_params.network.protocol_version);
+	set_network_version (node.network_params.network.protocol_version);
 }
 
 nano::transport::channel::~channel ()

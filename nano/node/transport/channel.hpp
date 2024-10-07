@@ -23,7 +23,7 @@ enum class transport_type : uint8_t
 class channel
 {
 public:
-	explicit channel (nano::node &);
+	explicit channel (std::shared_ptr<nano::node>);
 	virtual ~channel ();
 
 	void send (nano::message const & message_a,

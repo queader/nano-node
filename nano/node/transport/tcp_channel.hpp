@@ -45,7 +45,7 @@ class tcp_channel final : public nano::transport::channel, public std::enable_sh
 	friend class nano::transport::tcp_channels;
 
 public:
-	tcp_channel (nano::node &, std::shared_ptr<nano::transport::tcp_socket>);
+	tcp_channel (std::shared_ptr<nano::node>, std::shared_ptr<nano::transport::tcp_socket>);
 	~tcp_channel () override;
 
 	void update_endpoints ();

@@ -8,10 +8,10 @@
  * tcp_channel
  */
 
-nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a) :
-	channel (node_a),
+nano::transport::tcp_channel::tcp_channel (std::shared_ptr<nano::node> node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a) :
+	transport::channel (node_a),
 	socket{ std::move (socket_a) },
-	strand{ node_a.io_ctx.get_executor () },
+	strand{ node_a->io_ctx.get_executor () },
 	sending_task{ strand },
 	sending_condition{ strand }
 {
