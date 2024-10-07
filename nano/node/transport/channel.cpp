@@ -9,9 +9,15 @@
 #include <boost/format.hpp>
 
 nano::transport::channel::channel (nano::node & node_a) :
+	node_w{ node_a.shared () },
 	node{ node_a }
 {
 	set_network_version (node_a.network_params.network.protocol_version);
+}
+
+nano::transport::channel::~channel ()
+{
+	release_assert (node_w.lock ());
 }
 
 void nano::transport::channel::send (nano::message const & message, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy drop_policy, nano::transport::traffic_type traffic_type)
