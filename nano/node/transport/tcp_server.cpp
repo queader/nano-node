@@ -10,10 +10,9 @@
  * tcp_server
  */
 
-nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::tcp_socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
+nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::tcp_socket> socket_a, std::shared_ptr<nano::node> node_a) :
 	socket{ socket_a },
 	node{ node_a },
-	allow_bootstrap{ allow_bootstrap_a },
 	message_deserializer{
 		std::make_shared<nano::transport::message_deserializer> (node_a->network_params.network, node_a->network.filter, node_a->block_uniquer, node_a->vote_uniquer,
 		[socket_l = socket] (std::shared_ptr<std::vector<uint8_t>> const & data_a, size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a) {
@@ -170,7 +169,7 @@ auto nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 
 	node->stats.inc (nano::stat::type::tcp_server, to_stat_detail (message->type ()), nano::stat::dir::in);
 
-	debug_assert (is_undefined_connection () || is_realtime_connection () || is_bootstrap_connection ());
+	debug_assert (is_undefined_connection () || is_realtime_connection ());
 
 	/*
 	 * Server initially starts in undefined state, where it waits for either a handshake or booststrap request message
@@ -206,21 +205,6 @@ auto nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 				queue_realtime (std::move (message));
 				return process_result::progress; // Continue receiving new messages
 			}
-			case handshake_status::bootstrap:
-			{
-				bool success = to_bootstrap_connection ();
-				if (!success)
-				{
-					node->stats.inc (nano::stat::type::tcp_server, nano::stat::detail::handshake_error);
-					node->logger.debug (nano::log::type::tcp_server, "Error switching to bootstrap mode: {} ({})", to_string (message->type ()), fmt::streamed (remote_endpoint));
-
-					return process_result::abort; // Switch failed, abort
-				}
-				else
-				{
-					// Fall through to process the bootstrap message
-				}
-			}
 		}
 	}
 	else if (is_realtime_connection ())
@@ -234,15 +218,6 @@ auto nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 		}
 
 		return process_result::progress;
-	}
-	// The server will switch to bootstrap mode immediately after processing the first bootstrap message, thus no `else if`
-	if (is_bootstrap_connection ())
-	{
-		bootstrap_message_visitor bootstrap_visitor{ shared_from_this () };
-		message->visit (bootstrap_visitor);
-
-		// Pause receiving new messages if bootstrap serving started
-		return bootstrap_visitor.processed ? process_result::pause : process_result::progress;
 	}
 
 	debug_assert (false);
@@ -421,22 +396,22 @@ void nano::transport::tcp_server::handshake_message_visitor::node_id_handshake (
 
 void nano::transport::tcp_server::handshake_message_visitor::bulk_pull (const nano::bulk_pull & message)
 {
-	result = handshake_status::bootstrap;
+	result = handshake_status::abort;
 }
 
 void nano::transport::tcp_server::handshake_message_visitor::bulk_pull_account (const nano::bulk_pull_account & message)
 {
-	result = handshake_status::bootstrap;
+	result = handshake_status::abort;
 }
 
 void nano::transport::tcp_server::handshake_message_visitor::bulk_push (const nano::bulk_push & message)
 {
-	result = handshake_status::bootstrap;
+	result = handshake_status::abort;
 }
 
 void nano::transport::tcp_server::handshake_message_visitor::frontier_req (const nano::frontier_req & message)
 {
-	result = handshake_status::bootstrap;
+	result = handshake_status::abort;
 }
 
 /*
@@ -504,39 +479,6 @@ void nano::transport::tcp_server::realtime_message_visitor::asc_pull_ack (const 
 }
 
 /*
- * bootstrap_message_visitor
- */
-
-nano::transport::tcp_server::bootstrap_message_visitor::bootstrap_message_visitor (std::shared_ptr<tcp_server> server) :
-	server{ std::move (server) }
-{
-}
-
-void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull (const nano::bulk_pull & message)
-{
-	// Ignored since V28
-	// TODO: Abort connection?
-}
-
-void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull_account (const nano::bulk_pull_account & message)
-{
-	// Ignored since V28
-	// TODO: Abort connection?
-}
-
-void nano::transport::tcp_server::bootstrap_message_visitor::bulk_push (const nano::bulk_push &)
-{
-	// Ignored since V28
-	// TODO: Abort connection?
-}
-
-void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const nano::frontier_req & message)
-{
-	// Ignored since V28
-	// TODO: Abort connection?
-}
-
-/*
  *
  */
 
@@ -574,37 +516,6 @@ std::optional<nano::keepalive> nano::transport::tcp_server::pop_last_keepalive (
 	return result;
 }
 
-bool nano::transport::tcp_server::to_bootstrap_connection ()
-{
-	auto node = this->node.lock ();
-	if (!node)
-	{
-		return false;
-	}
-	if (!allow_bootstrap)
-	{
-		return false;
-	}
-	if (node->flags.disable_bootstrap_listener)
-	{
-		return false;
-	}
-	if (node->tcp_listener.bootstrap_count () >= node->config.bootstrap_connections_max)
-	{
-		return false;
-	}
-	if (socket->type () != nano::transport::socket_type::undefined)
-	{
-		return false;
-	}
-
-	socket->type_set (nano::transport::socket_type::bootstrap);
-
-	node->logger.debug (nano::log::type::tcp_server, "Switched to bootstrap mode ({})", fmt::streamed (remote_endpoint));
-
-	return true;
-}
-
 bool nano::transport::tcp_server::to_realtime_connection (nano::account const & node_id)
 {
 	auto node = this->node.lock ();
@@ -638,11 +549,6 @@ bool nano::transport::tcp_server::to_realtime_connection (nano::account const & 
 bool nano::transport::tcp_server::is_undefined_connection () const
 {
 	return socket->type () == nano::transport::socket_type::undefined;
-}
-
-bool nano::transport::tcp_server::is_bootstrap_connection () const
-{
-	return socket->is_bootstrap_connection ();
 }
 
 bool nano::transport::tcp_server::is_realtime_connection () const

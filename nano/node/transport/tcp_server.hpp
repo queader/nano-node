@@ -20,7 +20,7 @@ class tcp_server;
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
-	tcp_server (std::shared_ptr<nano::transport::tcp_socket>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
+	tcp_server (std::shared_ptr<nano::transport::tcp_socket>, std::shared_ptr<nano::node>);
 	~tcp_server ();
 
 	void start ();
@@ -44,10 +44,8 @@ private:
 	process_result process_message (std::unique_ptr<nano::message> message);
 	void queue_realtime (std::unique_ptr<nano::message> message);
 
-	bool to_bootstrap_connection ();
 	bool to_realtime_connection (nano::account const & node_id);
 	bool is_undefined_connection () const;
-	bool is_bootstrap_connection () const;
 	bool is_realtime_connection () const;
 
 	enum class handshake_status
@@ -55,7 +53,6 @@ private:
 		abort,
 		handshake,
 		realtime,
-		bootstrap,
 	};
 
 	handshake_status process_handshake (nano::node_id_handshake const & message);
@@ -64,7 +61,6 @@ private:
 private:
 	std::shared_ptr<nano::transport::tcp_socket> const socket;
 	std::weak_ptr<nano::node> const node;
-	bool const allow_bootstrap;
 	std::shared_ptr<nano::transport::message_deserializer> message_deserializer;
 
 	// Every realtime connection must have an associated channel
@@ -117,22 +113,6 @@ private: // Visitors
 
 	private:
 		tcp_server & server;
-	};
-
-	class bootstrap_message_visitor : public nano::message_visitor
-	{
-	public:
-		bool processed{ false };
-
-		explicit bootstrap_message_visitor (std::shared_ptr<tcp_server>);
-
-		void bulk_pull (nano::bulk_pull const &) override;
-		void bulk_pull_account (nano::bulk_pull_account const &) override;
-		void bulk_push (nano::bulk_push const &) override;
-		void frontier_req (nano::frontier_req const &) override;
-
-	private:
-		std::shared_ptr<tcp_server> server;
 	};
 
 	friend class handshake_message_visitor;
