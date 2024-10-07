@@ -31,15 +31,6 @@ public:
 	void set_last_keepalive (nano::keepalive const & message);
 	std::optional<nano::keepalive> pop_last_keepalive ();
 
-	std::shared_ptr<nano::transport::tcp_socket> const socket;
-	std::weak_ptr<nano::node> const node;
-	nano::mutex mutex;
-	std::atomic<bool> stopped{ false };
-	std::atomic<bool> handshake_received{ false };
-	// Remote endpoint used to remove response channel even after socket closing
-	nano::tcp_endpoint remote_endpoint{ boost::asio::ip::address_v6::any (), 0 };
-	std::chrono::steady_clock::time_point last_telemetry_req{};
-
 private:
 	enum class process_result
 	{
@@ -71,12 +62,21 @@ private:
 	void send_handshake_response (nano::node_id_handshake::query_payload const & query, bool v2);
 
 private:
+	std::shared_ptr<nano::transport::tcp_socket> const socket;
+	std::weak_ptr<nano::node> const node;
 	bool const allow_bootstrap;
 	std::shared_ptr<nano::transport::message_deserializer> message_deserializer;
-	std::optional<nano::keepalive> last_keepalive;
 
 	// Every realtime connection must have an associated channel
 	std::shared_ptr<nano::transport::tcp_channel> channel;
+
+	nano::mutex mutex;
+	std::atomic<bool> stopped{ false };
+	std::atomic<bool> handshake_received{ false };
+	// Remote endpoint used to remove response channel even after socket closing
+	nano::tcp_endpoint remote_endpoint{ boost::asio::ip::address_v6::any (), 0 };
+	std::chrono::steady_clock::time_point last_telemetry_req{};
+	std::optional<nano::keepalive> last_keepalive;
 
 private: // Visitors
 	class handshake_message_visitor : public nano::message_visitor
