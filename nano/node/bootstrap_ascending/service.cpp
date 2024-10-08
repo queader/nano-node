@@ -260,6 +260,7 @@ void nano::bootstrap_ascending::service::inspect (secure::transaction const & tx
 		break;
 		case nano::block_status::gap_source:
 		{
+			// Prevent malicious live traffic from filling up the blocked set
 			if (source == nano::block_source::bootstrap)
 			{
 				const auto account = block.previous ().is_zero () ? block.account_field ().value () : ledger.any.block_account (tx, block.previous ()).value ();
