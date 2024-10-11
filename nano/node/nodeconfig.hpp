@@ -9,7 +9,7 @@
 #include <nano/lib/rocksdbconfig.hpp>
 #include <nano/lib/stats.hpp>
 #include <nano/node/active_elections.hpp>
-#include <nano/node/backlog_population.hpp>
+#include <nano/node/backlog_scan.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap/bootstrap_config.hpp>
 #include <nano/node/bootstrap/bootstrap_server.hpp>
@@ -146,7 +146,7 @@ public:
 	nano::local_block_broadcaster_config local_block_broadcaster;
 	nano::confirming_set_config confirming_set;
 	nano::monitor_config monitor;
-	nano::backlog_population_config backlog_population;
+	nano::backlog_scan_config backlog_population;
 
 public:
 	/** Entry is ignored if it cannot be parsed as a valid address:port */
