@@ -81,6 +81,7 @@ public:
 	uint64_t block_count () const;
 	uint64_t account_count () const;
 	uint64_t pruned_count () const;
+	uint64_t backlog_count () const;
 
 	nano::container_info container_info () const;
 

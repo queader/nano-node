@@ -58,6 +58,7 @@ public:
 	void start ();
 	void stop ();
 
+	bool contains (nano::block_hash const &) const;
 	size_t size () const;
 
 	nano::container_info container_info () const;
