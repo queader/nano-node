@@ -14,6 +14,7 @@
 #include <nano/node/bootstrap/bootstrap_service.hpp>
 #include <nano/node/bootstrap_weights_beta.hpp>
 #include <nano/node/bootstrap_weights_live.hpp>
+#include <nano/node/bucketing.hpp>
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/daemonconfig.hpp>
 #include <nano/node/election_status.hpp>
@@ -129,6 +130,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	block_processor{ *block_processor_impl },
 	confirming_set_impl{ std::make_unique<nano::confirming_set> (config.confirming_set, ledger, block_processor, stats, logger) },
 	confirming_set{ *confirming_set_impl },
+	bucketing_impl{ std::make_unique<nano::bucketing> () },
+	bucketing{ *bucketing_impl },
 	active_impl{ std::make_unique<nano::active_elections> (*this, confirming_set, block_processor) },
 	active{ *active_impl },
 	rep_crawler (config.rep_crawler, *this),
@@ -149,7 +152,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	generator{ *generator_impl },
 	final_generator_impl{ std::make_unique<nano::vote_generator> (config, *this, ledger, wallets, vote_processor, history, network, stats, logger, /* final */ true) },
 	final_generator{ *final_generator_impl },
-	scheduler_impl{ std::make_unique<nano::scheduler::component> (config, *this, ledger, block_processor, active, online_reps, vote_cache, confirming_set, stats, logger) },
+	scheduler_impl{ std::make_unique<nano::scheduler::component> (config, *this, ledger, bucketing, block_processor, active, online_reps, vote_cache, confirming_set, stats, logger) },
 	scheduler{ *scheduler_impl },
 	aggregator_impl{ std::make_unique<nano::request_aggregator> (config.request_aggregator, *this, stats, generator, final_generator, history, ledger, wallets, vote_router) },
 	aggregator{ *aggregator_impl },
@@ -330,6 +333,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 		logger.info (nano::log::type::node, "Work pool threads: {} ({})", work.threads.size (), (work.opencl ? "OpenCL" : "CPU"));
 		logger.info (nano::log::type::node, "Work peers: {}", config.work_peers.size ());
 		logger.info (nano::log::type::node, "Node ID: {}", node_id.pub.to_node_id ());
+		logger.info (nano::log::type::node, "Number of buckets: {}", bucketing.size ());
 
 		if (!work_generation_enabled ())
 		{

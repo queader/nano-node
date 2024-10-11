@@ -82,6 +82,9 @@ public:
 	uint64_t account_count () const;
 	uint64_t pruned_count () const;
 
+	using block_priority_result = std::pair<nano::amount, nano::priority_timestamp>;
+	block_priority_result block_priority (secure::transaction const &, nano::block const &) const;
+
 	nano::container_info container_info () const;
 
 public:

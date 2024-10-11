@@ -8,9 +8,8 @@
  * bucket
  */
 
-nano::scheduler::bucket::bucket (nano::uint128_t minimum_balance_a, priority_bucket_config const & config_a, nano::active_elections & active_a, nano::stats & stats_a) :
+nano::scheduler::bucket::bucket (priority_bucket_config const & config_a, nano::active_elections & active_a, nano::stats & stats_a) :
 	config{ config_a },
-	minimum_balance{ minimum_balance_a },
 	active{ active_a },
 	stats{ stats_a }
 {
