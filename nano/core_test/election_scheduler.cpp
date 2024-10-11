@@ -256,8 +256,7 @@ TEST (election_scheduler_bucket, construction)
 	auto & node = *system.add_node ();
 
 	nano::scheduler::priority_bucket_config bucket_config;
-	nano::scheduler::bucket bucket{ nano::Knano_ratio, bucket_config, node.active, node.stats };
-	ASSERT_EQ (nano::Knano_ratio, bucket.minimum_balance);
+	nano::scheduler::bucket bucket{ bucket_config, node.active, node.stats };
 	ASSERT_TRUE (bucket.empty ());
 	ASSERT_EQ (0, bucket.size ());
 }
@@ -268,7 +267,7 @@ TEST (election_scheduler_bucket, insert_one)
 	auto & node = *system.add_node ();
 
 	nano::scheduler::priority_bucket_config bucket_config;
-	nano::scheduler::bucket bucket{ 0, bucket_config, node.active, node.stats };
+	nano::scheduler::bucket bucket{ bucket_config, node.active, node.stats };
 	ASSERT_TRUE (bucket.push (1000, block0 ()));
 	ASSERT_FALSE (bucket.empty ());
 	ASSERT_EQ (1, bucket.size ());
@@ -283,7 +282,7 @@ TEST (election_scheduler_bucket, insert_duplicate)
 	auto & node = *system.add_node ();
 
 	nano::scheduler::priority_bucket_config bucket_config;
-	nano::scheduler::bucket bucket{ 0, bucket_config, node.active, node.stats };
+	nano::scheduler::bucket bucket{ bucket_config, node.active, node.stats };
 	ASSERT_TRUE (bucket.push (1000, block0 ()));
 	ASSERT_FALSE (bucket.push (1000, block0 ()));
 }
@@ -294,7 +293,7 @@ TEST (election_scheduler_bucket, insert_many)
 	auto & node = *system.add_node ();
 
 	nano::scheduler::priority_bucket_config bucket_config;
-	nano::scheduler::bucket bucket{ 0, bucket_config, node.active, node.stats };
+	nano::scheduler::bucket bucket{ bucket_config, node.active, node.stats };
 	ASSERT_TRUE (bucket.push (2000, block0 ()));
 	ASSERT_TRUE (bucket.push (1001, block1 ()));
 	ASSERT_TRUE (bucket.push (1000, block2 ()));
@@ -318,7 +317,7 @@ TEST (election_scheduler_bucket, max_blocks)
 	nano::scheduler::priority_bucket_config bucket_config{
 		.max_blocks = 2
 	};
-	nano::scheduler::bucket bucket{ 0, bucket_config, node.active, node.stats };
+	nano::scheduler::bucket bucket{ bucket_config, node.active, node.stats };
 	ASSERT_TRUE (bucket.push (2000, block0 ()));
 	ASSERT_TRUE (bucket.push (900, block1 ()));
 	ASSERT_FALSE (bucket.push (3000, block2 ()));

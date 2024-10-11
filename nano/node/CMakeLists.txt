@@ -22,6 +22,8 @@ add_library(
   bandwidth_limiter.cpp
   blockprocessor.hpp
   blockprocessor.cpp
+  bucketing.hpp
+  bucketing.cpp
   bootstrap_weights_beta.hpp
   bootstrap_weights_live.hpp
   bootstrap/account_sets.hpp

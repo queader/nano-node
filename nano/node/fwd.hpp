@@ -10,6 +10,7 @@ namespace nano
 class account_sets_config;
 class active_elections;
 class block_processor;
+class bucketing;
 class bootstrap_config;
 class bootstrap_server;
 class bootstrap_service;
