@@ -5221,7 +5221,7 @@ void nano::json_handler::work_peers_clear ()
 
 void nano::json_handler::populate_backlog ()
 {
-	node.backlog.trigger ();
+	node.backlog_scan.trigger ();
 	response_l.put ("success", "");
 	response_errors ();
 }
