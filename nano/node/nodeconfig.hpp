@@ -146,7 +146,7 @@ public:
 	nano::local_block_broadcaster_config local_block_broadcaster;
 	nano::confirming_set_config confirming_set;
 	nano::monitor_config monitor;
-	nano::backlog_scan_config backlog_population;
+	nano::backlog_scan_config backlog_scan;
 
 public:
 	/** Entry is ignored if it cannot be parsed as a valid address:port */

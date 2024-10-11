@@ -263,7 +263,7 @@ TEST (node, auto_bootstrap)
 {
 	nano::test::system system;
 	nano::node_config config (system.get_available_port ());
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
 	node_flags.disable_lazy_bootstrap = true;
@@ -291,7 +291,7 @@ TEST (node, auto_bootstrap_reverse)
 {
 	nano::test::system system;
 	nano::node_config config (system.get_available_port ());
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
 	node_flags.disable_lazy_bootstrap = true;
@@ -364,7 +364,7 @@ TEST (node, search_receivable_confirmed)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node = system.add_node (node_config);
 	nano::keypair key2;
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -393,7 +393,7 @@ TEST (node, search_receivable_pruned)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node1 = system.add_node (node_config);
 	nano::node_flags node_flags;
 	node_flags.enable_pruning = true;
@@ -699,7 +699,7 @@ TEST (node, fork_multi_flip)
 	nano::test::system system;
 	nano::node_flags node_flags;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node1 (*system.add_node (node_config, node_flags, type));
 	node_config.peering_port = system.get_available_port ();
 	node_config.bootstrap.account_sets.cooldown = 100ms; // Reduce cooldown to speed up fork resolution
@@ -752,7 +752,7 @@ TEST (node, fork_bootstrap_flip)
 {
 	nano::test::system system;
 	nano::node_config config1{ system.get_available_port () };
-	config1.backlog_population.enable = false;
+	config1.backlog_scan.enable = false;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
 	node_flags.disable_lazy_bootstrap = true;
@@ -1159,7 +1159,7 @@ TEST (node, DISABLED_broadcast_elected)
 	nano::node_flags node_flags;
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node0 = system.add_node (node_config, node_flags, type);
 	node_config.peering_port = system.get_available_port ();
 	auto node1 = system.add_node (node_config, node_flags, type);
@@ -1286,7 +1286,7 @@ TEST (node, rep_self_vote)
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
 	node_config.online_weight_minimum = std::numeric_limits<nano::uint128_t>::max ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node0 = system.add_node (node_config);
 	nano::keypair rep_big;
 	nano::block_builder builder;
@@ -1689,7 +1689,7 @@ TEST (node, DISABLED_local_votes_cache)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	node_config.receive_minimum = nano::dev::constants.genesis_amount;
 	auto & node (*system.add_node (node_config));
 	nano::state_block_builder builder;
@@ -1773,7 +1773,7 @@ TEST (node, DISABLED_local_votes_cache_batch)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	ASSERT_GE (node.network_params.voting.max_cache, 2);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -1847,7 +1847,7 @@ TEST (node, DISABLED_local_votes_cache_generate_new_vote)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
@@ -1901,7 +1901,7 @@ TEST (node, DISABLED_local_votes_cache_fork)
 	node_flags.disable_legacy_bootstrap = true;
 	node_flags.disable_wallet_bootstrap = true;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node1 (*system.add_node (node_config, node_flags));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	auto send1 = nano::state_block_builder ()
@@ -2150,7 +2150,7 @@ TEST (node, epoch_conflict_confirm)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node0 = *system.add_node (node_config);
 	node_config.peering_port = system.get_available_port ();
 	auto & node1 = *system.add_node (node_config);
@@ -2661,7 +2661,7 @@ TEST (node, bidirectional_tcp)
 	node_flags.disable_lazy_bootstrap = true;
 	node_flags.disable_wallet_bootstrap = true;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node1 = system.add_node (node_config, node_flags);
 	node_config.peering_port = system.get_available_port ();
 	node_config.tcp_incoming_connections_max = 0; // Disable incoming TCP connections for node 2
@@ -2854,7 +2854,7 @@ TEST (node, rollback_gap_source)
 {
 	nano::test::system system;
 	nano::node_config node_config (system.get_available_port ());
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node = *system.add_node (node_config);
 	nano::state_block_builder builder;
 	nano::keypair key;
@@ -2922,7 +2922,7 @@ TEST (node, dependency_graph)
 {
 	nano::test::system system;
 	nano::node_config config (system.get_available_port ());
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	auto & node = *system.add_node (config);
 
 	nano::state_block_builder builder;
@@ -3120,10 +3120,10 @@ TEST (node, dependency_graph_frontier)
 {
 	nano::test::system system;
 	nano::node_config config (system.get_available_port ());
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	auto & node1 = *system.add_node (config);
 	config.peering_port = system.get_available_port ();
-	config.backlog_population.enable = true;
+	config.backlog_scan.enable = true;
 	auto & node2 = *system.add_node (config);
 
 	nano::state_block_builder builder;
@@ -3287,9 +3287,9 @@ TEST (node, deferred_dependent_elections)
 {
 	nano::test::system system;
 	nano::node_config node_config_1{ system.get_available_port () };
-	node_config_1.backlog_population.enable = false;
+	node_config_1.backlog_scan.enable = false;
 	nano::node_config node_config_2{ system.get_available_port () };
-	node_config_2.backlog_population.enable = false;
+	node_config_2.backlog_scan.enable = false;
 	nano::node_flags flags;
 	flags.disable_request_loop = true;
 	auto & node = *system.add_node (node_config_1, flags);

@@ -21,7 +21,7 @@ TEST (request_aggregator, one)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::block_builder builder;
@@ -71,7 +71,7 @@ TEST (request_aggregator, one_update)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair key1;
@@ -137,7 +137,7 @@ TEST (request_aggregator, two)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair key1;
@@ -208,7 +208,7 @@ TEST (request_aggregator, two_endpoints)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	nano::node_flags node_flags;
 	node_flags.disable_rep_crawler = true;
 	auto & node1 (*system.add_node (node_config, node_flags));
@@ -266,7 +266,7 @@ TEST (request_aggregator, split)
 	size_t max_vbh = nano::network::confirm_ack_hashes_max;
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	std::vector<std::pair<nano::block_hash, nano::root>> request;
@@ -319,7 +319,7 @@ TEST (request_aggregator, channel_max_queue)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	node_config.request_aggregator.max_queue = 0;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -349,7 +349,7 @@ TEST (request_aggregator, DISABLED_unique)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::block_builder builder;
