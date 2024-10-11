@@ -190,6 +190,8 @@ public:
 	nano::block_processor & block_processor;
 	std::unique_ptr<nano::confirming_set> confirming_set_impl;
 	nano::confirming_set & confirming_set;
+	std::unique_ptr<nano::bucketing> bucketing_impl;
+	nano::bucketing & bucketing;
 	std::unique_ptr<nano::active_elections> active_impl;
 	nano::active_elections & active;
 	nano::online_reps online_reps;

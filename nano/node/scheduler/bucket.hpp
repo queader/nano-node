@@ -47,10 +47,8 @@ public:
 	using priority_t = uint64_t;
 
 public:
-	bucket (nano::uint128_t minimum_balance, priority_bucket_config const &, nano::active_elections &, nano::stats &);
+	bucket (priority_bucket_config const &, nano::active_elections &, nano::stats &);
 	~bucket ();
-
-	nano::uint128_t const minimum_balance;
 
 	bool available () const;
 	bool activate ();
@@ -137,4 +135,4 @@ private: // Elections
 private:
 	mutable nano::mutex mutex;
 };
-} // namespace nano::scheduler
+}

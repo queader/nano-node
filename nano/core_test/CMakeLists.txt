@@ -12,6 +12,7 @@ add_executable(
   bootstrap.cpp
   bootstrap_ascending.cpp
   bootstrap_server.cpp
+  bucketing.cpp
   cli.cpp
   confirmation_solicitor.cpp
   confirming_set.cpp
