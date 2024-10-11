@@ -205,8 +205,8 @@ public:
 	std::unique_ptr<nano::request_aggregator> aggregator_impl;
 	nano::request_aggregator & aggregator;
 	nano::wallets wallets;
-	std::unique_ptr<nano::backlog_population> backlog_impl;
-	nano::backlog_population & backlog;
+	std::unique_ptr<nano::backlog_population> backlog_scan_impl;
+	nano::backlog_population & backlog_scan;
 	std::unique_ptr<nano::bootstrap_server> bootstrap_server_impl;
 	nano::bootstrap_server & bootstrap_server;
 	std::unique_ptr<nano::bootstrap_service> bootstrap_impl;

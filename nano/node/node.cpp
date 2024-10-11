@@ -154,8 +154,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	aggregator_impl{ std::make_unique<nano::request_aggregator> (config.request_aggregator, *this, stats, generator, final_generator, history, ledger, wallets, vote_router) },
 	aggregator{ *aggregator_impl },
 	wallets (wallets_store.init_error (), *this),
-	backlog_impl{ std::make_unique<nano::backlog_population> (config.backlog_population, scheduler, ledger, stats) },
-	backlog{ *backlog_impl },
+	backlog_scan_impl{ std::make_unique<nano::backlog_population> (config.backlog_population, scheduler, ledger, stats) },
+	backlog_scan{ *backlog_scan_impl },
 	bootstrap_server_impl{ std::make_unique<nano::bootstrap_server> (config.bootstrap_server, store, ledger, network_params.network, stats) },
 	bootstrap_server{ *bootstrap_server_impl },
 	bootstrap_impl{ std::make_unique<nano::bootstrap_service> (config, block_processor, ledger, network, stats, logger) },
@@ -633,7 +633,7 @@ void nano::node::start ()
 	confirming_set.start ();
 	scheduler.start ();
 	aggregator.start ();
-	backlog.start ();
+	backlog_scan.start ();
 	bootstrap_server.start ();
 	bootstrap.start ();
 	websocket.start ();
@@ -664,7 +664,7 @@ void nano::node::stop ()
 	// Cancels ongoing work generation tasks, which may be blocking other threads
 	// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
 	distributed_work.stop ();
-	backlog.stop ();
+	backlog_scan.stop ();
 	bootstrap.stop ();
 	rep_crawler.stop ();
 	unchecked.stop ();
