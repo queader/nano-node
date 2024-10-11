@@ -37,6 +37,7 @@ enum class name
 	db_parallel_traversal,
 	unchecked,
 	backlog_scan,
+	bounded_backlog,
 	vote_generator_queue,
 	bootstrap_server,
 	telemetry,
