@@ -36,7 +36,7 @@
 namespace nano
 {
 class active_elections;
-class backlog_population;
+class backlog_scan;
 class bandwidth_limiter;
 class confirming_set;
 class message_processor;
@@ -216,8 +216,8 @@ public:
 	std::unique_ptr<nano::request_aggregator> aggregator_impl;
 	nano::request_aggregator & aggregator;
 	nano::wallets wallets;
-	std::unique_ptr<nano::backlog_population> backlog_scan_impl;
-	nano::backlog_population & backlog_scan;
+	std::unique_ptr<nano::backlog_scan> backlog_scan_impl;
+	nano::backlog_scan & backlog_scan;
 	std::unique_ptr<nano::bootstrap_ascending::service> ascendboot_impl;
 	nano::bootstrap_ascending::service & ascendboot;
 	nano::websocket_server websocket;
