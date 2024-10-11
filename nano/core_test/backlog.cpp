@@ -22,7 +22,7 @@ TEST (backlog, population)
 	nano::test::system system{};
 	auto & node = *system.add_node ();
 
-	node.backlog.activate_callback.add ([&] (nano::secure::transaction const & transaction, nano::account const & account) {
+	node.backlog_scan.activate_callback.add ([&] (nano::secure::transaction const & transaction, nano::account const & account) {
 		nano::lock_guard<nano::mutex> lock{ mutex };
 
 		activated.insert (account);

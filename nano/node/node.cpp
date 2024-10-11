@@ -142,8 +142,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	aggregator_impl{ std::make_unique<nano::request_aggregator> (config.request_aggregator, *this, stats, generator, final_generator, history, ledger, wallets, vote_router) },
 	aggregator{ *aggregator_impl },
 	wallets (wallets_store.init_error (), *this),
-	backlog_impl{ std::make_unique<nano::backlog_population> (config.backlog_population, scheduler, ledger, stats) },
-	backlog{ *backlog_impl },
+	backlog_scan_impl{ std::make_unique<nano::backlog_population> (config.backlog_population, scheduler, ledger, stats) },
+	backlog_scan{ *backlog_scan_impl },
 	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, stats, logger) },
 	ascendboot{ *ascendboot_impl },
 	websocket{ config.websocket_config, observers, wallets, ledger, io_ctx, logger },
@@ -622,7 +622,7 @@ void nano::node::start ()
 	confirming_set.start ();
 	scheduler.start ();
 	aggregator.start ();
-	backlog.start ();
+	backlog_scan.start ();
 	bootstrap_server.start ();
 	if (!flags.disable_ascending_bootstrap)
 	{
@@ -658,7 +658,7 @@ void nano::node::stop ()
 	// Cancels ongoing work generation tasks, which may be blocking other threads
 	// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
 	distributed_work.stop ();
-	backlog.stop ();
+	backlog_scan.stop ();
 	ascendboot.stop ();
 	rep_crawler.stop ();
 	unchecked.stop ();
