@@ -98,7 +98,7 @@ TEST (optimistic_scheduler, under_gap_threshold)
 	nano::test::confirm (node.ledger, blocks.at (55));
 
 	// Manually trigger backlog scan
-	node.backlog.trigger ();
+	node.backlog_scan.trigger ();
 
 	// Ensure unconfirmed account head block gets activated
 	auto const & block = blocks.back ();
