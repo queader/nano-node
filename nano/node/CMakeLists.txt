@@ -22,6 +22,8 @@ add_library(
   bandwidth_limiter.cpp
   blockprocessor.hpp
   blockprocessor.cpp
+  bounded_backlog.hpp
+  bounded_backlog.cpp
   bootstrap/block_deserializer.hpp
   bootstrap/block_deserializer.cpp
   bootstrap/bootstrap_attempt.hpp

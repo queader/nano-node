@@ -101,6 +101,12 @@ void nano::local_block_broadcaster::stop ()
 	nano::join_or_pass (thread);
 }
 
+bool nano::local_block_broadcaster::contains (nano::block_hash const & hash) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return local_blocks.get<tag_hash> ().contains (hash);
+}
+
 size_t nano::local_block_broadcaster::size () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
