@@ -299,7 +299,7 @@ TEST (bootstrap, frontier_scan)
 	config.bootstrap.enable_scan = false;
 	config.bootstrap.enable_dependency_walker = false;
 	// Disable election activation
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	config.priority_scheduler.enable = false;
 	config.optimistic_scheduler.enable = false;
 	config.hinted_scheduler.enable = false;
@@ -395,7 +395,7 @@ TEST (bootstrap, frontier_scan_pending)
 	config.bootstrap.enable_scan = false;
 	config.bootstrap.enable_dependency_walker = false;
 	// Disable election activation
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	config.priority_scheduler.enable = false;
 	config.optimistic_scheduler.enable = false;
 	config.hinted_scheduler.enable = false;
@@ -477,7 +477,7 @@ TEST (bootstrap, frontier_scan_cannot_prioritize)
 	config.bootstrap.enable_scan = false;
 	config.bootstrap.enable_dependency_walker = false;
 	// Disable election activation
-	config.backlog_population.enable = false;
+	config.backlog_scan.enable = false;
 	config.priority_scheduler.enable = false;
 	config.optimistic_scheduler.enable = false;
 	config.hinted_scheduler.enable = false;

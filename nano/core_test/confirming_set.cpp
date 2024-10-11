@@ -100,7 +100,7 @@ TEST (confirmation_callback, observer_callbacks)
 	nano::test::system system;
 	nano::node_flags node_flags;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node = system.add_node (node_config, node_flags);
 
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -145,7 +145,7 @@ TEST (confirmation_callback, confirmed_history)
 {
 	nano::test::system system;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	node_config.bootstrap.enable = false;
 	auto node = system.add_node (node_config);
 
@@ -217,7 +217,7 @@ TEST (confirmation_callback, dependent_election)
 	nano::test::system system;
 	nano::node_flags node_flags;
 	nano::node_config node_config = system.default_config ();
-	node_config.backlog_population.enable = false;
+	node_config.backlog_scan.enable = false;
 	auto node = system.add_node (node_config, node_flags);
 
 	nano::block_hash latest (node->latest (nano::dev::genesis_key.pub));

@@ -94,8 +94,8 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::unchecked:
 			thread_role_name_string = "Unchecked";
 			break;
-		case nano::thread_role::name::backlog_population:
-			thread_role_name_string = "Backlog";
+		case nano::thread_role::name::backlog_scan:
+			thread_role_name_string = "Backlog scan";
 			break;
 		case nano::thread_role::name::vote_generator_queue:
 			thread_role_name_string = "Voting que";
