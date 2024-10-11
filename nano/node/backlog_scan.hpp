@@ -3,24 +3,16 @@
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/node/fwd.hpp>
 #include <nano/node/scheduler/component.hpp>
 #include <nano/secure/common.hpp>
 
 #include <condition_variable>
 #include <thread>
 
-namespace nano::secure
-{
-class transaction;
-}
 namespace nano
 {
-class account_info;
-class election_scheduler;
-class ledger;
-class stats;
-
-class backlog_population_config final
+class backlog_scan_config final
 {
 public:
 	nano::error deserialize (nano::tomlconfig &);
@@ -35,11 +27,11 @@ public:
 	unsigned frequency{ 10 };
 };
 
-class backlog_population final
+class backlog_scan final
 {
 public:
-	backlog_population (backlog_population_config const &, nano::scheduler::component &, nano::ledger &, nano::stats &);
-	~backlog_population ();
+	backlog_scan (backlog_scan_config const &, nano::scheduler::component &, nano::ledger &, nano::stats &);
+	~backlog_scan ();
 
 	void start ();
 	void stop ();
@@ -58,7 +50,7 @@ public:
 	callback_t activate_callback;
 
 private: // Dependencies
-	backlog_population_config const & config;
+	backlog_scan_config const & config;
 	nano::scheduler::component & schedulers;
 	nano::ledger & ledger;
 	nano::stats & stats;

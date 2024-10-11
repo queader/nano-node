@@ -1,6 +1,6 @@
 #include <nano/lib/thread_roles.hpp>
 #include <nano/lib/threading.hpp>
-#include <nano/node/backlog_population.hpp>
+#include <nano/node/backlog_scan.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/scheduler/priority.hpp>
 #include <nano/secure/ledger.hpp>
@@ -8,7 +8,7 @@
 #include <nano/store/component.hpp>
 #include <nano/store/confirmation_height.hpp>
 
-nano::backlog_population::backlog_population (backlog_population_config const & config_a, nano::scheduler::component & schedulers, nano::ledger & ledger, nano::stats & stats_a) :
+nano::backlog_scan::backlog_scan (backlog_scan_config const & config_a, nano::scheduler::component & schedulers, nano::ledger & ledger, nano::stats & stats_a) :
 	config{ config_a },
 	schedulers{ schedulers },
 	ledger{ ledger },
@@ -16,13 +16,13 @@ nano::backlog_population::backlog_population (backlog_population_config const & 
 {
 }
 
-nano::backlog_population::~backlog_population ()
+nano::backlog_scan::~backlog_scan ()
 {
 	// Thread must be stopped before destruction
 	debug_assert (!thread.joinable ());
 }
 
-void nano::backlog_population::start ()
+void nano::backlog_scan::start ()
 {
 	debug_assert (!thread.joinable ());
 
@@ -32,7 +32,7 @@ void nano::backlog_population::start ()
 	} };
 }
 
-void nano::backlog_population::stop ()
+void nano::backlog_scan::stop ()
 {
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
@@ -42,7 +42,7 @@ void nano::backlog_population::stop ()
 	nano::join_or_pass (thread);
 }
 
-void nano::backlog_population::trigger ()
+void nano::backlog_scan::trigger ()
 {
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
@@ -51,17 +51,17 @@ void nano::backlog_population::trigger ()
 	notify ();
 }
 
-void nano::backlog_population::notify ()
+void nano::backlog_scan::notify ()
 {
 	condition.notify_all ();
 }
 
-bool nano::backlog_population::predicate () const
+bool nano::backlog_scan::predicate () const
 {
 	return triggered || config.enable;
 }
 
-void nano::backlog_population::run ()
+void nano::backlog_scan::run ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
@@ -80,7 +80,7 @@ void nano::backlog_population::run ()
 	}
 }
 
-void nano::backlog_population::populate_backlog (nano::unique_lock<nano::mutex> & lock)
+void nano::backlog_scan::populate_backlog (nano::unique_lock<nano::mutex> & lock)
 {
 	debug_assert (config.frequency > 0);
 
@@ -125,7 +125,7 @@ void nano::backlog_population::populate_backlog (nano::unique_lock<nano::mutex> 
 	}
 }
 
-void nano::backlog_population::activate (secure::transaction const & transaction, nano::account const & account, nano::account_info const & account_info)
+void nano::backlog_scan::activate (secure::transaction const & transaction, nano::account const & account, nano::account_info const & account_info)
 {
 	auto const maybe_conf_info = ledger.store.confirmation_height.get (transaction, account);
 	auto const conf_info = maybe_conf_info.value_or (nano::confirmation_height_info{});
@@ -146,7 +146,7 @@ void nano::backlog_population::activate (secure::transaction const & transaction
  * backlog_population_config
  */
 
-nano::error nano::backlog_population_config::serialize (nano::tomlconfig & toml) const
+nano::error nano::backlog_scan_config::serialize (nano::tomlconfig & toml) const
 {
 	toml.put ("enable", enable, "Control if ongoing backlog population is enabled. If not, backlog population can still be triggered by RPC \ntype:bool");
 	toml.put ("batch_size", batch_size, "Number of accounts per second to process when doing backlog population scan. Increasing this value will help unconfirmed frontiers get into election prioritization queue faster, however it will also increase resource usage. \ntype:uint");
@@ -155,7 +155,7 @@ nano::error nano::backlog_population_config::serialize (nano::tomlconfig & toml)
 	return toml.get_error ();
 }
 
-nano::error nano::backlog_population_config::deserialize (nano::tomlconfig & toml)
+nano::error nano::backlog_scan_config::deserialize (nano::tomlconfig & toml)
 {
 	toml.get ("enable", enable);
 	toml.get ("batch_size", batch_size);
