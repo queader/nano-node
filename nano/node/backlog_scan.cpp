@@ -67,8 +67,7 @@ void nano::backlog_scan::run ()
 	{
 		if (predicate ())
 		{
-			stats.inc (nano::stat::type::backlog, nano::stat::detail::loop);
-
+			stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::loop);
 			triggered = false;
 			populate_backlog (lock);
 		}
@@ -104,7 +103,7 @@ void nano::backlog_scan::populate_backlog (nano::unique_lock<nano::mutex> & lock
 
 			for (size_t count = 0; it != end && count < chunk_size && !should_refresh (); ++it, ++count, ++total)
 			{
-				stats.inc (nano::stat::type::backlog, nano::stat::detail::total);
+				stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::total);
 
 				auto const & account = it->first;
 				auto const & account_info = it->second;
@@ -132,7 +131,7 @@ void nano::backlog_scan::activate (secure::transaction const & transaction, nano
 	// If conf info is empty then it means then it means nothing is confirmed yet
 	if (conf_info.height < account_info.block_count)
 	{
-		stats.inc (nano::stat::type::backlog, nano::stat::detail::activated);
+		stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::activated);
 
 		activated_info info{ account, account_info, conf_info };
 		activated.notify (transaction, info);
