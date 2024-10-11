@@ -83,6 +83,7 @@ enum class type
 	active_elections_timeout,
 	active_elections_cancelled,
 	active_elections_cemented,
+	backlog_scan,
 	backlog,
 	unchecked,
 	election_scheduler,
