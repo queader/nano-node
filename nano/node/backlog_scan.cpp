@@ -27,7 +27,7 @@ void nano::backlog_scan::start ()
 	debug_assert (!thread.joinable ());
 
 	thread = std::thread{ [this] () {
-		nano::thread_role::set (nano::thread_role::name::backlog_population);
+		nano::thread_role::set (nano::thread_role::name::backlog_scan);
 		run ();
 	} };
 }
@@ -143,7 +143,7 @@ void nano::backlog_scan::activate (secure::transaction const & transaction, nano
 }
 
 /*
- * backlog_population_config
+ * backlog_scan_config
  */
 
 nano::error nano::backlog_scan_config::serialize (nano::tomlconfig & toml) const

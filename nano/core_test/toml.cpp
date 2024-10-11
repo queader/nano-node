@@ -116,7 +116,7 @@ TEST (toml, daemon_config_deserialize_defaults)
 	std::stringstream ss;
 	ss << R"toml(
 	[node]
-	[node.backlog_population]
+	[node.backlog_scan]
 	[node.bootstrap_ascending]
 	[node.bootstrap_server]
 	[node.block_processor]
@@ -198,9 +198,9 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.max_queued_requests, defaults.node.max_queued_requests);
 	ASSERT_EQ (conf.node.request_aggregator_threads, defaults.node.request_aggregator_threads);
 	ASSERT_EQ (conf.node.max_unchecked_blocks, defaults.node.max_unchecked_blocks);
-	ASSERT_EQ (conf.node.backlog_population.enable, defaults.node.backlog_population.enable);
-	ASSERT_EQ (conf.node.backlog_population.batch_size, defaults.node.backlog_population.batch_size);
-	ASSERT_EQ (conf.node.backlog_population.frequency, defaults.node.backlog_population.frequency);
+	ASSERT_EQ (conf.node.backlog_scan.enable, defaults.node.backlog_scan.enable);
+	ASSERT_EQ (conf.node.backlog_scan.batch_size, defaults.node.backlog_scan.batch_size);
+	ASSERT_EQ (conf.node.backlog_scan.frequency, defaults.node.backlog_scan.frequency);
 	ASSERT_EQ (conf.node.enable_upnp, defaults.node.enable_upnp);
 
 	ASSERT_EQ (conf.node.websocket_config.enabled, defaults.node.websocket_config.enabled);
@@ -467,7 +467,7 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	frontiers_confirmation = "always"
 	enable_upnp = false
 
-	[node.backlog_population]
+	[node.backlog_scan]
 	enable = false
 	batch_size = 999
 	frequency = 999
@@ -706,9 +706,9 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.work_threads, defaults.node.work_threads);
 	ASSERT_NE (conf.node.max_queued_requests, defaults.node.max_queued_requests);
 	ASSERT_NE (conf.node.request_aggregator_threads, defaults.node.request_aggregator_threads);
-	ASSERT_NE (conf.node.backlog_population.enable, defaults.node.backlog_population.enable);
-	ASSERT_NE (conf.node.backlog_population.batch_size, defaults.node.backlog_population.batch_size);
-	ASSERT_NE (conf.node.backlog_population.frequency, defaults.node.backlog_population.frequency);
+	ASSERT_NE (conf.node.backlog_scan.enable, defaults.node.backlog_scan.enable);
+	ASSERT_NE (conf.node.backlog_scan.batch_size, defaults.node.backlog_scan.batch_size);
+	ASSERT_NE (conf.node.backlog_scan.frequency, defaults.node.backlog_scan.frequency);
 	ASSERT_NE (conf.node.enable_upnp, defaults.node.enable_upnp);
 
 	ASSERT_NE (conf.node.websocket_config.enabled, defaults.node.websocket_config.enabled);

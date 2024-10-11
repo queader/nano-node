@@ -259,9 +259,9 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	monitor.serialize (monitor_l);
 	toml.put_child ("monitor", monitor_l);
 
-	nano::tomlconfig backlog_population_l;
-	backlog_population.serialize (backlog_population_l);
-	toml.put_child ("backlog_population", backlog_population_l);
+	nano::tomlconfig backlog_scan_l;
+	backlog_scan.serialize (backlog_scan_l);
+	toml.put_child ("backlog_scan", backlog_scan_l);
 
 	return toml.get_error ();
 }
@@ -396,10 +396,10 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			monitor.deserialize (config_l);
 		}
 
-		if (toml.has_key ("backlog_population"))
+		if (toml.has_key ("backlog_scan"))
 		{
-			auto config_l = toml.get_required_child ("backlog_population");
-			backlog_population.deserialize (config_l);
+			auto config_l = toml.get_required_child ("backlog_scan");
+			backlog_scan.deserialize (config_l);
 		}
 
 		/*
