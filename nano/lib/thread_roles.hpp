@@ -37,7 +37,7 @@ enum class name
 	epoch_upgrader,
 	db_parallel_traversal,
 	unchecked,
-	backlog_population,
+	backlog_scan,
 	vote_generator_queue,
 	bootstrap_server,
 	telemetry,
