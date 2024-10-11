@@ -7,6 +7,8 @@
 #include <nano/node/backlog_scan.hpp>
 #include <nano/node/bandwidth_limiter.hpp>
 #include <nano/node/bootstrap_ascending/service.hpp>
+#include <nano/node/bounded_backlog.hpp>
+#include <nano/node/bucketing.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/daemonconfig.hpp>
@@ -117,6 +119,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	block_processor (*this),
 	confirming_set_impl{ std::make_unique<nano::confirming_set> (config.confirming_set, ledger, stats) },
 	confirming_set{ *confirming_set_impl },
+	bucketing_impl{ std::make_unique<nano::bucketing> () },
+	bucketing{ *bucketing_impl },
 	active_impl{ std::make_unique<nano::active_elections> (*this, confirming_set, block_processor) },
 	active{ *active_impl },
 	rep_crawler (config.rep_crawler, *this),
@@ -144,7 +148,9 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	wallets (wallets_store.init_error (), *this),
 	backlog_scan_impl{ std::make_unique<nano::backlog_scan> (config.backlog_scan, ledger, stats) },
 	backlog_scan{ *backlog_scan_impl },
-	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, stats, logger) },
+	backlog_impl{ std::make_unique<nano::bounded_backlog> (config.backlog, *this, ledger, bucketing, backlog_scan, block_processor, stats, logger) },
+	backlog{ *backlog_impl },
+	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, backlog, stats, logger) },
 	ascendboot{ *ascendboot_impl },
 	websocket{ config.websocket_config, observers, wallets, ledger, io_ctx, logger },
 	epoch_upgrader{ *this, ledger, store, network_params, logger },
@@ -628,6 +634,7 @@ void nano::node::start ()
 	scheduler.start ();
 	aggregator.start ();
 	backlog_scan.start ();
+	backlog.start ();
 	bootstrap_server.start ();
 	if (!flags.disable_ascending_bootstrap)
 	{
@@ -664,6 +671,7 @@ void nano::node::stop ()
 	// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
 	distributed_work.stop ();
 	backlog_scan.stop ();
+	backlog.stop ();
 	ascendboot.stop ();
 	rep_crawler.stop ();
 	unchecked.stop ();
@@ -1176,6 +1184,7 @@ void nano::node::process_confirmed (nano::election_status const & status_a, uint
 
 		// Do some cleanup due to this block never being processed by confirmation height processor
 		active.remove_election_winner_details (hash);
+		active.recently_confirmed.erase (hash);
 	}
 }
 
@@ -1321,6 +1330,7 @@ nano::container_info nano::node::container_info () const
 	info.add ("local_block_broadcaster", local_block_broadcaster.container_info ());
 	info.add ("rep_tiers", rep_tiers.container_info ());
 	info.add ("message_processor", message_processor.container_info ());
+	info.add ("bounded_backlog", backlog.container_info ());
 	return info;
 }
 

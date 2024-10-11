@@ -14,7 +14,10 @@ class container_info;
 namespace nano
 {
 class active_elections;
+class backlog_scan;
 class block_processor;
+class bounded_backlog;
+class bucketing;
 class confirming_set;
 class election;
 class ledger;

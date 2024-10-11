@@ -13,6 +13,7 @@
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap/bootstrap_config.hpp>
 #include <nano/node/bootstrap/bootstrap_server.hpp>
+#include <nano/node/bounded_backlog.hpp>
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/ipc/ipc_config.hpp>
 #include <nano/node/local_block_broadcaster.hpp>
@@ -148,6 +149,7 @@ public:
 	nano::confirming_set_config confirming_set;
 	nano::monitor_config monitor;
 	nano::backlog_scan_config backlog_scan;
+	nano::bounded_backlog_config backlog;
 
 public:
 	/** Entry is ignored if it cannot be parsed as a valid address:port */

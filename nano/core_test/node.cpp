@@ -19,6 +19,7 @@
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/secure/ledger_set_confirmed.hpp>
+#include <nano/test_common/chains.hpp>
 #include <nano/test_common/network.hpp>
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
@@ -3815,4 +3816,24 @@ TEST (node, container_info)
 	// This should just execute, sanitizers will catch any problems
 	ASSERT_NO_THROW (node1.container_info ());
 	ASSERT_NO_THROW (node2.container_info ());
+}
+
+TEST (node, bounded_backlog)
+{
+	nano::test::system system;
+
+	nano::node_config node_config;
+	node_config.backlog.max_backlog = 10;
+	node_config.backlog.bucket_threshold = 2;
+	node_config.backlog_scan.enable = false;
+	auto & node = *system.add_node (node_config);
+
+	const int howmany_blocks = 64;
+	const int howmany_chains = 16;
+
+	auto chains = nano::test::setup_chains (system, node, howmany_chains, howmany_blocks, nano::dev::genesis_key, /* do not confirm */ false);
+
+	node.backlog_scan.trigger ();
+
+	ASSERT_TIMELY_EQ (20s, node.ledger.block_count (), 11); // 10 + genesis
 }

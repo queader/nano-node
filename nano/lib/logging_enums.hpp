@@ -82,6 +82,7 @@ enum class type
 	message_processor,
 	local_block_broadcaster,
 	monitor,
+	bounded_backlog,
 
 	// bootstrap
 	bulk_pull_client,

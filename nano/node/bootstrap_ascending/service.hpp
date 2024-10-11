@@ -29,7 +29,7 @@ namespace bootstrap_ascending
 	class service
 	{
 	public:
-		service (nano::node_config const &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &, nano::logger &);
+		service (nano::node_config const &, nano::block_processor &, nano::ledger &, nano::network &, nano::bounded_backlog &, nano::stats &, nano::logger &);
 		~service ();
 
 		void start ();
@@ -54,6 +54,7 @@ namespace bootstrap_ascending
 		nano::block_processor & block_processor;
 		nano::ledger & ledger;
 		nano::network & network;
+		nano::bounded_backlog & bounded_backlog;
 		nano::stats & stats;
 		nano::logger & logger;
 

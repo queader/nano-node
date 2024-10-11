@@ -79,6 +79,7 @@ enum class type
 	active_elections_cancelled,
 	active_elections_cemented,
 	backlog_scan,
+	bounded_backlog,
 	backlog,
 	unchecked,
 	election_scheduler,
@@ -473,6 +474,7 @@ enum class detail
 	// active
 	started_hinted,
 	started_optimistic,
+
 	// rep_crawler
 	channel_dead,
 	query_target_failed,
@@ -525,6 +527,13 @@ enum class detail
 	blocks_by_hash,
 	blocks_by_account,
 	account_info_by_hash,
+
+	// bounded backlog,
+	gathered_targets,
+	performing_rollbacks,
+	no_targets,
+	rollback_missing_block,
+	loop_scan,
 
 	_last // Must be the last enum
 };

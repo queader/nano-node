@@ -97,6 +97,12 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::backlog_scan:
 			thread_role_name_string = "Backlog scan";
 			break;
+		case nano::thread_role::name::bounded_backlog:
+			thread_role_name_string = "Bounded backlog";
+			break;
+		case nano::thread_role::name::bounded_backlog_scan:
+			thread_role_name_string = "Bounded scan";
+			break;
 		case nano::thread_role::name::vote_generator_queue:
 			thread_role_name_string = "Voting que";
 			break;

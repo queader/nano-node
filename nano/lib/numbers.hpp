@@ -18,6 +18,9 @@ nano::uint128_t const Knano_ratio = nano::uint128_t ("10000000000000000000000000
 nano::uint128_t const nano_ratio = nano::uint128_t ("1000000000000000000000000000000"); // 10^30 = 1 nano
 nano::uint128_t const raw_ratio = nano::uint128_t ("1"); // 10^0
 
+using bucket_index = uint64_t;
+using priority_timestamp = uint64_t; // Priority within the bucket
+
 class uint128_union
 {
 public:
