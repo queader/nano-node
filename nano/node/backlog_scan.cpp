@@ -8,9 +8,8 @@
 #include <nano/store/component.hpp>
 #include <nano/store/confirmation_height.hpp>
 
-nano::backlog_scan::backlog_scan (backlog_scan_config const & config_a, nano::scheduler::component & schedulers, nano::ledger & ledger, nano::stats & stats_a) :
+nano::backlog_scan::backlog_scan (backlog_scan_config const & config_a, nano::ledger & ledger, nano::stats & stats_a) :
 	config{ config_a },
-	schedulers{ schedulers },
 	ledger{ ledger },
 	stats{ stats_a }
 {
@@ -135,10 +134,8 @@ void nano::backlog_scan::activate (secure::transaction const & transaction, nano
 	{
 		stats.inc (nano::stat::type::backlog, nano::stat::detail::activated);
 
-		activate_callback.notify (transaction, account);
-
-		schedulers.optimistic.activate (account, account_info, conf_info);
-		schedulers.priority.activate (transaction, account, account_info, conf_info);
+		activated_info info{ account, account_info, conf_info };
+		activated.notify (transaction, info);
 	}
 }
 
