@@ -149,7 +149,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	aggregator_impl{ std::make_unique<nano::request_aggregator> (config.request_aggregator, *this, stats, generator, final_generator, history, ledger, wallets, vote_router) },
 	aggregator{ *aggregator_impl },
 	wallets (wallets_store.init_error (), *this),
-	backlog_scan_impl{ std::make_unique<nano::backlog_scan> (config.backlog_scan, scheduler, ledger, stats) },
+	backlog_scan_impl{ std::make_unique<nano::backlog_scan> (config.backlog_scan, ledger, stats) },
 	backlog_scan{ *backlog_scan_impl },
 	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, stats, logger) },
 	ascendboot{ *ascendboot_impl },
@@ -172,6 +172,11 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	vote_cache.rep_weight_query = [this] (nano::account const & rep) {
 		return ledger.weight (rep);
 	};
+
+	backlog_scan.activated.add ([this] (nano::secure::transaction const & transaction, auto const & info) {
+		scheduler.optimistic.activate (info.account, info.account_info, info.conf_info);
+		scheduler.priority.activate (transaction, info.account, info.account_info, info.conf_info);
+	});
 
 	// Republish vote if it is new and the node does not host a principal representative (or close to)
 	vote_router.vote_processed.add ([this] (std::shared_ptr<nano::vote> const & vote, nano::vote_source source, std::unordered_map<nano::block_hash, nano::vote_code> const & results) {

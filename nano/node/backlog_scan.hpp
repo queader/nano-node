@@ -4,7 +4,7 @@
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
 #include <nano/node/fwd.hpp>
-#include <nano/node/scheduler/component.hpp>
+#include <nano/secure/account_info.hpp>
 #include <nano/secure/common.hpp>
 
 #include <condition_variable>
@@ -30,7 +30,7 @@ public:
 class backlog_scan final
 {
 public:
-	backlog_scan (backlog_scan_config const &, nano::scheduler::component &, nano::ledger &, nano::stats &);
+	backlog_scan (backlog_scan_config const &, nano::ledger &, nano::stats &);
 	~backlog_scan ();
 
 	void start ();
@@ -43,15 +43,21 @@ public:
 	void notify ();
 
 public:
+	struct activated_info
+	{
+		nano::account account;
+		nano::account_info account_info;
+		nano::confirmation_height_info conf_info;
+	};
+
 	/**
 	 * Callback called for each backlogged account
 	 */
-	using callback_t = nano::observer_set<secure::transaction const &, nano::account const &>;
-	callback_t activate_callback;
+	using callback_t = nano::observer_set<nano::secure::transaction const &, activated_info const &>;
+	callback_t activated;
 
 private: // Dependencies
 	backlog_scan_config const & config;
-	nano::scheduler::component & schedulers;
 	nano::ledger & ledger;
 	nano::stats & stats;
 
