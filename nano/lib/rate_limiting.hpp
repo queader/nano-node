@@ -42,6 +42,8 @@ public:
 	/** Update the max_token_count and/or refill_rate_a parameters */
 	void reset (std::size_t max_token_count, std::size_t refill_rate);
 
+	size_t size () const;
+
 private:
 	void refill ();
 
@@ -68,6 +70,7 @@ public:
 
 	bool should_pass (std::size_t buffer_size);
 	void reset (std::size_t limit, double burst_ratio);
+	size_t size () const;
 
 private:
 	nano::rate::token_bucket bucket;

@@ -63,6 +63,11 @@ void nano::rate::token_bucket::reset (std::size_t max_token_count_a, std::size_t
 	last_refill = std::chrono::steady_clock::now ();
 }
 
+size_t nano::rate::token_bucket::size () const
+{
+	return current_size;
+}
+
 /*
  * rate_limiter
  */
@@ -82,4 +87,10 @@ void nano::rate_limiter::reset (std::size_t limit_a, double burst_ratio_a)
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 	bucket.reset (static_cast<std::size_t> (limit_a * burst_ratio_a), limit_a);
+}
+
+size_t nano::rate_limiter::size () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return bucket.size ();
 }
