@@ -4,6 +4,7 @@
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bounded_backlog.hpp>
 #include <nano/node/node.hpp>
+#include <nano/node/scheduler/component.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/store/confirmation_height.hpp>
@@ -214,6 +215,10 @@ bool nano::bounded_backlog::should_rollback (nano::block_hash const & hash) cons
 		return false;
 	}
 	if (node.active.recently_confirmed.exists (hash))
+	{
+		return false;
+	}
+	if (node.scheduler.exists (hash))
 	{
 		return false;
 	}
