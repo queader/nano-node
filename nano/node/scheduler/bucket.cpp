@@ -133,6 +133,12 @@ bool nano::scheduler::bucket::push (uint64_t time, std::shared_ptr<nano::block> 
 	return inserted;
 }
 
+bool nano::scheduler::bucket::contains (nano::block_hash const & hash) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return queue.get<tag_hash> ().contains (hash);
+}
+
 size_t nano::scheduler::bucket::size () const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
