@@ -2,6 +2,7 @@
 
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/lib/rate_limiting.hpp>
 #include <nano/lib/thread_pool.hpp>
 #include <nano/node/fwd.hpp>
 
@@ -74,10 +75,13 @@ private:
 	std::unordered_set<nano::block_hash> set;
 
 	nano::thread_pool notification_workers;
+	nano::rate_limiter limiter;
 
 	std::atomic<bool> stopped{ false };
 	mutable std::mutex mutex;
 	std::condition_variable condition;
 	std::thread thread;
+
+	static size_t constexpr batch_size = 256;
 };
 }

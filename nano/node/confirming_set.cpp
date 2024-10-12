@@ -10,7 +10,8 @@ nano::confirming_set::confirming_set (confirming_set_config const & config_a, na
 	config{ config_a },
 	ledger{ ledger_a },
 	stats{ stats_a },
-	notification_workers{ 1, nano::thread_role::name::confirmation_height_notifications }
+	notification_workers{ 1, nano::thread_role::name::confirmation_height_notifications },
+	limiter{ 100, 0 }
 {
 	batch_cemented.add ([this] (auto const & notification) {
 		for (auto const & [block, confirmation_root] : notification.cemented)
@@ -95,7 +96,9 @@ void nano::confirming_set::run ()
 		}
 		else
 		{
-			condition.wait (lock, [&] () { return !set.empty () || stopped; });
+			condition.wait (lock, [&] () {
+				return !set.empty () || stopped;
+			});
 		}
 	}
 }
@@ -124,7 +127,7 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 	std::deque<cemented_t> cemented;
 	std::deque<nano::block_hash> already;
 
-	auto batch = next_batch (256);
+	auto batch = next_batch (batch_size);
 
 	lock.unlock ();
 
@@ -197,6 +200,19 @@ void nano::confirming_set::run_batch (std::unique_lock<std::mutex> & lock)
 					{
 						cemented.emplace_back (block, hash);
 					}
+
+					// Rate limit cementing
+					while (!limiter.should_pass (added.size ()))
+					{
+						stats.inc (nano::stat::type::confirming_set, nano::stat::detail::rate_limited);
+						transaction.commit ();
+						std::this_thread::sleep_for (500ms);
+						transaction.renew ();
+						if (stopped)
+						{
+							return;
+						}
+					}
 				}
 				else
 				{
@@ -222,6 +238,7 @@ nano::container_info nano::confirming_set::container_info () const
 
 	nano::container_info info;
 	info.put ("set", set);
+	info.put ("limiter", limiter.size ());
 	info.add ("notification_workers", notification_workers.container_info ());
 	return info;
 }
