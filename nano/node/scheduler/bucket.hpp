@@ -4,6 +4,7 @@
 #include <nano/secure/common.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
@@ -16,13 +17,6 @@
 #include <set>
 
 namespace mi = boost::multi_index;
-
-namespace nano
-{
-class election;
-class active_elections;
-class block;
-}
 
 namespace nano::scheduler
 {
@@ -64,6 +58,7 @@ public:
 
 	bool push (uint64_t time, std::shared_ptr<nano::block> block);
 
+	bool contains (nano::block_hash const &) const;
 	size_t size () const;
 	size_t election_count () const;
 	bool empty () const;
@@ -87,11 +82,36 @@ private: // Blocks
 		uint64_t time;
 		std::shared_ptr<nano::block> block;
 
-		bool operator< (block_entry const & other_a) const;
-		bool operator== (block_entry const & other_a) const;
+		bool operator< (block_entry const & other) const;
+		bool operator== (block_entry const & other) const;
+
+		nano::block_hash hash () const
+		{
+			return block->hash ();
+		}
 	};
 
-	std::set<block_entry> queue;
+	// TODO: Replace with multi_index_container
+	// std::set<block_entry> queue;
+
+	// clang-format off
+	class tag_sequenced {};
+	class tag_root {};
+	class tag_priority {};
+	class tag_hash {};
+	// clang-format on
+
+	// clang-format off
+	using ordered_blocks = boost::multi_index_container<block_entry,
+	mi::indexed_by<
+		mi::ordered_non_unique<mi::tag<tag_priority>,
+			mi::identity<block_entry>>,
+		mi::hashed_unique<mi::tag<tag_hash>,
+			mi::const_mem_fun<block_entry, nano::block_hash, &block_entry::hash>>
+	>>;
+	// clang-format on
+
+	ordered_blocks queue;
 
 private: // Elections
 	struct election_entry
@@ -102,10 +122,6 @@ private: // Elections
 	};
 
 	// clang-format off
-	class tag_sequenced {};
-	class tag_root {};
-	class tag_priority {};
-
 	using ordered_elections = boost::multi_index_container<election_entry,
 	mi::indexed_by<
 		mi::sequenced<mi::tag<tag_sequenced>>,

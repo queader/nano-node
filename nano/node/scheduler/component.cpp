@@ -37,6 +37,11 @@ void nano::scheduler::component::stop ()
 	priority.stop ();
 }
 
+bool nano::scheduler::component::exists (nano::block_hash const & hash) const
+{
+	return manual.exists (hash) || priority.exists (hash);
+}
+
 nano::container_info nano::scheduler::component::container_info () const
 {
 	nano::container_info info;

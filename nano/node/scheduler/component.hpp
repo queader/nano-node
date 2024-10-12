@@ -13,10 +13,11 @@ public:
 	explicit component (nano::node & node);
 	~component ();
 
-	// Starts all schedulers
 	void start ();
-	// Stops all schedulers
 	void stop ();
+
+	/// Does the block exist in any of the schedulers
+	bool exists (nano::block_hash const & hash) const;
 
 	nano::container_info container_info () const;
 

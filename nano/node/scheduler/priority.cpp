@@ -141,6 +141,13 @@ bool nano::scheduler::priority::activate (secure::transaction const & transactio
 	return false; // Not activated
 }
 
+bool nano::scheduler::priority::exists (nano::block_hash const & hash) const
+{
+	return std::any_of (buckets.begin (), buckets.end (), [&hash] (auto const & bucket) {
+		return bucket->contains (hash);
+	});
+}
+
 void nano::scheduler::priority::notify ()
 {
 	condition.notify_all ();

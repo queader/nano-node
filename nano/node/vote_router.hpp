@@ -39,6 +39,9 @@ public:
 	vote_router (nano::vote_cache & cache, nano::recently_confirmed_cache & recently_confirmed);
 	~vote_router ();
 
+	void start ();
+	void stop ();
+
 	// Add a route for 'hash' to 'election'
 	// Existing routes will be replaced
 	// Election must hold the block for the hash being passed in
@@ -54,9 +57,7 @@ public:
 	std::unordered_map<nano::block_hash, nano::vote_code> vote (std::shared_ptr<nano::vote> const &, nano::vote_source = nano::vote_source::live, nano::block_hash filter = { 0 });
 	bool active (nano::block_hash const & hash) const;
 	std::shared_ptr<nano::election> election (nano::block_hash const & hash) const;
-
-	void start ();
-	void stop ();
+	bool exists (nano::block_hash const & hash) const;
 
 	using vote_processed_event_t = nano::observer_set<std::shared_ptr<nano::vote> const &, nano::vote_source, std::unordered_map<nano::block_hash, nano::vote_code> const &>;
 	vote_processed_event_t vote_processed;
