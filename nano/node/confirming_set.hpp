@@ -3,6 +3,7 @@
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/numbers_templ.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/lib/rate_limiting.hpp>
 #include <nano/lib/thread_pool.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/secure/common.hpp>
@@ -36,6 +37,9 @@ public:
 	/** Maximum number of dependent blocks to be stored in memory during processing */
 	size_t max_blocks{ 128 * 1024 };
 	size_t max_queued_notifications{ 8 };
+
+	/** For bounded backlog testing */
+	size_t rate_limit{ 0 };
 };
 
 /**
@@ -106,6 +110,8 @@ private:
 
 	ordered_entries set;
 	std::unordered_set<nano::block_hash> current;
+
+	nano::rate_limiter limiter;
 
 	std::atomic<bool> stopped{ false };
 	mutable std::mutex mutex;

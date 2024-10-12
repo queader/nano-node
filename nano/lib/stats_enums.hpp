@@ -145,6 +145,7 @@ enum class detail
 	retry,
 	prioritized,
 	pending,
+	rate_limited,
 
 	// processing queue
 	queue,
