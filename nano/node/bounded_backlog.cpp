@@ -71,7 +71,7 @@ void nano::bounded_backlog::stop ()
 
 uint64_t nano::bounded_backlog::backlog_size () const
 {
-	return backlog_counter.load ();
+	return index.backlog_size ();
 }
 
 // TODO: This is a very naive implementation, it should be optimized
@@ -87,24 +87,14 @@ bool nano::bounded_backlog::update (nano::secure::transaction const & transactio
 		{
 			return activate (transaction, account, *info, conf_info);
 		}
-		else
-		{
-			return erase (transaction, account);
-		}
 	}
-	return false; // Not activated
+	return erase (transaction, account);
 }
 
 bool nano::bounded_backlog::erase (nano::secure::transaction const & transaction, nano::account const & account)
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	if (auto existing = accounts.get<tag_account> ().find (account); existing != accounts.get<tag_account> ().end ())
-	{
-		backlog_counter -= existing->unconfirmed;
-		accounts.get<tag_account> ().erase (existing);
-		return true;
-	}
-	return false; // Nothing to erase
+	return index.erase (account);
 }
 
 bool nano::bounded_backlog::activate (nano::secure::transaction const & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info)
@@ -116,12 +106,9 @@ bool nano::bounded_backlog::activate (nano::secure::transaction const & transact
 	// Check if the block is already in the backlog, avoids unnecessary ledger lookups
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		if (auto existing = accounts.get<tag_account> ().find (account); existing != accounts.get<tag_account> ().end ())
+		if (index.head (account) == hash)
 		{
-			if (existing->head == hash)
-			{
-				return false; // Block already exists in the backlog
-			}
+			return false; // This account is already tracked
 		}
 	}
 
@@ -137,37 +124,7 @@ bool nano::bounded_backlog::activate (nano::secure::transaction const & transact
 
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
-	entry updated_entry{
-		.account = account,
-		.bucket = bucket_index,
-		.priority = priority_timestamp,
-		.head = hash,
-		.unconfirmed = unconfirmed
-	};
-
-	uint64_t previous_unconfirmed;
-
-	// Insert or update the account in the backlog
-	if (auto existing = accounts.get<tag_account> ().find (account); existing != accounts.get<tag_account> ().end ())
-	{
-		previous_unconfirmed = existing->unconfirmed;
-		accounts.get<tag_account> ().replace (existing, updated_entry);
-	}
-	else
-	{
-		previous_unconfirmed = 0;
-		accounts.get<tag_account> ().insert (updated_entry);
-	}
-
-	// Update the backlog size, sizes are unsigned so some care is needed
-	if (unconfirmed > previous_unconfirmed)
-	{
-		backlog_counter += unconfirmed - previous_unconfirmed;
-	}
-	else // previous_unconfirmed >= unconfirmed
-	{
-		backlog_counter -= previous_unconfirmed - unconfirmed;
-	}
+	index.update (account, hash, bucket_index, priority_timestamp, unconfirmed);
 
 	return true; // Updated
 }
@@ -193,7 +150,7 @@ nano::priority_timestamp nano::bounded_backlog::block_priority_timestamp (nano::
 
 bool nano::bounded_backlog::predicate () const
 {
-	return backlog_counter >= config.max_backlog;
+	return index.backlog_size () > config.max_backlog;
 }
 
 void nano::bounded_backlog::run ()
@@ -205,7 +162,12 @@ void nano::bounded_backlog::run ()
 		{
 			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::loop);
 
-			auto targets = gather_targets ();
+			// Calculate the number of targets to rollback
+			auto const backlog = index.backlog_size ();
+			debug_assert (backlog > config.max_backlog);
+			auto const target_count = std::min (static_cast<size_t> (backlog) - config.max_backlog, config.batch_size);
+
+			auto targets = gather_targets (target_count);
 			if (!targets.empty ())
 			{
 				lock.unlock ();
@@ -297,31 +259,28 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 	}
 }
 
-auto nano::bounded_backlog::gather_targets () const -> std::deque<rollback_target>
+auto nano::bounded_backlog::gather_targets (size_t max_count) const -> std::deque<rollback_target>
 {
 	debug_assert (!mutex.try_lock ());
 
 	std::deque<rollback_target> targets;
 
-	for (auto bucket_index : bucketing.indices ())
+	for (auto bucket : bucketing.indices ())
 	{
-		key const starting_key{ bucket_index, std::numeric_limits<nano::priority_timestamp>::max () }; // Highest timestamp, lowest priority
-
-		std::deque<rollback_target> current;
-
-		auto begin = accounts.get<tag_key> ().lower_bound (starting_key);
-		for (auto it = begin; it != accounts.get<tag_key> ().end () && it->bucket == bucket_index && current.size () < config.batch_size; ++it)
+		// Only start rolling back if the bucket is over the threshold of unconfirmed blocks
+		if (index.unconfirmed (bucket) > config.bucket_threshold)
 		{
-			// Only rollback if the block is not being used by the node
-			if (should_rollback (it->head))
+			auto const count = std::min (max_count, config.batch_size);
+
+			auto const top = index.top (bucket, count, [this] (auto const & hash) {
+				// Only rollback if the block is not being used by the node
+				return should_rollback (hash);
+			});
+
+			for (auto const & entry : top)
 			{
-				current.push_back ({ it->account, it->head });
+				targets.push_back ({ entry.account, entry.head });
 			}
-		}
-
-		for (auto i = 0; i < config.batch_size && i < current.size (); ++i)
-		{
-			targets.push_back (current[i]);
 		}
 	}
 
@@ -331,29 +290,124 @@ auto nano::bounded_backlog::gather_targets () const -> std::deque<rollback_targe
 nano::container_info nano::bounded_backlog::container_info () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
+	return index.container_info ();
+}
 
-	auto collect_bucket_info = [&] () {
-		nano::container_info info;
-		for (auto bucket_index : bucketing.indices ())
+/*
+ * backlog_index
+ */
+
+void nano::backlog_index::update (nano::account const & account, nano::block_hash const & head, nano::bucket_index bucket, nano::priority_timestamp priority, uint64_t unconfirmed)
+{
+	debug_assert (unconfirmed > 0);
+
+	entry updated_entry{
+		.account = account,
+		.bucket = bucket,
+		.priority = priority,
+		.head = head,
+		.unconfirmed = unconfirmed
+	};
+
+	// Insert or update the account in the backlog
+	if (auto existing = accounts.get<tag_account> ().find (account); existing != accounts.get<tag_account> ().end ())
+	{
+		backlog_counter -= existing->unconfirmed;
+		backlog_counter += unconfirmed;
+		unconfirmed_by_bucket[existing->bucket] -= existing->unconfirmed;
+		unconfirmed_by_bucket[bucket] += unconfirmed;
+		accounts.get<tag_account> ().replace (existing, updated_entry);
+	}
+	else
+	{
+		size_by_bucket[bucket] += 1;
+		unconfirmed_by_bucket[bucket] += unconfirmed;
+		backlog_counter += unconfirmed;
+		accounts.get<tag_account> ().insert (updated_entry);
+	}
+}
+
+bool nano::backlog_index::erase (nano::account const & account)
+{
+	if (auto existing = accounts.get<tag_account> ().find (account); existing != accounts.get<tag_account> ().end ())
+	{
+		backlog_counter -= existing->unconfirmed;
+		unconfirmed_by_bucket[existing->bucket] -= existing->unconfirmed;
+		size_by_bucket[existing->bucket] -= 1;
+		accounts.get<tag_account> ().erase (existing);
+		return true;
+	}
+	return false;
+}
+
+nano::block_hash nano::backlog_index::head (nano::account const & account) const
+{
+	if (auto existing = accounts.get<tag_account> ().find (account); existing != accounts.get<tag_account> ().end ())
+	{
+		return existing->head;
+	}
+	return { 0 };
+}
+
+uint64_t nano::backlog_index::backlog_size () const
+{
+	debug_assert (backlog_counter >= 0);
+	return static_cast<uint64_t> (backlog_counter);
+}
+
+uint64_t nano::backlog_index::unconfirmed (nano::bucket_index bucket) const
+{
+	if (auto existing = unconfirmed_by_bucket.find (bucket); existing != unconfirmed_by_bucket.end ())
+	{
+		auto result = existing->second;
+		debug_assert (result >= 0);
+		return static_cast<uint64_t> (result);
+	}
+	return 0;
+}
+
+std::deque<nano::backlog_index::value_type> nano::backlog_index::top (nano::bucket_index bucket, size_t count, filter_t const & filter) const
+{
+	key const starting_key{ bucket, std::numeric_limits<nano::priority_timestamp>::max () }; // Highest timestamp, lowest priority
+
+	std::deque<value_type> results;
+
+	auto begin = accounts.get<tag_key> ().lower_bound (starting_key);
+	for (auto it = begin; it != accounts.get<tag_key> ().end () && it->bucket == bucket && results.size () < count; ++it)
+	{
+		if (filter (it->head))
 		{
-			key const starting_key{ bucket_index, std::numeric_limits<nano::priority_timestamp>::max () }; // Highest timestamp, lowest priority
+			results.push_back (*it);
+		}
+	}
 
-			size_t count = 0;
+	return results;
+}
 
-			auto begin = accounts.get<tag_key> ().lower_bound (starting_key);
-			for (auto it = begin; it != accounts.get<tag_key> ().end () && it->bucket == bucket_index; ++it)
-			{
-				++count;
-			}
+nano::container_info nano::backlog_index::container_info () const
+{
+	auto collect_bucket_sizes = [&] () {
+		nano::container_info info;
+		for (auto [bucket, count] : size_by_bucket)
+		{
+			info.put (std::to_string (bucket), count);
+		}
+		return info;
+	};
 
-			info.put (std::to_string (bucket_index), count);
+	auto collect_bucket_unconfirmed = [&] () {
+		nano::container_info info;
+		for (auto [bucket, unconfirmed] : unconfirmed_by_bucket)
+		{
+			info.put (std::to_string (bucket), unconfirmed);
 		}
 		return info;
 	};
 
 	nano::container_info info;
 	info.put ("accounts", accounts.size ());
-	info.put ("backlog", backlog_counter.load ());
-	info.add ("buckets", collect_bucket_info ());
+	info.put ("backlog", backlog_counter);
+	info.add ("sizes", collect_bucket_sizes ());
+	info.add ("unconfirmed", collect_bucket_unconfirmed ());
 	return info;
 }

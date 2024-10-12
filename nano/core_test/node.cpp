@@ -3824,6 +3824,7 @@ TEST (node, bounded_backlog)
 
 	nano::node_config node_config;
 	node_config.backlog.max_backlog = 10;
+	node_config.backlog.bucket_threshold = 2;
 	node_config.backlog_scan.enable = false;
 	auto & node = *system.add_node (node_config);
 
