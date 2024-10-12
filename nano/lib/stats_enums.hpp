@@ -137,6 +137,7 @@ enum class detail
 	empty,
 	done,
 	retry,
+	rate_limited,
 
 	// processing queue
 	queue,
