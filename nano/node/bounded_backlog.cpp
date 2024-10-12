@@ -235,6 +235,8 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 	// 	std::cout << "rollback: " << hash.to_string () << ", account: " << account.to_account () << std::endl;
 	// }
 
+	std::deque<nano::account> accounts;
+
 	for (auto const & [account, hash] : targets)
 	{
 		// Here we check that the block is still OK to rollback, there could be a delay between gathering the targets and performing the rollbacks
@@ -250,6 +252,7 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 			else
 			{
 				stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::rollback);
+				accounts.push_back (account);
 			}
 		}
 		else
@@ -257,6 +260,8 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::rollback_missing_block);
 		}
 	}
+
+	rolled_back.notify (accounts);
 }
 
 auto nano::bounded_backlog::gather_targets (size_t max_count) const -> std::deque<rollback_target>

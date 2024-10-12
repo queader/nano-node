@@ -4,6 +4,7 @@
 #include <nano/lib/thread_roles.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap_ascending/service.hpp>
+#include <nano/node/bounded_backlog.hpp>
 #include <nano/node/network.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/transport/transport.hpp>
@@ -19,12 +20,13 @@ using namespace std::chrono_literals;
  * bootstrap_ascending
  */
 
-nano::bootstrap_ascending::service::service (nano::node_config const & node_config_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stats & stat_a, nano::logger & logger_a) :
+nano::bootstrap_ascending::service::service (nano::node_config const & node_config_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::bounded_backlog & bounded_backlog_a, nano::stats & stat_a, nano::logger & logger_a) :
 	config{ node_config_a.bootstrap_ascending },
 	network_constants{ node_config_a.network_params.network },
 	block_processor{ block_processor_a },
 	ledger{ ledger_a },
 	network{ network_a },
+	bounded_backlog{ bounded_backlog_a },
 	stats{ stat_a },
 	logger{ logger_a },
 	accounts{ config.account_sets, stats },
@@ -49,10 +51,17 @@ nano::bootstrap_ascending::service::service (nano::node_config const & node_conf
 	});
 
 	block_processor.rolled_back.add ([this] (auto const & block) {
+		// Unblock rolled back accounts as the dependency is no longer valid
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		accounts.unblock (block->account ());
+	});
+
+	bounded_backlog.rolled_back.add ([this] (auto const & batch) {
+		// Unblock rolled back accounts as the dependency is no longer valid
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		for (auto const & account : batch)
 		{
-			// Unblock rolled back accounts as the dependency is no longer valid
-			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.unblock (block->account ());
+			accounts.unblock (account);
 		}
 	});
 

@@ -150,7 +150,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	backlog_scan{ *backlog_scan_impl },
 	backlog_impl{ std::make_unique<nano::bounded_backlog> (config.backlog, *this, ledger, bucketing, backlog_scan, block_processor, stats, logger) },
 	backlog{ *backlog_impl },
-	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, stats, logger) },
+	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, backlog, stats, logger) },
 	ascendboot{ *ascendboot_impl },
 	websocket{ config.websocket_config, observers, wallets, ledger, io_ctx, logger },
 	epoch_upgrader{ *this, ledger, store, network_params, logger },

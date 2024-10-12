@@ -2,6 +2,7 @@
 
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/lib/observer_set.hpp>
 #include <nano/node/bucketing.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/secure/common.hpp>
@@ -104,6 +105,9 @@ public:
 	uint64_t backlog_size () const;
 
 	nano::container_info container_info () const;
+
+public: // Events
+	nano::observer_set<std::deque<nano::account> const &> rolled_back;
 
 private: // Dependencies
 	bounded_backlog_config const & config;
