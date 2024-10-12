@@ -156,6 +156,12 @@ std::shared_ptr<nano::election> nano::vote_router::election (nano::block_hash co
 	return nullptr;
 }
 
+bool nano::vote_router::exists (nano::block_hash const & hash) const
+{
+	std::shared_lock lock{ mutex };
+	return elections.contains (hash);
+}
+
 void nano::vote_router::start ()
 {
 	thread = std::thread{ [this] () {
