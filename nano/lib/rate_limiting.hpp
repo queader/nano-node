@@ -45,7 +45,7 @@ public:
 	size_t size () const;
 
 private:
-	void refill ();
+	void refill (unsigned tokens_required);
 
 private:
 	std::size_t max_token_count;

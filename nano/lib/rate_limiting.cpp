@@ -13,16 +13,16 @@ nano::rate::token_bucket::token_bucket (std::size_t max_token_count_a, std::size
 	reset (max_token_count_a, refill_rate_a);
 }
 
-bool nano::rate::token_bucket::try_consume (unsigned tokens_required_a)
+bool nano::rate::token_bucket::try_consume (unsigned tokens_required)
 {
-	debug_assert (tokens_required_a <= 1e9);
-	refill ();
-	bool possible = current_size >= tokens_required_a;
+	debug_assert (tokens_required <= 1e9);
+	refill (tokens_required);
+	bool possible = current_size >= tokens_required;
 	if (possible)
 	{
-		current_size -= tokens_required_a;
+		current_size -= tokens_required;
 	}
-	else if (tokens_required_a == 1e9)
+	else if (tokens_required == 1e9)
 	{
 		current_size = 0;
 	}
@@ -33,12 +33,12 @@ bool nano::rate::token_bucket::try_consume (unsigned tokens_required_a)
 	return possible || refill_rate == unlimited_rate_sentinel;
 }
 
-void nano::rate::token_bucket::refill ()
+void nano::rate::token_bucket::refill (unsigned tokens_required)
 {
 	auto now (std::chrono::steady_clock::now ());
 	std::size_t tokens_to_add = static_cast<std::size_t> (std::chrono::duration_cast<std::chrono::nanoseconds> (now - last_refill).count () / 1e9 * refill_rate);
-	// Only update if there are any tokens to add
-	if (tokens_to_add > 0)
+	// Only update if there are enough tokens to add
+	if (tokens_to_add >= tokens_required)
 	{
 		current_size = std::min (current_size + tokens_to_add, max_token_count);
 		last_refill = std::chrono::steady_clock::now ();
