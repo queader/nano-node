@@ -16,6 +16,9 @@ public:
 	void start ();
 	void stop ();
 
+	/// Does the block exist in any of the schedulers
+	bool exists (nano::block_hash const & hash) const;
+
 	nano::container_info container_info () const;
 
 private:

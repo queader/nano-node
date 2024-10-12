@@ -200,6 +200,14 @@ std::vector<std::shared_ptr<nano::vote>> nano::vote_cache::find (const nano::blo
 	return {};
 }
 
+bool nano::vote_cache::exists (const nano::block_hash & hash) const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	auto & cache_by_hash = cache.get<tag_hash> ();
+	return cache_by_hash.find (hash) != cache_by_hash.end ();
+}
+
 bool nano::vote_cache::erase (const nano::block_hash & hash)
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
