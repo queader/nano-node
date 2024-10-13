@@ -128,12 +128,15 @@ void nano::backlog_scan::activate (secure::transaction const & transaction, nano
 	auto const maybe_conf_info = ledger.store.confirmation_height.get (transaction, account);
 	auto const conf_info = maybe_conf_info.value_or (nano::confirmation_height_info{});
 
+	activated_info info{ account, account_info, conf_info };
+
+	stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::scanned);
+	scanned.notify (transaction, info);
+
 	// If conf info is empty then it means then it means nothing is confirmed yet
 	if (conf_info.height < account_info.block_count)
 	{
 		stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::activated);
-
-		activated_info info{ account, account_info, conf_info };
 		activated.notify (transaction, info);
 	}
 }
