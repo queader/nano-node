@@ -3835,5 +3835,5 @@ TEST (node, bounded_backlog)
 
 	node.backlog_scan.trigger ();
 
-	ASSERT_TIMELY_EQ (30s, node.ledger.block_count (), 11); // 10 + genesis
+	ASSERT_TIMELY_EQ (20s, node.ledger.block_count (), 11); // 10 + genesis
 }

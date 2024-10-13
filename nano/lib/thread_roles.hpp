@@ -38,6 +38,7 @@ enum class name
 	unchecked,
 	backlog_scan,
 	bounded_backlog,
+	bounded_backlog_scan,
 	vote_generator_queue,
 	bootstrap_server,
 	telemetry,

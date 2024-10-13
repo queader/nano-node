@@ -17,7 +17,8 @@ nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & con
 	backlog_scan{ backlog_scan_a },
 	block_processor{ block_processor_a },
 	stats{ stats_a },
-	logger{ logger_a }
+	logger{ logger_a },
+	scan_limiter{ config.batch_size, 1.0 }
 {
 	backlog_scan.activated.add ([this] (auto const & transaction, auto const & info) {
 		activate (transaction, info.account, info.account_info, info.conf_info);
@@ -45,6 +46,7 @@ nano::bounded_backlog::~bounded_backlog ()
 {
 	// Thread must be stopped before destruction
 	debug_assert (!thread.joinable ());
+	debug_assert (!scan_thread.joinable ());
 }
 
 void nano::bounded_backlog::start ()
@@ -54,6 +56,11 @@ void nano::bounded_backlog::start ()
 	thread = std::thread{ [this] () {
 		nano::thread_role::set (nano::thread_role::name::bounded_backlog);
 		run ();
+	} };
+
+	scan_thread = std::thread{ [this] () {
+		nano::thread_role::set (nano::thread_role::name::backlog_scan);
+		run_scan ();
 	} };
 }
 
@@ -67,6 +74,10 @@ void nano::bounded_backlog::stop ()
 	if (thread.joinable ())
 	{
 		thread.join ();
+	}
+	if (scan_thread.joinable ())
+	{
+		scan_thread.join ();
 	}
 }
 
@@ -296,6 +307,51 @@ auto nano::bounded_backlog::gather_targets (size_t max_count) const -> std::dequ
 	return targets;
 }
 
+void nano::bounded_backlog::run_scan ()
+{
+	std::unique_lock<nano::mutex> lock{ mutex };
+	while (!stopped)
+	{
+		auto wait = [&] (auto count) {
+			while (!scan_limiter.should_pass (count))
+			{
+				condition.wait_for (lock, 100ms);
+				if (stopped)
+				{
+					return;
+				}
+			}
+		};
+
+		nano::account last = 0;
+
+		while (!stopped)
+		{
+			wait (config.batch_size);
+
+			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::loop_scan);
+
+			auto batch = index.next (last, config.batch_size);
+			if (batch.empty ()) // If batch is empty, we iterated over all accounts in the index
+			{
+				break;
+			}
+
+			lock.unlock ();
+			{
+				auto transaction = ledger.tx_begin_read ();
+				for (auto const & entry : batch)
+				{
+					stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::scanned);
+					update (transaction, entry.account);
+					last = entry.account;
+				}
+			}
+			lock.lock ();
+		}
+	}
+}
+
 nano::container_info nano::bounded_backlog::container_info () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
@@ -388,6 +444,19 @@ std::deque<nano::backlog_index::value_type> nano::backlog_index::top (nano::buck
 		{
 			results.push_back (*it);
 		}
+	}
+
+	return results;
+}
+
+std::deque<nano::backlog_index::value_type> nano::backlog_index::next (nano::account const & start, size_t count) const
+{
+	std::deque<value_type> results;
+
+	auto begin = accounts.get<tag_account> ().lower_bound (start);
+	for (auto it = begin; it != accounts.get<tag_account> ().end () && results.size () < count; ++it)
+	{
+		results.push_back (*it);
 	}
 
 	return results;

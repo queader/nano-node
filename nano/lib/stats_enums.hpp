@@ -533,6 +533,7 @@ enum class detail
 	performing_rollbacks,
 	no_targets,
 	rollback_missing_block,
+	loop_scan,
 
 	_last // Must be the last enum
 };
