@@ -1517,6 +1517,13 @@ uint64_t nano::ledger::pruned_count () const
 	return cache.pruned_count;
 }
 
+uint64_t nano::ledger::backlog_count () const
+{
+	auto blocks = cache.block_count.load ();
+	auto cemented = cache.cemented_count.load ();
+	return (blocks > cemented) ? blocks - cemented : 0;
+}
+
 nano::container_info nano::ledger::container_info () const
 {
 	nano::container_info info;

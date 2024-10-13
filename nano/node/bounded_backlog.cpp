@@ -151,7 +151,7 @@ nano::priority_timestamp nano::bounded_backlog::block_priority_timestamp (nano::
 
 bool nano::bounded_backlog::predicate () const
 {
-	return index.backlog_size () > config.max_backlog;
+	return ledger.backlog_count () > config.max_backlog;
 }
 
 void nano::bounded_backlog::run ()
@@ -164,11 +164,10 @@ void nano::bounded_backlog::run ()
 			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::loop);
 
 			// Calculate the number of targets to rollback
-			auto const backlog = index.backlog_size ();
-			debug_assert (backlog > config.max_backlog);
-			auto const target_count = std::min (static_cast<size_t> (backlog) - config.max_backlog, config.batch_size);
+			uint64_t const backlog = ledger.backlog_count ();
+			uint64_t const target_count = backlog > config.max_backlog ? backlog - config.max_backlog : 0;
 
-			auto targets = gather_targets (target_count);
+			auto targets = gather_targets (std::min (target_count, static_cast<uint64_t> (config.batch_size)));
 			if (!targets.empty ())
 			{
 				lock.unlock ();
