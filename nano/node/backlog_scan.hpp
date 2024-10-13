@@ -55,6 +55,7 @@ public:
 	 */
 	using callback_t = nano::observer_set<nano::secure::transaction const &, activated_info const &>;
 	callback_t activated;
+	callback_t scanned;
 
 private: // Dependencies
 	backlog_scan_config const & config;

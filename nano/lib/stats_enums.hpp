@@ -418,6 +418,7 @@ enum class detail
 	activate_failed,
 	activate_skip,
 	activate_full,
+	scanned,
 
 	// active
 	insert,
