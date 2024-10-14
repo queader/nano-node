@@ -317,7 +317,7 @@ void nano::bounded_backlog::run_scan ()
 			}
 		};
 
-		nano::account last = 0;
+		nano::account next = 0;
 
 		while (!stopped)
 		{
@@ -325,7 +325,7 @@ void nano::bounded_backlog::run_scan ()
 
 			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::loop_scan);
 
-			auto batch = index.next (last, config.batch_size);
+			auto batch = index.next (next, config.batch_size);
 			if (batch.empty ()) // If batch is empty, we iterated over all accounts in the index
 			{
 				break;
@@ -338,7 +338,7 @@ void nano::bounded_backlog::run_scan ()
 				{
 					stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::scanned);
 					update (transaction, entry.account);
-					last = entry.account;
+					next = entry.account.number () + 1;
 				}
 			}
 			lock.lock ();
