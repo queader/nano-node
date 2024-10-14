@@ -990,6 +990,7 @@ nano::uint128_t nano::ledger::weight_exact (secure::transaction const & txn_a, n
 }
 
 // Rollback blocks until `block_a' doesn't exist or it tries to penetrate the confirmation height
+// TODO: Use deque
 bool nano::ledger::rollback (secure::write_transaction const & transaction_a, nano::block_hash const & block_a, std::vector<std::shared_ptr<nano::block>> & list_a)
 {
 	debug_assert (any.block_exists (transaction_a, block_a));

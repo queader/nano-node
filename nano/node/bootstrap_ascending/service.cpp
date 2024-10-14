@@ -54,18 +54,20 @@ nano::bootstrap_ascending::service::service (nano::node_config const & node_conf
 		condition.notify_all ();
 	});
 
+	// Unblock rolled back accounts as the dependency is no longer valid
 	block_processor.rolled_back.add ([this] (auto const & block) {
-		// Unblock rolled back accounts as the dependency is no longer valid
+		debug_assert (block != nullptr);
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		accounts.unblock (block->account ());
 	});
 
+	// Unblock rolled back accounts as the dependency is no longer valid
 	bounded_backlog.rolled_back.add ([this] (auto const & batch) {
-		// Unblock rolled back accounts as the dependency is no longer valid
 		nano::lock_guard<nano::mutex> lock{ mutex };
-		for (auto const & account : batch)
+		for (auto const & block : batch)
 		{
-			accounts.unblock (account);
+			debug_assert (block != nullptr);
+			accounts.unblock (block->account ());
 		}
 	});
 

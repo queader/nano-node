@@ -250,7 +250,7 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 	// 	std::cout << "rollback: " << hash.to_string () << ", account: " << account.to_account () << std::endl;
 	// }
 
-	std::deque<nano::account> accounts;
+	std::deque<std::shared_ptr<nano::block>> rollbacks;
 
 	for (auto const & [account, hash] : targets)
 	{
@@ -259,16 +259,10 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 		{
 			logger.debug (nano::log::type::bounded_backlog, "Rolling back: {}, account: {}", hash.to_string (), account.to_account ());
 
-			bool error = ledger.rollback (transaction, hash);
-			if (error)
-			{
-				stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::rollback_failed);
-			}
-			else
-			{
-				stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::rollback);
-				accounts.push_back (account);
-			}
+			std::vector<std::shared_ptr<nano::block>> rollback_list;
+			bool error = ledger.rollback (transaction, hash, rollback_list);
+			stats.inc (nano::stat::type::bounded_backlog, error ? nano::stat::detail::rollback_failed : nano::stat::detail::rollback);
+			rollbacks.insert (rollbacks.end (), rollback_list.begin (), rollback_list.end ());
 		}
 		else
 		{
@@ -276,7 +270,7 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 		}
 	}
 
-	rolled_back.notify (accounts);
+	rolled_back.notify (rollbacks);
 }
 
 auto nano::bounded_backlog::gather_targets (size_t max_count) const -> std::deque<rollback_target>
