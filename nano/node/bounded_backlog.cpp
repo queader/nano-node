@@ -3,19 +3,21 @@
 #include <nano/node/backlog_scan.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bounded_backlog.hpp>
+#include <nano/node/confirming_set.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/scheduler/component.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/store/confirmation_height.hpp>
 
-nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & config_a, nano::node & node_a, nano::ledger & ledger_a, nano::bucketing & bucketing_a, nano::backlog_scan & backlog_scan_a, nano::block_processor & block_processor_a, nano::stats & stats_a, nano::logger & logger_a) :
+nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & config_a, nano::node & node_a, nano::ledger & ledger_a, nano::bucketing & bucketing_a, nano::backlog_scan & backlog_scan_a, nano::block_processor & block_processor_a, nano::confirming_set & confirming_set_a, nano::stats & stats_a, nano::logger & logger_a) :
 	config{ config_a },
 	node{ node_a },
 	ledger{ ledger_a },
 	bucketing{ bucketing_a },
 	backlog_scan{ backlog_scan_a },
 	block_processor{ block_processor_a },
+	confirming_set{ confirming_set_a },
 	stats{ stats_a },
 	logger{ logger_a },
 	scan_limiter{ config.batch_size, 1.0 }
@@ -39,6 +41,14 @@ nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & con
 	block_processor.rolled_back.add ([this] (auto const & block) {
 		auto transaction = ledger.tx_begin_read ();
 		update (transaction, block->account ());
+	});
+
+	confirming_set.batch_cemented.add ([this] (auto const & notification) {
+		auto transaction = ledger.tx_begin_read ();
+		for (auto const & [block, confirmation_root] : notification.cemented)
+		{
+			update (transaction, block->account ());
+		}
 	});
 }
 

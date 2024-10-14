@@ -148,7 +148,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	wallets (wallets_store.init_error (), *this),
 	backlog_scan_impl{ std::make_unique<nano::backlog_scan> (config.backlog_scan, ledger, stats) },
 	backlog_scan{ *backlog_scan_impl },
-	backlog_impl{ std::make_unique<nano::bounded_backlog> (config.backlog, *this, ledger, bucketing, backlog_scan, block_processor, stats, logger) },
+	backlog_impl{ std::make_unique<nano::bounded_backlog> (config.backlog, *this, ledger, bucketing, backlog_scan, block_processor, confirming_set, stats, logger) },
 	backlog{ *backlog_impl },
 	ascendboot_impl{ std::make_unique<nano::bootstrap_ascending::service> (config, block_processor, ledger, network, backlog, stats, logger) },
 	ascendboot{ *ascendboot_impl },

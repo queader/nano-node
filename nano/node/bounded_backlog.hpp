@@ -99,7 +99,7 @@ public:
 class bounded_backlog
 {
 public:
-	bounded_backlog (bounded_backlog_config const &, nano::node &, nano::ledger &, nano::bucketing &, nano::backlog_scan &, nano::block_processor &, nano::stats &, nano::logger &);
+	bounded_backlog (bounded_backlog_config const &, nano::node &, nano::ledger &, nano::bucketing &, nano::backlog_scan &, nano::block_processor &, nano::confirming_set &, nano::stats &, nano::logger &);
 	~bounded_backlog ();
 
 	void start ();
@@ -119,6 +119,7 @@ private: // Dependencies
 	nano::bucketing & bucketing;
 	nano::backlog_scan & backlog_scan;
 	nano::block_processor & block_processor;
+	nano::confirming_set & confirming_set;
 	nano::stats & stats;
 	nano::logger & logger;
 
