@@ -3,6 +3,7 @@
 #include <nano/lib/enum_util.hpp>
 #include <nano/lib/stats_enums.hpp>
 #include <nano/lib/thread_roles.hpp>
+#include <nano/lib/timer.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap/bootstrap_service.hpp>
 #include <nano/node/bootstrap/crawlers.hpp>
@@ -466,16 +467,20 @@ std::pair<nano::account, double> nano::bootstrap_service::wait_priority ()
 
 void nano::bootstrap_service::run_one_priority ()
 {
+	nano::timer timer{ timer_state::started };
 	// Wait for the blockprocessor to have capacity
 	wait_blockprocessor ();
+	stats.add (nano::stat::type::bootstrap_wait, nano::stat::detail::wait_blockprocessor, timer.restart ().count ());
 	// Wait for a channel with available capacity
 	auto channel = wait_channel ();
+	stats.add (nano::stat::type::bootstrap_wait, nano::stat::detail::wait_channel, timer.restart ().count ());
 	if (!channel)
 	{
 		return;
 	}
 	// Wait for next priority account to query
 	auto [account, priority] = wait_priority ();
+	stats.add (nano::stat::type::bootstrap_wait, nano::stat::detail::wait_priority, timer.restart ().count ());
 	if (account.is_zero ())
 	{
 		return;

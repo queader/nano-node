@@ -69,6 +69,7 @@ enum class type
 	bootstrap_frontiers,
 	bootstrap_account_sets,
 	bootstrap_frontier_scan,
+	bootstrap_wait,
 	bootstrap_server,
 	bootstrap_server_request,
 	bootstrap_server_overfill,
@@ -498,6 +499,12 @@ enum class detail
 
 	safe,
 	base,
+
+	// bootstrap_wait
+	wait_tags,
+	wait_blockprocessor,
+	wait_channel,
+	wait_priority,
 
 	// active
 	started_hinted,
