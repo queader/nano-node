@@ -708,13 +708,18 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::bloc
 		case verify_result::nothing_new:
 		{
 			stats.inc (nano::stat::type::bootstrap_ascending_verify, nano::stat::detail::nothing_new);
-
-			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.priority_down (tag.account);
-			if (tag.source == query_source::database)
 			{
-				throttle.add (false);
+				nano::lock_guard<nano::mutex> lock{ mutex };
+
+				accounts.priority_down (tag.account);
+				accounts.timestamp_reset (tag.account);
+
+				if (tag.source == query_source::database)
+				{
+					throttle.add (false);
+				}
 			}
+			condition.notify_all ();
 		}
 		break;
 		case verify_result::invalid:
@@ -745,6 +750,7 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::acco
 			accounts.priority_set (response.account);
 		}
 	}
+	condition.notify_all ();
 }
 
 void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::frontiers_payload & response, const async_tag & tag)
