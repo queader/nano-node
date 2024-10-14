@@ -54,12 +54,12 @@ void nano::rate::token_bucket::reset (std::size_t max_token_count_a, std::size_t
 {
 	// A token count of 0 indicates unlimited capacity. We use 1e9 as
 	// a sentinel, allowing largest burst to still be computed.
-	if (max_token_count_a == 0 || refill_rate_a == 0)
-	{
-		refill_rate_a = max_token_count_a = unlimited_rate_sentinel;
-	}
+	// if (max_token_count_a == 0 || refill_rate_a == 0)
+	// {
+	// 	refill_rate_a = max_token_count_a = unlimited_rate_sentinel;
+	// }
 	current_size = 0;
-	max_token_count = smallest_size = max_token_count_a;
+	max_token_count = smallest_size = (max_token_count_a == 0 ? unlimited_rate_sentinel : max_token_count_a);
 	refill_rate = refill_rate_a;
 	last_refill = std::chrono::steady_clock::now ();
 }
