@@ -18,10 +18,9 @@ template <typename UNIT = std::chrono::milliseconds, typename CLOCK = std::chron
 class timer
 {
 public:
-	timer () = default;
-	timer (nano::timer_state state_a, std::string const & description_a = "timer");
-	timer (std::string const & description_a);
-	timer (std::string const & description_a, timer * parent_a);
+	explicit timer (nano::timer_state = nano::timer_state::stopped, std::string const & description = "timer");
+	explicit timer (std::string const & description);
+	timer (std::string const & description, timer * parent_a);
 
 	/** Do not output if measured time is below the time units threshold in \p minimum_a */
 	timer & set_minimum (UNIT minimum_a);
