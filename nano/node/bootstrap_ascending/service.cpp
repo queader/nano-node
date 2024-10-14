@@ -2,6 +2,7 @@
 #include <nano/lib/enum_util.hpp>
 #include <nano/lib/stats_enums.hpp>
 #include <nano/lib/thread_roles.hpp>
+#include <nano/lib/timer.hpp>
 #include <nano/node/blockprocessor.hpp>
 #include <nano/node/bootstrap_ascending/service.hpp>
 #include <nano/node/network.hpp>
@@ -462,14 +463,19 @@ bool nano::bootstrap_ascending::service::request_info (nano::block_hash hash, st
 
 void nano::bootstrap_ascending::service::run_one_priority ()
 {
+	nano::timer timer{ timer_state::started };
 	wait_tags ();
+	stats.add (nano::stat::type::bootstrap_ascending_wait, nano::stat::detail::wait_tags, timer.restart ().count ());
 	wait_blockprocessor ();
+	stats.add (nano::stat::type::bootstrap_ascending_wait, nano::stat::detail::wait_blockprocessor, timer.restart ().count ());
 	auto channel = wait_channel ();
+	stats.add (nano::stat::type::bootstrap_ascending_wait, nano::stat::detail::wait_channel, timer.restart ().count ());
 	if (!channel)
 	{
 		return;
 	}
 	auto [account, priority] = wait_priority ();
+	stats.add (nano::stat::type::bootstrap_ascending_wait, nano::stat::detail::wait_priority, timer.restart ().count ());
 	if (account.is_zero ())
 	{
 		return;

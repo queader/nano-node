@@ -65,6 +65,8 @@ enum class type
 	bootstrap_ascending_request,
 	bootstrap_ascending_reply,
 	bootstrap_ascending_next,
+	bootstrap_ascending_frontiers,
+	bootstrap_ascending_wait,
 	bootstrap_server,
 	bootstrap_server_request,
 	bootstrap_server_overfill,
@@ -476,6 +478,12 @@ enum class detail
 
 	request_blocks,
 	request_account_info,
+
+	// bootstrap_ascending_wait
+	wait_tags,
+	wait_blockprocessor,
+	wait_channel,
+	wait_priority,
 
 	// active
 	started_hinted,
