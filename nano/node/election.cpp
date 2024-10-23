@@ -75,7 +75,7 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock)
 
 		lock.unlock ();
 
-		node.election_workers.push_task ([status_l, confirmation_action_l = confirmation_action] () {
+		node.election_workers.post ([this_l = shared_from_this (), status_l, confirmation_action_l = confirmation_action] () {
 			if (confirmation_action_l)
 			{
 				confirmation_action_l (status_l.winner);

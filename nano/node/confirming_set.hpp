@@ -118,11 +118,11 @@ private:
 	// Blocks that are being cemented in the current batch
 	std::unordered_set<nano::block_hash> current;
 
-	nano::thread_pool notification_workers;
-
 	std::atomic<bool> stopped{ false };
 	mutable std::mutex mutex;
 	std::condition_variable condition;
 	std::thread thread;
+
+	nano::thread_pool workers;
 };
 }

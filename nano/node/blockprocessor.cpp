@@ -45,7 +45,8 @@ nano::block_processor::block_processor (nano::node_config const & node_config, n
 	ledger{ ledger_a },
 	unchecked{ unchecked_a },
 	stats{ stats_a },
-	logger{ logger_a }
+	logger{ logger_a },
+	workers{ 1, nano::thread_role::name::block_processing_notifications }
 {
 	batch_processed.add ([this] (auto const & items) {
 		// For every batch item: notify the 'processed' observer.
@@ -93,11 +94,14 @@ nano::block_processor::~block_processor ()
 {
 	// Thread must be stopped before destruction
 	debug_assert (!thread.joinable ());
+	debug_assert (!workers.alive ());
 }
 
 void nano::block_processor::start ()
 {
 	debug_assert (!thread.joinable ());
+
+	workers.start ();
 
 	thread = std::thread ([this] () {
 		nano::thread_role::set (nano::thread_role::name::block_processing);
@@ -116,6 +120,7 @@ void nano::block_processor::stop ()
 	{
 		thread.join ();
 	}
+	workers.stop ();
 }
 
 // TODO: Remove and replace all checks with calls to size (block_source)
@@ -246,20 +251,33 @@ void nano::block_processor::run ()
 
 			auto processed = process_batch (lock);
 			debug_assert (!lock.owns_lock ());
+			lock.lock ();
 
-			// Set results for futures when not holding the lock
-			for (auto & [result, context] : processed)
+			// It's possible that ledger processing happens faster than the notifications can be processed by other components, cooldown here
+			while (workers.queued_tasks () >= config.max_queued_notifications)
 			{
-				if (context.callback)
+				stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::cooldown);
+				condition.wait_for (lock, 100ms, [this] { return stopped; });
+				if (stopped)
 				{
-					context.callback (result);
+					return;
 				}
-				context.set_result (result);
 			}
 
-			batch_processed.notify (processed);
-
-			lock.lock ();
+			// Queue notifications to be dispatched in the background
+			workers.post ([this, processed = std::move (processed)] () mutable {
+				stats.inc (nano::stat::type::blockprocessor, nano::stat::detail::notify);
+				// Set results for futures when not holding the lock
+				for (auto & [result, context] : processed)
+				{
+					if (context.callback)
+					{
+						context.callback (result);
+					}
+					context.set_result (result);
+				}
+				batch_processed.notify (processed);
+			});
 		}
 		else
 		{
@@ -317,7 +335,7 @@ auto nano::block_processor::process_batch (nano::unique_lock<nano::mutex> & lock
 	debug_assert (!mutex.try_lock ());
 	debug_assert (!queue.empty ());
 
-	auto batch = next_batch (256);
+	auto batch = next_batch (config.batch_size);
 
 	lock.unlock ();
 
@@ -463,7 +481,9 @@ nano::container_info nano::block_processor::container_info () const
 	nano::container_info info;
 	info.put ("blocks", queue.size ());
 	info.put ("forced", queue.size ({ nano::block_source::forced }));
+	info.put ("notifications", workers.queued_tasks ());
 	info.add ("queue", queue.container_info ());
+	info.add ("workers", workers.container_info ());
 	return info;
 }
 
