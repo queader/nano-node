@@ -44,18 +44,12 @@ public:
 	/** Returns the current number of tokens in the bucket */
 	std::size_t size () const;
 
-	/** Returns the largest burst observed */
-	std::size_t largest_burst () const;
-
 	void refill ();
 
 private:
 	std::size_t max_token_count{ 0 };
 	std::size_t refill_rate{ 0 };
-
 	std::size_t current_size{ 0 };
-	std::size_t smallest_size{ 0 }; // The minimum observed bucket size, from which the largest burst can be derived
-	std::size_t largest_size{ 0 }; // The largest observed bucket size, from which the largest burst can be derived
 	std::chrono::steady_clock::time_point last_refill;
 
 	static std::size_t constexpr unlimited_rate_sentinel{ static_cast<std::size_t> (1e9) };
