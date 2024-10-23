@@ -139,6 +139,7 @@ enum class detail
 	retry,
 	requeued,
 	evicted,
+	rate_limited,
 
 	// processing queue
 	queue,
