@@ -442,12 +442,12 @@ uint64_t nano::backlog_index::unconfirmed (nano::bucket_index bucket) const
 
 std::deque<nano::backlog_index::value_type> nano::backlog_index::top (nano::bucket_index bucket, size_t count, filter_t const & filter) const
 {
-	key const starting_key{ bucket, std::numeric_limits<nano::priority_timestamp>::max () }; // Highest timestamp, lowest priority
+	priority_key const starting_key{ bucket, std::numeric_limits<nano::priority_timestamp>::max () }; // Highest timestamp, lowest priority
 
 	std::deque<value_type> results;
 
-	auto begin = accounts.get<tag_key> ().lower_bound (starting_key);
-	for (auto it = begin; it != accounts.get<tag_key> ().end () && it->bucket == bucket && results.size () < count; ++it)
+	auto begin = accounts.get<tag_priority> ().lower_bound (starting_key);
+	for (auto it = begin; it != accounts.get<tag_priority> ().end () && it->bucket == bucket && results.size () < count; ++it)
 	{
 		if (filter (it->head))
 		{

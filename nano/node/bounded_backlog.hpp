@@ -22,12 +22,12 @@ namespace nano
 class backlog_index
 {
 public:
-	struct key
+	struct priority_key
 	{
 		nano::bucket_index bucket;
 		nano::priority_timestamp priority;
 
-		auto operator<=> (key const &) const = default;
+		auto operator<=> (priority_key const &) const = default;
 	};
 
 	struct entry
@@ -38,7 +38,7 @@ public:
 		nano::block_hash head;
 		uint64_t unconfirmed;
 
-		backlog_index::key key () const
+		backlog_index::priority_key priority_key () const
 		{
 			return { bucket, priority };
 		}
@@ -66,14 +66,14 @@ public:
 private:
 	// clang-format off
 	class tag_account {};
-	class tag_key {};
+	class tag_priority {};
 
 	using ordered_accounts = boost::multi_index_container<entry,
 	mi::indexed_by<
 		mi::ordered_unique<mi::tag<tag_account>,
 			mi::member<entry, nano::account, &entry::account>>,
-		mi::ordered_non_unique<mi::tag<tag_key>,
-			mi::const_mem_fun<entry, key, &entry::key>, std::greater<>> // DESC order
+		mi::ordered_non_unique<mi::tag<tag_priority>,
+			mi::const_mem_fun<entry, priority_key, &entry::priority_key>, std::greater<>> // DESC order
 	>>;
 	// clang-format on
 
