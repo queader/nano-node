@@ -206,7 +206,7 @@ nano::block_hash nano::block::full_hash () const
 
 nano::block_sideband const & nano::block::sideband () const
 {
-	debug_assert (sideband_m.is_initialized ());
+	release_assert (sideband_m.is_initialized ());
 	return *sideband_m;
 }
 
