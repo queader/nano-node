@@ -137,6 +137,10 @@ bool nano::ledger_set_any::block_exists_or_pruned (secure::transaction const & t
 
 std::shared_ptr<nano::block> nano::ledger_set_any::block_get (secure::transaction const & transaction, nano::block_hash const & hash) const
 {
+	if (hash.is_zero ())
+	{
+		return nullptr;
+	}
 	return ledger.store.block.get (transaction, hash);
 }
 
