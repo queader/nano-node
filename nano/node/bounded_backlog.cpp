@@ -6,9 +6,11 @@
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/scheduler/component.hpp>
+#include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>
-#include <nano/store/confirmation_height.hpp>
+#include <nano/secure/ledger_set_confirmed.hpp>
+#include <nano/secure/transaction.hpp>
 
 nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & config_a, nano::node & node_a, nano::ledger & ledger_a, nano::bucketing & bucketing_a, nano::backlog_scan & backlog_scan_a, nano::block_processor & block_processor_a, nano::confirming_set & confirming_set_a, nano::stats & stats_a, nano::logger & logger_a) :
 	config{ config_a },
@@ -22,10 +24,14 @@ nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & con
 	logger{ logger_a },
 	scan_limiter{ config.batch_size, 1.0 }
 {
-	backlog_scan.activated.add ([this] (auto const & transaction, auto const & info) {
+	// Activate accounts with unconfirmed blocks
+	// TODO: Use batch scan event
+	backlog_scan.activated.add ([this] (auto const & _, auto const & info) {
+		auto transaction = ledger.tx_begin_read ();
 		activate (transaction, info.account, info.account_info, info.conf_info);
 	});
 
+	// Track unconfirmed blocks
 	block_processor.batch_processed.add ([this] (auto const & batch) {
 		auto transaction = ledger.tx_begin_read ();
 		for (auto const & [result, context] : batch)
@@ -33,22 +39,24 @@ nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & con
 			if (result == nano::block_status::progress)
 			{
 				auto const & block = context.block;
-				update (transaction, block->account ());
+				insert (transaction, *block);
 			}
 		}
 	});
 
+	// Remove rolled back blocks from the backlog
+	// TODO: Use batch rollback event
 	block_processor.rolled_back.add ([this] (auto const & block, auto const & rollback_root) {
-		// TODO: Use batch rollback
-		auto transaction = ledger.tx_begin_read ();
-		update (transaction, block->account ());
+		nano::lock_guard<nano::mutex> guard{ mutex };
+		index.erase (block->hash ());
 	});
 
+	// Remove cemented blocks from the backlog
 	confirming_set.batch_cemented.add ([this] (auto const & batch) {
-		auto transaction = ledger.tx_begin_read ();
-		for (auto const & entry : batch)
+		nano::lock_guard<nano::mutex> guard{ mutex };
+		for (auto const & context : batch)
 		{
-			update (transaction, entry.block->account ());
+			index.erase (context.block->hash ());
 		}
 	});
 }
@@ -97,58 +105,68 @@ uint64_t nano::bounded_backlog::backlog_size () const
 	return index.size ();
 }
 
-// TODO: This is a very naive implementation, it should be optimized
-bool nano::bounded_backlog::update (nano::secure::transaction const & transaction, nano::account const & account)
-{
-	debug_assert (!account.is_zero ());
-
-	if (auto info = ledger.any.account_get (transaction, account))
-	{
-		nano::confirmation_height_info conf_info;
-		ledger.store.confirmation_height.get (transaction, account, conf_info);
-		if (conf_info.height < info->block_count)
-		{
-			return activate (transaction, account, *info, conf_info);
-		}
-	}
-	return erase (transaction, account);
-}
-
 bool nano::bounded_backlog::erase (nano::secure::transaction const & transaction, nano::account const & account)
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 	return index.erase (account);
 }
 
-bool nano::bounded_backlog::activate (nano::secure::transaction const & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info)
+void nano::bounded_backlog::activate (nano::secure::transaction & transaction, nano::account const & account, nano::account_info const & account_info, nano::confirmation_height_info const & conf_info)
 {
 	debug_assert (conf_info.frontier != account_info.head);
 
-	auto const hash = account_info.head;
+	auto contains = [this] (nano::block_hash const & hash) {
+		nano::lock_guard<nano::mutex> guard{ mutex };
+		return index.contains (hash);
+	};
 
-	// Check if the block is already in the backlog, avoids unnecessary ledger lookups
+	// Insert blocks into the index starting from the account head block
+	auto block = ledger.any.block_get (transaction, account_info.head);
+	while (block)
+	{
+		// We reached the confirmed frontier, no need to track more blocks
+		if (block->hash () == conf_info.frontier)
+		{
+			break;
+		}
+		// Check if the block is already in the backlog, avoids unnecessary ledger lookups
+		if (contains (block->hash ()))
+		{
+			break;
+		}
+
+		bool inserted = insert (transaction, *block);
+
+		// If the block was not inserted, we already have it in the backlog
+		if (!inserted)
+		{
+			break;
+		}
+
+		transaction.refresh_if_needed ();
+
+		block = ledger.any.block_get (transaction, block->previous ());
+	}
+}
+
+void nano::bounded_backlog::update (nano::secure::transaction const & transaction, nano::block_hash const & hash)
+{
+	// Erase if the block is either confirmed or missing
+	if (!ledger.unconfirmed_exists (transaction, hash))
 	{
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		if (index.head (account) == hash)
-		{
-			return false; // This account is already tracked
-		}
+		index.erase (hash);
 	}
+}
 
-	auto const block = ledger.any.block_get (transaction, hash);
-	release_assert (block != nullptr);
-
-	auto const [priority_balance, priority_timestamp] = block_priority (transaction, *block);
+bool nano::bounded_backlog::insert (nano::secure::transaction const & transaction, nano::block const & block)
+{
+	auto const [priority_balance, priority_timestamp] = block_priority (transaction, block);
 	auto const bucket_index = bucketing.index (priority_balance);
-
-	release_assert (account_info.block_count >= conf_info.height); // Conf height cannot be higher than the head block height
-	auto const unconfirmed = account_info.block_count - conf_info.height;
 
 	nano::lock_guard<nano::mutex> guard{ mutex };
 
-	index.update (account, hash, bucket_index, priority_timestamp, unconfirmed);
-
-	return true; // Updated
+	return index.insert (block, bucket_index, priority_timestamp);
 }
 
 auto nano::bounded_backlog::block_priority (nano::secure::transaction const & transaction, nano::block const & block) const -> block_priority_result
@@ -187,14 +205,13 @@ void nano::bounded_backlog::run ()
 				stats.add (nano::stat::type::bounded_backlog, nano::stat::detail::gathered_targets, targets.size ());
 				perform_rollbacks (targets);
 
-				// Update info for freshly rolled back accounts
-				auto transaction = ledger.tx_begin_read ();
+				lock.lock ();
+
+				// Erase the rolled back blocks from the index
 				for (auto const & [hash, account] : targets)
 				{
-					update (transaction, account);
+					index.erase (hash);
 				}
-
-				lock.lock ();
 			}
 			else
 			{
@@ -323,8 +340,7 @@ void nano::bounded_backlog::run_scan ()
 			}
 		};
 
-		nano::account last = 0;
-
+		nano::block_hash last = 0;
 		while (!stopped)
 		{
 			wait (config.batch_size);
@@ -340,11 +356,11 @@ void nano::bounded_backlog::run_scan ()
 			lock.unlock ();
 			{
 				auto transaction = ledger.tx_begin_read ();
-				for (auto const & account : batch)
+				for (auto const & hash : batch)
 				{
 					stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::scanned);
-					update (transaction, account);
-					last = account;
+					update (transaction, hash);
+					last = hash;
 				}
 			}
 			lock.lock ();
@@ -365,7 +381,7 @@ nano::container_info nano::bounded_backlog::container_info () const
 bool nano::backlog_index::insert (nano::block const & block, nano::bucket_index bucket, nano::priority_timestamp priority)
 {
 	auto const hash = block.hash ();
-	auto const account = block.sideband ().account;
+	auto const account = block.account ();
 	auto const height = block.sideband ().height;
 
 	entry new_entry{
@@ -453,21 +469,26 @@ auto nano::backlog_index::top (nano::bucket_index bucket, size_t count, filter_c
 	return results;
 }
 
-std::deque<nano::account> nano::backlog_index::next (nano::account last, size_t count) const
+std::deque<nano::block_hash> nano::backlog_index::next (nano::block_hash last, size_t count) const
 {
-	std::deque<account> results;
+	std::deque<block_hash> results;
 
-	auto it = blocks.get<tag_account> ().upper_bound (last);
-	auto end = blocks.get<tag_account> ().end ();
+	auto it = blocks.get<tag_hash_ordered> ().upper_bound (last);
+	auto end = blocks.get<tag_hash_ordered> ().end ();
 
 	while (it != end && results.size () < count)
 	{
-		results.push_back (it->account);
-		last = it->account;
-		it = blocks.get<tag_account> ().upper_bound (last);
+		results.push_back (it->hash);
+		last = it->hash;
+		it = blocks.get<tag_hash_ordered> ().upper_bound (last);
 	}
 
 	return results;
+}
+
+bool nano::backlog_index::contains (nano::block_hash const & hash) const
+{
+	return blocks.get<tag_hash> ().contains (hash);
 }
 
 size_t nano::backlog_index::size () const

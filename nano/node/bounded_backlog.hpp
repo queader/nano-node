@@ -72,8 +72,9 @@ public:
 	using rollback_target = std::pair<nano::block_hash, nano::account>;
 	std::deque<rollback_target> top (nano::bucket_index, size_t count, filter_callback const &) const;
 
-	std::deque<nano::account> next (nano::account last, size_t count) const;
+	std::deque<nano::block_hash> next (nano::block_hash last, size_t count) const;
 
+	bool contains (nano::block_hash const & hash) const;
 	size_t size () const;
 	size_t size (nano::bucket_index) const;
 
@@ -82,6 +83,7 @@ public:
 private:
 	// clang-format off
 	class tag_hash {};
+	class tag_hash_ordered {};
 	class tag_account {};
 	class tag_priority {};
 	class tag_height {};
@@ -90,7 +92,9 @@ private:
 	mi::indexed_by<
 		mi::hashed_unique<mi::tag<tag_hash>,
 			mi::member<entry, nano::block_hash, &entry::hash>>,
-		mi::ordered_non_unique<mi::tag<tag_account>,
+		mi::ordered_unique<mi::tag<tag_hash_ordered>,
+			mi::member<entry, nano::block_hash, &entry::hash>>,
+		mi::hashed_non_unique<mi::tag<tag_account>,
 			mi::member<entry, nano::account, &entry::account>>,
 		mi::ordered_non_unique<mi::tag<tag_priority>,
 			mi::const_mem_fun<entry, priority_key, &entry::priority_key>, std::greater<>>, // DESC order
@@ -144,9 +148,10 @@ private: // Dependencies
 private:
 	using rollback_target = std::pair<nano::block_hash, nano::account>;
 
-	bool update (nano::secure::transaction const &, nano::account const &);
-	bool activate (nano::secure::transaction const &, nano::account const &, nano::account_info const &, nano::confirmation_height_info const &);
+	void activate (nano::secure::transaction &, nano::account const &, nano::account_info const &, nano::confirmation_height_info const &);
+	void update (nano::secure::transaction const &, nano::block_hash const &);
 	bool erase (nano::secure::transaction const &, nano::account const &);
+	bool insert (nano::secure::transaction const &, nano::block const &);
 
 	bool predicate () const;
 	void run ();

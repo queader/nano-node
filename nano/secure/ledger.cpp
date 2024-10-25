@@ -790,6 +790,11 @@ void nano::ledger::initialize (nano::generate_cache_flags const & generate_cache
 	cache.pruned_count = store.pruned.count (transaction);
 }
 
+bool nano::ledger::unconfirmed_exists (secure::transaction const & transaction, nano::block_hash const & hash)
+{
+	return any.block_exists (transaction, hash) && !confirmed.block_exists (transaction, hash);
+}
+
 nano::uint128_t nano::ledger::account_receivable (secure::transaction const & transaction_a, nano::account const & account_a, bool only_confirmed_a)
 {
 	nano::uint128_t result (0);
