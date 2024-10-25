@@ -30,30 +30,16 @@ public:
 		auto operator<=> (priority_key const &) const = default;
 	};
 
-	struct height_key
-	{
-		nano::account account;
-		uint64_t height;
-
-		auto operator<=> (height_key const &) const = default;
-	};
-
 	struct entry
 	{
 		nano::block_hash hash;
 		nano::account account;
 		nano::bucket_index bucket;
 		nano::priority_timestamp priority;
-		uint64_t height;
 
 		backlog_index::priority_key priority_key () const
 		{
 			return { bucket, priority };
-		}
-
-		backlog_index::height_key height_key () const
-		{
-			return { account, height };
 		}
 	};
 
@@ -65,12 +51,8 @@ public:
 	bool erase (nano::account const & account);
 	bool erase (nano::block_hash const & hash);
 
-	nano::block_hash head (nano::account const & account) const;
-	nano::block_hash tail (nano::account const & account) const;
-
 	using filter_callback = std::function<bool (nano::block_hash const &)>;
-	using rollback_target = std::pair<nano::block_hash, nano::account>;
-	std::deque<rollback_target> top (nano::bucket_index, size_t count, filter_callback const &) const;
+	std::deque<nano::block_hash> top (nano::bucket_index, size_t count, filter_callback const &) const;
 
 	std::deque<nano::block_hash> next (nano::block_hash last, size_t count) const;
 
@@ -86,20 +68,17 @@ private:
 	class tag_hash_ordered {};
 	class tag_account {};
 	class tag_priority {};
-	class tag_height {};
 
 	using ordered_blocks = boost::multi_index_container<entry,
 	mi::indexed_by<
-		mi::hashed_unique<mi::tag<tag_hash>,
+		mi::hashed_unique<mi::tag<tag_hash>, // Allows for fast lookup
 			mi::member<entry, nano::block_hash, &entry::hash>>,
-		mi::ordered_unique<mi::tag<tag_hash_ordered>,
+		mi::ordered_unique<mi::tag<tag_hash_ordered>, // Allows for sequential scan
 			mi::member<entry, nano::block_hash, &entry::hash>>,
 		mi::hashed_non_unique<mi::tag<tag_account>,
 			mi::member<entry, nano::account, &entry::account>>,
 		mi::ordered_non_unique<mi::tag<tag_priority>,
-			mi::const_mem_fun<entry, priority_key, &entry::priority_key>, std::greater<>>, // DESC order
-		mi::ordered_unique<mi::tag<tag_height>,
-			mi::const_mem_fun<entry, height_key, &entry::height_key>>
+			mi::const_mem_fun<entry, priority_key, &entry::priority_key>, std::greater<>> // DESC order
 	>>;
 	// clang-format on
 
@@ -146,8 +125,6 @@ private: // Dependencies
 	nano::logger & logger;
 
 private:
-	using rollback_target = std::pair<nano::block_hash, nano::account>;
-
 	void activate (nano::secure::transaction &, nano::account const &, nano::account_info const &, nano::confirmation_height_info const &);
 	void update (nano::secure::transaction const &, nano::block_hash const &);
 	bool erase (nano::secure::transaction const &, nano::account const &);
@@ -155,8 +132,8 @@ private:
 
 	bool predicate () const;
 	void run ();
-	void perform_rollbacks (std::deque<rollback_target> const & targets);
-	std::deque<rollback_target> gather_targets (size_t max_count) const;
+	void perform_rollbacks (std::deque<nano::block_hash> const & targets);
+	std::deque<nano::block_hash> gather_targets (size_t max_count) const;
 	bool should_rollback (nano::block_hash const &) const;
 
 	void run_scan ();

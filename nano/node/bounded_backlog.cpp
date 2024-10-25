@@ -208,7 +208,7 @@ void nano::bounded_backlog::run ()
 				lock.lock ();
 
 				// Erase the rolled back blocks from the index
-				for (auto const & [hash, account] : targets)
+				for (auto const & hash : targets)
 				{
 					index.erase (hash);
 				}
@@ -261,26 +261,20 @@ bool nano::bounded_backlog::should_rollback (nano::block_hash const & hash) cons
 	return true;
 }
 
-void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const & targets)
+void nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> const & targets)
 {
 	stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::performing_rollbacks);
 
 	auto transaction = ledger.tx_begin_write (nano::store::writer::bounded_backlog);
 
-	// for (auto const & [account, hash] : targets)
-	// {
-	// 	std::cout << "rollback: " << hash.to_string () << ", account: " << account.to_account () << std::endl;
-	// }
-
 	std::deque<std::shared_ptr<nano::block>> rollbacks;
 
-	for (auto const & [hash, account] : targets)
+	for (auto const & hash : targets)
 	{
 		// Here we check that the block is still OK to rollback, there could be a delay between gathering the targets and performing the rollbacks
 		if (auto block = ledger.any.block_get (transaction, hash); block && should_rollback (hash))
 		{
-			debug_assert (block->account () == account);
-			logger.debug (nano::log::type::bounded_backlog, "Rolling back: {}, account: {}", hash.to_string (), account.to_account ());
+			logger.debug (nano::log::type::bounded_backlog, "Rolling back: {}, account: {}", hash.to_string (), block->account ().to_account ());
 
 			std::vector<std::shared_ptr<nano::block>> rollback_list;
 			bool error = ledger.rollback (transaction, hash, rollback_list);
@@ -296,12 +290,13 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<rollback_target> const
 	rolled_back.notify (rollbacks);
 }
 
-auto nano::bounded_backlog::gather_targets (size_t max_count) const -> std::deque<rollback_target>
+std::deque<nano::block_hash> nano::bounded_backlog::gather_targets (size_t max_count) const
 {
 	debug_assert (!mutex.try_lock ());
 
-	std::deque<rollback_target> targets;
+	std::deque<nano::block_hash> targets;
 
+	// TODO: This needs to be improved, gather targets from largest buckets first
 	for (auto bucket : bucketing.indices ())
 	{
 		// Only start rolling back if the bucket is over the threshold of unconfirmed blocks
@@ -382,14 +377,12 @@ bool nano::backlog_index::insert (nano::block const & block, nano::bucket_index 
 {
 	auto const hash = block.hash ();
 	auto const account = block.account ();
-	auto const height = block.sideband ().height;
 
 	entry new_entry{
 		.hash = hash,
 		.account = account,
 		.bucket = bucket,
 		.priority = priority,
-		.height = height,
 	};
 
 	auto [it, inserted] = blocks.emplace (new_entry);
@@ -423,49 +416,20 @@ bool nano::backlog_index::erase (nano::block_hash const & hash)
 	return false;
 }
 
-nano::block_hash nano::backlog_index::head (nano::account const & account) const
+std::deque<nano::block_hash> nano::backlog_index::top (nano::bucket_index bucket, size_t count, filter_callback const & filter) const
 {
-	// Find the highest height hash for the account
-	auto it = blocks.get<tag_height> ().upper_bound (height_key{ account, std::numeric_limits<uint64_t>::max () });
-	if (it != blocks.get<tag_height> ().begin ())
-	{
-		--it;
-		if (it->account == account)
-		{
-			return it->hash;
-		}
-	}
-	debug_assert (false); // Should be checked before calling
-	return { 0 };
-}
+	// Highest timestamp, lowest priority, iterate in descending order
+	priority_key const starting_key{ bucket, std::numeric_limits<nano::priority_timestamp>::max () };
 
-nano::block_hash nano::backlog_index::tail (nano::account const & account) const
-{
-	// Find the lowest height hash for the account
-	auto it = blocks.get<tag_height> ().lower_bound (height_key{ account, 0 });
-	if (it != blocks.get<tag_height> ().end () && it->account == account)
-	{
-		return it->hash;
-	}
-	debug_assert (false); // Should be checked before calling
-	return { 0 };
-}
-
-auto nano::backlog_index::top (nano::bucket_index bucket, size_t count, filter_callback const & filter) const -> std::deque<rollback_target>
-{
-	priority_key const starting_key{ bucket, std::numeric_limits<nano::priority_timestamp>::max () }; // Highest timestamp, lowest priority
-
-	std::deque<rollback_target> results;
-
+	std::deque<nano::block_hash> results;
 	auto begin = blocks.get<tag_priority> ().lower_bound (starting_key);
 	for (auto it = begin; it != blocks.get<tag_priority> ().end () && it->bucket == bucket && results.size () < count; ++it)
 	{
 		if (filter (it->hash))
 		{
-			results.push_back ({ it->hash, it->account });
+			results.push_back (it->hash);
 		}
 	}
-
 	return results;
 }
 
@@ -482,7 +446,6 @@ std::deque<nano::block_hash> nano::backlog_index::next (nano::block_hash last, s
 		last = it->hash;
 		it = blocks.get<tag_hash_ordered> ().upper_bound (last);
 	}
-
 	return results;
 }
 
