@@ -30,61 +30,79 @@ public:
 		auto operator<=> (priority_key const &) const = default;
 	};
 
+	struct height_key
+	{
+		nano::account account;
+		uint64_t height;
+
+		auto operator<=> (height_key const &) const = default;
+	};
+
 	struct entry
 	{
+		nano::block_hash hash;
 		nano::account account;
 		nano::bucket_index bucket;
 		nano::priority_timestamp priority;
-		nano::block_hash head;
-		uint64_t unconfirmed;
+		uint64_t height;
 
 		backlog_index::priority_key priority_key () const
 		{
 			return { bucket, priority };
 		}
-	};
 
-	using value_type = entry;
+		backlog_index::height_key height_key () const
+		{
+			return { account, height };
+		}
+	};
 
 public:
 	backlog_index () = default;
 
-	void update (nano::account const & account, nano::block_hash const & head, nano::bucket_index, nano::priority_timestamp, uint64_t unconfirmed);
+	bool insert (nano::block const & block, nano::bucket_index, nano::priority_timestamp);
+
 	bool erase (nano::account const & account);
+	bool erase (nano::block_hash const & hash);
+
 	nano::block_hash head (nano::account const & account) const;
+	nano::block_hash tail (nano::account const & account) const;
 
-	using filter_t = std::function<bool (nano::block_hash const &)>;
-	std::deque<value_type> top (nano::bucket_index, size_t count, filter_t const &) const;
+	using filter_callback = std::function<bool (nano::block_hash const &)>;
+	using rollback_target = std::pair<nano::block_hash, nano::account>;
+	std::deque<rollback_target> top (nano::bucket_index, size_t count, filter_callback const &) const;
 
-	std::deque<value_type> next (nano::account const & start, size_t count) const;
+	std::deque<nano::account> next (nano::account last, size_t count) const;
 
-	uint64_t unconfirmed (nano::bucket_index) const;
-	uint64_t backlog_size () const;
+	size_t size () const;
+	size_t size (nano::bucket_index) const;
 
 	nano::container_info container_info () const;
 
 private:
 	// clang-format off
+	class tag_hash {};
 	class tag_account {};
 	class tag_priority {};
+	class tag_height {};
 
-	using ordered_accounts = boost::multi_index_container<entry,
+	using ordered_blocks = boost::multi_index_container<entry,
 	mi::indexed_by<
-		mi::ordered_unique<mi::tag<tag_account>,
+		mi::hashed_unique<mi::tag<tag_hash>,
+			mi::member<entry, nano::block_hash, &entry::hash>>,
+		mi::ordered_non_unique<mi::tag<tag_account>,
 			mi::member<entry, nano::account, &entry::account>>,
 		mi::ordered_non_unique<mi::tag<tag_priority>,
-			mi::const_mem_fun<entry, priority_key, &entry::priority_key>, std::greater<>> // DESC order
+			mi::const_mem_fun<entry, priority_key, &entry::priority_key>, std::greater<>>, // DESC order
+		mi::ordered_unique<mi::tag<tag_height>,
+			mi::const_mem_fun<entry, height_key, &entry::height_key>>
 	>>;
 	// clang-format on
 
-	ordered_accounts accounts;
+	ordered_blocks blocks;
 
 	// Keep track of the size of the backlog in number of unconfirmed blocks per bucket
-	std::map<nano::bucket_index, int64_t> unconfirmed_by_bucket;
 	std::map<nano::bucket_index, size_t> size_by_bucket;
-
-	// Keep track of the backlog size in number of unconfirmed blocks
-	int64_t backlog_counter{ 0 };
 };
 
 class bounded_backlog_config
@@ -124,7 +142,7 @@ private: // Dependencies
 	nano::logger & logger;
 
 private:
-	using rollback_target = std::pair<nano::account, nano::block_hash>;
+	using rollback_target = std::pair<nano::block_hash, nano::account>;
 
 	bool update (nano::secure::transaction const &, nano::account const &);
 	bool activate (nano::secure::transaction const &, nano::account const &, nano::account_info const &, nano::confirmation_height_info const &);
@@ -138,8 +156,8 @@ private:
 
 	void run_scan ();
 
-	nano::amount block_priority_balance (nano::secure::transaction const &, nano::block const &) const;
-	nano::priority_timestamp block_priority_timestamp (nano::secure::transaction const &, nano::block const &) const;
+	using block_priority_result = std::pair<nano::amount, nano::priority_timestamp>;
+	block_priority_result block_priority (nano::secure::transaction const &, nano::block const &) const;
 
 private:
 	nano::backlog_index index;
