@@ -78,7 +78,7 @@ void nano::bounded_backlog::start ()
 	} };
 
 	scan_thread = std::thread{ [this] () {
-		nano::thread_role::set (nano::thread_role::name::backlog_scan);
+		nano::thread_role::set (nano::thread_role::name::bounded_backlog_scan);
 		run_scan ();
 	} };
 }
@@ -174,8 +174,10 @@ auto nano::bounded_backlog::block_priority (nano::secure::transaction const & tr
 	auto const balance = block.balance ();
 	auto const previous_block = !block.previous ().is_zero () ? ledger.any.block_get (transaction, block.previous ()) : nullptr;
 	auto const previous_balance = previous_block ? previous_block->balance () : 0;
-	auto const priority_balance = std::max (balance, block.is_send () ? previous_balance : 0); // Handle full send case nicely
-	auto const priority_timestamp = previous_block ? previous_block->sideband ().timestamp : block.sideband ().timestamp; // Use previous timestamp as priority timestamp
+	// Handle full send case nicely where the balance would otherwise be 0
+	auto const priority_balance = std::max (balance, block.is_send () ? previous_balance : 0);
+	// Use previous timestamp as priority timestamp, so the priority is dependent on last account activity
+	auto const priority_timestamp = previous_block ? previous_block->sideband ().timestamp : block.sideband ().timestamp;
 	return { priority_balance, priority_timestamp };
 }
 
@@ -203,21 +205,24 @@ void nano::bounded_backlog::run ()
 				lock.unlock ();
 
 				stats.add (nano::stat::type::bounded_backlog, nano::stat::detail::gathered_targets, targets.size ());
-				perform_rollbacks (targets);
+				auto result = perform_rollbacks (targets);
 
 				lock.lock ();
 
-				// Erase the rolled back blocks from the index
-				for (auto const & hash : targets)
+				// Erase rolled back blocks from the index
+				for (auto const & block : result.rolled_back)
+				{
+					index.erase (block->hash ());
+				}
+				for (auto const & hash : result.missing)
 				{
 					index.erase (hash);
 				}
 			}
 			else
 			{
-				stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::no_targets);
-
 				// Cooldown, this should not happen in normal operation
+				stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::no_targets);
 				condition.wait_for (lock, 100ms, [this] {
 					return stopped.load ();
 				});
@@ -261,18 +266,25 @@ bool nano::bounded_backlog::should_rollback (nano::block_hash const & hash) cons
 	return true;
 }
 
-void nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> const & targets)
+auto nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> const & targets) -> rollback_result
 {
 	stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::performing_rollbacks);
 
 	auto transaction = ledger.tx_begin_write (nano::store::writer::bounded_backlog);
 
 	std::deque<std::shared_ptr<nano::block>> rollbacks;
-
+	std::deque<nano::block_hash> missing;
 	for (auto const & hash : targets)
 	{
+		// Skip the rollback if the block is being used by the node, this should be race free as it's checked while holding the ledger write lock
+		if (!should_rollback (hash))
+		{
+			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::rollback_skipped);
+			continue;
+		}
+
 		// Here we check that the block is still OK to rollback, there could be a delay between gathering the targets and performing the rollbacks
-		if (auto block = ledger.any.block_get (transaction, hash); block && should_rollback (hash))
+		if (auto block = ledger.any.block_get (transaction, hash))
 		{
 			logger.debug (nano::log::type::bounded_backlog, "Rolling back: {}, account: {}", hash.to_string (), block->account ().to_account ());
 
@@ -284,10 +296,16 @@ void nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> cons
 		else
 		{
 			stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::rollback_missing_block);
+			missing.push_back (hash);
 		}
 	}
 
 	rolled_back.notify (rollbacks);
+
+	return {
+		.rolled_back = std::move (rollbacks),
+		.missing = std::move (missing),
+	};
 }
 
 std::deque<nano::block_hash> nano::bounded_backlog::gather_targets (size_t max_count) const

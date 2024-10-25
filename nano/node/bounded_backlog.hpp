@@ -132,9 +132,15 @@ private:
 
 	bool predicate () const;
 	void run ();
-	void perform_rollbacks (std::deque<nano::block_hash> const & targets);
 	std::deque<nano::block_hash> gather_targets (size_t max_count) const;
 	bool should_rollback (nano::block_hash const &) const;
+
+	struct rollback_result
+	{
+		std::deque<std::shared_ptr<nano::block>> rolled_back;
+		std::deque<nano::block_hash> missing;
+	};
+	rollback_result perform_rollbacks (std::deque<nano::block_hash> const & targets);
 
 	void run_scan ();
 
