@@ -82,13 +82,15 @@ void nano::store::read_transaction::refresh ()
 	renew ();
 }
 
-void nano::store::read_transaction::refresh_if_needed (std::chrono::milliseconds max_age)
+bool nano::store::read_transaction::refresh_if_needed (std::chrono::milliseconds max_age)
 {
 	auto now = std::chrono::steady_clock::now ();
 	if (now - start > max_age)
 	{
 		refresh ();
+		return true;
 	}
+	return false;
 }
 
 /*
