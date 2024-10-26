@@ -197,7 +197,9 @@ auto nano::bounded_backlog::block_priority (nano::secure::transaction const & tr
 
 bool nano::bounded_backlog::predicate () const
 {
-	return ledger.backlog_count () > config.max_backlog;
+	debug_assert (!mutex.try_lock ());
+	// Both ledger and tracked backlog must be over the threshold
+	return ledger.backlog_count () > config.max_backlog && index.size () > config.max_backlog;
 }
 
 void nano::bounded_backlog::run ()
