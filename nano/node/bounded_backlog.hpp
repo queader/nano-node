@@ -94,7 +94,7 @@ public:
 	size_t max_backlog{ 100000 };
 	size_t bucket_threshold{ 1000 };
 	double overfill_factor{ 1.5 };
-	size_t batch_size{ 128 };
+	size_t batch_size{ 32 };
 };
 
 class bounded_backlog
