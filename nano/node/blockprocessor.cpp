@@ -197,8 +197,10 @@ void nano::block_processor::rollback_competitor (secure::write_transaction const
 			logger.debug (nano::log::type::blockprocessor, "Blocks rolled back: {}", rollback_list.size ());
 		}
 
-		// Notify observers of the rolled back blocks
-		rolled_back.notify (rollback_list, fork_block.qualified_root ());
+		// Notify observers of the rolled back blocks on a background thread while not holding the ledger write lock
+		workers.post ([this, rollback_list = std::move (rollback_list), root = fork_block.qualified_root ()] () {
+			rolled_back.notify (rollback_list, root);
+		});
 	}
 }
 
