@@ -36,7 +36,7 @@ namespace
 class rollback_visitor : public nano::block_visitor
 {
 public:
-	rollback_visitor (nano::secure::write_transaction const & transaction_a, nano::ledger & ledger_a, std::vector<std::shared_ptr<nano::block>> & list_a) :
+	rollback_visitor (nano::secure::write_transaction const & transaction_a, nano::ledger & ledger_a, std::deque<std::shared_ptr<nano::block>> & list_a) :
 		transaction (transaction_a),
 		ledger (ledger_a),
 		list (list_a)
@@ -179,7 +179,7 @@ public:
 	}
 	nano::secure::write_transaction const & transaction;
 	nano::ledger & ledger;
-	std::vector<std::shared_ptr<nano::block>> & list;
+	std::deque<std::shared_ptr<nano::block>> & list;
 	bool error{ false };
 };
 
@@ -992,7 +992,7 @@ nano::uint128_t nano::ledger::weight_exact (secure::transaction const & txn_a, n
 }
 
 // Rollback blocks until `block_a' doesn't exist or it tries to penetrate the confirmation height
-bool nano::ledger::rollback (secure::write_transaction const & transaction_a, nano::block_hash const & block_a, std::vector<std::shared_ptr<nano::block>> & list_a)
+bool nano::ledger::rollback (secure::write_transaction const & transaction_a, nano::block_hash const & block_a, std::deque<std::shared_ptr<nano::block>> & list_a)
 {
 	debug_assert (any.block_exists (transaction_a, block_a));
 	auto account_l = any.block_account (transaction_a, block_a).value ();
@@ -1026,7 +1026,7 @@ bool nano::ledger::rollback (secure::write_transaction const & transaction_a, na
 
 bool nano::ledger::rollback (secure::write_transaction const & transaction_a, nano::block_hash const & block_a)
 {
-	std::vector<std::shared_ptr<nano::block>> rollback_list;
+	std::deque<std::shared_ptr<nano::block>> rollback_list;
 	return rollback (transaction_a, block_a, rollback_list);
 }
 

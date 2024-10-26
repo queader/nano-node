@@ -211,8 +211,11 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	});
 
 	// Do some cleanup of rolled back blocks
-	block_processor.rolled_back.add ([this] (auto const & block, auto const & rollback_root) {
-		history.erase (block->root ());
+	block_processor.rolled_back.add ([this] (auto const & blocks, auto const & rollback_root) {
+		for (auto const & block : blocks)
+		{
+			history.erase (block->root ());
+		}
 	});
 
 	if (!init_error ())
