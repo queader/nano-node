@@ -22,9 +22,12 @@ TEST (backlog, population)
 	nano::test::system system{};
 	auto & node = *system.add_node ();
 
-	node.backlog_scan.activated.add ([&] (nano::secure::transaction const & transaction, auto const & info) {
+	node.backlog_scan.batch_activated.add ([&] (auto const & batch) {
 		nano::lock_guard<nano::mutex> lock{ mutex };
-		activated.insert (info.account);
+		for (auto const & info : batch)
+		{
+			activated.insert (info.account);
+		}
 	});
 
 	auto blocks = nano::test::setup_independent_blocks (system, node, 256);

@@ -8,10 +8,11 @@
 #include <nano/store/component.hpp>
 #include <nano/store/confirmation_height.hpp>
 
-nano::backlog_scan::backlog_scan (backlog_scan_config const & config_a, nano::ledger & ledger, nano::stats & stats_a) :
+nano::backlog_scan::backlog_scan (backlog_scan_config const & config_a, nano::ledger & ledger_a, nano::stats & stats_a) :
 	config{ config_a },
-	ledger{ ledger },
-	stats{ stats_a }
+	ledger{ ledger_a },
+	stats{ stats_a },
+	limiter{ config.batch_size * config.frequency }
 {
 }
 
@@ -69,76 +70,85 @@ void nano::backlog_scan::run ()
 		{
 			stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::loop);
 			triggered = false;
-			populate_backlog (lock);
+			populate_backlog (lock); // Does a single iteration over all accounts
+			debug_assert (lock.owns_lock ());
 		}
-
-		condition.wait (lock, [this] () {
-			return stopped || predicate ();
-		});
+		else
+		{
+			condition.wait (lock, [this] () {
+				return stopped || predicate ();
+			});
+		}
 	}
 }
 
 void nano::backlog_scan::populate_backlog (nano::unique_lock<nano::mutex> & lock)
 {
-	debug_assert (config.frequency > 0);
-
-	const auto chunk_size = config.batch_size / config.frequency;
-	auto done = false;
-	nano::account next = 0;
 	uint64_t total = 0;
+
+	nano::account next = 0;
+	bool done = false;
 	while (!stopped && !done)
 	{
+		// Wait for the rate limiter
+		while (!limiter.should_pass (config.batch_size))
+		{
+			condition.wait_for (lock, std::chrono::milliseconds{ 1000 / config.frequency / 2 });
+			if (stopped)
+			{
+				return;
+			}
+		}
+
 		lock.unlock ();
 
+		std::deque<activated_info> scanned;
+		std::deque<activated_info> activated;
 		{
 			auto transaction = ledger.tx_begin_read ();
 
 			auto it = ledger.store.account.begin (transaction, next);
 			auto const end = ledger.store.account.end (transaction);
 
-			auto should_refresh = [&transaction] () {
-				auto cutoff = std::chrono::steady_clock::now () - 100ms; // TODO: Make this configurable
-				return transaction.timestamp () < cutoff;
-			};
-
-			for (size_t count = 0; it != end && count < chunk_size && !should_refresh (); ++it, ++count, ++total)
+			for (size_t count = 0; it != end && count < config.batch_size; ++it, ++count, ++total)
 			{
 				stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::total);
 
-				auto const & account = it->first;
-				auto const & account_info = it->second;
+				auto const [account, account_info] = *it;
+				auto const maybe_conf_info = ledger.store.confirmation_height.get (transaction, account);
+				auto const conf_info = maybe_conf_info.value_or (nano::confirmation_height_info{});
 
-				activate (transaction, account, account_info);
+				activated_info info{ account, account_info, conf_info };
 
-				next = account.number () + 1;
+				scanned.push_back (info);
+				if (conf_info.height < account_info.block_count)
+				{
+					activated.push_back (info);
+				}
+
+				next = account.number () + 1; // TODO: Prevent account overflow
 			}
 
-			done = ledger.store.account.begin (transaction, next) == end;
+			done = it == end;
 		}
 
-		lock.lock ();
+		stats.add (nano::stat::type::backlog_scan, nano::stat::detail::scanned, scanned.size ());
+		stats.add (nano::stat::type::backlog_scan, nano::stat::detail::activated, activated.size ());
 
-		// Give the rest of the node time to progress without holding database lock
-		condition.wait_for (lock, std::chrono::milliseconds{ 1000 / config.frequency });
+		// Notify about scanned and activated accounts without holding database transaction
+		batch_scanned.notify (scanned);
+		batch_activated.notify (activated);
+
+		lock.lock ();
 	}
 }
 
-void nano::backlog_scan::activate (secure::transaction const & transaction, nano::account const & account, nano::account_info const & account_info)
+nano::container_info nano::backlog_scan::container_info () const
 {
-	auto const maybe_conf_info = ledger.store.confirmation_height.get (transaction, account);
-	auto const conf_info = maybe_conf_info.value_or (nano::confirmation_height_info{});
-
-	activated_info info{ account, account_info, conf_info };
-
-	stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::scanned);
-	scanned.notify (transaction, info);
-
-	// If conf info is empty then it means then it means nothing is confirmed yet
-	if (conf_info.height < account_info.block_count)
-	{
-		stats.inc (nano::stat::type::backlog_scan, nano::stat::detail::activated);
-		activated.notify (transaction, info);
-	}
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	nano::container_info info;
+	info.put ("limiter", limiter.size ());
+	return info;
 }
 
 /*
@@ -149,7 +159,7 @@ nano::error nano::backlog_scan_config::serialize (nano::tomlconfig & toml) const
 {
 	toml.put ("enable", enable, "Control if ongoing backlog population is enabled. If not, backlog population can still be triggered by RPC \ntype:bool");
 	toml.put ("batch_size", batch_size, "Number of accounts per second to process when doing backlog population scan. Increasing this value will help unconfirmed frontiers get into election prioritization queue faster, however it will also increase resource usage. \ntype:uint");
-	toml.put ("frequency", frequency, "Backlog scan divides the scan into smaller batches, number of which is controlled by this value. Higher frequency helps to utilize resources more uniformly, however it also introduces more overhead. The resulting number of accounts per single batch is `backlog_scan_batch_size / backlog_scan_frequency` \ntype:uint");
+	toml.put ("frequency", frequency, "Number of batches to process per second. Higher frequency and smaller batch size helps to utilize resources more uniformly, however it also introduces more overhead. Use 0 to process as fast as possible, but be aware that it may consume a lot of resources. \ntype:uint");
 
 	return toml.get_error ();
 }

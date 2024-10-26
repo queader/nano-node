@@ -3,6 +3,7 @@
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/lib/rate_limiting.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/secure/account_info.hpp>
 #include <nano/secure/common.hpp>
@@ -21,10 +22,10 @@ public:
 public:
 	/** Control if ongoing backlog population is enabled. If not, backlog population can still be triggered by RPC */
 	bool enable{ true };
-	/** Number of accounts per second to process. Number of accounts per single batch is this value divided by `frequency` */
-	unsigned batch_size{ 10 * 1000 };
-	/** Number of batches to run per second. Batches run in 1 second / `frequency` intervals */
-	unsigned frequency{ 10 };
+	/** Number of accounts per second to process. */
+	size_t batch_size{ 1000 };
+	/** Number of batches to run per second. */
+	size_t frequency{ 10 };
 };
 
 class backlog_scan final
@@ -42,6 +43,8 @@ public:
 	/** Notify about AEC vacancy */
 	void notify ();
 
+	nano::container_info container_info () const;
+
 public:
 	struct activated_info
 	{
@@ -50,12 +53,9 @@ public:
 		nano::confirmation_height_info conf_info;
 	};
 
-	/**
-	 * Callback called for each backlogged account
-	 */
-	using callback_t = nano::observer_set<nano::secure::transaction const &, activated_info const &>;
-	callback_t activated;
-	callback_t scanned;
+	using batch_event_t = nano::observer_set<std::deque<activated_info> const &>;
+	batch_event_t batch_scanned; // Accounts scanned but not activated
+	batch_event_t batch_activated; // Accounts activated
 
 private: // Dependencies
 	backlog_scan_config const & config;
@@ -66,9 +66,10 @@ private:
 	void run ();
 	bool predicate () const;
 	void populate_backlog (nano::unique_lock<nano::mutex> & lock);
-	void activate (secure::transaction const &, nano::account const &, nano::account_info const &);
 
 private:
+	nano::rate_limiter limiter;
+
 	/** This is a manual trigger, the ongoing backlog population does not use this.
 	 *  It can be triggered even when backlog population (frontiers confirmation) is disabled. */
 	bool triggered{ false };
