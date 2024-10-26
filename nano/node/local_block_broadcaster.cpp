@@ -54,10 +54,13 @@ nano::local_block_broadcaster::local_block_broadcaster (local_block_broadcaster_
 		}
 	});
 
-	block_processor.rolled_back.add ([this] (auto const & block, auto const & rollback_root) {
+	block_processor.rolled_back.add ([this] (auto const & blocks, auto const & rollback_root) {
 		nano::lock_guard<nano::mutex> guard{ mutex };
-		auto erased = local_blocks.get<tag_hash> ().erase (block->hash ());
-		stats.add (nano::stat::type::local_block_broadcaster, nano::stat::detail::rollback, erased);
+		for (auto const & block : blocks)
+		{
+			auto erased = local_blocks.get<tag_hash> ().erase (block->hash ());
+			stats.add (nano::stat::type::local_block_broadcaster, nano::stat::detail::rollback, erased);
+		}
 	});
 
 	confirming_set.cemented_observers.add ([this] (auto const & block) {
