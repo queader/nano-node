@@ -22,13 +22,27 @@ nano::bounded_backlog::bounded_backlog (nano::bounded_backlog_config const & con
 	confirming_set{ confirming_set_a },
 	stats{ stats_a },
 	logger{ logger_a },
-	scan_limiter{ config.batch_size, 1.0 }
+	scan_limiter{ config.batch_size }
 {
 	// Activate accounts with unconfirmed blocks
-	// TODO: Use batch scan event
-	backlog_scan.activated.add ([this] (auto const & _, auto const & info) {
+	backlog_scan.batch_activated.add ([this] (auto const & batch) {
 		auto transaction = ledger.tx_begin_read ();
-		activate (transaction, info.account, info.account_info, info.conf_info);
+		for (auto const & info : batch)
+		{
+			activate (transaction, info.account, info.account_info, info.conf_info);
+		}
+	});
+
+	// Erase accounts with all confirmed blocks
+	backlog_scan.batch_scanned.add ([this] (auto const & batch) {
+		nano::lock_guard<nano::mutex> guard{ mutex };
+		for (auto const & info : batch)
+		{
+			if (info.conf_info.height == info.account_info.block_count)
+			{
+				index.erase (info.account);
+			}
+		}
 	});
 
 	// Track unconfirmed blocks
