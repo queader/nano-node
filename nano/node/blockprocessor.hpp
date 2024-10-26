@@ -24,6 +24,7 @@ enum class block_source
 	unchecked,
 	local,
 	forced,
+	election,
 };
 
 std::string_view to_string (block_source);
@@ -47,6 +48,7 @@ public:
 	size_t priority_live{ 1 };
 	size_t priority_bootstrap{ 8 };
 	size_t priority_local{ 16 };
+	size_t priority_system{ 32 };
 
 	size_t batch_size{ 256 };
 	size_t max_queued_notifications{ 8 };

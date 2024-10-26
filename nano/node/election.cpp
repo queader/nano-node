@@ -399,7 +399,7 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 {
 	debug_assert (lock_a.owns_lock ());
 	auto tally_l (tally_impl ());
-	debug_assert (!tally_l.empty ());
+	release_assert (!tally_l.empty ());
 	auto winner (tally_l.begin ());
 	auto block_l (winner->second);
 	auto const & winner_hash_l (block_l->hash ());
@@ -425,6 +425,8 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 		}
 		if (final_weight >= node.online_reps.delta ())
 		{
+			// In some edge cases block might get rolled back while the election is confirming, reprocess it to ensure it's present in the ledger
+			node.block_processor.add (block_l, nano::block_source::election);
 			confirm_once (lock_a);
 			debug_assert (!lock_a.owns_lock ());
 		}
