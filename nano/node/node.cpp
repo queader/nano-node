@@ -173,9 +173,14 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 		return ledger.weight (rep);
 	};
 
-	backlog_scan.activated.add ([this] (nano::secure::transaction const & transaction, auto const & info) {
-		scheduler.optimistic.activate (info.account, info.account_info, info.conf_info);
-		scheduler.priority.activate (transaction, info.account, info.account_info, info.conf_info);
+	// TODO: Hook this direclty in the schedulers
+	backlog_scan.batch_activated.add ([this] (auto const & batch) {
+		auto transaction = ledger.tx_begin_read ();
+		for (auto const & info : batch)
+		{
+			scheduler.optimistic.activate (info.account, info.account_info, info.conf_info);
+			scheduler.priority.activate (transaction, info.account, info.account_info, info.conf_info);
+		}
 	});
 
 	// Republish vote if it is new and the node does not host a principal representative (or close to)
@@ -1306,6 +1311,7 @@ nano::container_info nano::node::container_info () const
 	info.add ("local_block_broadcaster", local_block_broadcaster.container_info ());
 	info.add ("rep_tiers", rep_tiers.container_info ());
 	info.add ("message_processor", message_processor.container_info ());
+	info.add ("backlog_scan", backlog_scan.container_info ());
 	return info;
 }
 

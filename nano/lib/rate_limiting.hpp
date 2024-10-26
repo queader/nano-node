@@ -62,7 +62,7 @@ class rate_limiter final
 {
 public:
 	// initialize with limit 0 = unbounded
-	rate_limiter (std::size_t limit, double burst_ratio);
+	rate_limiter (std::size_t limit, double burst_ratio = 1.0);
 
 	bool should_pass (std::size_t buffer_size);
 	void reset (std::size_t limit, double burst_ratio);
