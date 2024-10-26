@@ -218,8 +218,10 @@ void nano::block_processor::rollback_competitor (secure::write_transaction const
 			logger.debug (nano::log::type::blockprocessor, "Blocks rolled back: {}", rollback_list.size ());
 		}
 
-		// Notify observers of the rolled back blocks
-		rolled_back.notify (rollback_list, fork_block.qualified_root ());
+		// Notify observers of the rolled back blocks on a background thread while not holding the ledger write lock
+		workers.post ([this, rollback_list = std::move (rollback_list), root = fork_block.qualified_root ()] () {
+			rolled_back.notify (rollback_list, root);
+		});
 	}
 }
 
@@ -238,10 +240,6 @@ void nano::block_processor::run ()
 				queue.size ({ nano::block_source::forced }));
 			}
 
-			auto processed = process_batch (lock);
-			debug_assert (!lock.owns_lock ());
-			lock.lock ();
-
 			// It's possible that ledger processing happens faster than the notifications can be processed by other components, cooldown here
 			while (workers.queued_tasks () >= config.max_queued_notifications)
 			{
@@ -252,6 +250,10 @@ void nano::block_processor::run ()
 					return;
 				}
 			}
+
+			auto processed = process_batch (lock);
+			debug_assert (!lock.owns_lock ());
+			lock.lock ();
 
 			// Queue notifications to be dispatched in the background
 			workers.post ([this, processed = std::move (processed)] () mutable {
