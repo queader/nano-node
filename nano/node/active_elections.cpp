@@ -65,10 +65,13 @@ nano::active_elections::active_elections (nano::node & node_a, nano::confirming_
 	});
 
 	// Stop all rolled back active transactions except initial
-	block_processor.rolled_back.add ([this] (auto const & block, auto const & rollback_root) {
-		if (block->qualified_root () != rollback_root)
+	block_processor.rolled_back.add ([this] (auto const & blocks, auto const & rollback_root) {
+		for (auto const & block : blocks)
 		{
-			erase (block->qualified_root ());
+			if (block->qualified_root () != rollback_root)
+			{
+				erase (block->qualified_root ());
+			}
 		}
 	});
 }

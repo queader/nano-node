@@ -27,14 +27,6 @@ nano::block_processor::block_processor (nano::node_config const & node_config, n
 	logger{ logger_a },
 	workers{ 1, nano::thread_role::name::block_processing_notifications }
 {
-	batch_processed.add ([this] (auto const & items) {
-		// For every batch item: notify the 'processed' observer.
-		for (auto const & [result, context] : items)
-		{
-			block_processed.notify (result, context);
-		}
-	});
-
 	queue.max_size_query = [this] (auto const & origin) {
 		switch (origin.source)
 		{
@@ -193,7 +185,7 @@ void nano::block_processor::rollback_competitor (secure::write_transaction const
 		// Replace our block with the winner and roll back any dependent blocks
 		logger.debug (nano::log::type::blockprocessor, "Rolling back: {} and replacing with: {}", successor->hash ().to_string (), hash.to_string ());
 
-		std::vector<std::shared_ptr<nano::block>> rollback_list;
+		std::deque<std::shared_ptr<nano::block>> rollback_list;
 		if (ledger.rollback (transaction, successor->hash (), rollback_list))
 		{
 			stats.inc (nano::stat::type::ledger, nano::stat::detail::rollback_failed);
@@ -206,10 +198,7 @@ void nano::block_processor::rollback_competitor (secure::write_transaction const
 		}
 
 		// Notify observers of the rolled back blocks
-		for (auto const & block : rollback_list)
-		{
-			rolled_back.notify (block, fork_block.qualified_root ());
-		}
+		rolled_back.notify (rollback_list, fork_block.qualified_root ());
 	}
 }
 

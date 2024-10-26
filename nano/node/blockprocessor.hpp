@@ -99,15 +99,15 @@ public:
 	std::atomic<bool> flushing{ false };
 
 public: // Events
-	using processed_t = std::tuple<nano::block_status, context>;
-	using processed_batch_t = std::deque<processed_t>;
+	using processed_batch_t = std::deque<std::pair<nano::block_status, context>>;
 
-	// The batch observer feeds the processed observer
-	nano::observer_set<nano::block_status const &, context const &> block_processed;
-	nano::observer_set<processed_batch_t const &> batch_processed;
+	// All processed blocks including forks, rejected etc
+	using processed_batch_event_t = nano::observer_set<processed_batch_t const &>;
+	processed_batch_event_t batch_processed;
 
-	// Rolled back blocks <rolled back block, root of rollback>
-	nano::observer_set<std::shared_ptr<nano::block> const &, nano::qualified_root const &> rolled_back;
+	// Rolled back blocks <rolled back blocks, root of rollback>
+	using rolled_back_event_t = nano::observer_set<std::deque<std::shared_ptr<nano::block>> const &, nano::qualified_root const &>;
+	rolled_back_event_t rolled_back;
 
 private: // Dependencies
 	block_processor_config const & config;
