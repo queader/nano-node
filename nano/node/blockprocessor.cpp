@@ -72,7 +72,7 @@ nano::block_processor::block_processor (nano::node_config const & node_config, n
 			case nano::block_source::local:
 				return config.priority_local;
 			default:
-				return 1;
+				return config.priority_system;
 		}
 	};
 

@@ -196,6 +196,7 @@ enum class detail
 	unchecked,
 	local,
 	forced,
+	election,
 
 	// message specific
 	not_a_type,
