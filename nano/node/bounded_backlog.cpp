@@ -314,7 +314,7 @@ auto nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> cons
 		}
 	}
 
-	rolled_back.notify (rollbacks);
+	batch_rolled_back.notify (rollbacks);
 
 	return {
 		.rolled_back = std::move (rollbacks),

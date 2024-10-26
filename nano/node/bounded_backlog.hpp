@@ -111,7 +111,7 @@ public:
 	nano::container_info container_info () const;
 
 public: // Events
-	nano::observer_set<std::deque<std::shared_ptr<nano::block>> const &> rolled_back;
+	nano::observer_set<std::deque<std::shared_ptr<nano::block>> const &> batch_rolled_back;
 
 private: // Dependencies
 	bounded_backlog_config const & config;

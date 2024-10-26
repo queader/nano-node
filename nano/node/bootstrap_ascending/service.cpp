@@ -58,7 +58,7 @@ nano::bootstrap_ascending::service::service (nano::node_config const & node_conf
 	});
 
 	// Unblock rolled back accounts as the dependency is no longer valid
-	bounded_backlog.rolled_back.add ([this] (auto const & batch) {
+	bounded_backlog.batch_rolled_back.add ([this] (auto const & batch) {
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		for (auto const & block : batch)
 		{
