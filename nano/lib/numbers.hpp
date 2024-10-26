@@ -507,6 +507,20 @@ namespace difficulty
 	uint64_t from_multiplier (double const, uint64_t const);
 	double to_multiplier (uint64_t const, uint64_t const);
 }
+
+/**
+ * Increment or decrement a value without overflow
+ */
+template <typename T>
+T increment_clamped (T const & value, T const & bound = std::numeric_limits<T>::max ())
+{
+	return (value < bound) ? value + 1 : bound;
+}
+template <typename T>
+T decrement_clamped (T const & value, T const & bound = std::numeric_limits<T>::min ())
+{
+	return (value > bound) ? value - 1 : bound;
+}
 }
 
 /*
