@@ -40,8 +40,7 @@ void nano::block_processor::context::set_result (result_t const & result)
 
 nano::block_processor::block_processor (nano::node & node_a) :
 	config{ node_a.config.block_processor },
-	node (node_a),
-	next_log (std::chrono::steady_clock::now ()),
+	node{ node_a },
 	workers{ 1, nano::thread_role::name::block_processing_notifications }
 {
 	batch_processed.add ([this] (auto const & items) {
@@ -234,6 +233,7 @@ void nano::block_processor::rollback_competitor (secure::write_transaction const
 
 void nano::block_processor::run ()
 {
+	nano::interval log_interval;
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
@@ -250,8 +250,7 @@ void nano::block_processor::run ()
 				}
 			}
 
-			// TODO: Cleaner periodical logging
-			if (should_log ())
+			if (log_interval.elapsed (15s))
 			{
 				node.logger.info (nano::log::type::blockprocessor, "{} blocks (+ {} forced) in processing queue",
 				queue.size (),
@@ -283,18 +282,6 @@ void nano::block_processor::run ()
 			condition.wait (lock);
 		}
 	}
-}
-
-bool nano::block_processor::should_log ()
-{
-	auto result (false);
-	auto now (std::chrono::steady_clock::now ());
-	if (next_log < now)
-	{
-		next_log = now + std::chrono::seconds (15);
-		result = true;
-	}
-	return result;
 }
 
 auto nano::block_processor::next () -> context
