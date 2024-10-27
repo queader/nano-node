@@ -256,8 +256,9 @@ void nano::block_processor::run ()
 		}
 		else
 		{
-			condition.notify_one ();
-			condition.wait (lock);
+			condition.wait (lock, [this] {
+				return stopped || !queue.empty ();
+			});
 		}
 	}
 }
