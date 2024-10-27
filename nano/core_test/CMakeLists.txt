@@ -51,6 +51,7 @@ add_executable(
   request_aggregator.cpp
   signal_manager.cpp
   socket.cpp
+  stacktrace.cpp
   system.cpp
   telemetry.cpp
   throttle.cpp
