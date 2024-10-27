@@ -13,28 +13,6 @@
 #include <utility>
 
 /*
- * block_processor::context
- */
-
-nano::block_processor::context::context (std::shared_ptr<nano::block> block, nano::block_source source_a, callback_t callback_a) :
-	block{ std::move (block) },
-	source{ source_a },
-	callback{ std::move (callback_a) }
-{
-	debug_assert (source != nano::block_source::unknown);
-}
-
-auto nano::block_processor::context::get_future () -> std::future<result_t>
-{
-	return promise.get_future ();
-}
-
-void nano::block_processor::context::set_result (result_t const & result)
-{
-	promise.set_value (result);
-}
-
-/*
  * block_processor
  */
 
@@ -473,6 +451,28 @@ nano::container_info nano::block_processor::container_info () const
 	info.add ("queue", queue.container_info ());
 	info.add ("workers", workers.container_info ());
 	return info;
+}
+
+/*
+ * block_processor::context
+ */
+
+nano::block_processor::context::context (std::shared_ptr<nano::block> block, nano::block_source source_a, callback_t callback_a) :
+	block{ std::move (block) },
+	source{ source_a },
+	callback{ std::move (callback_a) }
+{
+	debug_assert (source != nano::block_source::unknown);
+}
+
+auto nano::block_processor::context::get_future () -> std::future<result_t>
+{
+	return promise.get_future ();
+}
+
+void nano::block_processor::context::set_result (result_t const & result)
+{
+	promise.set_value (result);
 }
 
 /*
