@@ -190,25 +190,25 @@ asio::awaitable<void> nano::transport::tcp_channel::wait_bandwidth (nano::transp
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	auto allocate_bandwidth = [this, type, size] () -> asio::awaitable<void> {
-		const size_t bandwidth_chunk = 128 * 1024; // TODO: Make this configurable
-		// This is somewhat inefficient
-		// The performance impact *should* be mitigated by the fact that we allocate it in larger chunks, so this happens relatively infrequently
+	auto allocate_bandwidth = [this] (auto type, auto size) -> asio::awaitable<size_t> {
 		// TODO: Consider implementing a subsribe/notification mechanism for bandwidth allocation
-		while (!node.outbound_limiter.should_pass (bandwidth_chunk, type))
+		while (!node.outbound_limiter.should_pass (size, type))
 		{
 			co_await nano::async::sleep_for (100ms);
 		}
-		allocated_bandwidth += bandwidth_chunk;
+		co_return size;
 	};
 
+	// This is somewhat inefficient
+	// The performance impact *should* be mitigated by the fact that we allocate it in larger chunks, so this happens relatively infrequently
+	const size_t bandwidth_chunk = 128 * 1024; // TODO: Make this configurable
 	while (allocated_bandwidth < size)
 	{
-		co_await allocate_bandwidth ();
+		allocated_bandwidth += co_await allocate_bandwidth (type, bandwidth_chunk);
 	}
-
 	allocated_bandwidth -= size;
-	co_return;
+
+	// co_await allocate_bandwidth (type, size);
 }
 
 asio::awaitable<void> nano::transport::tcp_channel::wait_socket (traffic_type type)
