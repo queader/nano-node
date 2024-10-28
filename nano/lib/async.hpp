@@ -178,13 +178,17 @@ public:
 				state_s->timer.cancel ();
 			});
 		}
+		// asio::dispatch (strand, [state_s = state] () {
+		// 	state_s->scheduled = false;
+		// 	state_s->timer.cancel ();
+		// });
 	}
 
+	// Spuriously wakes up
 	asio::awaitable<void> wait ()
 	{
 		debug_assert (strand.running_in_this_thread ());
-		release_assert (state);
-		co_await state->timer.async_wait (asio::use_awaitable);
+		co_await wait_for (std::chrono::seconds{ 15 });
 	}
 
 	asio::awaitable<void> wait_for (auto duration)
