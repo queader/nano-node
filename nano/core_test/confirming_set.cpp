@@ -117,11 +117,10 @@ TEST (confirmation_callback, observer_callbacks)
 TEST (confirmation_callback, confirmed_history)
 {
 	nano::test::system system;
-	nano::node_flags node_flags;
-	node_flags.disable_ascending_bootstrap = true;
 	nano::node_config node_config = system.default_config ();
 	node_config.backlog_population.enable = false;
-	auto node = system.add_node (node_config, node_flags);
+	node_config.bootstrap.enable = false;
+	auto node = system.add_node (node_config);
 
 	nano::block_hash latest (node->latest (nano::dev::genesis_key.pub));
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nano/node/fwd.hpp>
+
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -12,19 +14,13 @@ namespace mi = boost::multi_index;
 
 namespace nano
 {
-class bootstrap_ascending_config;
-class network_constants;
-namespace transport
-{
-	class channel;
-}
-namespace bootstrap_ascending
+namespace bootstrap
 {
 	// Container for tracking and scoring peers with respect to bootstrapping
 	class peer_scoring
 	{
 	public:
-		peer_scoring (bootstrap_ascending_config const &, nano::network_constants const &);
+		peer_scoring (bootstrap_config const &, nano::network_constants const &);
 
 		// Returns true if channel limit has been exceeded
 		bool try_send_message (std::shared_ptr<nano::transport::channel> channel);
@@ -37,7 +33,7 @@ namespace bootstrap_ascending
 		void sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list);
 
 	private:
-		bootstrap_ascending_config const & config;
+		bootstrap_config const & config;
 		nano::network_constants const & network_constants;
 
 	private:

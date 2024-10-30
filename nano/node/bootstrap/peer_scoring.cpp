@@ -1,18 +1,18 @@
 #include <nano/node/bootstrap/bootstrap_config.hpp>
-#include <nano/node/bootstrap_ascending/peer_scoring.hpp>
+#include <nano/node/bootstrap/peer_scoring.hpp>
 #include <nano/node/transport/channel.hpp>
 
 /*
  * peer_scoring
  */
 
-nano::bootstrap_ascending::peer_scoring::peer_scoring (bootstrap_ascending_config const & config_a, nano::network_constants const & network_constants_a) :
+nano::bootstrap::peer_scoring::peer_scoring (bootstrap_config const & config_a, nano::network_constants const & network_constants_a) :
 	config{ config_a },
 	network_constants{ network_constants_a }
 {
 }
 
-bool nano::bootstrap_ascending::peer_scoring::try_send_message (std::shared_ptr<nano::transport::channel> channel)
+bool nano::bootstrap::peer_scoring::try_send_message (std::shared_ptr<nano::transport::channel> channel)
 {
 	auto & index = scoring.get<tag_channel> ();
 	auto existing = index.find (channel.get ());
@@ -38,7 +38,7 @@ bool nano::bootstrap_ascending::peer_scoring::try_send_message (std::shared_ptr<
 	return false;
 }
 
-void nano::bootstrap_ascending::peer_scoring::received_message (std::shared_ptr<nano::transport::channel> channel)
+void nano::bootstrap::peer_scoring::received_message (std::shared_ptr<nano::transport::channel> channel)
 {
 	auto & index = scoring.get<tag_channel> ();
 	auto existing = index.find (channel.get ());
@@ -55,7 +55,7 @@ void nano::bootstrap_ascending::peer_scoring::received_message (std::shared_ptr<
 	}
 }
 
-std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::peer_scoring::channel ()
+std::shared_ptr<nano::transport::channel> nano::bootstrap::peer_scoring::channel ()
 {
 	auto & index = scoring.get<tag_outstanding> ();
 	for (auto const & score : index)
@@ -74,12 +74,12 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::peer_scorin
 	return nullptr;
 }
 
-std::size_t nano::bootstrap_ascending::peer_scoring::size () const
+std::size_t nano::bootstrap::peer_scoring::size () const
 {
 	return scoring.size ();
 }
 
-void nano::bootstrap_ascending::peer_scoring::timeout ()
+void nano::bootstrap::peer_scoring::timeout ()
 {
 	auto & index = scoring.get<tag_channel> ();
 
@@ -102,7 +102,7 @@ void nano::bootstrap_ascending::peer_scoring::timeout ()
 	}
 }
 
-void nano::bootstrap_ascending::peer_scoring::sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list)
+void nano::bootstrap::peer_scoring::sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list)
 {
 	auto & index = scoring.get<tag_channel> ();
 	for (auto const & channel : list)
@@ -124,8 +124,7 @@ void nano::bootstrap_ascending::peer_scoring::sync (std::deque<std::shared_ptr<n
  * peer_score
  */
 
-nano::bootstrap_ascending::peer_scoring::peer_score::peer_score (
-std::shared_ptr<nano::transport::channel> const & channel_a, uint64_t outstanding_a, uint64_t request_count_total_a, uint64_t response_count_total_a) :
+nano::bootstrap::peer_scoring::peer_score::peer_score (std::shared_ptr<nano::transport::channel> const & channel_a, uint64_t outstanding_a, uint64_t request_count_total_a, uint64_t response_count_total_a) :
 	channel{ channel_a },
 	channel_ptr{ channel_a.get () },
 	outstanding{ outstanding_a },

@@ -1,5 +1,5 @@
 #include <nano/lib/thread_roles.hpp>
-#include <nano/node/bootstrap_ascending/service.hpp>
+#include <nano/node/bootstrap/bootstrap_service.hpp>
 #include <nano/node/message_processor.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/telemetry.hpp>
@@ -267,7 +267,7 @@ public:
 
 	void asc_pull_ack (nano::asc_pull_ack const & message) override
 	{
-		node.ascendboot.process (message, channel);
+		node.bootstrap.process (message, channel);
 	}
 
 private:

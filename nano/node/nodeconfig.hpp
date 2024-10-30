@@ -116,11 +116,11 @@ public:
 	std::size_t bandwidth_limit{ 10 * 1024 * 1024 };
 	/** By default, allow bursts of 15MB/s (not sustainable) */
 	double bandwidth_limit_burst_ratio{ 3. };
-	/** Default boostrap outbound traffic limit is 5MB/s */
+	/** Default bootstrap outbound traffic limit is 5MB/s */
 	std::size_t bootstrap_bandwidth_limit{ 5 * 1024 * 1024 };
 	/** Bootstrap traffic does not need bursts */
 	double bootstrap_bandwidth_burst_ratio{ 1. };
-	nano::bootstrap_ascending_config bootstrap_ascending;
+	nano::bootstrap_config bootstrap;
 	nano::bootstrap_server_config bootstrap_server;
 	std::chrono::milliseconds confirming_set_batch_time{ 250 };
 	bool backup_before_upgrade{ false };
@@ -171,7 +171,6 @@ public:
 	bool disable_bootstrap_bulk_pull_server{ false };
 	bool disable_bootstrap_bulk_push_client{ false };
 	bool disable_ongoing_bootstrap{ false }; // For testing only
-	bool disable_ascending_bootstrap{ false };
 	bool disable_rep_crawler{ false };
 	bool disable_request_loop{ false }; // For testing only
 	bool disable_tcp_realtime{ false };

@@ -214,9 +214,9 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	priority_bucket.serialize (priority_bucket_l);
 	toml.put_child ("priority_bucket", priority_bucket_l);
 
-	nano::tomlconfig bootstrap_ascending_l;
-	bootstrap_ascending.serialize (bootstrap_ascending_l);
-	toml.put_child ("bootstrap_ascending", bootstrap_ascending_l);
+	nano::tomlconfig bootstrap_l;
+	bootstrap.serialize (bootstrap_l);
+	toml.put_child ("bootstrap", bootstrap_l);
 
 	nano::tomlconfig bootstrap_server_l;
 	bootstrap_server.serialize (bootstrap_server_l);
@@ -329,10 +329,10 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			priority_bucket.deserialize (config_l);
 		}
 
-		if (toml.has_key ("bootstrap_ascending"))
+		if (toml.has_key ("bootstrap"))
 		{
-			auto config_l = toml.get_required_child ("bootstrap_ascending");
-			bootstrap_ascending.deserialize (config_l);
+			auto config_l = toml.get_required_child ("bootstrap");
+			bootstrap.deserialize (config_l);
 		}
 
 		if (toml.has_key ("bootstrap_server"))

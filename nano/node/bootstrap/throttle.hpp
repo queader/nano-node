@@ -2,7 +2,7 @@
 
 #include <deque>
 
-namespace nano::bootstrap_ascending
+namespace nano::bootstrap
 {
 // Class used to throttle the ascending bootstrapper once it reaches a steady state
 // Tracks verify_result samples and signals throttling if no tracked samples have gotten results
@@ -26,4 +26,4 @@ private:
 	std::deque<bool> samples;
 	std::size_t successes_m;
 };
-} // nano::boostrap_ascending
+}

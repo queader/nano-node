@@ -1,14 +1,14 @@
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/stream.hpp>
-#include <nano/node/bootstrap/block_deserializer.hpp>
+#include <nano/node/transport/block_deserializer.hpp>
 #include <nano/node/transport/tcp_socket.hpp>
 
-nano::bootstrap::block_deserializer::block_deserializer () :
+nano::transport::block_deserializer::block_deserializer () :
 	read_buffer{ std::make_shared<std::vector<uint8_t>> () }
 {
 }
 
-void nano::bootstrap::block_deserializer::read (nano::transport::tcp_socket & socket, callback_type const && callback)
+void nano::transport::block_deserializer::read (nano::transport::tcp_socket & socket, callback_type const && callback)
 {
 	debug_assert (callback);
 	read_buffer->resize (1);
@@ -27,7 +27,7 @@ void nano::bootstrap::block_deserializer::read (nano::transport::tcp_socket & so
 	});
 }
 
-void nano::bootstrap::block_deserializer::received_type (nano::transport::tcp_socket & socket, callback_type const && callback)
+void nano::transport::block_deserializer::received_type (nano::transport::tcp_socket & socket, callback_type const && callback)
 {
 	nano::block_type type = static_cast<nano::block_type> (read_buffer->data ()[0]);
 	if (type == nano::block_type::not_a_block)
@@ -57,7 +57,7 @@ void nano::bootstrap::block_deserializer::received_type (nano::transport::tcp_so
 	});
 }
 
-void nano::bootstrap::block_deserializer::received_block (nano::block_type type, callback_type const && callback)
+void nano::transport::block_deserializer::received_block (nano::block_type type, callback_type const && callback)
 {
 	nano::bufferstream stream{ read_buffer->data (), read_buffer->size () };
 	auto block = nano::deserialize_block (stream, type);

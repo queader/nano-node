@@ -19,7 +19,6 @@ enum class type
 	block,
 	ledger,
 	rollback,
-	bootstrap,
 	network,
 	tcp_server,
 	vote,
@@ -58,13 +57,18 @@ enum class type
 	blockprocessor_source,
 	blockprocessor_result,
 	blockprocessor_overfill,
-	bootstrap_ascending,
-	bootstrap_ascending_accounts,
-	bootstrap_ascending_verify,
-	bootstrap_ascending_process,
-	bootstrap_ascending_request,
-	bootstrap_ascending_reply,
-	bootstrap_ascending_next,
+	bootstrap,
+	bootstrap_verify,
+	bootstrap_verify_blocks,
+	bootstrap_verify_frontiers,
+	bootstrap_process,
+	bootstrap_request,
+	bootstrap_request_blocks,
+	bootstrap_reply,
+	bootstrap_next,
+	bootstrap_frontiers,
+	bootstrap_account_sets,
+	bootstrap_frontier_scan,
 	bootstrap_server,
 	bootstrap_server_request,
 	bootstrap_server_overfill,
@@ -118,6 +122,7 @@ enum class detail
 	inserted,
 	erased,
 	request,
+	request_failed,
 	broadcast,
 	cleanup,
 	top,
@@ -137,6 +142,8 @@ enum class detail
 	empty,
 	done,
 	retry,
+	prioritized,
+	pending,
 
 	// processing queue
 	queue,
@@ -430,7 +437,7 @@ enum class detail
 	missing_cookie,
 	invalid_genesis,
 
-	// bootstrap ascending
+	// bootstrap
 	missing_tag,
 	reply,
 	throttled,
@@ -438,13 +445,17 @@ enum class detail
 	timeout,
 	nothing_new,
 	account_info_empty,
+	frontiers_empty,
 	loop_database,
 	loop_dependencies,
+	loop_frontiers,
+	loop_frontiers_processing,
 	duplicate_request,
 	invalid_response_type,
 	timestamp_reset,
+	processing_frontiers,
+	frontiers_dropped,
 
-	// bootstrap ascending accounts
 	prioritize,
 	prioritize_failed,
 	block,
@@ -453,11 +464,19 @@ enum class detail
 	dependency_update,
 	dependency_update_failed,
 
+	done_range,
+	done_empty,
+	next_by_requests,
+	next_by_timestamp,
+	advance,
+	advance_failed,
+
 	next_none,
 	next_priority,
 	next_database,
 	next_blocking,
 	next_dependency,
+	next_frontier,
 
 	blocking_insert,
 	blocking_erase_overflow,
@@ -472,9 +491,13 @@ enum class detail
 	request_blocks,
 	request_account_info,
 
+	safe,
+	base,
+
 	// active
 	started_hinted,
 	started_optimistic,
+
 	// rep_crawler
 	channel_dead,
 	query_target_failed,

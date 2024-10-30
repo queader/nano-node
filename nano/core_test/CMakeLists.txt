@@ -10,7 +10,6 @@ add_executable(
   block_store.cpp
   blockprocessor.cpp
   bootstrap.cpp
-  bootstrap_ascending.cpp
   bootstrap_server.cpp
   cli.cpp
   confirmation_solicitor.cpp
@@ -41,6 +40,7 @@ add_executable(
   optimistic_scheduler.cpp
   processing_queue.cpp
   processor_service.cpp
+  random.cpp
   random_pool.cpp
   rep_crawler.cpp
   receivable.cpp

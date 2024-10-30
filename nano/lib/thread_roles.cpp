@@ -73,9 +73,6 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::worker:
 			thread_role_name_string = "Worker";
 			break;
-		case nano::thread_role::name::bootstrap_worker:
-			thread_role_name_string = "Bootstrap work";
-			break;
 		case nano::thread_role::name::wallet_worker:
 			thread_role_name_string = "Wallet work";
 			break;
@@ -103,8 +100,23 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::vote_generator_queue:
 			thread_role_name_string = "Voting que";
 			break;
-		case nano::thread_role::name::ascending_bootstrap:
-			thread_role_name_string = "Bootstrap asc";
+		case nano::thread_role::name::bootstrap:
+			thread_role_name_string = "Bootstrap";
+			break;
+		case nano::thread_role::name::bootstrap_database_scan:
+			thread_role_name_string = "Bootstrap db";
+			break;
+		case nano::thread_role::name::bootstrap_dependendy_walker:
+			thread_role_name_string = "Bootstrap walkr";
+			break;
+		case nano::thread_role::name::bootstrap_frontier_scan:
+			thread_role_name_string = "Bootstrap front";
+			break;
+		case nano::thread_role::name::bootstrap_cleanup:
+			thread_role_name_string = "Bootstrap clean";
+			break;
+		case nano::thread_role::name::bootstrap_worker:
+			thread_role_name_string = "Bootstrap work";
 			break;
 		case nano::thread_role::name::bootstrap_server:
 			thread_role_name_string = "Bootstrap serv";

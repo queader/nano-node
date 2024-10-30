@@ -117,7 +117,7 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ss << R"toml(
 	[node]
 	[node.backlog_population]
-	[node.bootstrap_ascending]
+	[node.bootstrap]
 	[node.bootstrap_server]
 	[node.block_processor]
 	[node.diagnostics.txn_tracking]
@@ -244,11 +244,11 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.rocksdb_config.read_cache, defaults.node.rocksdb_config.read_cache);
 	ASSERT_EQ (conf.node.rocksdb_config.write_cache, defaults.node.rocksdb_config.write_cache);
 
-	ASSERT_EQ (conf.node.optimistic_scheduler.enabled, defaults.node.optimistic_scheduler.enabled);
+	ASSERT_EQ (conf.node.optimistic_scheduler.enable, defaults.node.optimistic_scheduler.enable);
 	ASSERT_EQ (conf.node.optimistic_scheduler.gap_threshold, defaults.node.optimistic_scheduler.gap_threshold);
 	ASSERT_EQ (conf.node.optimistic_scheduler.max_size, defaults.node.optimistic_scheduler.max_size);
 
-	ASSERT_EQ (conf.node.hinted_scheduler.enabled, defaults.node.hinted_scheduler.enabled);
+	ASSERT_EQ (conf.node.hinted_scheduler.enable, defaults.node.hinted_scheduler.enable);
 	ASSERT_EQ (conf.node.hinted_scheduler.hinting_threshold_percent, defaults.node.hinted_scheduler.hinting_threshold_percent);
 	ASSERT_EQ (conf.node.hinted_scheduler.check_interval.count (), defaults.node.hinted_scheduler.check_interval.count ());
 	ASSERT_EQ (conf.node.hinted_scheduler.block_cooldown.count (), defaults.node.hinted_scheduler.block_cooldown.count ());
@@ -269,18 +269,18 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.vote_processor.threads, defaults.node.vote_processor.threads);
 	ASSERT_EQ (conf.node.vote_processor.batch_size, defaults.node.vote_processor.batch_size);
 
-	ASSERT_EQ (conf.node.bootstrap_ascending.enable, defaults.node.bootstrap_ascending.enable);
-	ASSERT_EQ (conf.node.bootstrap_ascending.enable_database_scan, defaults.node.bootstrap_ascending.enable_database_scan);
-	ASSERT_EQ (conf.node.bootstrap_ascending.enable_dependency_walker, defaults.node.bootstrap_ascending.enable_dependency_walker);
-	ASSERT_EQ (conf.node.bootstrap_ascending.channel_limit, defaults.node.bootstrap_ascending.channel_limit);
-	ASSERT_EQ (conf.node.bootstrap_ascending.database_rate_limit, defaults.node.bootstrap_ascending.database_rate_limit);
-	ASSERT_EQ (conf.node.bootstrap_ascending.database_warmup_ratio, defaults.node.bootstrap_ascending.database_warmup_ratio);
-	ASSERT_EQ (conf.node.bootstrap_ascending.max_pull_count, defaults.node.bootstrap_ascending.max_pull_count);
-	ASSERT_EQ (conf.node.bootstrap_ascending.request_timeout, defaults.node.bootstrap_ascending.request_timeout);
-	ASSERT_EQ (conf.node.bootstrap_ascending.throttle_coefficient, defaults.node.bootstrap_ascending.throttle_coefficient);
-	ASSERT_EQ (conf.node.bootstrap_ascending.throttle_wait, defaults.node.bootstrap_ascending.throttle_wait);
-	ASSERT_EQ (conf.node.bootstrap_ascending.block_processor_threshold, defaults.node.bootstrap_ascending.block_processor_threshold);
-	ASSERT_EQ (conf.node.bootstrap_ascending.max_requests, defaults.node.bootstrap_ascending.max_requests);
+	ASSERT_EQ (conf.node.bootstrap.enable, defaults.node.bootstrap.enable);
+	ASSERT_EQ (conf.node.bootstrap.enable_database_scan, defaults.node.bootstrap.enable_database_scan);
+	ASSERT_EQ (conf.node.bootstrap.enable_dependency_walker, defaults.node.bootstrap.enable_dependency_walker);
+	ASSERT_EQ (conf.node.bootstrap.channel_limit, defaults.node.bootstrap.channel_limit);
+	ASSERT_EQ (conf.node.bootstrap.database_rate_limit, defaults.node.bootstrap.database_rate_limit);
+	ASSERT_EQ (conf.node.bootstrap.database_warmup_ratio, defaults.node.bootstrap.database_warmup_ratio);
+	ASSERT_EQ (conf.node.bootstrap.max_pull_count, defaults.node.bootstrap.max_pull_count);
+	ASSERT_EQ (conf.node.bootstrap.request_timeout, defaults.node.bootstrap.request_timeout);
+	ASSERT_EQ (conf.node.bootstrap.throttle_coefficient, defaults.node.bootstrap.throttle_coefficient);
+	ASSERT_EQ (conf.node.bootstrap.throttle_wait, defaults.node.bootstrap.throttle_wait);
+	ASSERT_EQ (conf.node.bootstrap.block_processor_threshold, defaults.node.bootstrap.block_processor_threshold);
+	ASSERT_EQ (conf.node.bootstrap.max_requests, defaults.node.bootstrap.max_requests);
 
 	ASSERT_EQ (conf.node.bootstrap_server.max_queue, defaults.node.bootstrap_server.max_queue);
 	ASSERT_EQ (conf.node.bootstrap_server.threads, defaults.node.bootstrap_server.threads);
@@ -597,9 +597,10 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	threads = 999
 	batch_size = 999
 
-	[node.bootstrap_ascending]
+	[node.bootstrap]
 	enable = false
-	enable_database_scan = false
+	enable_frontier_scan = false
+	enable_database_scan = true
 	enable_dependency_walker = false
 	channel_limit = 999
 	database_rate_limit = 999
@@ -751,11 +752,11 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.rocksdb_config.read_cache, defaults.node.rocksdb_config.read_cache);
 	ASSERT_NE (conf.node.rocksdb_config.write_cache, defaults.node.rocksdb_config.write_cache);
 
-	ASSERT_NE (conf.node.optimistic_scheduler.enabled, defaults.node.optimistic_scheduler.enabled);
+	ASSERT_NE (conf.node.optimistic_scheduler.enable, defaults.node.optimistic_scheduler.enable);
 	ASSERT_NE (conf.node.optimistic_scheduler.gap_threshold, defaults.node.optimistic_scheduler.gap_threshold);
 	ASSERT_NE (conf.node.optimistic_scheduler.max_size, defaults.node.optimistic_scheduler.max_size);
 
-	ASSERT_NE (conf.node.hinted_scheduler.enabled, defaults.node.hinted_scheduler.enabled);
+	ASSERT_NE (conf.node.hinted_scheduler.enable, defaults.node.hinted_scheduler.enable);
 	ASSERT_NE (conf.node.hinted_scheduler.hinting_threshold_percent, defaults.node.hinted_scheduler.hinting_threshold_percent);
 	ASSERT_NE (conf.node.hinted_scheduler.check_interval.count (), defaults.node.hinted_scheduler.check_interval.count ());
 	ASSERT_NE (conf.node.hinted_scheduler.block_cooldown.count (), defaults.node.hinted_scheduler.block_cooldown.count ());
@@ -776,18 +777,19 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.vote_processor.threads, defaults.node.vote_processor.threads);
 	ASSERT_NE (conf.node.vote_processor.batch_size, defaults.node.vote_processor.batch_size);
 
-	ASSERT_NE (conf.node.bootstrap_ascending.enable, defaults.node.bootstrap_ascending.enable);
-	ASSERT_NE (conf.node.bootstrap_ascending.enable_database_scan, defaults.node.bootstrap_ascending.enable_database_scan);
-	ASSERT_NE (conf.node.bootstrap_ascending.enable_dependency_walker, defaults.node.bootstrap_ascending.enable_dependency_walker);
-	ASSERT_NE (conf.node.bootstrap_ascending.channel_limit, defaults.node.bootstrap_ascending.channel_limit);
-	ASSERT_NE (conf.node.bootstrap_ascending.database_rate_limit, defaults.node.bootstrap_ascending.database_rate_limit);
-	ASSERT_NE (conf.node.bootstrap_ascending.database_warmup_ratio, defaults.node.bootstrap_ascending.database_warmup_ratio);
-	ASSERT_NE (conf.node.bootstrap_ascending.max_pull_count, defaults.node.bootstrap_ascending.max_pull_count);
-	ASSERT_NE (conf.node.bootstrap_ascending.request_timeout, defaults.node.bootstrap_ascending.request_timeout);
-	ASSERT_NE (conf.node.bootstrap_ascending.throttle_coefficient, defaults.node.bootstrap_ascending.throttle_coefficient);
-	ASSERT_NE (conf.node.bootstrap_ascending.throttle_wait, defaults.node.bootstrap_ascending.throttle_wait);
-	ASSERT_NE (conf.node.bootstrap_ascending.block_processor_threshold, defaults.node.bootstrap_ascending.block_processor_threshold);
-	ASSERT_NE (conf.node.bootstrap_ascending.max_requests, defaults.node.bootstrap_ascending.max_requests);
+	ASSERT_NE (conf.node.bootstrap.enable, defaults.node.bootstrap.enable);
+	ASSERT_NE (conf.node.bootstrap.enable_database_scan, defaults.node.bootstrap.enable_database_scan);
+	ASSERT_NE (conf.node.bootstrap.enable_frontier_scan, defaults.node.bootstrap.enable_frontier_scan);
+	ASSERT_NE (conf.node.bootstrap.enable_dependency_walker, defaults.node.bootstrap.enable_dependency_walker);
+	ASSERT_NE (conf.node.bootstrap.channel_limit, defaults.node.bootstrap.channel_limit);
+	ASSERT_NE (conf.node.bootstrap.database_rate_limit, defaults.node.bootstrap.database_rate_limit);
+	ASSERT_NE (conf.node.bootstrap.database_warmup_ratio, defaults.node.bootstrap.database_warmup_ratio);
+	ASSERT_NE (conf.node.bootstrap.max_pull_count, defaults.node.bootstrap.max_pull_count);
+	ASSERT_NE (conf.node.bootstrap.request_timeout, defaults.node.bootstrap.request_timeout);
+	ASSERT_NE (conf.node.bootstrap.throttle_coefficient, defaults.node.bootstrap.throttle_coefficient);
+	ASSERT_NE (conf.node.bootstrap.throttle_wait, defaults.node.bootstrap.throttle_wait);
+	ASSERT_NE (conf.node.bootstrap.block_processor_threshold, defaults.node.bootstrap.block_processor_threshold);
+	ASSERT_NE (conf.node.bootstrap.max_requests, defaults.node.bootstrap.max_requests);
 
 	ASSERT_NE (conf.node.bootstrap_server.max_queue, defaults.node.bootstrap_server.max_queue);
 	ASSERT_NE (conf.node.bootstrap_server.threads, defaults.node.bootstrap_server.threads);
@@ -1079,7 +1081,7 @@ TEST (toml, merge_config_files)
 	[node]
 	 active_elections.size = 999
 	 # background_threads = 7777
-	[node.bootstrap_ascending]
+	[node.bootstrap]
 	 block_processor_threshold = 33333
 	 old_entry = 34
 	)toml";
@@ -1103,6 +1105,6 @@ TEST (toml, merge_config_files)
 	ASSERT_NE (merged_config.node.active_elections.size, default_config.node.active_elections.size);
 	ASSERT_EQ (merged_config.node.active_elections.size, 999);
 	ASSERT_NE (merged_config.node.background_threads, 7777);
-	ASSERT_EQ (merged_config.node.bootstrap_ascending.block_processor_threshold, 33333);
+	ASSERT_EQ (merged_config.node.bootstrap.block_processor_threshold, 33333);
 	ASSERT_TRUE (merged_config_string.find ("old_entry") == std::string::npos);
 }

@@ -4,8 +4,7 @@
 #include <nano/lib/stats_sinks.hpp>
 #include <nano/lib/timer.hpp>
 #include <nano/node/active_elections.hpp>
-#include <nano/node/bootstrap/bootstrap_lazy.hpp>
-#include <nano/node/bootstrap_ascending/service.hpp>
+#include <nano/node/bootstrap/bootstrap_service.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/election.hpp>
@@ -250,7 +249,6 @@ nano::account_info nano::json_handler::account_info_impl (secure::transaction co
 		if (!info)
 		{
 			ec = nano::error_common::account_not_found;
-			node.bootstrap_initiator.bootstrap_lazy (account_a, false, account_a.to_account ());
 		}
 		else
 		{
@@ -1804,16 +1802,7 @@ void nano::json_handler::bootstrap ()
 		uint16_t port;
 		if (!nano::parse_port (port_text, port))
 		{
-			if (!node.flags.disable_legacy_bootstrap)
-			{
-				std::string bootstrap_id (request.get<std::string> ("id", ""));
-				node.bootstrap_initiator.bootstrap (nano::endpoint (address, port), true, bootstrap_id);
-				response_l.put ("success", "");
-			}
-			else
-			{
-				ec = nano::error_rpc::disabled_bootstrap_legacy;
-			}
+			ec = nano::error_rpc::disabled_bootstrap_legacy;
 		}
 		else
 		{
@@ -1830,22 +1819,7 @@ void nano::json_handler::bootstrap ()
 void nano::json_handler::bootstrap_any ()
 {
 	bool const force = request.get<bool> ("force", false);
-	if (!node.flags.disable_legacy_bootstrap)
-	{
-		nano::account start_account{};
-		boost::optional<std::string> account_text (request.get_optional<std::string> ("account"));
-		if (account_text.is_initialized ())
-		{
-			start_account = account_impl (account_text.get ());
-		}
-		std::string bootstrap_id (request.get<std::string> ("id", ""));
-		node.bootstrap_initiator.bootstrap (force, bootstrap_id, std::numeric_limits<uint32_t>::max (), start_account);
-		response_l.put ("success", "");
-	}
-	else
-	{
-		ec = nano::error_rpc::disabled_bootstrap_legacy;
-	}
+	ec = nano::error_rpc::disabled_bootstrap_legacy;
 	response_errors ();
 }
 
@@ -1855,19 +1829,7 @@ void nano::json_handler::bootstrap_lazy ()
 	bool const force = request.get<bool> ("force", false);
 	if (!ec)
 	{
-		if (!node.flags.disable_lazy_bootstrap)
-		{
-			auto existed (node.bootstrap_initiator.current_lazy_attempt () != nullptr);
-			std::string bootstrap_id (request.get<std::string> ("id", ""));
-			auto key_inserted (node.bootstrap_initiator.bootstrap_lazy (hash, force, bootstrap_id));
-			bool started = !existed && key_inserted;
-			response_l.put ("started", started ? "1" : "0");
-			response_l.put ("key_inserted", key_inserted ? "1" : "0");
-		}
-		else
-		{
-			ec = nano::error_rpc::disabled_bootstrap_lazy;
-		}
+		ec = nano::error_rpc::disabled_bootstrap_lazy;
 	}
 	response_errors ();
 }
@@ -1877,39 +1839,7 @@ void nano::json_handler::bootstrap_lazy ()
  */
 void nano::json_handler::bootstrap_status ()
 {
-	auto attempts_count (node.bootstrap_initiator.attempts.size ());
-	response_l.put ("bootstrap_threads", std::to_string (node.config.bootstrap_initiator_threads));
-	response_l.put ("running_attempts_count", std::to_string (attempts_count));
-	response_l.put ("total_attempts_count", std::to_string (node.bootstrap_initiator.attempts.incremental));
-	boost::property_tree::ptree connections;
-	{
-		nano::lock_guard<nano::mutex> connections_lock (node.bootstrap_initiator.connections->mutex);
-		connections.put ("clients", std::to_string (node.bootstrap_initiator.connections->clients.size ()));
-		connections.put ("connections", std::to_string (node.bootstrap_initiator.connections->connections_count));
-		connections.put ("idle", std::to_string (node.bootstrap_initiator.connections->idle.size ()));
-		connections.put ("target_connections", std::to_string (node.bootstrap_initiator.connections->target_connections (node.bootstrap_initiator.connections->pulls.size (), attempts_count)));
-		connections.put ("pulls", std::to_string (node.bootstrap_initiator.connections->pulls.size ()));
-	}
-	response_l.add_child ("connections", connections);
-	boost::property_tree::ptree attempts;
-	{
-		nano::lock_guard<nano::mutex> attempts_lock (node.bootstrap_initiator.attempts.bootstrap_attempts_mutex);
-		for (auto i : node.bootstrap_initiator.attempts.attempts)
-		{
-			boost::property_tree::ptree entry;
-			auto & attempt (i.second);
-			entry.put ("id", attempt->id);
-			entry.put ("mode", attempt->mode_text ());
-			entry.put ("started", static_cast<bool> (attempt->started));
-			entry.put ("pulling", std::to_string (attempt->pulling));
-			entry.put ("total_blocks", std::to_string (attempt->total_blocks));
-			entry.put ("requeued_pulls", std::to_string (attempt->requeued_pulls));
-			attempt->get_information (entry);
-			entry.put ("duration", std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - attempt->attempt_start).count ());
-			attempts.push_back (std::make_pair ("", entry));
-		}
-	}
-	response_l.add_child ("attempts", attempts);
+	// TODO: Bootstrap status for ascending bootstrap
 	response_errors ();
 }
 
@@ -5230,7 +5160,7 @@ void nano::json_handler::debug_bootstrap_priority_info ()
 {
 	if (!ec)
 	{
-		auto [blocking, priorities] = node.ascendboot.info ();
+		auto [blocking, priorities] = node.bootstrap.info ();
 
 		// priorities
 		{

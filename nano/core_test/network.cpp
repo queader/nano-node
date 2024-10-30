@@ -265,8 +265,6 @@ TEST (network, send_valid_publish)
 	nano::test::system system (2, type, node_flags);
 	auto & node1 (*system.nodes[0]);
 	auto & node2 (*system.nodes[1]);
-	node1.bootstrap_initiator.stop ();
-	node2.bootstrap_initiator.stop ();
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::keypair key2;
 	system.wallet (1)->insert_adhoc (key2.prv);
