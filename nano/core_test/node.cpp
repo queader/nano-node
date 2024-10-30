@@ -700,6 +700,7 @@ TEST (node, fork_multi_flip)
 	node_config.backlog_population.enable = false;
 	auto & node1 (*system.add_node (node_config, node_flags, type));
 	node_config.peering_port = system.get_available_port ();
+	node_config.bootstrap.account_sets.cooldown = 100ms; // Reduce cooldown to speed up fork resolution
 	auto & node2 (*system.add_node (node_config, node_flags, type));
 	ASSERT_EQ (1, node1.network.size ());
 	nano::keypair key1;
@@ -734,9 +735,9 @@ TEST (node, fork_multi_flip)
 
 	auto election = nano::test::start_election (system, node2, send2->hash ());
 	ASSERT_NE (nullptr, election);
-	ASSERT_TIMELY (20s, election->contains (send1->hash ()));
+	ASSERT_TIMELY (10s, election->contains (send1->hash ()));
 	nano::test::confirm (node1.ledger, send1);
-	ASSERT_TIMELY (20s, node2.block_or_pruned_exists (send1->hash ()));
+	ASSERT_TIMELY (10s, node2.block_or_pruned_exists (send1->hash ()));
 	ASSERT_TRUE (nano::test::block_or_pruned_none_exists (node2, { send2, send3 }));
 	auto winner = *election->tally ().begin ();
 	ASSERT_EQ (*send1, *winner.second);
@@ -748,15 +749,16 @@ TEST (node, fork_multi_flip)
 TEST (node, fork_bootstrap_flip)
 {
 	nano::test::system system;
-	nano::node_config config0{ system.get_available_port () };
-	config0.backlog_population.enable = false;
+	nano::node_config config1{ system.get_available_port () };
+	config1.backlog_population.enable = false;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
 	node_flags.disable_lazy_bootstrap = true;
-	auto & node1 = *system.add_node (config0, node_flags);
+	auto & node1 = *system.add_node (config1, node_flags);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
-	nano::node_config config1 (system.get_available_port ());
-	auto & node2 = *system.make_disconnected_node (config1, node_flags);
+	nano::node_config config2 (system.get_available_port ());
+	config2.bootstrap.account_sets.cooldown = 100ms; // Reduce cooldown to speed up fork resolution
+	auto & node2 = *system.make_disconnected_node (config2, node_flags);
 	nano::block_hash latest = node1.latest (nano::dev::genesis_key.pub);
 	nano::keypair key1;
 	nano::send_block_builder builder;
@@ -785,7 +787,7 @@ TEST (node, fork_bootstrap_flip)
 	// Additionally add new peer to confirm & replace bootstrap block
 	node2.network.merge_peer (node1.network.endpoint ());
 
-	ASSERT_TIMELY (20s, node2.ledger.any.block_exists (node2.ledger.tx_begin_read (), send1->hash ()));
+	ASSERT_TIMELY (10s, node2.ledger.any.block_exists (node2.ledger.tx_begin_read (), send1->hash ()));
 }
 
 TEST (node, fork_open)
