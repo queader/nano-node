@@ -158,8 +158,6 @@ public:
 
 public: // Callbacks
 	std::function<void ()> disconnect_observer{ [] () {} };
-	// Called when a new channel is observed
-	std::function<void (std::shared_ptr<nano::transport::channel>)> channel_observer{ [] (auto) {} };
 
 private:
 	std::atomic<bool> stopped{ false };
