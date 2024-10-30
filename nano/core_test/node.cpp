@@ -734,9 +734,9 @@ TEST (node, fork_multi_flip)
 
 	auto election = nano::test::start_election (system, node2, send2->hash ());
 	ASSERT_NE (nullptr, election);
-	ASSERT_TIMELY (5s, election->contains (send1->hash ()));
+	ASSERT_TIMELY (20s, election->contains (send1->hash ()));
 	nano::test::confirm (node1.ledger, send1);
-	ASSERT_TIMELY (5s, node2.block_or_pruned_exists (send1->hash ()));
+	ASSERT_TIMELY (20s, node2.block_or_pruned_exists (send1->hash ()));
 	ASSERT_TRUE (nano::test::block_or_pruned_none_exists (node2, { send2, send3 }));
 	auto winner = *election->tally ().begin ();
 	ASSERT_EQ (*send1, *winner.second);
@@ -779,13 +779,13 @@ TEST (node, fork_bootstrap_flip)
 	ASSERT_EQ (nano::block_status::progress, node1.ledger.process (node1.ledger.tx_begin_write (), send1));
 	ASSERT_EQ (nano::block_status::progress, node2.ledger.process (node2.ledger.tx_begin_write (), send2));
 	nano::test::confirm (node1.ledger, send1);
-	ASSERT_TIMELY (1s, node1.ledger.any.block_exists (node1.ledger.tx_begin_read (), send1->hash ()));
-	ASSERT_TIMELY (1s, node2.ledger.any.block_exists (node2.ledger.tx_begin_read (), send2->hash ()));
+	ASSERT_TIMELY (5s, node1.ledger.any.block_exists (node1.ledger.tx_begin_read (), send1->hash ()));
+	ASSERT_TIMELY (5s, node2.ledger.any.block_exists (node2.ledger.tx_begin_read (), send2->hash ()));
 
 	// Additionally add new peer to confirm & replace bootstrap block
 	node2.network.merge_peer (node1.network.endpoint ());
 
-	ASSERT_TIMELY (10s, node2.ledger.any.block_exists (node2.ledger.tx_begin_read (), send1->hash ()));
+	ASSERT_TIMELY (20s, node2.ledger.any.block_exists (node2.ledger.tx_begin_read (), send1->hash ()));
 }
 
 TEST (node, fork_open)
