@@ -1,5 +1,6 @@
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/enum_util.hpp>
+#include <nano/lib/logging.hpp>
 #include <nano/lib/stats_enums.hpp>
 #include <nano/lib/thread_roles.hpp>
 #include <nano/node/blockprocessor.hpp>
@@ -247,7 +248,16 @@ void nano::bootstrap_service::inspect (secure::transaction const & tx, nano::blo
 
 			// If we've inserted any block in to an account, unmark it as blocked
 			accounts.unblock (account);
-			accounts.priority_up (account);
+
+			// Bump the priority whenever a new block is processed
+			bool inserted = accounts.priority_up (account);
+			if (inserted)
+			{
+				stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_new);
+				logger.debug (nano::log::type::bootstrap, "New priority account: {} (priority: {})",
+				account.to_account (),
+				accounts.priority (account));
+			}
 
 			if (block.is_send ())
 			{
@@ -676,10 +686,10 @@ void nano::bootstrap_service::cleanup_and_sync ()
 		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::timeout);
 	}
 
-	if (sync_dependencies_interval.elapsed (60s))
+	if (sync_interval.elapsed (60s))
 	{
-		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::sync_dependencies);
-		accounts.sync_dependencies ();
+		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::sync);
+		accounts.sync ();
 	}
 }
 
@@ -750,12 +760,12 @@ void nano::bootstrap_service::process (nano::asc_pull_ack const & message, std::
 	lock.unlock ();
 
 	// Process the response payload
-	std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
+	std::visit ([&, this] (auto && request) { return process (request, tag, channel); }, message.payload);
 
 	condition.notify_all ();
 }
 
-void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload & response, const async_tag & tag)
+void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload & response, const async_tag & tag, const std::shared_ptr<nano::transport::channel> & channel)
 {
 	debug_assert (tag.type == query_type::blocks_by_hash || tag.type == query_type::blocks_by_account);
 
@@ -808,7 +818,14 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		case verify_result::nothing_new:
 		{
 			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.priority_down (tag.account);
+
+			bool erased = accounts.priority_down (tag.account);
+			if (erased)
+			{
+				stats.inc (nano::stat::type::bootstrap, nano::stat::detail::priority_erased);
+				logger.debug (nano::log::type::bootstrap, "Finished bootstrapping account: {}", tag.account.to_account ());
+			}
+
 			if (tag.source == query_source::database)
 			{
 				throttle.add (false);
@@ -817,13 +834,14 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		break;
 		case verify_result::invalid:
 		{
-			// Ignore response
+			// TODO: Blacklist channel
+			logger.debug (nano::log::type::bootstrap, "Received invalid blocks response from {}", channel->to_string ());
 		}
 		break;
 	}
 }
 
-void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_payload & response, const async_tag & tag)
+void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_payload & response, const async_tag & tag, const std::shared_ptr<nano::transport::channel> & channel)
 {
 	debug_assert (tag.type == query_type::account_info_by_hash);
 	debug_assert (!tag.hash.is_zero ());
@@ -844,7 +862,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_pa
 	}
 }
 
-void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_payload & response, const async_tag & tag)
+void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_payload & response, const async_tag & tag, const std::shared_ptr<nano::transport::channel> & channel)
 {
 	debug_assert (tag.type == query_type::frontiers);
 	debug_assert (!tag.start.is_zero ());
@@ -890,13 +908,14 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_paylo
 		break;
 		case verify_result::invalid:
 		{
-			// Ignore response
+			// TODO: Blacklist channel
+			logger.debug (nano::log::type::bootstrap, "Received invalid frontiers response from {}", channel->to_string ());
 		}
 		break;
 	}
 }
 
-void nano::bootstrap_service::process (const nano::empty_payload & response, const async_tag & tag)
+void nano::bootstrap_service::process (const nano::empty_payload & response, const async_tag & tag, const std::shared_ptr<nano::transport::channel> & channel)
 {
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::empty);
 	debug_assert (false, "empty payload"); // Should not happen
@@ -965,6 +984,7 @@ void nano::bootstrap_service::process_frontiers (std::deque<std::pair<nano::acco
 			if (should_prioritize (account, frontier))
 			{
 				result.push_back (account);
+				logger.debug (nano::log::type::bootstrap, "Out-of-date account: {} (frontier: {})", account.to_account (), frontier.to_string ());
 			}
 		}
 	}
@@ -973,6 +993,12 @@ void nano::bootstrap_service::process_frontiers (std::deque<std::pair<nano::acco
 	stats.add (nano::stat::type::bootstrap_frontiers, nano::stat::detail::prioritized, result.size ());
 	stats.add (nano::stat::type::bootstrap_frontiers, nano::stat::detail::outdated, outdated);
 	stats.add (nano::stat::type::bootstrap_frontiers, nano::stat::detail::pending, pending);
+
+	logger.debug (nano::log::type::bootstrap, "Processed {} frontiers from which prioritized {} ({} outdated, {} pending)",
+	frontiers.size (),
+	result.size (),
+	outdated,
+	pending);
 
 	nano::lock_guard<nano::mutex> guard{ mutex };
 

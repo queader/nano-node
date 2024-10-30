@@ -33,17 +33,23 @@ namespace bootstrap
 		 * If an account is not blocked, increase its priority.
 		 * If the account does not exist in priority set and is not blocked, inserts a new entry.
 		 * Current implementation increases priority by 1.0f each increment
+		 * @returns true if the account was inserted
 		 */
-		void priority_up (nano::account const & account);
+		bool priority_up (nano::account const & account);
 		/**
 		 * Decreases account priority
 		 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
+		 * @returns true if the account was erased due to priority being below the threshold
 		 */
-		void priority_down (nano::account const & account);
-		void priority_set (nano::account const & account);
+		bool priority_down (nano::account const & account);
+		/**
+		 * Sets the priority of the account to the initial value.
+		 * @returns true if the account was inserted
+		 */
+		bool priority_set (nano::account const & account);
 
 		void block (nano::account const & account, nano::block_hash const & dependency);
-		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
+		bool unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
 
 		void timestamp_set (nano::account const & account);
 		void timestamp_reset (nano::account const & account);
@@ -55,7 +61,7 @@ namespace bootstrap
 		/**
 		 * Should be called periodically to reinsert missing dependencies into the priority set
 		 */
-		void sync_dependencies ();
+		void sync ();
 
 		/**
 		 * Sampling

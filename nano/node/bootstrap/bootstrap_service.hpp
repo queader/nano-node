@@ -36,9 +36,6 @@ public:
 	void start ();
 	void stop ();
 
-	/**
-	 * Process `asc_pull_ack` message coming from network
-	 */
 	void process (nano::asc_pull_ack const & message, std::shared_ptr<nano::transport::channel> const &);
 
 	std::size_t blocked_size () const;
@@ -134,10 +131,10 @@ private:
 	bool request_frontiers (nano::account, std::shared_ptr<nano::transport::channel> const &, query_source);
 	bool send (std::shared_ptr<nano::transport::channel> const &, async_tag tag);
 
-	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag);
-	void process (nano::empty_payload const & response, async_tag const & tag);
+	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag, std::shared_ptr<nano::transport::channel> const &);
+	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag, std::shared_ptr<nano::transport::channel> const &);
+	void process (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag, std::shared_ptr<nano::transport::channel> const &);
+	void process (nano::empty_payload const & response, async_tag const & tag, std::shared_ptr<nano::transport::channel> const &);
 
 	void process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers);
 
@@ -197,7 +194,7 @@ private:
 	nano::rate_limiter database_limiter;
 	nano::rate_limiter frontiers_limiter;
 
-	nano::interval sync_dependencies_interval;
+	nano::interval sync_interval;
 
 	bool stopped{ false };
 	mutable nano::mutex mutex;
