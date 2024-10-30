@@ -21,6 +21,8 @@ nano::uint128_t const Knano_ratio = nano::uint128_t ("10000000000000000000000000
 nano::uint128_t const nano_ratio = nano::uint128_t ("1000000000000000000000000000000"); // 10^30 = 1 nano
 nano::uint128_t const raw_ratio = nano::uint128_t ("1"); // 10^0
 
+using vote_timestamp = uint64_t;
+
 class uint128_union
 {
 public:

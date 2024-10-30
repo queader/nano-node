@@ -15,6 +15,7 @@ add_executable(
   confirmation_solicitor.cpp
   confirming_set.cpp
   conflicts.cpp
+  consensus.cpp
   difficulty.cpp
   distributed_work.cpp
   election.cpp
