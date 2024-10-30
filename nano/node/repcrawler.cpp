@@ -16,7 +16,7 @@ nano::rep_crawler::rep_crawler (nano::rep_crawler_config const & config_a, nano:
 {
 	if (!node.flags.disable_rep_crawler)
 	{
-		node.observers.endpoint.add ([this] (std::shared_ptr<nano::transport::channel> const & channel) {
+		node.observers.channel_connected.add ([this] (std::shared_ptr<nano::transport::channel> const & channel) {
 			query (channel);
 		});
 	}
