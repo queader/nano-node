@@ -1152,8 +1152,8 @@ TEST (network, purge_dead_channel)
 
 	auto & node1 = *system.add_node (flags);
 
-	node1.observers.socket_connected.add ([&] (nano::transport::tcp_socket & sock) {
-		system.logger.debug (nano::log::type::test, "Connected: {}", sock);
+	node1.observers.socket_connected.add ([&] (auto const & socket) {
+		system.logger.debug (nano::log::type::test, "Connected socket: {}", nano::streamed (socket));
 	});
 
 	auto & node2 = *system.add_node (flags);
@@ -1203,8 +1203,8 @@ TEST (network, purge_dead_channel_remote)
 	auto & node1 = *system.add_node (flags);
 	auto & node2 = *system.add_node (flags);
 
-	node2.observers.socket_connected.add ([&] (nano::transport::tcp_socket & sock) {
-		system.logger.debug (nano::log::type::test, "Connected: {}", sock);
+	node2.observers.socket_connected.add ([&] (auto const & socket) {
+		system.logger.debug (nano::log::type::test, "Connected socket: {}", nano::streamed (socket));
 	});
 
 	ASSERT_EQ (node1.network.size (), 1);

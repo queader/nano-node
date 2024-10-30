@@ -85,7 +85,6 @@ void nano::transport::tcp_socket::async_connect (nano::tcp_endpoint const & endp
 					boost::system::error_code ec;
 					this_l->local = this_l->raw_socket.local_endpoint (ec);
 				}
-				node_l->observers.socket_connected.notify (*this_l);
 			}
 			callback (ec);
 		}));
