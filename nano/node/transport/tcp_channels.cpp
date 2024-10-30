@@ -122,7 +122,7 @@ std::shared_ptr<nano::transport::tcp_channel> nano::transport::tcp_channels::cre
 
 	lock.unlock ();
 
-	node.network.channel_observer (channel);
+	node.observers.channel_connected.notify (channel);
 
 	return channel;
 }
