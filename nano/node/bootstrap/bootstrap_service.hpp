@@ -141,6 +141,13 @@ private:
 
 	void process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers);
 
+	size_t count_tags (nano::account const & account, query_source source) const;
+	size_t count_tags (nano::block_hash const & hash, query_source source) const;
+
+	// Calculates a lookback size based on the size of the ledger where larger ledgers have a larger sample count
+	std::size_t compute_throttle_size () const;
+
+public:
 	enum class verify_result
 	{
 		ok,
@@ -154,14 +161,8 @@ private:
 	 * - nothing_new: when received response indicates that the account chain does not have more blocks
 	 * - ok: otherwise, if all checks pass
 	 */
-	verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag) const;
-	verify_result verify (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag) const;
-
-	size_t count_tags (nano::account const & account, query_source source) const;
-	size_t count_tags (nano::block_hash const & hash, query_source source) const;
-
-	// Calculates a lookback size based on the size of the ledger where larger ledgers have a larger sample count
-	std::size_t compute_throttle_size () const;
+	static verify_result verify (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
+	static verify_result verify (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag);
 
 private:
 	nano::bootstrap::account_sets accounts;
@@ -212,4 +213,6 @@ private:
 };
 
 nano::stat::detail to_stat_detail (bootstrap_service::query_type);
+nano::stat::detail to_stat_detail (bootstrap_service::query_source);
+nano::stat::detail to_stat_detail (bootstrap_service::verify_result);
 }

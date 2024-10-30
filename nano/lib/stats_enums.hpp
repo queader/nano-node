@@ -455,6 +455,9 @@ enum class detail
 	timestamp_reset,
 	processing_frontiers,
 	frontiers_dropped,
+	priority_erased,
+	database,
+	blocking,
 
 	prioritize,
 	prioritize_failed,
@@ -493,6 +496,7 @@ enum class detail
 
 	safe,
 	base,
+
 
 	// active
 	started_hinted,

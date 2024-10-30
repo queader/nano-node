@@ -762,11 +762,11 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::blocks);
 
 	auto result = verify (response, tag);
+	stats.inc (nano::stat::type::bootstrap_verify_blocks, to_stat_detail (result));
 	switch (result)
 	{
 		case verify_result::ok:
 		{
-			stats.inc (nano::stat::type::bootstrap_verify_blocks, nano::stat::detail::ok);
 			stats.add (nano::stat::type::bootstrap, nano::stat::detail::blocks, nano::stat::dir::in, response.blocks.size ());
 
 			auto blocks = response.blocks;
@@ -807,8 +807,6 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		break;
 		case verify_result::nothing_new:
 		{
-			stats.inc (nano::stat::type::bootstrap_verify_blocks, nano::stat::detail::nothing_new);
-
 			nano::lock_guard<nano::mutex> lock{ mutex };
 			accounts.priority_down (tag.account);
 			if (tag.source == query_source::database)
@@ -819,7 +817,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		break;
 		case verify_result::invalid:
 		{
-			stats.inc (nano::stat::type::bootstrap_verify_blocks, nano::stat::detail::invalid);
+			// Ignore response
 		}
 		break;
 	}
@@ -860,11 +858,11 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_paylo
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::frontiers);
 
 	auto result = verify (response, tag);
+	stats.inc (nano::stat::type::bootstrap_verify_frontiers, to_stat_detail (result));
 	switch (result)
 	{
 		case verify_result::ok:
 		{
-			stats.inc (nano::stat::type::bootstrap_verify_frontiers, nano::stat::detail::ok);
 			stats.add (nano::stat::type::bootstrap, nano::stat::detail::frontiers, nano::stat::dir::in, response.frontiers.size ());
 
 			{
@@ -887,12 +885,12 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_paylo
 		break;
 		case verify_result::nothing_new:
 		{
-			stats.inc (nano::stat::type::bootstrap_verify_frontiers, nano::stat::detail::nothing_new);
+			// Ignore response
 		}
 		break;
 		case verify_result::invalid:
 		{
-			stats.inc (nano::stat::type::bootstrap_verify_frontiers, nano::stat::detail::invalid);
+			// Ignore response
 		}
 		break;
 	}
@@ -984,7 +982,7 @@ void nano::bootstrap_service::process_frontiers (std::deque<std::pair<nano::acco
 	}
 }
 
-auto nano::bootstrap_service::verify (const nano::asc_pull_ack::blocks_payload & response, const async_tag & tag) const -> verify_result
+auto nano::bootstrap_service::verify (const nano::asc_pull_ack::blocks_payload & response, const async_tag & tag) -> verify_result
 {
 	auto const & blocks = response.blocks;
 
@@ -1043,7 +1041,7 @@ auto nano::bootstrap_service::verify (const nano::asc_pull_ack::blocks_payload &
 	return verify_result::ok;
 }
 
-auto nano::bootstrap_service::verify (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag) const -> verify_result
+auto nano::bootstrap_service::verify (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag) -> verify_result
 {
 	auto const & frontiers = response.frontiers;
 
@@ -1108,4 +1106,14 @@ nano::container_info nano::bootstrap_service::container_info () const
 nano::stat::detail nano::to_stat_detail (nano::bootstrap_service::query_type type)
 {
 	return nano::enum_util::cast<nano::stat::detail> (type);
+}
+
+nano::stat::detail nano::to_stat_detail (nano::bootstrap_service::query_source source)
+{
+	return nano::enum_util::cast<nano::stat::detail> (source);
+}
+
+nano::stat::detail nano::to_stat_detail (nano::bootstrap_service::verify_result result)
+{
+	return nano::enum_util::cast<nano::stat::detail> (result);
 }
