@@ -27,7 +27,7 @@ nano::transport::tcp_listener::tcp_listener (uint16_t port_a, tcp_config const &
 	task{ strand }
 {
 	connection_accepted.add ([this] (auto const & socket, auto const & server) {
-		node.observers.socket_connected.notify (*socket);
+		node.observers.socket_connected.notify (socket);
 	});
 }
 
