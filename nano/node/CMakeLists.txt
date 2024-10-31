@@ -24,6 +24,8 @@ add_library(
   blockprocessor.cpp
   bucketing.hpp
   bucketing.cpp
+  bounded_backlog.hpp
+  bounded_backlog.cpp
   bootstrap/block_deserializer.hpp
   bootstrap/block_deserializer.cpp
   bootstrap/bootstrap_attempt.hpp

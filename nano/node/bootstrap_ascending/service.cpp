@@ -48,6 +48,16 @@ nano::bootstrap_ascending::service::service (nano::node_config const & node_conf
 		condition.notify_all ();
 	});
 
+	// Unblock rolled back accounts as the dependency is no longer valid
+	block_processor.rolled_back.add ([this] (auto const & blocks, auto const & rollback_root) {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		for (auto const & block : blocks)
+		{
+			debug_assert (block != nullptr);
+			accounts.unblock (block->account ());
+		}
+	});
+
 	accounts.priority_set (node_config_a.network_params.ledger.genesis->account_field ().value ());
 }
 
