@@ -33,7 +33,6 @@
 namespace nano
 {
 class active_elections;
-class backlog_scan;
 class bandwidth_limiter;
 class confirming_set;
 class message_processor;
@@ -209,6 +208,8 @@ public:
 	nano::wallets wallets;
 	std::unique_ptr<nano::backlog_scan> backlog_scan_impl;
 	nano::backlog_scan & backlog_scan;
+	std::unique_ptr<nano::bounded_backlog> backlog_impl;
+	nano::bounded_backlog & backlog;
 	std::unique_ptr<nano::bootstrap_server> bootstrap_server_impl;
 	nano::bootstrap_server & bootstrap_server;
 	std::unique_ptr<nano::bootstrap_service> bootstrap_impl;

@@ -83,6 +83,7 @@ enum class type
 	local_block_broadcaster,
 	monitor,
 	confirming_set,
+	bounded_backlog,
 
 	// bootstrap
 	bulk_pull_client,
