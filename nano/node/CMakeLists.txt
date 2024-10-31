@@ -24,6 +24,8 @@ add_library(
   blockprocessor.cpp
   bucketing.hpp
   bucketing.cpp
+  bounded_backlog.hpp
+  bounded_backlog.cpp
   bootstrap_weights_beta.hpp
   bootstrap_weights_live.hpp
   bootstrap/account_sets.hpp

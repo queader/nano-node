@@ -14,6 +14,7 @@
 #include <nano/node/bootstrap/bootstrap_service.hpp>
 #include <nano/node/bootstrap_weights_beta.hpp>
 #include <nano/node/bootstrap_weights_live.hpp>
+#include <nano/node/bounded_backlog.hpp>
 #include <nano/node/bucketing.hpp>
 #include <nano/node/confirming_set.hpp>
 #include <nano/node/daemonconfig.hpp>
@@ -159,6 +160,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	wallets (wallets_store.init_error (), *this),
 	backlog_scan_impl{ std::make_unique<nano::backlog_scan> (config.backlog_scan, ledger, stats) },
 	backlog_scan{ *backlog_scan_impl },
+	backlog_impl{ std::make_unique<nano::bounded_backlog> (config.backlog, *this, ledger, bucketing, backlog_scan, block_processor, confirming_set, stats, logger) },
+	backlog{ *backlog_impl },
 	bootstrap_server_impl{ std::make_unique<nano::bootstrap_server> (config.bootstrap_server, store, ledger, network_params.network, stats) },
 	bootstrap_server{ *bootstrap_server_impl },
 	bootstrap_impl{ std::make_unique<nano::bootstrap_service> (config, block_processor, ledger, network, stats, logger) },
@@ -651,6 +654,7 @@ void nano::node::start ()
 	scheduler.start ();
 	aggregator.start ();
 	backlog_scan.start ();
+	backlog.start ();
 	bootstrap_server.start ();
 	bootstrap.start ();
 	websocket.start ();
@@ -683,6 +687,7 @@ void nano::node::stop ()
 	distributed_work.stop ();
 	backlog_scan.stop ();
 	bootstrap.stop ();
+	backlog.stop ();
 	rep_crawler.stop ();
 	unchecked.stop ();
 	block_processor.stop ();
@@ -1211,6 +1216,7 @@ nano::container_info nano::node::container_info () const
 	info.add ("message_processor", message_processor.container_info ());
 	info.add ("bandwidth", outbound_limiter.container_info ());
 	info.add ("backlog_scan", backlog_scan.container_info ());
+	info.add ("bounded_backlog", backlog.container_info ());
 	return info;
 }
 
