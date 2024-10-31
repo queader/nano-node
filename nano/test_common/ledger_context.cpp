@@ -3,51 +3,22 @@
 #include <nano/node/node.hpp>
 #include <nano/test_common/ledger_context.hpp>
 
-nano::test::ledger_context::ledger_context (std::deque<std::shared_ptr<nano::block>> && blocks) :
-	store_m{ nano::make_store (logger_m, nano::unique_path (), nano::dev::constants) },
-	stats_m{ logger_m },
-	ledger_m{ *store_m, stats_m, nano::dev::constants },
-	blocks_m{ blocks },
-	pool_m{ nano::dev::network_params.network, 1 }
+nano::test::ledger_context::ledger_context (std::deque<std::shared_ptr<nano::block>> blocks_a) :
+	initial_blocks{ std::move (blocks_a) },
+	stats{ logger },
+	store_impl{ nano::make_store (logger, nano::unique_path (), nano::dev::constants) },
+	store{ *store_impl },
+	ledger{ store, stats, nano::dev::constants },
+	pool{ nano::dev::network_params.network, 1 }
 {
-	debug_assert (!store_m->init_error ());
-	auto tx = ledger_m.tx_begin_write ();
-	store_m->initialize (tx, ledger_m.cache, ledger_m.constants);
-	for (auto const & i : blocks_m)
+	debug_assert (!store.init_error ());
+	auto tx = ledger.tx_begin_write ();
+	store.initialize (tx, ledger.cache, ledger.constants);
+	for (auto const & i : initial_blocks)
 	{
-		auto process_result = ledger_m.process (tx, i);
+		auto process_result = ledger.process (tx, i);
 		debug_assert (process_result == nano::block_status::progress, to_string (process_result));
 	}
-}
-
-nano::ledger & nano::test::ledger_context::ledger ()
-{
-	return ledger_m;
-}
-
-nano::store::component & nano::test::ledger_context::store ()
-{
-	return *store_m;
-}
-
-nano::stats & nano::test::ledger_context::stats ()
-{
-	return stats_m;
-}
-
-nano::logger & nano::test::ledger_context::logger ()
-{
-	return logger_m;
-}
-
-std::deque<std::shared_ptr<nano::block>> const & nano::test::ledger_context::blocks () const
-{
-	return blocks_m;
-}
-
-nano::work_pool & nano::test::ledger_context::pool ()
-{
-	return pool_m;
 }
 
 /*
@@ -57,6 +28,11 @@ nano::work_pool & nano::test::ledger_context::pool ()
 auto nano::test::ledger_empty () -> ledger_context
 {
 	return ledger_context{};
+}
+
+auto nano::test::ledger_blocks (std::deque<std::shared_ptr<nano::block>> blocks) -> ledger_context
+{
+	return ledger_context{ std::move (blocks) };
 }
 
 auto nano::test::ledger_send_receive () -> ledger_context

@@ -8,30 +8,28 @@
 
 namespace nano::test
 {
-class ledger_context
+struct ledger_context
 {
-public:
-	/** 'blocks' initialises the ledger with each block in-order
-		Blocks must all return process_result::progress when processed */
-	ledger_context (std::deque<std::shared_ptr<nano::block>> && blocks = std::deque<std::shared_ptr<nano::block>>{});
-	nano::ledger & ledger ();
-	nano::store::component & store ();
-	std::deque<std::shared_ptr<nano::block>> const & blocks () const;
-	nano::work_pool & pool ();
-	nano::stats & stats ();
-	nano::logger & logger ();
+	/**
+	 * Initialises the ledger with 'blocks' with each block in-order
+	 * Blocks must all return process_result::progress when processed
+	 */
+	explicit ledger_context (std::deque<std::shared_ptr<nano::block>> initial_blocks = {});
 
-private:
-	nano::logger logger_m;
-	std::unique_ptr<nano::store::component> store_m;
-	nano::stats stats_m;
-	nano::ledger ledger_m;
-	std::deque<std::shared_ptr<nano::block>> blocks_m;
-	nano::work_pool pool_m;
+	std::deque<std::shared_ptr<nano::block>> const initial_blocks;
+
+	nano::logger logger;
+	nano::stats stats;
+	std::unique_ptr<nano::store::component> store_impl;
+	nano::store::component & store;
+	nano::ledger ledger;
+	nano::work_pool pool;
 };
 
 /** Only a genesis block */
 ledger_context ledger_empty ();
+/** Ledger context from blocks */
+ledger_context ledger_blocks (std::deque<std::shared_ptr<nano::block>> blocks);
 /** Send/receive pair of state blocks on the genesis account */
 ledger_context ledger_send_receive ();
 /** Send/receive pair of legacy blocks on the genesis account */
