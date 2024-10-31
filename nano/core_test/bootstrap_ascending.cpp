@@ -352,8 +352,8 @@ TEST (bootstrap_ascending, pending_database_scanner)
 
 	// Single batch
 	{
-		nano::bootstrap_ascending::pending_database_iterator scanner{ ctx.ledger () };
-		auto transaction = ctx.store ().tx_begin_read ();
+		nano::bootstrap_ascending::pending_database_iterator scanner{ ctx.ledger };
+		auto transaction = ctx.store.tx_begin_read ();
 		auto accounts = scanner.next_batch (transaction, 256);
 
 		// Check that account set contains all keys
@@ -367,8 +367,8 @@ TEST (bootstrap_ascending, pending_database_scanner)
 	}
 	// Multi batch
 	{
-		nano::bootstrap_ascending::pending_database_iterator scanner{ ctx.ledger () };
-		auto transaction = ctx.store ().tx_begin_read ();
+		nano::bootstrap_ascending::pending_database_iterator scanner{ ctx.ledger };
+		auto transaction = ctx.store.tx_begin_read ();
 
 		// Request accounts in multiple batches
 		auto accounts1 = scanner.next_batch (transaction, 2);
@@ -444,8 +444,8 @@ TEST (bootstrap_ascending, account_database_scanner)
 
 	// Single batch
 	{
-		nano::bootstrap_ascending::account_database_iterator scanner{ ctx.ledger () };
-		auto transaction = ctx.store ().tx_begin_read ();
+		nano::bootstrap_ascending::account_database_iterator scanner{ ctx.ledger };
+		auto transaction = ctx.store.tx_begin_read ();
 		auto accounts = scanner.next_batch (transaction, 256);
 
 		// Check that account set contains all keys
@@ -458,8 +458,8 @@ TEST (bootstrap_ascending, account_database_scanner)
 	}
 	// Multi batch
 	{
-		nano::bootstrap_ascending::account_database_iterator scanner{ ctx.ledger () };
-		auto transaction = ctx.store ().tx_begin_read ();
+		nano::bootstrap_ascending::account_database_iterator scanner{ ctx.ledger };
+		auto transaction = ctx.store.tx_begin_read ();
 
 		// Request accounts in multiple batches
 		auto accounts1 = scanner.next_batch (transaction, 2);
