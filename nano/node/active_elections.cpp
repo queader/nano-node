@@ -28,8 +28,6 @@ nano::active_elections::active_elections (nano::node & node_a, nano::confirming_
 	recently_confirmed{ config.confirmation_cache },
 	recently_cemented{ config.confirmation_history_size }
 {
-	count_by_behavior.fill (0); // Zero initialize array
-
 	// Cementing blocks might implicitly confirm dependent elections
 	confirming_set.batch_cemented.add ([this] (auto const & cemented) {
 		std::deque<block_cemented_result> results;
@@ -227,7 +225,7 @@ int64_t nano::active_elections::vacancy (nano::election_behavior behavior) const
 				return limit (nano::election_behavior::priority) - static_cast<int64_t> (roots.size ());
 			case nano::election_behavior::hinted:
 			case nano::election_behavior::optimistic:
-				return limit (behavior) - count_by_behavior[behavior];
+				return limit (behavior) - static_cast<int64_t> (find_or_empty (count_by_behavior, behavior).value_or (0));
 		}
 		debug_assert (false); // Unknown enum
 		return 0;
@@ -379,14 +377,14 @@ void nano::active_elections::request_loop ()
 	}
 }
 
-nano::election_insertion_result nano::active_elections::insert (std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, erased_callback_t erased_callback_a)
+auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block_a, nano::election_behavior election_behavior_a, erased_callback_t erased_callback_a) -> insertion_result
 {
 	debug_assert (block_a);
 	debug_assert (block_a->has_sideband ());
 
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
-	nano::election_insertion_result result;
+	insertion_result result{};
 
 	if (stopped)
 	{
@@ -517,9 +515,7 @@ std::size_t nano::active_elections::size () const
 std::size_t nano::active_elections::size (nano::election_behavior behavior) const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	auto count = count_by_behavior[behavior];
-	debug_assert (count >= 0);
-	return static_cast<std::size_t> (count);
+	return find_or_empty (count_by_behavior, behavior).value_or (0);
 }
 
 bool nano::active_elections::publish (std::shared_ptr<nano::block> const & block_a)
@@ -563,9 +559,12 @@ nano::container_info nano::active_elections::container_info () const
 
 	nano::container_info info;
 	info.put ("roots", roots.size ());
-	info.put ("normal", static_cast<std::size_t> (count_by_behavior[nano::election_behavior::priority]));
-	info.put ("hinted", static_cast<std::size_t> (count_by_behavior[nano::election_behavior::hinted]));
-	info.put ("optimistic", static_cast<std::size_t> (count_by_behavior[nano::election_behavior::optimistic]));
+
+	// Add info about election count by behavior
+	for (auto const & [behavior, count] : count_by_behavior)
+	{
+		info.put (std::string{ to_string (behavior) }, count);
+	}
 
 	info.add ("recently_confirmed", recently_confirmed.container_info ());
 	info.add ("recently_cemented", recently_cemented.container_info ());

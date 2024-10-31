@@ -1,10 +1,8 @@
 #pragma once
 
-#include <nano/lib/enum_util.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
 #include <nano/node/election_behavior.hpp>
-#include <nano/node/election_insertion_result.hpp>
 #include <nano/node/election_status.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/recently_cemented_cache.hpp>
@@ -21,9 +19,9 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 #include <memory>
 #include <thread>
-#include <unordered_map>
 
 namespace mi = boost::multi_index;
 
@@ -96,10 +94,17 @@ public:
 	void start ();
 	void stop ();
 
+	struct insertion_result
+	{
+		std::shared_ptr<nano::election> election;
+		bool inserted{ false };
+	};
+
 	/**
 	 * Starts new election with a specified behavior type
 	 */
-	nano::election_insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::priority, erased_callback_t = nullptr);
+	insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::priority, erased_callback_t = nullptr);
+
 	// Is the root of this block in the roots container
 	bool active (nano::block const &) const;
 	bool active (nano::qualified_root const &) const;
@@ -157,7 +162,7 @@ public:
 
 private:
 	/** Keeps track of number of elections by election behavior (normal, hinted, optimistic) */
-	nano::enum_array<nano::election_behavior, int64_t> count_by_behavior{};
+	std::map<nano::election_behavior, size_t> count_by_behavior{};
 
 	nano::condition_variable condition;
 	bool stopped{ false };
