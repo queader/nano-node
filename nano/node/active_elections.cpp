@@ -106,7 +106,7 @@ auto nano::active_elections::block_cemented (std::shared_ptr<nano::block> const 
 	auto dependend_election = election_impl (block->qualified_root ());
 	if (dependend_election)
 	{
-		node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::confirm_dependent);
+		node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::confirmed_dependent);
 		dependend_election->try_confirm (block->hash ()); // TODO: This should either confirm or cancel the election
 	}
 

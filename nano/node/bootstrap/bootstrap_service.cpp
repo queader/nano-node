@@ -768,7 +768,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		case verify_result::ok:
 		{
 			stats.inc (nano::stat::type::bootstrap_verify_blocks, nano::stat::detail::ok);
-			stats.add (nano::stat::type::bootstrap, nano::stat::detail::blocks, nano::stat::dir::in, response.blocks.size ());
+			stats.add (nano::stat::type::bootstrap, nano::stat::detail::blocks, response.blocks.size ());
 
 			auto blocks = response.blocks;
 
@@ -838,6 +838,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_pa
 	}
 
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::account_info);
+	stats.inc (nano::stat::type::bootstrap, nano::stat::detail::dependency);
 
 	// Prioritize account containing the dependency
 	{

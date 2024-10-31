@@ -144,6 +144,7 @@ enum class detail
 	retry,
 	prioritized,
 	pending,
+	dependency,
 
 	// processing queue
 	queue,
@@ -419,7 +420,7 @@ enum class detail
 	// active_elections
 	started,
 	stopped,
-	confirm_dependent,
+	confirmed_dependent,
 
 	// unchecked
 	put,
