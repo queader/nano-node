@@ -27,6 +27,7 @@ add_executable(
   ipc.cpp
   ledger.cpp
   ledger_confirm.cpp
+  ledger_priority.cpp
   locks.cpp
   logging.cpp
   message.cpp
