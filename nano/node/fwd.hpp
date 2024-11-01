@@ -13,6 +13,7 @@ class block_processor;
 class bootstrap_config;
 class bootstrap_server;
 class bootstrap_service;
+class confirmation_solicitor;
 class confirming_set;
 class election;
 class local_block_broadcaster;

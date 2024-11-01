@@ -5,6 +5,7 @@
 #include <nano/lib/numbers_templ.hpp>
 #include <nano/lib/stats_enums.hpp>
 #include <nano/node/election_status.hpp>
+#include <nano/node/fwd.hpp>
 #include <nano/node/vote_with_weight_info.hpp>
 #include <nano/secure/common.hpp>
 
@@ -14,15 +15,6 @@
 
 namespace nano
 {
-class block;
-class channel;
-class confirmation_solicitor;
-enum class election_behavior;
-class inactive_cache_information;
-class node;
-enum class vote_code;
-enum class vote_source;
-
 class vote_info final
 {
 public:
