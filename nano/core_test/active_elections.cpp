@@ -90,7 +90,7 @@ TEST (active_elections, confirm_election_by_request)
 	node2.rep_crawler.force_add_rep (nano::dev::genesis_key.pub, *peers.cbegin ());
 
 	// Expect a vote to come back
-	ASSERT_TIMELY (5s, election->votes ().size () >= 1);
+	ASSERT_TIMELY (5s, election->all_votes ().size () >= 1);
 
 	// There needs to be at least one request to get the election confirmed,
 	// Rep has this block already confirmed so should reply with final vote only
@@ -321,7 +321,7 @@ TEST (inactive_votes_cache, fork)
 	ASSERT_TIMELY (5s, (election = node.active.election (send1->qualified_root ())) != nullptr);
 
 	node.process_active (send1);
-	ASSERT_TIMELY_EQ (5s, election->blocks ().size (), 2);
+	ASSERT_TIMELY_EQ (5s, election->all_blocks ().size (), 2);
 	ASSERT_TIMELY (5s, node.block_confirmed (send1->hash ()));
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::election_vote, nano::stat::detail::cache));
 }
@@ -358,9 +358,9 @@ TEST (inactive_votes_cache, existing_vote)
 	// Insert vote
 	auto vote1 = nano::test::make_vote (key, { send }, nano::vote::timestamp_min * 1, 0);
 	node.vote_processor.vote (vote1, std::make_shared<nano::transport::inproc::channel> (node, node));
-	ASSERT_TIMELY_EQ (5s, election->votes ().size (), 2);
+	ASSERT_TIMELY_EQ (5s, election->all_votes ().size (), 1);
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::election, nano::stat::detail::vote));
-	auto last_vote1 (election->votes ()[key.pub]);
+	auto last_vote1 (election->all_votes ()[key.pub]);
 	ASSERT_EQ (send->hash (), last_vote1.hash);
 	ASSERT_EQ (nano::vote::timestamp_min * 1, last_vote1.timestamp);
 	// Attempt to change vote with inactive_votes_cache
@@ -372,11 +372,10 @@ TEST (inactive_votes_cache, existing_vote)
 		node.vote_router.vote (cached_vote);
 	}
 	// Check that election data is not changed
-	ASSERT_EQ (2, election->votes ().size ());
-	auto last_vote2 (election->votes ()[key.pub]);
+	ASSERT_EQ (2, election->all_votes ().size ());
+	auto last_vote2 (election->all_votes ()[key.pub]);
 	ASSERT_EQ (last_vote1.hash, last_vote2.hash);
 	ASSERT_EQ (last_vote1.timestamp, last_vote2.timestamp);
-	ASSERT_EQ (last_vote1.time, last_vote2.time);
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::election_vote, nano::stat::detail::cache));
 }
 
@@ -429,7 +428,7 @@ TEST (inactive_votes_cache, multiple_votes)
 	ASSERT_TIMELY_EQ (5s, node.vote_cache.find (send1->hash ()).size (), 2);
 	ASSERT_EQ (1, node.vote_cache.size ());
 	auto election = nano::test::start_election (system, node, send1->hash ());
-	ASSERT_TIMELY_EQ (5s, 3, election->votes ().size ()); // 2 votes and 1 default not_an_acount
+	ASSERT_TIMELY_EQ (5s, 2, election->all_votes ().size ());
 	ASSERT_EQ (2, node.stats.count (nano::stat::type::election_vote, nano::stat::detail::cache));
 }
 
@@ -756,7 +755,7 @@ TEST (active_elections, republish_winner)
 	auto vote = nano::test::make_final_vote (nano::dev::genesis_key, { fork });
 	node1.vote_processor.vote (vote, std::make_shared<nano::transport::inproc::channel> (node1, node1));
 	ASSERT_TIMELY (5s, election->confirmed ());
-	ASSERT_EQ (fork->hash (), election->status.winner->hash ());
+	ASSERT_EQ (fork->hash (), election->winner ()->hash ());
 	ASSERT_TIMELY (5s, node2.block_confirmed (fork->hash ()));
 }
 
@@ -808,7 +807,7 @@ TEST (active_elections, fork_filter_cleanup)
 	// All forks were merged into the same election
 	std::shared_ptr<nano::election> election{};
 	ASSERT_TIMELY (5s, (election = node1.active.election (send1->qualified_root ())) != nullptr);
-	ASSERT_TIMELY_EQ (5s, election->blocks ().size (), 10);
+	ASSERT_TIMELY_EQ (5s, election->all_blocks ().size (), 10);
 	ASSERT_EQ (1, node1.active.size ());
 
 	// Instantiate a new node
@@ -917,7 +916,7 @@ TEST (active_elections, fork_replacement_tally)
 	// Check overflow of blocks
 	std::shared_ptr<nano::election> election;
 	ASSERT_TIMELY (5s, election = node1.active.election (send_last->qualified_root ()));
-	ASSERT_TIMELY_EQ (5s, max_blocks, election->blocks ().size ());
+	ASSERT_TIMELY_EQ (5s, max_blocks, election->all_blocks ().size ());
 
 	// Generate forks with votes to prevent new block insertion to election
 	for (auto i (0); i < reps_count; i++)
@@ -941,7 +940,7 @@ TEST (active_elections, fork_replacement_tally)
 	// it also checks that there are 10 votes in the election
 	auto count_rep_votes_in_election = [&max_blocks, &reps_count, &election, &keys] () {
 		// Check that only max weight blocks remains (and start winner)
-		auto votes_l = election->votes ();
+		auto votes_l = election->all_votes ();
 		if (max_blocks != votes_l.size ())
 		{
 			return -1;
@@ -959,7 +958,7 @@ TEST (active_elections, fork_replacement_tally)
 
 	// Check overflow of blocks
 	ASSERT_TIMELY_EQ (10s, count_rep_votes_in_election (), 9);
-	ASSERT_EQ (max_blocks, election->blocks ().size ());
+	ASSERT_EQ (max_blocks, election->all_blocks ().size ());
 
 	// Process correct block
 	node_config.peering_port = system.get_available_port ();
@@ -970,7 +969,7 @@ TEST (active_elections, fork_replacement_tally)
 
 	// Correct block without votes is ignored
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks1;
-	ASSERT_TIMELY_EQ (5s, max_blocks, (blocks1 = election->blocks (), blocks1.size ()));
+	ASSERT_TIMELY_EQ (5s, max_blocks, (blocks1 = election->all_blocks (), blocks1.size ()));
 	ASSERT_FALSE (blocks1.find (send_last->hash ()) != blocks1.end ());
 
 	// Process vote for correct block & replace existing lowest tally block
@@ -984,15 +983,15 @@ TEST (active_elections, fork_replacement_tally)
 
 	// the send_last block should replace one of the existing block of the election because it has higher vote weight
 	auto find_send_last_block = [&election, &send_last] () {
-		auto blocks2 = election->blocks ();
+		auto blocks2 = election->all_blocks ();
 		return blocks2.find (send_last->hash ()) != blocks2.end ();
 	};
 	ASSERT_TIMELY (5s, find_send_last_block ())
-	ASSERT_EQ (max_blocks, election->blocks ().size ());
+	ASSERT_EQ (max_blocks, election->all_blocks ().size ());
 
 	ASSERT_TIMELY_EQ (5s, count_rep_votes_in_election (), 8);
 
-	auto votes2 (election->votes ());
+	auto votes2 (election->all_votes ());
 	ASSERT_TRUE (votes2.find (nano::dev::genesis_key.pub) != votes2.end ());
 }
 
@@ -1153,14 +1152,14 @@ TEST (active_elections, activate_account_chain)
 
 	auto election1 = nano::test::start_election (system, node, send->hash ());
 	ASSERT_EQ (1, node.active.size ());
-	ASSERT_EQ (1, election1->blocks ().count (send->hash ()));
+	ASSERT_EQ (1, election1->all_blocks ().count (send->hash ()));
 	election1->force_confirm (); // Force confirm to trigger successor activation
 	ASSERT_TIMELY (3s, node.block_confirmed (send->hash ()));
 	// On cementing, the next election is started
 	ASSERT_TIMELY (3s, node.active.active (send2->qualified_root ()));
 	auto election3 = node.active.election (send2->qualified_root ());
 	ASSERT_NE (nullptr, election3);
-	ASSERT_EQ (1, election3->blocks ().count (send2->hash ()));
+	ASSERT_EQ (1, election3->all_blocks ().count (send2->hash ()));
 	election3->force_confirm (); // Force confirm to trigger successor and destination activation
 	ASSERT_TIMELY (3s, node.block_confirmed (send2->hash ()));
 	// On cementing, the next election is started
@@ -1168,10 +1167,10 @@ TEST (active_elections, activate_account_chain)
 	ASSERT_TIMELY (3s, node.active.active (send3->qualified_root ())); // Block successor activated
 	auto election4 = node.active.election (send3->qualified_root ());
 	ASSERT_NE (nullptr, election4);
-	ASSERT_EQ (1, election4->blocks ().count (send3->hash ()));
+	ASSERT_EQ (1, election4->all_blocks ().count (send3->hash ()));
 	auto election5 = node.active.election (open->qualified_root ());
 	ASSERT_NE (nullptr, election5);
-	ASSERT_EQ (1, election5->blocks ().count (open->hash ()));
+	ASSERT_EQ (1, election5->all_blocks ().count (open->hash ()));
 	election5->force_confirm ();
 	ASSERT_TIMELY (3s, node.block_confirmed (open->hash ()));
 	// Until send3 is also confirmed, the receive block should not activate

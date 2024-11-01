@@ -1,7 +1,9 @@
 #pragma once
 
+#include <nano/consensus/consensus.hpp>
 #include <nano/lib/id_dispenser.hpp>
 #include <nano/lib/logging.hpp>
+#include <nano/lib/numbers.hpp>
 #include <nano/lib/numbers_templ.hpp>
 #include <nano/lib/stats_enums.hpp>
 #include <nano/node/election_status.hpp>
@@ -16,32 +18,6 @@
 
 namespace nano
 {
-class vote_info final
-{
-public:
-	std::chrono::steady_clock::time_point time;
-	uint64_t timestamp;
-	nano::block_hash hash;
-
-	bool is_final () const
-	{
-		return nano::vote::is_final_timestamp (timestamp);
-	}
-};
-
-// map of vote weight per block, ordered greater first
-using tally_t = std::map<nano::uint128_t, std::shared_ptr<nano::block>, std::greater<nano::uint128_t>>;
-
-struct election_extended_status final
-{
-	nano::election_status status;
-	std::unordered_map<nano::account, nano::vote_info> votes;
-	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks;
-	nano::tally_t tally;
-
-	void operator() (nano::object_stream &) const;
-};
-
 enum class election_state
 {
 	passive, // only listening for incoming votes
@@ -94,64 +70,54 @@ class election final : public std::enable_shared_from_this<election>
 {
 	nano::id_t const id{ nano::next_id () }; // Track individual objects when tracing
 
-private:
-	// Minimum time between broadcasts of the current winner of an election, as a backup to requesting confirmations
-	std::chrono::milliseconds base_latency () const;
-	std::function<void (std::shared_ptr<nano::block> const &)> confirmation_action;
-	std::function<void (nano::account const &)> live_vote_action;
-
-	// These are modified while not holding the mutex from transition_time only
-	std::chrono::steady_clock::time_point last_block{};
-	nano::block_hash last_block_hash{ 0 };
-	std::chrono::steady_clock::time_point last_req{};
-	/** The last time vote for this election was generated */
-	std::chrono::steady_clock::time_point last_vote{};
-
-public: // State transitions
-	bool transition_time (nano::confirmation_solicitor &);
-	void transition_active ();
-	void cancel ();
-
 public: // Status
-	bool confirmed () const;
-	bool failed () const;
-	nano::election_extended_status current_status () const;
-	std::shared_ptr<nano::block> winner () const;
-	std::chrono::steady_clock::duration duration () const;
 	std::atomic<unsigned> confirmation_request_count{ 0 };
-
-	nano::tally_t tally () const;
-	bool have_quorum (nano::tally_t const &) const;
-
-	// Guarded by mutex
-	nano::election_status status;
+	std::chrono::steady_clock::time_point const election_start{ std::chrono::steady_clock::now () };
+	std::chrono::steady_clock::time_point election_end;
 
 public: // Interface
 	election (nano::node &, std::shared_ptr<nano::block> const & block, std::function<void (std::shared_ptr<nano::block> const &)> const & confirmation_action, std::function<void (nano::account const &)> const & vote_action, nano::election_behavior behavior);
 
-	std::shared_ptr<nano::block> find (nano::block_hash const &) const;
-	/*
-	 * Process vote. Internally uses cooldown to throttle non-final votes
-	 * If the election reaches consensus, it will be confirmed
-	 */
-	nano::vote_code vote (nano::account const & representative, uint64_t timestamp, nano::block_hash const & block_hash, nano::vote_source);
-	bool publish (std::shared_ptr<nano::block> const & block_a);
-	// Confirm this block if quorum is met
-	void confirm_if_quorum (nano::unique_lock<nano::mutex> &);
-	void try_confirm (nano::block_hash const & hash);
+	/// Process vote. If the election reaches consensus, it will be confirmed
+	nano::vote_code vote (nano::account const & representative, vote_timestamp timestamp, nano::block_hash const & hash, nano::vote_source source);
 
-	/**
-	 * Broadcasts vote for the current winner of this election
-	 * Checks if sufficient amount of time (`vote_generation_interval`) passed since the last vote generation
-	 */
-	void broadcast_vote ();
-	nano::vote_info get_last_vote (nano::account const & account);
-	void set_last_vote (nano::account const & account, nano::vote_info vote_info);
-	nano::election_status get_status () const;
-	std::chrono::steady_clock::time_point get_election_start () const
-	{
-		return election_start;
-	}
+	/// Process ledger updates. Keeps track of which fork is present in the ledger
+	bool process (std::shared_ptr<nano::block> const & block, nano::block_status block_status);
+
+	bool transition_time (nano::confirmation_solicitor &);
+	void transition_active ();
+	void cancel ();
+	bool try_confirm (nano::block_hash const & hash);
+	void broadcast_vote_immediate ();
+
+	bool confirmed () const;
+	bool failed () const;
+	bool finished () const;
+	std::chrono::steady_clock::duration duration () const;
+	/// Block that won the election with final vote quorum, nullptr if not yet confirmed
+	std::shared_ptr<nano::block> winner () const;
+	/// Block that we are currently voting for, nullptr if no suitable candidate exists
+	std::shared_ptr<nano::block> candidate () const;
+	/// Block with the highest tally
+	nano::block_hash leader () const;
+
+	nano::election_behavior behavior () const;
+	nano::election_status current_status () const;
+	nano::election_state current_state () const;
+
+	nano::election_tally tally () const;
+	nano::election_tally final_tally () const;
+
+	std::unordered_map<nano::account, nano::vote_info> all_votes () const;
+	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> all_blocks () const;
+	std::shared_ptr<nano::block> find_block (nano::block_hash const & hash) const;
+	std::optional<nano::vote_info> find_vote (nano::account const & representative) const;
+
+	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
+
+public: // Events
+	std::function<void (std::shared_ptr<nano::block> const &)> confirmation_action{ [] (auto const &) { /* ingore */ } };
+	std::function<void (nano::account const &)> live_vote_action{ [] (auto const &) { /* ignore */ } };
 
 private: // Dependencies
 	nano::node & node;
@@ -161,61 +127,70 @@ public: // Information
 	nano::root const root;
 	nano::qualified_root const qualified_root;
 
-	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
-	nano::election_behavior behavior () const;
-	nano::election_state current_state () const;
-
-	std::unordered_map<nano::account, nano::vote_info> votes () const;
-	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks () const;
 	bool contains (nano::block_hash const &) const;
 
 private:
-	nano::tally_t tally_impl () const;
+	bool has_quorum_impl () const;
 	bool confirmed_impl () const;
-	nano::election_extended_status current_status_impl () const;
+	std::shared_ptr<nano::block> winner_impl () const;
+	nano::election_status current_status_impl () const;
+	std::unordered_map<nano::account, nano::vote_info> all_votes_impl () const;
 
-	// lock_a does not own the mutex on return
-	void confirm_once (nano::unique_lock<nano::mutex> & lock_a);
+	bool confirm_once (std::shared_ptr<nano::block> const & winner);
+	bool confirm_if_quorum ();
+
+	void request_confirmations (nano::confirmation_solicitor &);
+
 	bool broadcast_block_predicate () const;
 	void broadcast_block (nano::confirmation_solicitor &);
-	void send_confirm_req (nano::confirmation_solicitor &);
-	/**
-	 * Broadcast vote for current election winner. Generates final vote if reached quorum or already confirmed
-	 * Requires mutex lock
-	 */
-	void broadcast_vote_locked (nano::unique_lock<nano::mutex> & lock);
-	void remove_votes (nano::block_hash const &);
-	void remove_block (nano::block_hash const &);
-	bool replace_by_weight (nano::unique_lock<nano::mutex> & lock_a, nano::block_hash const &);
+
+	bool broadcast_vote_predicate () const;
+	void broadcast_vote ();
+	void broadcast_vote_impl ();
+
+	bool voting () const;
+
 	std::chrono::milliseconds time_to_live () const;
-	/**
-	 * Calculates minimum time delay between subsequent votes when processing non-final votes
-	 */
+	/// Minimum time delay between subsequent votes when processing non-final votes
 	std::chrono::seconds cooldown_time (nano::uint128_t weight) const;
-	/**
-	 * Calculates time delay between broadcasting confirmation requests
-	 */
+	/// Time delay between broadcasting confirmation requests
 	std::chrono::milliseconds confirm_req_time () const;
 
+	static nano::election_tally to_election_tally (std::map<nano::block_hash, nano::amount> const & tally);
+
 private:
-	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> last_blocks;
-	std::unordered_map<nano::account, nano::vote_info> last_votes;
-	std::atomic<bool> is_quorum{ false };
-	mutable nano::uint128_t final_weight{ 0 };
-	mutable std::unordered_map<nano::block_hash, nano::uint128_t> last_tally;
+	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks;
+	std::shared_ptr<nano::block> current_block; // Block that is currently present in the ledger
+	std::shared_ptr<nano::block> winner_block; // Block that won the election with final vote quorum or indirectly via dependent election
+	std::unordered_map<nano::account, std::chrono::steady_clock::time_point> timestamps;
 
 	nano::election_behavior const behavior_m;
-	std::chrono::steady_clock::time_point const election_start{ std::chrono::steady_clock::now () };
 
 	election_state_guard state{ election_state::passive };
 
+	nano::consensus::election consensus;
+
 	mutable nano::mutex mutex;
+
+private:
+	// Minimum time between broadcasts of the current winner of an election, as a backup to requesting confirmations
+	std::chrono::milliseconds base_latency () const;
+
+	std::chrono::steady_clock::time_point last_req{};
+	// These are modified while not holding the mutex from transition_time only
+	std::chrono::steady_clock::time_point last_broadcast_time{};
+	nano::block_hash last_broadcast_hash{};
+	/** The last time vote for this election was generated */
+	std::chrono::steady_clock::time_point last_vote_time{};
+	nano::consensus::vote_request last_vote{};
 
 public: // Logging
 	void operator() (nano::object_stream &) const;
 
 private: // Constants
-	static std::size_t constexpr max_blocks{ 10 };
+	// Max votes also limits the number of blocks in an election (1 vote per block)
+	static size_t constexpr max_votes{ 1000 };
+
 	static unsigned constexpr passive_duration_factor = 5;
 	static unsigned constexpr active_request_count_min = 2;
 
@@ -223,7 +198,7 @@ private: // Constants
 	friend class confirmation_solicitor;
 
 public: // Only used in tests
-	void force_confirm ();
+	bool force_confirm ();
 
 	friend class confirmation_solicitor_different_hash_Test;
 	friend class confirmation_solicitor_bypass_max_requests_cap_Test;

@@ -6,9 +6,8 @@
 
 namespace nano
 {
-class vote_with_weight_info final
+struct vote_with_weight_info
 {
-public:
 	nano::account representative;
 	std::chrono::steady_clock::time_point time;
 	uint64_t timestamp;

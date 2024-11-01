@@ -2,6 +2,7 @@
 
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/node/election.hpp>
 #include <nano/node/election_behavior.hpp>
 #include <nano/node/election_status.hpp>
 #include <nano/node/fwd.hpp>
@@ -100,9 +101,7 @@ public:
 		bool inserted{ false };
 	};
 
-	/**
-	 * Starts new election with a specified behavior type
-	 */
+	// Starts new election with a specified behavior type
 	insertion_result insert (std::shared_ptr<nano::block> const &, nano::election_behavior = nano::election_behavior::priority, erased_callback_t = nullptr);
 
 	// Is the root of this block in the roots container
@@ -116,7 +115,6 @@ public:
 	bool empty () const;
 	std::size_t size () const;
 	std::size_t size (nano::election_behavior) const;
-	bool publish (std::shared_ptr<nano::block> const &);
 
 	/**
 	 * Maximum number of elections that should be present in this container
@@ -134,6 +132,9 @@ public: // Events
 	nano::observer_set<> vacancy_updated;
 
 private:
+	// Notify election about forks and changes in ledger state
+	bool process (std::shared_ptr<nano::block> const &, nano::block_status);
+
 	void request_loop ();
 	void request_confirm (nano::unique_lock<nano::mutex> &);
 	// Erase all blocks from active and, if not confirmed, clear digests from network filters
@@ -172,6 +173,7 @@ private:
 
 public: // Tests
 	void clear ();
+	bool force_process (std::shared_ptr<nano::block> const &, nano::block_status = nano::block_status::progress);
 
 	friend class node_fork_storm_Test;
 	friend class system_block_sequence_Test;

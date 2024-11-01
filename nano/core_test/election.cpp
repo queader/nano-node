@@ -70,7 +70,7 @@ TEST (election, quorum_minimum_flip_success)
 	node1.process_active (send2);
 	std::shared_ptr<nano::election> election{};
 	ASSERT_TIMELY (5s, (election = node1.active.election (send2->qualified_root ())) != nullptr)
-	ASSERT_TIMELY_EQ (5s, election->blocks ().size (), 2);
+	ASSERT_TIMELY_EQ (5s, election->all_blocks ().size (), 2);
 
 	auto vote = nano::test::make_final_vote (nano::dev::genesis_key, { send2->hash () });
 	ASSERT_EQ (nano::vote_code::vote, node1.vote_router.vote (vote).at (send2->hash ()));
@@ -118,7 +118,7 @@ TEST (election, quorum_minimum_flip_fail)
 	node.process_active (send2);
 	std::shared_ptr<nano::election> election;
 	ASSERT_TIMELY (5s, election = node.active.election (send2->qualified_root ()))
-	ASSERT_TIMELY_EQ (5s, election->blocks ().size (), 2);
+	ASSERT_TIMELY_EQ (5s, election->all_blocks ().size (), 2);
 
 	// genesis generates a final vote for send2 but it should not be enough to reach quorum due to the online_weight_minimum being so high
 	auto vote = nano::test::make_final_vote (nano::dev::genesis_key, { send2->hash () });
@@ -154,7 +154,7 @@ TEST (election, quorum_minimum_confirm_success)
 	node1.process_active (send1);
 	auto election = nano::test::start_election (system, node1, send1->hash ());
 	ASSERT_NE (nullptr, election);
-	ASSERT_EQ (1, election->blocks ().size ());
+	ASSERT_EQ (1, election->all_blocks ().size ());
 	auto vote = nano::test::make_final_vote (nano::dev::genesis_key, { send1->hash () });
 	ASSERT_EQ (nano::vote_code::vote, node1.vote_router.vote (vote).at (send1->hash ()));
 	ASSERT_NE (nullptr, node1.block (send1->hash ()));
@@ -184,7 +184,7 @@ TEST (election, quorum_minimum_confirm_fail)
 	node1.process_active (send1);
 	auto election = nano::test::start_election (system, node1, send1->hash ());
 	ASSERT_NE (nullptr, election);
-	ASSERT_EQ (1, election->blocks ().size ());
+	ASSERT_EQ (1, election->all_blocks ().size ());
 
 	auto vote = nano::test::make_final_vote (nano::dev::genesis_key, { send1->hash () });
 	ASSERT_EQ (nano::vote_code::vote, node1.vote_router.vote (vote).at (send1->hash ()));
@@ -247,7 +247,7 @@ TEST (election, quorum_minimum_update_weight_before_quorum_checks)
 
 	std::shared_ptr<nano::election> election;
 	ASSERT_TIMELY (5s, (election = node1.active.election (send1->qualified_root ())) != nullptr);
-	ASSERT_EQ (1, election->blocks ().size ());
+	ASSERT_EQ (1, election->all_blocks ().size ());
 
 	auto vote1 = nano::test::make_final_vote (nano::dev::genesis_key, { send1->hash () });
 	ASSERT_EQ (nano::vote_code::vote, node1.vote_router.vote (vote1).at (send1->hash ()));

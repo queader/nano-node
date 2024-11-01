@@ -28,6 +28,7 @@ enum class type
 	election,
 	election_cleanup,
 	election_vote,
+	election_broadcast,
 	http_callback,
 	ipc,
 	tcp,
@@ -264,6 +265,8 @@ enum class detail
 	broadcast_block_repeat,
 	confirm_once,
 	confirm_once_failed,
+	vote_normal,
+	vote_final,
 
 	// election types
 	manual,
@@ -423,6 +426,7 @@ enum class detail
 	started,
 	stopped,
 	confirm_dependent,
+	confirm_dependent_failed,
 
 	// unchecked
 	put,

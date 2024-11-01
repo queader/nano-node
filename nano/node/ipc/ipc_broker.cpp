@@ -53,12 +53,13 @@ void nano::ipc::broker::start ()
 				confirmation->confirmation_type = nanoapi::TopicConfirmationType::TopicConfirmationType_active_quorum;
 				confirmation->block = nano::ipc::flatbuffers_builder::block_to_union (*status_a.winner, amount_a, is_state_send_a, is_state_epoch_a);
 				confirmation->election_info = std::make_unique<nanoapi::ElectionInfoT> ();
-				confirmation->election_info->duration = status_a.election_duration.count ();
-				confirmation->election_info->time = status_a.election_end.count ();
-				confirmation->election_info->tally = status_a.tally.to_string_dec ();
+				confirmation->election_info->duration = status_a.duration.count ();
+				confirmation->election_info->time = status_a.time_ended.count ();
+				confirmation->election_info->tally = status_a.tally_weight.to_string_dec ();
 				confirmation->election_info->block_count = status_a.block_count;
 				confirmation->election_info->voter_count = status_a.voter_count;
 				confirmation->election_info->request_count = status_a.confirmation_request_count;
+				// TODO: Include final tally information
 
 				this_l->broadcast (confirmation);
 			}

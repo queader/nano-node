@@ -766,10 +766,10 @@ nano::websocket::message nano::websocket::message_builder::block_confirmed (std:
 	if (options_a.get_include_election_info () || options_a.get_include_election_info_with_votes ())
 	{
 		boost::property_tree::ptree election_node_l;
-		election_node_l.add ("duration", election_status_a.election_duration.count ());
-		election_node_l.add ("time", election_status_a.election_end.count ());
-		election_node_l.add ("tally", election_status_a.tally.to_string_dec ());
-		election_node_l.add ("final", election_status_a.final_tally.to_string_dec ());
+		election_node_l.add ("duration", election_status_a.duration.count ());
+		election_node_l.add ("time", election_status_a.time_ended.count ());
+		election_node_l.add ("tally", election_status_a.tally_weight.to_string_dec ());
+		election_node_l.add ("final", election_status_a.final_tally_weight.to_string_dec ());
 		election_node_l.add ("blocks", std::to_string (election_status_a.block_count));
 		election_node_l.add ("voters", std::to_string (election_status_a.voter_count));
 		election_node_l.add ("request_count", std::to_string (election_status_a.confirmation_request_count));

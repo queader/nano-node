@@ -244,7 +244,7 @@ TEST (node, node_receive_quorum)
 	auto election (node1.active.election (nano::qualified_root (previous, previous)));
 	ASSERT_NE (nullptr, election);
 	ASSERT_FALSE (election->confirmed ());
-	ASSERT_EQ (1, election->votes ().size ());
+	ASSERT_EQ (1, election->all_votes ().size ());
 
 	nano::test::system system2;
 	system2.add_node ();
@@ -525,15 +525,15 @@ TEST (node, fork_publish)
 	auto election (node1.active.election (send1->qualified_root ()));
 	ASSERT_NE (nullptr, election);
 	// Wait until the genesis rep activated & makes vote
-	ASSERT_TIMELY_EQ (1s, election->votes ().size (), 2);
+	ASSERT_TIMELY_EQ (1s, election->all_votes ().size (), 1);
 	node1.process_active (send2);
 	ASSERT_TIMELY (5s, node1.active.active (*send2));
-	auto votes1 (election->votes ());
+	auto votes1 (election->all_votes ());
 	auto existing1 (votes1.find (nano::dev::genesis_key.pub));
 	ASSERT_NE (votes1.end (), existing1);
 	ASSERT_EQ (send1->hash (), existing1->second.hash);
 	auto winner (*election->tally ().begin ());
-	ASSERT_EQ (*send1, *winner.second);
+	ASSERT_EQ (send1->hash (), winner.second);
 	ASSERT_EQ (nano::dev::constants.genesis_amount - 100, winner.first);
 }
 
@@ -578,17 +578,15 @@ TEST (node, fork_publish_inactive)
 
 	ASSERT_EQ (nano::block_status::fork, node.process_local (send2).value ());
 
-	ASSERT_TIMELY_EQ (5s, election->blocks ().size (), 2);
+	ASSERT_TIMELY_EQ (5s, election->all_blocks ().size (), 2);
 
 	auto find_block = [&election] (nano::block_hash hash_a) -> bool {
-		auto blocks = election->blocks ();
+		auto blocks = election->all_blocks ();
 		return blocks.end () != blocks.find (hash_a);
 	};
 	ASSERT_TRUE (find_block (send1->hash ()));
 	ASSERT_TRUE (find_block (send2->hash ()));
-
-	ASSERT_EQ (election->winner ()->hash (), send1->hash ());
-	ASSERT_NE (election->winner ()->hash (), send2->hash ());
+	ASSERT_EQ (election->candidate ()->hash (), send1->hash ());
 }
 
 TEST (node, fork_keep)
@@ -627,16 +625,15 @@ TEST (node, fork_keep)
 	ASSERT_TIMELY (5s, node2.active.active (*send2));
 	auto election1 (node2.active.election (nano::qualified_root (nano::dev::genesis->hash (), nano::dev::genesis->hash ())));
 	ASSERT_NE (nullptr, election1);
-	ASSERT_EQ (1, election1->votes ().size ());
 	ASSERT_TRUE (node1.block_or_pruned_exists (send1->hash ()));
 	ASSERT_TRUE (node2.block_or_pruned_exists (send1->hash ()));
 	// Wait until the genesis rep makes a vote
-	ASSERT_TIMELY (1.5min, election1->votes ().size () != 1);
+	ASSERT_TIMELY_EQ (5s, election1->all_votes ().size (), 1);
 	auto transaction0 (node1.ledger.tx_begin_read ());
 	auto transaction1 (node2.ledger.tx_begin_read ());
 	// The vote should be in agreement with what we already have.
 	auto winner (*election1->tally ().begin ());
-	ASSERT_EQ (*send1, *winner.second);
+	ASSERT_EQ (send1->hash (), winner.second);
 	ASSERT_EQ (nano::dev::constants.genesis_amount - 100, winner.first);
 	ASSERT_TRUE (node1.ledger.any.block_exists (transaction0, send1->hash ()));
 	ASSERT_TRUE (node2.ledger.any.block_exists (transaction1, send1->hash ()));
@@ -680,12 +677,12 @@ TEST (node, fork_flip)
 	ASSERT_TIMELY (5s, node2.active.active (*send1));
 	auto election1 (node2.active.election (nano::qualified_root (nano::dev::genesis->hash (), nano::dev::genesis->hash ())));
 	ASSERT_NE (nullptr, election1);
-	ASSERT_EQ (1, election1->votes ().size ());
+	ASSERT_EQ (1, election1->all_votes ().size ());
 	ASSERT_NE (nullptr, node1.block (publish1.block->hash ()));
 	ASSERT_NE (nullptr, node2.block (publish2.block->hash ()));
 	ASSERT_TIMELY (10s, node2.block_or_pruned_exists (publish1.block->hash ()));
 	auto winner (*election1->tally ().begin ());
-	ASSERT_EQ (*publish1.block, *winner.second);
+	ASSERT_EQ (publish1.block->hash (), winner.second);
 	ASSERT_EQ (nano::dev::constants.genesis_amount - 100, winner.first);
 	ASSERT_TRUE (node1.block_or_pruned_exists (publish1.block->hash ()));
 	ASSERT_TRUE (node2.block_or_pruned_exists (publish1.block->hash ()));
@@ -742,7 +739,7 @@ TEST (node, fork_multi_flip)
 	ASSERT_TIMELY (10s, node2.block_or_pruned_exists (send1->hash ()));
 	ASSERT_TRUE (nano::test::block_or_pruned_none_exists (node2, { send2, send3 }));
 	auto winner = *election->tally ().begin ();
-	ASSERT_EQ (*send1, *winner.second);
+	ASSERT_EQ (send1->hash (), winner.second);
 	ASSERT_EQ (nano::dev::constants.genesis_amount - 100, winner.first);
 }
 
@@ -845,11 +842,11 @@ TEST (node, fork_open)
 	ASSERT_TIMELY (5s, (election = node.active.election (publish3.block->qualified_root ())) != nullptr);
 
 	// we expect to find 2 blocks in the election and we expect the first block to be the winner just because it was first
-	ASSERT_TIMELY_EQ (5s, 2, election->blocks ().size ());
-	ASSERT_EQ (publish2.block->hash (), election->winner ()->hash ());
+	ASSERT_TIMELY_EQ (5s, 2, election->all_blocks ().size ());
+	ASSERT_EQ (publish2.block->hash (), election->candidate ()->hash ());
 
 	// wait for a second and check that the election did not get confirmed
-	system.delay_ms (1000ms);
+	WAIT (1s);
 	ASSERT_FALSE (election->confirmed ());
 
 	// check that only the first block is saved to the ledger
@@ -928,13 +925,13 @@ TEST (node, fork_open_flip)
 	node1.process_active (open2);
 	node2.process_active (open1);
 
-	ASSERT_TIMELY_EQ (5s, 2, election->votes ().size ()); // one more than expected due to elections having dummy votes
+	ASSERT_TIMELY_EQ (5s, 2, election->all_votes ().size ()); // one more than expected due to elections having dummy votes
 
 	// Node2 should eventually settle on open1
 	ASSERT_TIMELY (10s, node2.block (open1->hash ()));
 	ASSERT_TIMELY (5s, node1.block_confirmed (open1->hash ()));
 	auto winner = *election->tally ().begin ();
-	ASSERT_EQ (*open1, *winner.second);
+	ASSERT_EQ (open1->hash (), winner.second);
 	ASSERT_EQ (nano::dev::constants.genesis_amount - 1, winner.first);
 
 	// check the correct blocks are in the ledgers
@@ -1328,8 +1325,8 @@ TEST (node, rep_self_vote)
 	auto election1 = nano::test::start_election (system, *node0, block0->hash ());
 	ASSERT_NE (nullptr, election1);
 	// Wait until representatives are activated & make vote
-	ASSERT_TIMELY_EQ (1s, election1->votes ().size (), 3);
-	auto rep_votes (election1->votes ());
+	ASSERT_TIMELY_EQ (1s, election1->all_votes ().size (), 3);
+	auto rep_votes (election1->all_votes ());
 	ASSERT_NE (rep_votes.end (), rep_votes.find (nano::dev::genesis_key.pub));
 	ASSERT_NE (rep_votes.end (), rep_votes.find (rep_big.pub));
 }
@@ -1680,7 +1677,7 @@ TEST (node, confirm_quorum)
 	auto election = node1.active.election (send1->qualified_root ());
 	ASSERT_NE (nullptr, election);
 	ASSERT_FALSE (election->confirmed ());
-	ASSERT_EQ (1, election->votes ().size ());
+	ASSERT_EQ (1, election->all_votes ().size ());
 	ASSERT_EQ (0, node1.balance (nano::dev::genesis_key.pub));
 }
 
@@ -2133,7 +2130,7 @@ TEST (node, DISABLED_vote_by_hash_epoch_block_republish)
 				  .build ();
 	node1.process_active (send1);
 	ASSERT_TIMELY (5s, node2.active.active (*send1));
-	node1.active.publish (epoch1);
+	node1.active.force_process (epoch1);
 	std::vector<nano::block_hash> vote_blocks;
 	vote_blocks.push_back (epoch1->hash ());
 	auto vote = nano::test::make_vote (nano::dev::genesis_key, { vote_blocks }, 0, 0);
@@ -2324,11 +2321,11 @@ TEST (node, fork_election_invalid_block_signature)
 	ASSERT_TIMELY (5s, node1.active.active (send1->qualified_root ()));
 	auto election (node1.active.election (send1->qualified_root ()));
 	ASSERT_NE (nullptr, election);
-	ASSERT_EQ (1, election->blocks ().size ());
+	ASSERT_EQ (1, election->all_blocks ().size ());
 	node1.inbound (nano::publish{ nano::dev::network_params.network, send3 }, channel1);
 	node1.inbound (nano::publish{ nano::dev::network_params.network, send2 }, channel1);
-	ASSERT_TIMELY (3s, election->blocks ().size () > 1);
-	ASSERT_EQ (election->blocks ()[send2->hash ()]->block_signature (), send2->block_signature ());
+	ASSERT_TIMELY (3s, election->all_blocks ().size () > 1);
+	ASSERT_EQ (election->all_blocks ()[send2->hash ()]->block_signature (), send2->block_signature ());
 }
 
 TEST (node, block_processor_signatures)
@@ -2810,19 +2807,22 @@ TEST (node, rollback_vote_self)
 	std::shared_ptr<nano::election> election;
 	ASSERT_TIMELY (5s, election = node.active.election (send2->qualified_root ()));
 	node.process_active (fork);
-	ASSERT_TIMELY_EQ (5s, 2, election->blocks ().size ());
-	ASSERT_EQ (election->winner ()->hash (), send2->hash ());
-
+	ASSERT_TIMELY_EQ (5s, 2, election->all_blocks ().size ());
+	ASSERT_TRUE (election->find_block (send2->hash ()));
+	ASSERT_TRUE (election->find_block (fork->hash ()));
+	ASSERT_EQ (election->candidate ()->hash (), send2->hash ());
 	{
 		// The write guard prevents the block processor from performing the rollback
 		auto write_guard = node.store.write_queue.wait (nano::store::writer::testing);
 
 		ASSERT_EQ (0, election->votes_with_weight ().size ());
+
 		// Vote with key to switch the winner
 		election->vote (key.pub, 0, fork->hash (), nano::vote_source::live);
 		ASSERT_EQ (1, election->votes_with_weight ().size ());
+
 		// The winner changed
-		ASSERT_EQ (election->winner ()->hash (), fork->hash ());
+		ASSERT_EQ (election->leader (), fork->hash ());
 
 		// Insert genesis key in the wallet
 		system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -2839,6 +2839,7 @@ TEST (node, rollback_vote_self)
 	auto is_genesis_vote = [] (nano::vote_with_weight_info info) {
 		return info.representative == nano::dev::genesis_key.pub;
 	};
+
 	ASSERT_TIMELY_EQ (5s, 2, election->votes_with_weight ().size ());
 	auto votes_with_weight = election->votes_with_weight ();
 	ASSERT_EQ (1, std::count_if (votes_with_weight.begin (), votes_with_weight.end (), is_genesis_vote));

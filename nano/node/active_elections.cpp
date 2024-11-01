@@ -53,11 +53,12 @@ nano::active_elections::active_elections (nano::node & node_a, nano::confirming_
 
 	// Notify elections about alternative (forked) blocks
 	block_processor.batch_processed.add ([this] (auto const & batch) {
+		nano::lock_guard<nano::mutex> guard{ mutex };
 		for (auto const & [result, context] : batch)
 		{
-			if (result == nano::block_status::fork)
+			if (result == nano::block_status::progress || result == nano::block_status::fork)
 			{
-				publish (context.block);
+				process (context.block, result);
 			}
 		}
 	});
@@ -112,18 +113,26 @@ auto nano::active_elections::block_cemented (std::shared_ptr<nano::block> const 
 	auto dependend_election = election_impl (block->qualified_root ());
 	if (dependend_election)
 	{
-		node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::confirm_dependent);
-		dependend_election->try_confirm (block->hash ()); // TODO: This should either confirm or cancel the election
+		bool confirmed = dependend_election->try_confirm (block->hash ());
+		if (confirmed)
+		{
+			node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::confirm_dependent);
+		}
+		else
+		{
+			node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::confirm_dependent_failed);
+			dependend_election->cancel ();
+		}
 	}
 
-	nano::election_status status;
 	std::vector<nano::vote_with_weight_info> votes;
+	nano::election_status status{};
 	status.winner = block;
 
 	// Check if the currently cemented block was part of an election that triggered the confirmation
 	if (source_election && source_election->qualified_root == block->qualified_root ())
 	{
-		status = source_election->get_status ();
+		status = source_election->current_status ();
 		debug_assert (status.winner->hash () == block->hash ());
 		votes = source_election->votes_with_weight ();
 		status.type = nano::election_status_type::active_confirmed_quorum;
@@ -285,7 +294,7 @@ void nano::active_elections::cleanup_election (nano::unique_lock<nano::mutex> & 
 	debug_assert (count_by_behavior[election->behavior ()] > 0);
 	count_by_behavior[election->behavior ()]--;
 
-	auto blocks_l = election->blocks ();
+	auto blocks_l = election->all_blocks ();
 	node.vote_router.disconnect (election);
 
 	// Erase root info
@@ -405,7 +414,10 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block_
 			};
 			result.election = nano::make_shared<nano::election> (node, block_a, nullptr, observe_rep_cb, election_behavior_a);
 			roots.get<tag_root> ().emplace (entry{ root, result.election, std::move (erased_callback_a) });
+
+			// Vote routing & vote cache trigger should always be done in tandem
 			node.vote_router.connect (hash, result.election);
+			node.vote_cache_processor.trigger (hash);
 
 			// Keep track of election count by election type
 			debug_assert (count_by_behavior[result.election->behavior ()] >= 0);
@@ -438,7 +450,6 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block_
 	{
 		debug_assert (result.election);
 
-		node.vote_cache_processor.trigger (hash);
 		node.observers.active_started.notify (hash);
 		vacancy_updated.notify ();
 	}
@@ -446,10 +457,41 @@ auto nano::active_elections::insert (std::shared_ptr<nano::block> const & block_
 	// Votes are generated for inserted or ongoing elections
 	if (result.election)
 	{
-		result.election->broadcast_vote ();
+		result.election->broadcast_vote_immediate ();
 	}
 
 	return result;
+}
+
+bool nano::active_elections::process (std::shared_ptr<nano::block> const & block, nano::block_status status)
+{
+	debug_assert (!mutex.try_lock ());
+
+	if (auto election = election_impl (block->qualified_root ()))
+	{
+		bool processed = election->process (block, status);
+		if (processed)
+		{
+			// Vote routing & vote cache trigger should always be done in tandem
+			node.vote_router.connect (block->hash (), election);
+			node.vote_cache_processor.trigger (block->hash ());
+
+			node.stats.inc (nano::stat::type::active, nano::stat::detail::election_block_conflict);
+			node.logger.debug (nano::log::type::active_elections, "Block was added to an existing election: {}, root: {}",
+			block->hash ().to_string (),
+			block->qualified_root ().to_string ());
+
+			return true;
+		}
+	}
+	return false;
+}
+
+bool nano::active_elections::force_process (std::shared_ptr<nano::block> const & block, nano::block_status status)
+{
+	release_assert (node.network_params.network.is_dev_network ());
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return process (block, status);
 }
 
 bool nano::active_elections::active (nano::qualified_root const & root_a) const
@@ -516,31 +558,6 @@ std::size_t nano::active_elections::size (nano::election_behavior behavior) cons
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
 	return find_or_empty (count_by_behavior, behavior).value_or (0);
-}
-
-bool nano::active_elections::publish (std::shared_ptr<nano::block> const & block_a)
-{
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	auto existing (roots.get<tag_root> ().find (block_a->qualified_root ()));
-	auto result (true);
-	if (existing != roots.get<tag_root> ().end ())
-	{
-		auto election (existing->election);
-		lock.unlock ();
-		result = election->publish (block_a);
-		if (!result)
-		{
-			lock.lock ();
-			node.vote_router.connect (block_a->hash (), election);
-			lock.unlock ();
-
-			node.vote_cache_processor.trigger (block_a->hash ());
-
-			node.stats.inc (nano::stat::type::active, nano::stat::detail::election_block_conflict);
-			node.logger.debug (nano::log::type::active_elections, "Block was added to an existing election: {}", block_a->hash ().to_string ());
-		}
-	}
-	return result;
 }
 
 void nano::active_elections::clear ()

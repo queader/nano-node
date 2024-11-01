@@ -71,12 +71,12 @@ TEST (vote_processor, invalid_signature)
 
 	auto election = nano::test::start_election (system, node, chain[0]->hash ());
 	ASSERT_NE (election, nullptr);
-	ASSERT_EQ (1, election->votes ().size ());
+	ASSERT_EQ (0, election->all_votes ().size ());
 
 	node.vote_processor.vote (vote_invalid, channel);
-	ASSERT_TIMELY_EQ (5s, 1, election->votes ().size ());
+	ASSERT_TIMELY_EQ (5s, 0, election->all_votes ().size ());
 	node.vote_processor.vote (vote, channel);
-	ASSERT_TIMELY_EQ (5s, 2, election->votes ().size ());
+	ASSERT_TIMELY_EQ (5s, 1, election->all_votes ().size ());
 }
 
 TEST (vote_processor, overflow)
@@ -194,7 +194,7 @@ TEST (vote_processor, no_broadcast_local)
 	// Make sure the vote was processed.
 	auto election (node.active.election (send->qualified_root ()));
 	ASSERT_NE (nullptr, election);
-	auto votes (election->votes ());
+	auto votes (election->all_votes ());
 	auto existing (votes.find (nano::dev::genesis_key.pub));
 	ASSERT_NE (votes.end (), existing);
 	ASSERT_EQ (vote->timestamp (), existing->second.timestamp);
@@ -244,7 +244,7 @@ TEST (vote_processor, local_broadcast_without_a_representative)
 	// Make sure the vote was processed.
 	std::shared_ptr<nano::election> election;
 	ASSERT_TIMELY (5s, election = node.active.election (send->qualified_root ()));
-	auto votes (election->votes ());
+	auto votes (election->all_votes ());
 	auto existing (votes.find (nano::dev::genesis_key.pub));
 	ASSERT_NE (votes.end (), existing);
 	ASSERT_EQ (vote->timestamp (), existing->second.timestamp);
@@ -297,7 +297,7 @@ TEST (vote_processor, no_broadcast_local_with_a_principal_representative)
 	// Make sure the vote was processed.
 	auto election (node.active.election (send->qualified_root ()));
 	ASSERT_NE (nullptr, election);
-	auto votes (election->votes ());
+	auto votes (election->all_votes ());
 	auto existing (votes.find (nano::dev::genesis_key.pub));
 	ASSERT_NE (votes.end (), existing);
 	ASSERT_EQ (vote->timestamp (), existing->second.timestamp);

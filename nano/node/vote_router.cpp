@@ -26,7 +26,7 @@ nano::vote_router::~vote_router ()
 
 void nano::vote_router::connect (nano::block_hash const & hash, std::shared_ptr<nano::election> const & election)
 {
-	debug_assert (election->blocks ().contains (hash));
+	debug_assert (election->all_blocks ().contains (hash));
 
 	std::lock_guard lock{ mutex };
 	auto [existing, inserted] = elections.emplace (hash, election->qualified_root, election);

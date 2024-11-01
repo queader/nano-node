@@ -1196,8 +1196,14 @@ void nano::json_handler::block_confirm ()
 			else
 			{
 				// Add record in confirmation history for confirmed block
-				nano::election_status status{ block_l, 0, 0, std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ()), std::chrono::duration_values<std::chrono::milliseconds>::zero (), 0, 1, 0, nano::election_status_type::active_confirmation_height };
+				nano::election_status status{
+					.type = nano::election_status_type::inactive_confirmation_height,
+					.winner = block_l,
+					.block_count = 1,
+				};
+
 				node.active.recently_cemented.put (status);
+
 				// Trigger callback for confirmed block
 				auto account = block_l->account ();
 				auto amount = node.ledger.any.block_amount (transaction, hash);
@@ -1931,10 +1937,10 @@ void nano::json_handler::election_statistics ()
 	for (auto const & election : active_elections)
 	{
 		total_count++;
-		auto election_start = election->get_election_start ();
+		auto election_start = election->election_start;
 		auto age = now - election_start;
 		total_age += age;
-		oldest_election_start = std::min (oldest_election_start, election->get_election_start ());
+		oldest_election_start = std::min (oldest_election_start, election_start);
 
 		switch (election->behavior ())
 		{
@@ -1991,16 +1997,16 @@ void nano::json_handler::confirmation_history ()
 			{
 				boost::property_tree::ptree election;
 				election.put ("hash", status.winner->hash ().to_string ());
-				election.put ("duration", status.election_duration.count ());
-				election.put ("time", status.election_end.count ());
-				election.put ("tally", status.tally.to_string_dec ());
-				election.add ("final", status.final_tally.to_string_dec ());
+				election.put ("duration", status.duration.count ());
+				election.put ("time", status.time_ended.count ());
+				election.put ("tally", status.tally_weight.to_string_dec ());
+				election.add ("final", status.final_tally_weight.to_string_dec ());
 				election.put ("blocks", std::to_string (status.block_count));
 				election.put ("voters", std::to_string (status.voter_count));
 				election.put ("request_count", std::to_string (status.confirmation_request_count));
 				elections.push_back (std::make_pair ("", election));
 			}
-			running_total += status.election_duration;
+			running_total += status.duration;
 		}
 	}
 	confirmation_stats.put ("count", elections.size ());
@@ -2026,17 +2032,18 @@ void nano::json_handler::confirmation_info ()
 		if (election != nullptr && !election->confirmed ())
 		{
 			auto info = election->current_status ();
-			response_l.put ("announcements", std::to_string (info.status.confirmation_request_count));
+			response_l.put ("announcements", std::to_string (info.confirmation_request_count));
 			response_l.put ("voters", std::to_string (info.votes.size ()));
-			response_l.put ("last_winner", info.status.winner->hash ().to_string ());
+			response_l.put ("winner", info.winner ? info.winner->hash ().to_string () : "");
 			nano::uint128_t total (0);
 			boost::property_tree::ptree blocks;
-			for (auto const & [tally, block] : info.tally)
+			for (auto const & [tally, hash] : info.tally)
 			{
 				boost::property_tree::ptree entry;
 				entry.put ("tally", tally.convert_to<std::string> ());
 				total += tally;
-				if (contents)
+
+				if (auto block = election->find_block (hash); contents && block)
 				{
 					if (json_block_l)
 					{
@@ -2051,12 +2058,13 @@ void nano::json_handler::confirmation_info ()
 						entry.put ("contents", contents);
 					}
 				}
+
 				if (representatives)
 				{
 					std::multimap<nano::uint128_t, nano::account, std::greater<nano::uint128_t>> representatives;
 					for (auto const & [representative, vote] : info.votes)
 					{
-						if (block->hash () == vote.hash)
+						if (hash == vote.hash)
 						{
 							auto amount (node.ledger.cache.rep_weights.representation_get (representative));
 							representatives.emplace (std::move (amount), representative);
@@ -2069,10 +2077,11 @@ void nano::json_handler::confirmation_info ()
 					}
 					entry.add_child ("representatives", representatives_list);
 				}
-				blocks.add_child ((block->hash ()).to_string (), entry);
+
+				blocks.add_child (hash.to_string (), entry);
 			}
 			response_l.put ("total_tally", total.convert_to<std::string> ());
-			response_l.put ("final_tally", info.status.final_tally.to_string_dec ());
+			response_l.put ("final_tally", info.final_tally_weight.to_string_dec ());
 			response_l.add_child ("blocks", blocks);
 		}
 		else
