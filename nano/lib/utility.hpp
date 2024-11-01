@@ -9,6 +9,7 @@
 #include <cassert>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <sstream>
 #include <vector>
@@ -114,6 +115,17 @@ constexpr TARGET_TYPE narrow_cast (SOURCE_TYPE const & val)
 	auto res (static_cast<TARGET_TYPE> (val));
 	debug_assert (val == static_cast<SOURCE_TYPE> (res));
 	return res;
+}
+
+/** Returns mapped value for given key from container if it exists, otherwise returns empty optional */
+template <typename Container>
+auto find_or_empty (const Container & container, const typename Container::key_type & key) -> std::optional<typename Container::mapped_type>
+{
+	if (auto it = container.find (key); it != container.end ())
+	{
+		return it->second;
+	}
+	return std::nullopt;
 }
 
 // Issue #3748
