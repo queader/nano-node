@@ -3,89 +3,82 @@
 #include <nano/node/election.hpp>
 #include <nano/node/nodeconfig.hpp>
 
+#include <algorithm>
+#include <random>
+
 using namespace std::chrono_literals;
 
 nano::confirmation_solicitor::confirmation_solicitor (nano::network & network_a, nano::node_config const & config_a) :
-	max_block_broadcasts (config_a.network_params.network.is_dev_network () ? 4 : 30),
-	max_election_requests (50),
+	max_block_broadcasts (config_a.network_params.network.is_dev_network () ? 4 : 30), // TODO: Make this configurable
+	max_election_requests (50), // TODO: Make this configurable
 	max_election_broadcasts (std::max<std::size_t> (network_a.fanout () / 2, 1)),
 	network (network_a),
 	config (config_a)
 {
 }
 
-void nano::confirmation_solicitor::prepare (std::vector<nano::representative> const & representatives_a)
+void nano::confirmation_solicitor::prepare (std::vector<nano::representative> const & reps)
 {
 	debug_assert (!prepared);
-	debug_assert (std::none_of (representatives_a.begin (), representatives_a.end (), [] (auto const & rep) { return rep.channel == nullptr; }));
+	debug_assert (std::none_of (representatives.begin (), representatives.end (), [] (auto const & rep) { return rep.channel == nullptr; }));
 
 	requests.clear ();
 	rebroadcasted = 0;
-	/** Two copies are required as representatives can be erased from \p representatives_requests */
-	representatives_requests = representatives_a;
-	representatives_broadcasts = representatives_a;
+	representatives = reps;
+
+	// Ranomize rep order
+	unsigned seed = std::chrono::system_clock::now ().time_since_epoch ().count ();
+	auto rng = std::default_random_engine{ seed };
+	std::shuffle (representatives.begin (), representatives.end (), rng);
+
 	prepared = true;
 }
 
-bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
+bool nano::confirmation_solicitor::broadcast (std::shared_ptr<nano::block> const & candidate, std::unordered_map<nano::account, nano::vote_info> const & votes)
 {
 	debug_assert (prepared);
-	bool error (true);
 	if (rebroadcasted++ < max_block_broadcasts)
 	{
-		auto const & hash (election_a.status.winner->hash ());
-		nano::publish winner{ config.network_params.network, election_a.status.winner };
-		unsigned count = 0;
-		// Directed broadcasting to principal representatives
-		for (auto i (representatives_broadcasts.begin ()), n (representatives_broadcasts.end ()); i != n && count < max_election_broadcasts; ++i)
-		{
-			auto existing (election_a.last_votes.find (i->account));
-			bool const exists (existing != election_a.last_votes.end ());
-			bool const different (exists && existing->second.hash != hash);
-			if (!exists || different)
-			{
-				i->channel->send (winner);
-				count += different ? 0 : 1;
-			}
-		}
+		nano::publish publish{ config.network_params.network, candidate };
+
 		// Random flood for block propagation
-		network.flood_message (winner, nano::transport::buffer_drop_policy::limiter, 0.5f);
-		error = false;
+		// TODO: Filter out reps that have already voted for the block
+		network.flood_message (publish, nano::transport::buffer_drop_policy::limiter, 0.5f);
+
+		return true; // Broadcasted
 	}
-	return error;
+	return false; // Ignored
 }
 
-bool nano::confirmation_solicitor::add (nano::election const & election_a)
+size_t nano::confirmation_solicitor::request (std::shared_ptr<nano::block> const & candidate, std::unordered_map<nano::account, nano::vote_info> const & votes)
 {
 	debug_assert (prepared);
-	bool error (true);
-	unsigned count = 0;
-	auto const & hash (election_a.status.winner->hash ());
-	for (auto i (representatives_requests.begin ()); i != representatives_requests.end () && count < max_election_requests;)
+
+	size_t sent = 0;
+	size_t count = 0;
+	for (auto const & rep : representatives)
 	{
-		bool full_queue (false);
-		auto rep (*i);
-		auto existing (election_a.last_votes.find (rep.account));
-		bool const exists (existing != election_a.last_votes.end ());
-		bool const is_final (exists && (!election_a.is_quorum.load () || existing->second.timestamp == std::numeric_limits<uint64_t>::max ()));
-		bool const different (exists && existing->second.hash != hash);
-		if (!exists || !is_final || different)
+		if (count >= max_election_requests)
 		{
-			auto & request_queue (requests[rep.channel]);
-			if (!rep.channel->max ())
+			break;
+		}
+
+		if (!rep.channel->max ())
+		{
+			bool const exists = votes.contains (rep.account);
+			bool const is_final = exists && votes.at (rep.account).is_final ();
+			bool const different = exists && votes.at (rep.account).hash != candidate->hash ();
+
+			if (!exists || !is_final || different)
 			{
-				request_queue.emplace_back (election_a.status.winner->hash (), election_a.status.winner->root ());
+				auto & queue = requests[rep.channel];
+				queue.emplace_back (candidate->hash (), candidate->root ());
 				count += different ? 0 : 1;
-				error = false;
-			}
-			else
-			{
-				full_queue = true;
+				sent += 1;
 			}
 		}
-		i = !full_queue ? i + 1 : representatives_requests.erase (i);
 	}
-	return error;
+	return sent;
 }
 
 void nano::confirmation_solicitor::flush ()

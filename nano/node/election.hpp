@@ -8,6 +8,7 @@
 #include <nano/node/fwd.hpp>
 #include <nano/node/vote_with_weight_info.hpp>
 #include <nano/secure/common.hpp>
+#include <nano/secure/vote.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -21,6 +22,11 @@ public:
 	std::chrono::steady_clock::time_point time;
 	uint64_t timestamp;
 	nano::block_hash hash;
+
+	bool is_final () const
+	{
+		return nano::vote::is_final_timestamp (timestamp);
+	}
 };
 
 // map of vote weight per block, ordered greater first

@@ -107,7 +107,7 @@ void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_
 {
 	if (confirm_req_time () < (std::chrono::steady_clock::now () - last_req))
 	{
-		if (!solicitor_a.add (*this))
+		if (solicitor_a.request (status.winner, last_votes) > 0)
 		{
 			last_req = std::chrono::steady_clock::now ();
 			++confirmation_request_count;
@@ -150,7 +150,7 @@ void nano::election::broadcast_block (nano::confirmation_solicitor & solicitor_a
 
 	if (broadcast_block_predicate ())
 	{
-		if (!solicitor_a.broadcast (*this))
+		if (solicitor_a.broadcast (status.winner, last_votes))
 		{
 			node.stats.inc (nano::stat::type::election, last_block_hash.is_zero () ? nano::stat::detail::broadcast_block_initial : nano::stat::detail::broadcast_block_repeat);
 
