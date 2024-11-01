@@ -144,6 +144,8 @@ enum class detail
 	retry,
 	prioritized,
 	pending,
+	requeued,
+	evicted,
 
 	// processing queue
 	queue,
@@ -529,6 +531,7 @@ enum class detail
 	cementing,
 	cemented_hash,
 	cementing_failed,
+	deferred_failed,
 
 	// election_state
 	passive,
