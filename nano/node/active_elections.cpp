@@ -296,15 +296,15 @@ void nano::active_elections::cleanup_election (nano::unique_lock<nano::mutex> & 
 
 	node.stats.inc (nano::stat::type::active_elections, nano::stat::detail::stopped);
 	node.stats.inc (nano::stat::type::active_elections, election->confirmed () ? nano::stat::detail::confirmed : nano::stat::detail::unconfirmed);
-	node.stats.inc (nano::stat::type::active_elections_stopped, to_stat_detail (election->state ()));
-	node.stats.inc (to_stat_type (election->state ()), to_stat_detail (election->behavior ()));
+	node.stats.inc (nano::stat::type::active_elections_stopped, to_stat_detail (election->current_state ()));
+	node.stats.inc (to_stat_type (election->current_state ()), to_stat_detail (election->behavior ()));
 
 	node.logger.trace (nano::log::type::active_elections, nano::log::detail::active_stopped, nano::log::arg{ "election", election });
 
 	node.logger.debug (nano::log::type::active_elections, "Erased election for blocks: {} (behavior: {}, state: {})",
 	fmt::join (std::views::keys (blocks_l), ", "),
 	to_string (election->behavior ()),
-	to_string (election->state ()));
+	to_string (election->current_state ()));
 
 	lock_a.unlock ();
 

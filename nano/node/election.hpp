@@ -57,6 +57,41 @@ enum class election_state
 std::string_view to_string (election_state);
 nano::stat::detail to_stat_detail (election_state);
 
+class election_state_guard final
+{
+public:
+	explicit election_state_guard (nano::election_state initial) :
+		current{ initial } {};
+
+	// Prevent reassignment
+	election_state_guard & operator= (election_state_guard) = delete;
+
+	bool change (nano::election_state desired);
+	bool change (nano::election_state expected, nano::election_state desired);
+	static bool valid_change (nano::election_state expected, nano::election_state desired);
+
+	nano::election_state state () const
+	{
+		return current.state;
+	}
+	std::chrono::steady_clock::time_point timestamp () const
+	{
+		return current.timestamp;
+	}
+	std::chrono::steady_clock::duration duration () const
+	{
+		return std::chrono::steady_clock::now () - timestamp ();
+	}
+
+private:
+	struct state_wrapper
+	{
+		nano::election_state state;
+		std::chrono::steady_clock::time_point timestamp{ std::chrono::steady_clock::now () };
+	};
+	state_wrapper current;
+};
+
 class election final : public std::enable_shared_from_this<election>
 {
 	nano::id_t const id{ nano::next_id () }; // Track individual objects when tracing
@@ -67,22 +102,12 @@ private:
 	std::function<void (std::shared_ptr<nano::block> const &)> confirmation_action;
 	std::function<void (nano::account const &)> live_vote_action;
 
-private: // State management
-	static unsigned constexpr passive_duration_factor = 5;
-	static unsigned constexpr active_request_count_min = 2;
-	nano::election_state state_m{ election_state::passive };
-
-	std::chrono::steady_clock::duration state_start{ std::chrono::steady_clock::now ().time_since_epoch () };
-
 	// These are modified while not holding the mutex from transition_time only
 	std::chrono::steady_clock::time_point last_block{};
 	nano::block_hash last_block_hash{ 0 };
 	std::chrono::steady_clock::time_point last_req{};
 	/** The last time vote for this election was generated */
 	std::chrono::steady_clock::time_point last_vote{};
-
-	bool valid_change (nano::election_state, nano::election_state) const;
-	bool state_change (nano::election_state, nano::election_state);
 
 public: // State transitions
 	bool transition_time (nano::confirmation_solicitor &);
@@ -94,7 +119,7 @@ public: // Status
 	bool failed () const;
 	nano::election_extended_status current_status () const;
 	std::shared_ptr<nano::block> winner () const;
-	std::chrono::milliseconds duration () const;
+	std::chrono::steady_clock::duration duration () const;
 	std::atomic<unsigned> confirmation_request_count{ 0 };
 
 	nano::tally_t tally () const;
@@ -140,7 +165,7 @@ public: // Information
 
 	std::vector<nano::vote_with_weight_info> votes_with_weight () const;
 	nano::election_behavior behavior () const;
-	nano::election_state state () const;
+	nano::election_state current_state () const;
 
 	std::unordered_map<nano::account, nano::vote_info> votes () const;
 	std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks () const;
@@ -148,8 +173,9 @@ public: // Information
 
 private:
 	nano::tally_t tally_impl () const;
-	bool confirmed_locked () const;
-	nano::election_extended_status current_status_locked () const;
+	bool confirmed_impl () const;
+	nano::election_extended_status current_status_impl () const;
+
 	// lock_a does not own the mutex on return
 	void confirm_once (nano::unique_lock<nano::mutex> & lock_a);
 	bool broadcast_block_predicate () const;
@@ -183,6 +209,8 @@ private:
 	nano::election_behavior const behavior_m;
 	std::chrono::steady_clock::time_point const election_start{ std::chrono::steady_clock::now () };
 
+	election_state_guard state{ election_state::passive };
+
 	mutable nano::mutex mutex;
 
 public: // Logging
@@ -190,6 +218,8 @@ public: // Logging
 
 private: // Constants
 	static std::size_t constexpr max_blocks{ 10 };
+	static unsigned constexpr passive_duration_factor = 5;
+	static unsigned constexpr active_request_count_min = 2;
 
 	friend class active_elections;
 	friend class confirmation_solicitor;

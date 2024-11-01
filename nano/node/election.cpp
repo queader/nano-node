@@ -41,10 +41,8 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock)
 	debug_assert (lock.owns_lock ());
 	debug_assert (!mutex.try_lock ());
 
-	bool just_confirmed = state_m != nano::election_state::confirmed;
-	state_m = nano::election_state::confirmed;
-
-	if (just_confirmed)
+	bool success = state.change (nano::election_state::confirmed);
+	if (success)
 	{
 		status.election_end = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ());
 		status.election_duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
@@ -55,7 +53,7 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock)
 
 		node.active.recently_confirmed.put (qualified_root, status_l.winner->hash ());
 
-		auto const extended_status = current_status_locked ();
+		auto const extended_status = current_status_impl ();
 
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::confirm_once);
 		node.logger.trace (nano::log::type::election, nano::log::detail::election_confirmed,
@@ -66,7 +64,7 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock)
 		node.logger.debug (nano::log::type::election, "Election confirmed with winner: {} (behavior: {}, state: {}, voters: {}, blocks: {}, duration: {}ms, confirmation requests: {})",
 		status_l.winner->hash ().to_string (),
 		to_string (behavior_m),
-		to_string (state_m),
+		to_string (state.state ()),
 		extended_status.status.voter_count,
 		extended_status.status.block_count,
 		extended_status.status.election_duration.count (),
@@ -88,66 +86,6 @@ void nano::election::confirm_once (nano::unique_lock<nano::mutex> & lock)
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::confirm_once_failed);
 		lock.unlock ();
 	}
-}
-
-bool nano::election::valid_change (nano::election_state expected_a, nano::election_state desired_a) const
-{
-	switch (expected_a)
-	{
-		case nano::election_state::passive:
-			switch (desired_a)
-			{
-				case nano::election_state::active:
-				case nano::election_state::confirmed:
-				case nano::election_state::expired_unconfirmed:
-				case nano::election_state::cancelled:
-					return true; // Valid
-				default:
-					break;
-			}
-			break;
-		case nano::election_state::active:
-			switch (desired_a)
-			{
-				case nano::election_state::confirmed:
-				case nano::election_state::expired_unconfirmed:
-				case nano::election_state::cancelled:
-					return true; // Valid
-				default:
-					break;
-			}
-			break;
-		case nano::election_state::confirmed:
-			switch (desired_a)
-			{
-				case nano::election_state::expired_confirmed:
-					return true; // Valid
-				default:
-					break;
-			}
-			break;
-		case nano::election_state::expired_unconfirmed:
-		case nano::election_state::expired_confirmed:
-		case nano::election_state::cancelled:
-			// No transitions are valid from these states
-			break;
-	}
-	return false;
-}
-
-bool nano::election::state_change (nano::election_state expected_a, nano::election_state desired_a)
-{
-	bool result = true;
-	if (valid_change (expected_a, desired_a))
-	{
-		if (state_m == expected_a)
-		{
-			state_m = desired_a;
-			state_start = std::chrono::steady_clock::now ().time_since_epoch ();
-			result = false;
-		}
-	}
-	return result;
 }
 
 std::chrono::milliseconds nano::election::confirm_req_time () const
@@ -180,31 +118,13 @@ void nano::election::send_confirm_req (nano::confirmation_solicitor & solicitor_
 void nano::election::transition_active ()
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	state_change (nano::election_state::passive, nano::election_state::active);
+	state.change (nano::election_state::passive, nano::election_state::active);
 }
 
 void nano::election::cancel ()
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	state_change (state_m, nano::election_state::cancelled);
-}
-
-bool nano::election::confirmed_locked () const
-{
-	debug_assert (!mutex.try_lock ());
-	return state_m == nano::election_state::confirmed || state_m == nano::election_state::expired_confirmed;
-}
-
-bool nano::election::confirmed () const
-{
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	return confirmed_locked ();
-}
-
-bool nano::election::failed () const
-{
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	return state_m == nano::election_state::expired_unconfirmed;
+	state.change (nano::election_state::cancelled);
 }
 
 bool nano::election::broadcast_block_predicate () const
@@ -264,52 +184,61 @@ nano::election_status nano::election::get_status () const
 	return status;
 }
 
-bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a)
+bool nano::election::transition_time (nano::confirmation_solicitor & solicitor)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	bool result = false;
-	switch (state_m)
+	bool done = false;
+
+	switch (state.state ())
 	{
 		case nano::election_state::passive:
-			if (base_latency () * passive_duration_factor < std::chrono::steady_clock::now ().time_since_epoch () - state_start)
+		{
+			// Change to active after enough time has passed
+			if (base_latency () * passive_duration_factor < state.duration ())
 			{
-				state_change (nano::election_state::passive, nano::election_state::active);
+				state.change (nano::election_state::active);
 			}
-			break;
+		}
+		break;
 		case nano::election_state::active:
+		{
 			broadcast_vote_locked (lock);
-			broadcast_block (solicitor_a);
-			send_confirm_req (solicitor_a);
-			break;
+			broadcast_block (solicitor);
+			send_confirm_req (solicitor);
+		}
+		break;
 		case nano::election_state::confirmed:
-			result = true; // Return true to indicate this election should be cleaned up
-			broadcast_block (solicitor_a); // Ensure election winner is broadcasted
-			state_change (nano::election_state::confirmed, nano::election_state::expired_confirmed);
-			break;
+		{
+			done = true; // Return true to indicate this election should be cleaned up
+			broadcast_block (solicitor); // Ensure election winner is broadcasted
+			state.change (nano::election_state::expired_confirmed);
+		}
+		break;
 		case nano::election_state::expired_unconfirmed:
 		case nano::election_state::expired_confirmed:
+			// Already completed elections should not be updated
 			debug_assert (false);
 			break;
 		case nano::election_state::cancelled:
 			return true; // Clean up cancelled elections immediately
 	}
 
-	if (!confirmed_locked () && time_to_live () < std::chrono::steady_clock::now () - election_start)
+	// Check if election has expired
+	if (!confirmed_impl () && time_to_live () < duration ())
 	{
-		// It is possible the election confirmed while acquiring the mutex
-		// state_change returning true would indicate it
-		if (!state_change (state_m, nano::election_state::expired_unconfirmed))
-		{
-			node.logger.trace (nano::log::type::election, nano::log::detail::election_expired,
-			nano::log::arg{ "id", id },
-			nano::log::arg{ "qualified_root", qualified_root },
-			nano::log::arg{ "status", current_status_locked () });
+		bool changed = state.change (nano::election_state::expired_unconfirmed);
+		release_assert (changed);
 
-			result = true; // Return true to indicate this election should be cleaned up
-			status.type = nano::election_status_type::stopped;
-		}
+		node.logger.trace (nano::log::type::election, nano::log::detail::election_expired,
+		nano::log::arg{ "id", id },
+		nano::log::arg{ "qualified_root", qualified_root },
+		nano::log::arg{ "status", current_status_impl () });
+
+		done = true; // Return true to indicate this election should be cleaned up
+		status.type = nano::election_status_type::stopped;
 	}
-	return result;
+
+	return done; // Return whether this election has finished
 }
 
 std::chrono::milliseconds nano::election::time_to_live () const
@@ -437,7 +366,7 @@ void nano::election::try_confirm (nano::block_hash const & hash)
 	auto winner = status.winner;
 	if (winner && winner->hash () == hash)
 	{
-		if (!confirmed_locked ())
+		if (!confirmed_impl ())
 		{
 			confirm_once (election_lock);
 			debug_assert (!election_lock.owns_lock ());
@@ -513,7 +442,7 @@ nano::vote_code nano::election::vote (nano::account const & rep, uint64_t timest
 	nano::log::arg{ "vote_source", vote_source_a },
 	nano::log::arg{ "weight", weight });
 
-	if (!confirmed_locked ())
+	if (!confirmed_impl ())
 	{
 		confirm_if_quorum (lock);
 	}
@@ -526,7 +455,7 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	// Do not insert new blocks if already confirmed
-	auto result (confirmed_locked ());
+	bool result = confirmed_impl ();
 	if (!result && last_blocks.size () >= max_blocks && last_blocks.find (block_a->hash ()) == last_blocks.end ())
 	{
 		if (!replace_by_weight (lock, block_a->hash ()))
@@ -566,10 +495,10 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 nano::election_extended_status nano::election::current_status () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	return current_status_locked ();
+	return current_status_impl ();
 }
 
-nano::election_extended_status nano::election::current_status_locked () const
+nano::election_extended_status nano::election::current_status_impl () const
 {
 	debug_assert (!mutex.try_lock ());
 
@@ -586,11 +515,6 @@ std::shared_ptr<nano::block> nano::election::winner () const
 	return status.winner;
 }
 
-std::chrono::milliseconds nano::election::duration () const
-{
-	return std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
-}
-
 void nano::election::broadcast_vote_locked (nano::unique_lock<nano::mutex> & lock)
 {
 	debug_assert (lock.owns_lock ());
@@ -605,7 +529,7 @@ void nano::election::broadcast_vote_locked (nano::unique_lock<nano::mutex> & loc
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote);
 
-		if (confirmed_locked () || have_quorum (tally_impl ()))
+		if (confirmed_impl () || have_quorum (tally_impl ()))
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::broadcast_vote_final);
 			node.logger.trace (nano::log::type::election, nano::log::detail::broadcast_vote,
@@ -729,13 +653,6 @@ bool nano::election::replace_by_weight (nano::unique_lock<nano::mutex> & lock_a,
 	return replaced;
 }
 
-void nano::election::force_confirm ()
-{
-	release_assert (node.network_params.network.is_dev_network ());
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	confirm_once (lock);
-}
-
 std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> nano::election::blocks () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
@@ -767,21 +684,51 @@ std::vector<nano::vote_with_weight_info> nano::election::votes_with_weight () co
 	return result;
 }
 
+bool nano::election::confirmed () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return confirmed_impl ();
+}
+
+bool nano::election::confirmed_impl () const
+{
+	debug_assert (!mutex.try_lock ());
+	return state.state () == nano::election_state::confirmed || state.state () == nano::election_state::expired_confirmed;
+}
+
+bool nano::election::failed () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return state.state () == nano::election_state::expired_unconfirmed;
+}
+
+std::chrono::steady_clock::duration nano::election::duration () const
+{
+	return std::chrono::steady_clock::now () - election_start;
+}
+
 nano::election_behavior nano::election::behavior () const
 {
 	return behavior_m;
 }
 
-nano::election_state nano::election::state () const
+nano::election_state nano::election::current_state () const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
-	return state_m;
+	return state.state ();
 }
 
 bool nano::election::contains (nano::block_hash const & hash) const
 {
 	nano::lock_guard<nano::mutex> guard{ mutex };
 	return last_blocks.contains (hash);
+}
+
+void nano::election::force_confirm ()
+{
+	release_assert (node.network_params.network.is_dev_network ());
+	nano::unique_lock<nano::mutex> lock{ mutex };
+	confirm_once (lock);
 }
 
 // TODO: Remove the need for .to_string () calls
@@ -823,6 +770,73 @@ void nano::election_extended_status::operator() (nano::object_stream & obs) cons
 		obs.write ("hash", block->hash ().to_string ());
 		obs.write ("amount", amount);
 	});
+}
+
+/*
+ * election_state_guard
+ */
+
+bool nano::election_state_guard::change (nano::election_state desired)
+{
+	return change (state (), desired);
+}
+
+bool nano::election_state_guard::change (nano::election_state expected, nano::election_state desired)
+{
+	if (valid_change (expected, desired))
+	{
+		if (state () == expected)
+		{
+			current = { desired };
+			return true; // Changed
+		}
+	}
+	return false; // Not changed
+}
+
+bool nano::election_state_guard::valid_change (nano::election_state expected, nano::election_state desired)
+{
+	switch (expected)
+	{
+		case nano::election_state::passive:
+			switch (desired)
+			{
+				case nano::election_state::active:
+				case nano::election_state::confirmed:
+				case nano::election_state::expired_unconfirmed:
+				case nano::election_state::cancelled:
+					return true; // Valid
+				default:
+					break;
+			}
+			break;
+		case nano::election_state::active:
+			switch (desired)
+			{
+				case nano::election_state::confirmed:
+				case nano::election_state::expired_unconfirmed:
+				case nano::election_state::cancelled:
+					return true; // Valid
+				default:
+					break;
+			}
+			break;
+		case nano::election_state::confirmed:
+			switch (desired)
+			{
+				case nano::election_state::expired_confirmed:
+					return true; // Valid
+				default:
+					break;
+			}
+			break;
+		case nano::election_state::expired_unconfirmed:
+		case nano::election_state::expired_confirmed:
+		case nano::election_state::cancelled:
+			// No transitions are valid from these states
+			break;
+	}
+	return false; // Invalid
 }
 
 /*
