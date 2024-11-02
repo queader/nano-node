@@ -843,13 +843,18 @@ bool nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		case verify_result::nothing_new:
 		{
 			stats.inc (nano::stat::type::bootstrap_verify_blocks, nano::stat::detail::nothing_new);
-
-			nano::lock_guard<nano::mutex> lock{ mutex };
-			accounts.priority_down (tag.account);
-			if (tag.source == query_source::database)
 			{
-				throttle.add (false);
+				nano::lock_guard<nano::mutex> lock{ mutex };
+
+				accounts.priority_down (tag.account);
+				accounts.timestamp_reset (tag.account);
+
+				if (tag.source == query_source::database)
+				{
+					throttle.add (false);
+				}
 			}
+			condition.notify_all ();
 		}
 		break;
 		case verify_result::invalid:
