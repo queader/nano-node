@@ -4,10 +4,19 @@
 #include <nano/lib/numbers_templ.hpp>
 #include <nano/node/fwd.hpp>
 
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <boost/multi_index_container.hpp>
+
 #include <memory>
 #include <shared_mutex>
 #include <thread>
 #include <unordered_map>
+
+namespace mi = boost::multi_index;
 
 namespace nano
 {
@@ -37,24 +46,31 @@ nano::stat::detail to_stat_detail (vote_source);
 class vote_router final
 {
 public:
-	vote_router (nano::vote_cache & cache, nano::recently_confirmed_cache & recently_confirmed);
+	vote_router (nano::vote_cache &, nano::recently_confirmed_cache &, nano::stats &);
 	~vote_router ();
 
 	// Add a route for 'hash' to 'election'
 	// Existing routes will be replaced
 	// Election must hold the block for the hash being passed in
-	void connect (nano::block_hash const & hash, std::weak_ptr<nano::election> election);
+	void connect (nano::block_hash const & hash, std::shared_ptr<nano::election> const & election);
+
+	// Remove the route for 'hash'
+	void disconnect (nano::block_hash const & hash, std::shared_ptr<nano::election> const & election);
+
 	// Remove all routes to this election
-	void disconnect (nano::election const & election);
-	void disconnect (nano::block_hash const & hash);
+	void disconnect (std::shared_ptr<nano::election> const & election);
+
 	// Route vote to associated elections
 	// Distinguishes replay votes, cannot be determined if the block is not in any election
-
 	// If 'filter' parameter is non-zero, only elections for the specified hash are notified.
 	// This eliminates duplicate processing when triggering votes from the vote_cache as the result of a specific election being created.
 	std::unordered_map<nano::block_hash, nano::vote_code> vote (std::shared_ptr<nano::vote> const &, nano::vote_source = nano::vote_source::live, nano::block_hash filter = { 0 });
+
 	bool active (nano::block_hash const & hash) const;
+	bool active (nano::qualified_root const & root) const;
 	std::shared_ptr<nano::election> election (nano::block_hash const & hash) const;
+
+	size_t size () const;
 
 	void start ();
 	void stop ();
@@ -67,14 +83,35 @@ public:
 private: // Dependencies
 	nano::vote_cache & vote_cache;
 	nano::recently_confirmed_cache & recently_confirmed;
+	nano::stats & stats;
 
 private:
 	void run ();
 
 private:
+	struct entry
+	{
+		nano::block_hash hash;
+		nano::qualified_root qualified_root;
+		std::weak_ptr<nano::election> election;
+	};
+
+	// clang-format off
+	class tag_hash {};
+	class tag_election {};
+	class tag_root {};
+
 	// Mapping of block hashes to elections.
-	// Election already contains the associated block
-	std::unordered_map<nano::block_hash, std::weak_ptr<nano::election>> elections;
+	using ordered_elections = boost::multi_index_container<entry,
+	mi::indexed_by<
+		mi::hashed_unique<mi::tag<tag_hash>,
+			mi::member<entry, nano::block_hash, &entry::hash>>,
+		mi::hashed_non_unique<mi::tag<tag_root>,
+			mi::member<entry, nano::qualified_root, &entry::qualified_root>>
+	>>;
+	// clang-format on
+
+	ordered_elections elections;
 
 	bool stopped{ false };
 	std::condition_variable_any condition;

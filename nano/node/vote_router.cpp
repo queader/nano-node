@@ -11,19 +11,10 @@
 
 using namespace std::chrono_literals;
 
-nano::stat::detail nano::to_stat_detail (nano::vote_code code)
-{
-	return nano::enum_util::cast<nano::stat::detail> (code);
-}
-
-nano::stat::detail nano::to_stat_detail (nano::vote_source source)
-{
-	return nano::enum_util::cast<nano::stat::detail> (source);
-}
-
-nano::vote_router::vote_router (nano::vote_cache & vote_cache_a, nano::recently_confirmed_cache & recently_confirmed_a) :
+nano::vote_router::vote_router (nano::vote_cache & vote_cache_a, nano::recently_confirmed_cache & recently_confirmed_a, nano::stats & stats_a) :
 	vote_cache{ vote_cache_a },
-	recently_confirmed{ recently_confirmed_a }
+	recently_confirmed{ recently_confirmed_a },
+	stats{ stats_a }
 {
 }
 
@@ -33,26 +24,39 @@ nano::vote_router::~vote_router ()
 	debug_assert (!thread.joinable ());
 }
 
-void nano::vote_router::connect (nano::block_hash const & hash, std::weak_ptr<nano::election> election)
+void nano::vote_router::connect (nano::block_hash const & hash, std::shared_ptr<nano::election> const & election)
 {
-	std::unique_lock lock{ mutex };
-	elections.insert_or_assign (hash, election);
+	debug_assert (election->blocks ().contains (hash));
+
+	std::lock_guard lock{ mutex };
+	auto [existing, inserted] = elections.emplace (hash, election->qualified_root, election);
+	debug_assert (inserted || existing->election.lock () == election);
 }
 
-void nano::vote_router::disconnect (nano::election const & election)
+void nano::vote_router::disconnect (nano::block_hash const & hash, std::shared_ptr<nano::election> const & election)
 {
-	std::unique_lock lock{ mutex };
-	for (auto const & [hash, _] : election.blocks ())
-	{
-		elections.erase (hash);
-	}
-}
+	std::lock_guard lock{ mutex };
 
-void nano::vote_router::disconnect (nano::block_hash const & hash)
-{
-	std::unique_lock lock{ mutex };
-	[[maybe_unused]] auto erased = elections.erase (hash);
+	// Ensure hash belongs to target election
+	debug_assert (std::any_of (elections.get<tag_root> ().equal_range (election->qualified_root).first, elections.get<tag_root> ().equal_range (election->qualified_root).second, [&] (auto const & entry) {
+		return entry.hash == hash && entry.election.lock () == election;
+	}));
+
+	auto erased = elections.erase (hash);
 	debug_assert (erased == 1);
+}
+
+void nano::vote_router::disconnect (std::shared_ptr<nano::election> const & election)
+{
+	std::lock_guard lock{ mutex };
+
+	// Ensure all hashes belong to target election
+	debug_assert (std::all_of (elections.get<tag_root> ().equal_range (election->qualified_root).first, elections.get<tag_root> ().equal_range (election->qualified_root).second, [&] (auto const & entry) {
+		return entry.election.lock () == election;
+	}));
+
+	auto erased = elections.get<tag_root> ().erase (election->qualified_root);
+	debug_assert (erased > 0);
 }
 
 // Validate a vote and apply it to the current election if one exists
@@ -85,7 +89,7 @@ std::unordered_map<nano::block_hash, nano::vote_code> nano::vote_router::vote (s
 			auto find_election = [this] (auto const & hash) -> std::shared_ptr<nano::election> {
 				if (auto existing = elections.find (hash); existing != elections.end ())
 				{
-					return existing->second.lock ();
+					return existing->election.lock ();
 				}
 				return {};
 			};
@@ -135,7 +139,20 @@ bool nano::vote_router::active (nano::block_hash const & hash) const
 	std::shared_lock lock{ mutex };
 	if (auto existing = elections.find (hash); existing != elections.end ())
 	{
-		if (auto election = existing->second.lock (); election != nullptr)
+		if (auto election = existing->election.lock ())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool nano::vote_router::active (nano::qualified_root const & root) const
+{
+	std::shared_lock lock{ mutex };
+	if (auto existing = elections.get<tag_root> ().find (root); existing != elections.get<tag_root> ().end ())
+	{
+		if (auto election = existing->election.lock ())
 		{
 			return true;
 		}
@@ -148,12 +165,18 @@ std::shared_ptr<nano::election> nano::vote_router::election (nano::block_hash co
 	std::shared_lock lock{ mutex };
 	if (auto existing = elections.find (hash); existing != elections.end ())
 	{
-		if (auto election = existing->second.lock (); election != nullptr)
+		if (auto election = existing->election.lock (); election != nullptr)
 		{
 			return election;
 		}
 	}
 	return nullptr;
+}
+
+size_t nano::vote_router::size () const
+{
+	std::shared_lock lock{ mutex };
+	return elections.size ();
 }
 
 void nano::vote_router::start ()
@@ -181,7 +204,12 @@ void nano::vote_router::run ()
 	std::unique_lock lock{ mutex };
 	while (!stopped)
 	{
-		std::erase_if (elections, [] (auto const & pair) { return pair.second.lock () == nullptr; });
+		stats.inc (nano::stat::type::vote_router, nano::stat::detail::cleanup);
+
+		erase_if (elections, [] (entry const & entry) {
+			return entry.election.expired ();
+		});
+
 		condition.wait_for (lock, 15s, [&] () { return stopped; });
 	}
 }
@@ -193,4 +221,18 @@ nano::container_info nano::vote_router::container_info () const
 	nano::container_info info;
 	info.put ("elections", elections);
 	return info;
+}
+
+/*
+ *
+ */
+
+nano::stat::detail nano::to_stat_detail (nano::vote_code code)
+{
+	return nano::enum_util::cast<nano::stat::detail> (code);
+}
+
+nano::stat::detail nano::to_stat_detail (nano::vote_source source)
+{
+	return nano::enum_util::cast<nano::stat::detail> (source);
 }

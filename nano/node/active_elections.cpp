@@ -286,7 +286,7 @@ void nano::active_elections::cleanup_election (nano::unique_lock<nano::mutex> & 
 	count_by_behavior[election->behavior ()]--;
 
 	auto blocks_l = election->blocks ();
-	node.vote_router.disconnect (*election);
+	node.vote_router.disconnect (election);
 
 	// Erase root info
 	auto it = roots.get<tag_root> ().find (election->qualified_root);

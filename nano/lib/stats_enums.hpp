@@ -98,6 +98,7 @@ enum class type
 	message_processor_overfill,
 	message_processor_type,
 	process_confirmed,
+	vote_router,
 
 	_last // Must be the last enum
 };

@@ -138,7 +138,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	history{ *history_impl },
 	vote_uniquer{},
 	vote_cache{ config.vote_cache, stats },
-	vote_router_impl{ std::make_unique<nano::vote_router> (vote_cache, active.recently_confirmed) },
+	vote_router_impl{ std::make_unique<nano::vote_router> (vote_cache, active.recently_confirmed, stats) },
 	vote_router{ *vote_router_impl },
 	vote_processor_impl{ std::make_unique<nano::vote_processor> (config.vote_processor, vote_router, observers, stats, flags, logger, online_reps, rep_crawler, ledger, network_params, rep_tiers) },
 	vote_processor{ *vote_processor_impl },
