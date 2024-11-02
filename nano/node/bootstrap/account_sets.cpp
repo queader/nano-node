@@ -212,17 +212,17 @@ void nano::bootstrap::account_sets::dependency_update (nano::block_hash const & 
 
 void nano::bootstrap::account_sets::trim_overflow ()
 {
-	while (priorities.size () > config.priorities_max)
+	while (!priorities.empty () && priorities.size () > config.priorities_max)
 	{
-		// Erase the oldest entry
-		priorities.pop_front ();
-		stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_erase_overflow);
+		// Erase the lowest priority entry
+		stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_overflow);
+		priorities.get<tag_priority> ().erase (std::prev (priorities.get<tag_priority> ().end ()));
 	}
-	while (blocking.size () > config.blocking_max)
+	while (!blocking.empty () && blocking.size () > config.blocking_max)
 	{
-		// Erase the oldest entry
+		// Erase the lowest priority entry
+		stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::blocking_overflow);
 		blocking.pop_front ();
-		stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::blocking_erase_overflow);
 	}
 }
 

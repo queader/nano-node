@@ -479,11 +479,11 @@ enum class detail
 	next_frontier,
 
 	blocking_insert,
-	blocking_erase_overflow,
+	blocking_overflow,
 	priority_insert,
 	priority_erase_by_threshold,
 	priority_erase_by_blocking,
-	priority_erase_overflow,
+	priority_overflow,
 	deprioritize,
 	deprioritize_failed,
 	sync_dependencies,
