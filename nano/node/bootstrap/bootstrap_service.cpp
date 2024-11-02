@@ -843,7 +843,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_pa
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		accounts.dependency_update (tag.hash, response.account);
-		accounts.priority_set (response.account);
+		accounts.priority_set (response.account, nano::bootstrap::account_sets::priority_cutoff); // Use the lowest possible priority here
 	}
 }
 

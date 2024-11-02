@@ -65,7 +65,7 @@ void nano::bootstrap::account_sets::priority_down (nano::account const & account
 		auto priority_new = iter->priority / account_sets::priority_divide;
 		if (priority_new <= account_sets::priority_cutoff)
 		{
-			stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_erase_by_threshold);
+			stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::erase_by_threshold);
 			priorities.get<tag_account> ().erase (iter);
 		}
 		else
@@ -93,7 +93,7 @@ void nano::bootstrap::account_sets::priority_set (nano::account const & account,
 		auto iter = priorities.get<tag_account> ().find (account);
 		if (iter == priorities.get<tag_account> ().end ())
 		{
-			stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_insert);
+			stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_set);
 			priorities.get<tag_account> ().insert ({ account, priority });
 			trim_overflow ();
 		}
@@ -114,7 +114,7 @@ void nano::bootstrap::account_sets::block (nano::account const & account, nano::
 	auto entry = (existing == priorities.get<tag_account> ().end ()) ? priority_entry{ account, 0 } : *existing;
 
 	priorities.get<tag_account> ().erase (account);
-	stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_erase_by_blocking);
+	stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::erase_by_blocking);
 
 	blocking.get<tag_account> ().insert ({ entry, dependency });
 	stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::blocking_insert);
