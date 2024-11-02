@@ -81,7 +81,7 @@ void nano::bootstrap::account_sets::priority_down (nano::account const & account
 	}
 }
 
-void nano::bootstrap::account_sets::priority_set (nano::account const & account)
+void nano::bootstrap::account_sets::priority_set (nano::account const & account, double priority)
 {
 	if (account.is_zero ())
 	{
@@ -94,7 +94,7 @@ void nano::bootstrap::account_sets::priority_set (nano::account const & account)
 		if (iter == priorities.get<tag_account> ().end ())
 		{
 			stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::priority_insert);
-			priorities.get<tag_account> ().insert ({ account, account_sets::priority_initial });
+			priorities.get<tag_account> ().insert ({ account, priority });
 			trim_overflow ();
 		}
 	}

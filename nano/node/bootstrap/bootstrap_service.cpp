@@ -981,7 +981,8 @@ void nano::bootstrap_service::process_frontiers (std::deque<std::pair<nano::acco
 
 	for (auto const & account : result)
 	{
-		accounts.priority_set (account);
+		// Use the lowest possible priority here
+		accounts.priority_set (account, nano::bootstrap::account_sets::priority_cutoff);
 	}
 }
 
