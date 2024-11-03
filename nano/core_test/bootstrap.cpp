@@ -27,11 +27,13 @@ nano::block_hash random_hash ()
 }
 }
 
+/*
+ * account_sets
+ */
+
 TEST (account_sets, construction)
 {
 	nano::test::system system;
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 }
@@ -41,8 +43,6 @@ TEST (account_sets, empty_blocked)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	ASSERT_FALSE (sets.blocked (account));
@@ -53,8 +53,6 @@ TEST (account_sets, block)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	sets.block (account, random_hash ());
@@ -66,8 +64,6 @@ TEST (account_sets, unblock)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	auto hash = random_hash ();
@@ -81,8 +77,6 @@ TEST (account_sets, priority_base)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	ASSERT_EQ (0.0, sets.priority (account));
@@ -93,8 +87,6 @@ TEST (account_sets, priority_blocked)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	sets.block (account, random_hash ());
@@ -107,8 +99,6 @@ TEST (account_sets, priority_unblock_keep)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	sets.priority_up (account);
@@ -126,27 +116,50 @@ TEST (account_sets, priority_up_down)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	sets.priority_up (account);
 	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
 	sets.priority_down (account);
-	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial / nano::bootstrap::account_sets::priority_divide);
+	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
 }
 
-TEST (account_sets, priority_down_sat)
+TEST (account_sets, priority_down_empty)
 {
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	sets.priority_down (account);
 	ASSERT_EQ (0.0, sets.priority (account));
+}
+
+TEST (account_sets, priority_down_saturate)
+{
+	nano::test::system system;
+
+	nano::account account{ 1 };
+	nano::account_sets_config config;
+	nano::bootstrap::account_sets sets{ config, system.stats };
+	sets.priority_up (account);
+	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
+	for (int n = 0; n < 1000; ++n)
+	{
+		sets.priority_down (account);
+	}
+	ASSERT_FALSE (sets.prioritized (account));
+}
+
+TEST (account_sets, priority_set)
+{
+	nano::test::system system;
+
+	nano::account account{ 1 };
+	nano::account_sets_config config;
+	nano::bootstrap::account_sets sets{ config, system.stats };
+	sets.priority_set (account, 10.0);
+	ASSERT_EQ (sets.priority (account), 10.0);
 }
 
 // Ensure priority value is bounded
@@ -155,8 +168,6 @@ TEST (account_sets, saturate_priority)
 	nano::test::system system;
 
 	nano::account account{ 1 };
-	auto store = nano::make_store (system.logger, nano::unique_path (), nano::dev::constants);
-	ASSERT_FALSE (store->init_error ());
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	for (int n = 0; n < 1000; ++n)
@@ -165,6 +176,10 @@ TEST (account_sets, saturate_priority)
 	}
 	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_max);
 }
+
+/*
+ * bootstrap
+ */
 
 /**
  * Tests the base case for returning

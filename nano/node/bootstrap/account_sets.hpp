@@ -30,6 +30,7 @@ namespace bootstrap
 		static double constexpr priority_divide = 2.0;
 		static double constexpr priority_max = 128.0;
 		static double constexpr priority_cutoff = 0.15;
+		static unsigned constexpr max_fails = 2;
 
 	public:
 		account_sets (account_sets_config const &, nano::stats &);
@@ -93,7 +94,7 @@ namespace bootstrap
 		{
 			nano::account account;
 			double priority;
-
+			unsigned fails{ 0 };
 			id_t id{ generate_id () }; // Uniformly distributed, used for random querying
 			std::chrono::steady_clock::time_point timestamp{};
 		};
@@ -103,7 +104,6 @@ namespace bootstrap
 			priority_entry original_entry;
 			nano::block_hash dependency;
 			nano::account dependency_account{ 0 };
-
 			id_t id{ generate_id () }; // Uniformly distributed, used for random querying
 
 			nano::account account () const
