@@ -320,7 +320,9 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap_service::wait_channel 
 
 	// Wait until more requests can be sent
 	wait ([this] () {
-		return limiter.should_pass (1);
+		// Throttle requests when the node is synchronized
+		bool should_throttle = throttle.throttled ();
+		return limiter.should_pass (should_throttle ? config.throttling_rate : 1);
 	});
 
 	// Wait until a channel is available
@@ -450,17 +452,21 @@ std::pair<nano::account, double> nano::bootstrap_service::wait_priority ()
 
 void nano::bootstrap_service::run_one_priority ()
 {
+	// Wait for the blockprocessor to have capacity
 	wait_blockprocessor ();
+	// Wait for a channel with available capacity
 	auto channel = wait_channel ();
 	if (!channel)
 	{
 		return;
 	}
+	// Wait for next priority account to query
 	auto [account, priority] = wait_priority ();
 	if (account.is_zero ())
 	{
 		return;
 	}
+	// Decide the number of blocks to pull based on the priority (higher priority means we processed more blocks for this account already)
 	size_t const min_pull_count = 2;
 	auto count = std::clamp (static_cast<size_t> (priority), min_pull_count, nano::bootstrap_server::max_blocks);
 	request (account, count, channel, query_source::priority);
@@ -478,7 +484,7 @@ void nano::bootstrap_service::run_priority ()
 	}
 }
 
-nano::account nano::bootstrap_service::next_database (bool should_throttle)
+nano::account nano::bootstrap_service::next_database ()
 {
 	debug_assert (!mutex.try_lock ());
 	auto account = database_scan.next ([this] (nano::account const & account) {
@@ -492,17 +498,12 @@ nano::account nano::bootstrap_service::next_database (bool should_throttle)
 	return account;
 }
 
-nano::account nano::bootstrap_service::wait_database (bool should_throttle)
+nano::account nano::bootstrap_service::wait_database ()
 {
-	// Wait until more requests can be sent
-	wait ([this, should_throttle] () {
-		return database_limiter.should_pass (should_throttle ? config.throttling_rate : 1);
-	});
-
 	nano::account result{ 0 };
-	wait ([this, &result, should_throttle] () {
+	wait ([this, &result] () {
 		debug_assert (!mutex.try_lock ());
-		result = next_database (should_throttle);
+		result = next_database ();
 		if (!result.is_zero ())
 		{
 			return true;
@@ -512,15 +513,24 @@ nano::account nano::bootstrap_service::wait_database (bool should_throttle)
 	return result;
 }
 
-void nano::bootstrap_service::run_one_database (bool should_throttle)
+void nano::bootstrap_service::run_one_database ()
 {
+	// Wait for the blockprocessor to have capacity
 	wait_blockprocessor ();
+	// Wait for database rate limiter
+	wait ([this] () {
+		// Avoid high churn rate of database requests when the node is synchronized
+		bool should_throttle = !database_scan.warmed_up () && throttle.throttled ();
+		return database_limiter.should_pass (should_throttle ? config.throttling_rate : 1);
+	});
+	// Wait for a channel with available capacity
 	auto channel = wait_channel ();
 	if (!channel)
 	{
 		return;
 	}
-	auto account = wait_database (should_throttle);
+	// Wait for next database account to process
+	auto account = wait_database ();
 	if (account.is_zero ())
 	{
 		return;
@@ -533,11 +543,9 @@ void nano::bootstrap_service::run_database ()
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
-		// Avoid high churn rate of database requests
-		bool should_throttle = !database_scan.warmed_up () && throttle.throttled ();
 		lock.unlock ();
 		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::loop_database);
-		run_one_database (should_throttle);
+		run_one_database ();
 		lock.lock ();
 	}
 }
@@ -574,11 +582,13 @@ nano::block_hash nano::bootstrap_service::wait_blocking ()
 void nano::bootstrap_service::run_one_blocking ()
 {
 	// No need to wait for blockprocessor, as we are not processing blocks
+	// Wait for a channel with available capacity
 	auto channel = wait_channel ();
 	if (!channel)
 	{
 		return;
 	}
+	// Wait for a new unknown dependency that blocks a priority account
 	auto blocking = wait_blocking ();
 	if (blocking.is_zero ())
 	{
@@ -618,20 +628,25 @@ nano::account nano::bootstrap_service::wait_frontier ()
 void nano::bootstrap_service::run_one_frontier ()
 {
 	// No need to wait for blockprocessor, as we are not processing blocks
+	// Avoid polluting priority set when it is getting full
 	wait ([this] () {
 		return !accounts.priority_half_full ();
 	});
+	// Throttle forntier requests
 	wait ([this] () {
 		return frontiers_limiter.should_pass (1);
 	});
+	// Processing frontier responses is a relatively heavy operation, cooldown if needed here
 	wait ([this] () {
 		return workers.queued_tasks () < config.frontier_scan.max_pending;
 	});
+	// Wait for a channel with available capacity
 	auto channel = wait_channel ();
 	if (!channel)
 	{
 		return;
 	}
+	// Wait for next frontier range to scan
 	auto frontier = wait_frontier ();
 	if (frontier.is_zero ())
 	{
@@ -767,7 +782,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 			auto blocks = response.blocks;
 
 			// Avoid re-processing the block we already have
-			release_assert (blocks.size () >= 1);
+			release_assert (!blocks.empty ());
 			if (blocks.front ()->hash () == tag.start.as_block_hash ())
 			{
 				blocks.pop_front ();
@@ -793,11 +808,8 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 				}
 			}
 
-			if (tag.source == query_source::database)
-			{
-				nano::lock_guard<nano::mutex> lock{ mutex };
-				throttle.add (true);
-			}
+			nano::lock_guard<nano::mutex> lock{ mutex };
+			throttle.add (true);
 		}
 		break;
 		case verify_result::nothing_new:
@@ -809,10 +821,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 				accounts.priority_down (tag.account);
 				accounts.timestamp_reset (tag.account);
 
-				if (tag.source == query_source::database)
-				{
-					throttle.add (false);
-				}
+				throttle.add (false);
 			}
 			condition.notify_all ();
 		}

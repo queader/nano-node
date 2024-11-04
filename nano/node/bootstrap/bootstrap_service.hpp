@@ -105,9 +105,9 @@ private:
 	std::pair<nano::account, double> next_priority ();
 
 	void run_database ();
-	void run_one_database (bool should_throttle);
-	nano::account wait_database (bool should_throttle);
-	nano::account next_database (bool should_throttle);
+	void run_one_database ();
+	nano::account wait_database ();
+	nano::account next_database ();
 
 	void run_blocking ();
 	void run_one_blocking ();
