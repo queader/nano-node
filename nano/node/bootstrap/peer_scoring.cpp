@@ -99,7 +99,7 @@ std::size_t nano::bootstrap::peer_scoring::available () const
 	});
 }
 
-void nano::bootstrap::peer_scoring::timeout ()
+void nano::bootstrap::peer_scoring::timeout (uint64_t rate)
 {
 	erase_if (scoring, [] (auto const & score) {
 		if (auto channel = score.shared ())
@@ -114,8 +114,8 @@ void nano::bootstrap::peer_scoring::timeout ()
 
 	for (auto score = scoring.begin (), n = scoring.end (); score != n; ++score)
 	{
-		scoring.modify (score, [] (auto & score_a) {
-			score_a.decay ();
+		scoring.modify (score, [rate] (auto & score_a) {
+			score_a.decay (rate);
 		});
 	}
 }

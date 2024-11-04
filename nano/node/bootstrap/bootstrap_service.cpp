@@ -677,7 +677,7 @@ void nano::bootstrap_service::run_cleanup ()
 		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::loop_cleanup);
 
 		scoring.sync (network.list ());
-		scoring.timeout ();
+		scoring.timeout (config.peer_scoring_decay);
 
 		throttle.resize (compute_throttle_size ());
 

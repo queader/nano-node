@@ -58,6 +58,7 @@ public:
 	std::size_t block_processor_threshold{ 1000 };
 	std::size_t max_requests{ 1024 };
 	unsigned optimistic_request_percentage{ 75 };
+	uint64_t peer_scoring_decay{ 5 };
 
 	account_sets_config account_sets;
 	frontier_scan_config frontier_scan;

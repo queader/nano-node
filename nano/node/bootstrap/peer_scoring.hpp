@@ -31,7 +31,7 @@ namespace bootstrap
 		std::size_t available () const;
 		// Cleans up scores for closed channels
 		// Decays scores which become inaccurate over time due to message drops
-		void timeout ();
+		void timeout (uint64_t rate);
 		void sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list);
 
 		nano::container_info container_info () const;
@@ -59,9 +59,9 @@ namespace bootstrap
 				}
 				return result;
 			}
-			void decay ()
+			void decay (uint64_t rate)
 			{
-				outstanding = outstanding > 0 ? outstanding - 1 : 0;
+				outstanding -= std::min (outstanding, rate);
 			}
 			// Number of outstanding requests to a peer
 			uint64_t outstanding{ 0 };
