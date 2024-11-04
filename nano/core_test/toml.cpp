@@ -274,11 +274,9 @@ TEST (toml, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.bootstrap.enable_dependency_walker, defaults.node.bootstrap.enable_dependency_walker);
 	ASSERT_EQ (conf.node.bootstrap.channel_limit, defaults.node.bootstrap.channel_limit);
 	ASSERT_EQ (conf.node.bootstrap.database_rate_limit, defaults.node.bootstrap.database_rate_limit);
-	ASSERT_EQ (conf.node.bootstrap.database_warmup_ratio, defaults.node.bootstrap.database_warmup_ratio);
 	ASSERT_EQ (conf.node.bootstrap.max_pull_count, defaults.node.bootstrap.max_pull_count);
 	ASSERT_EQ (conf.node.bootstrap.request_timeout, defaults.node.bootstrap.request_timeout);
-	ASSERT_EQ (conf.node.bootstrap.throttle_coefficient, defaults.node.bootstrap.throttle_coefficient);
-	ASSERT_EQ (conf.node.bootstrap.throttle_wait, defaults.node.bootstrap.throttle_wait);
+	ASSERT_EQ (conf.node.bootstrap.throttle_size_coefficient, defaults.node.bootstrap.throttle_size_coefficient);
 	ASSERT_EQ (conf.node.bootstrap.block_processor_threshold, defaults.node.bootstrap.block_processor_threshold);
 	ASSERT_EQ (conf.node.bootstrap.max_requests, defaults.node.bootstrap.max_requests);
 
@@ -607,7 +605,7 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	database_warmup_ratio = 999
 	max_pull_count = 999
 	request_timeout = 999
-	throttle_coefficient = 999
+	throttle_size_coefficient = 999
 	throttle_wait = 999
 	block_processor_threshold = 999
 	max_requests = 999
@@ -783,11 +781,9 @@ TEST (toml, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.bootstrap.enable_dependency_walker, defaults.node.bootstrap.enable_dependency_walker);
 	ASSERT_NE (conf.node.bootstrap.channel_limit, defaults.node.bootstrap.channel_limit);
 	ASSERT_NE (conf.node.bootstrap.database_rate_limit, defaults.node.bootstrap.database_rate_limit);
-	ASSERT_NE (conf.node.bootstrap.database_warmup_ratio, defaults.node.bootstrap.database_warmup_ratio);
 	ASSERT_NE (conf.node.bootstrap.max_pull_count, defaults.node.bootstrap.max_pull_count);
 	ASSERT_NE (conf.node.bootstrap.request_timeout, defaults.node.bootstrap.request_timeout);
-	ASSERT_NE (conf.node.bootstrap.throttle_coefficient, defaults.node.bootstrap.throttle_coefficient);
-	ASSERT_NE (conf.node.bootstrap.throttle_wait, defaults.node.bootstrap.throttle_wait);
+	ASSERT_NE (conf.node.bootstrap.throttle_size_coefficient, defaults.node.bootstrap.throttle_size_coefficient);
 	ASSERT_NE (conf.node.bootstrap.block_processor_threshold, defaults.node.bootstrap.block_processor_threshold);
 	ASSERT_NE (conf.node.bootstrap.max_requests, defaults.node.bootstrap.max_requests);
 

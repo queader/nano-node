@@ -296,10 +296,11 @@ void nano::bootstrap_service::wait (std::function<bool ()> const & predicate) co
 {
 	std::unique_lock<nano::mutex> lock{ mutex };
 	std::chrono::milliseconds interval = 5ms;
+	std::chrono::milliseconds constexpr max_interval = 100ms;
 	while (!stopped && !predicate ())
 	{
 		condition.wait_for (lock, interval);
-		interval = std::min (interval * 2, config.throttle_wait);
+		interval = std::min (interval * 2, max_interval);
 	}
 }
 
@@ -380,13 +381,7 @@ std::pair<nano::account, double> nano::bootstrap_service::wait_priority ()
 nano::account nano::bootstrap_service::next_database (bool should_throttle)
 {
 	debug_assert (!mutex.try_lock ());
-	debug_assert (config.database_warmup_ratio > 0);
 
-	// Throttling increases the weight of database requests
-	if (!database_limiter.should_pass (should_throttle ? config.database_warmup_ratio : 1))
-	{
-		return { 0 };
-	}
 	auto account = database_scan.next ([this] (nano::account const & account) {
 		return count_tags (account, query_source::database) == 0;
 	});
@@ -400,6 +395,11 @@ nano::account nano::bootstrap_service::next_database (bool should_throttle)
 
 nano::account nano::bootstrap_service::wait_database (bool should_throttle)
 {
+	// Wait until more requests can be sent
+	wait ([this, should_throttle] () {
+		return database_limiter.should_pass (should_throttle ? config.throttling_rate : 1);
+	});
+
 	nano::account result{ 0 };
 	wait ([this, &result, should_throttle] () {
 		debug_assert (!mutex.try_lock ());
@@ -1088,7 +1088,7 @@ auto nano::bootstrap_service::info () const -> nano::bootstrap::account_sets::in
 std::size_t nano::bootstrap_service::compute_throttle_size () const
 {
 	auto ledger_size = ledger.account_count ();
-	size_t target = ledger_size > 0 ? config.throttle_coefficient * static_cast<size_t> (std::log (ledger_size)) : 0;
+	size_t target = ledger_size > 0 ? config.throttle_size_coefficient * static_cast<size_t> (std::log (ledger_size)) : 0;
 	size_t min_size = 16;
 	return std::max (target, min_size);
 }
