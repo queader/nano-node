@@ -15,7 +15,11 @@ namespace transport
 		class channel final : public nano::transport::channel
 		{
 		public:
-			explicit channel (nano::node & node, nano::node & destination);
+			using callback_t = std::function<void (boost::system::error_code const &, std::unique_ptr<nano::message>)>;
+
+		public:
+			channel (nano::node & node, nano::node & destination);
+			channel (nano::node & node, callback_t callback);
 
 			// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
 			void send_buffer (nano::shared_const_buffer const &, std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr, nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
@@ -46,6 +50,6 @@ namespace transport
 			nano::node & destination;
 			nano::endpoint const endpoint;
 		};
-	} // namespace inproc
-} // namespace transport
-} // namespace nano
+	}
+}
+}

@@ -447,3 +447,70 @@ TEST (request_aggregator, cannot_vote)
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_unknown));
 	ASSERT_TIMELY (3s, 1 <= node.stats.count (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::out));
 }
+
+TEST (request_aggregator, epoch_hash_conflict)
+{
+	nano::test::system system;
+	nano::node_config config;
+	// Disable schedulers to prevent automatic voting
+	config.priority_scheduler.enable = false;
+	config.hinted_scheduler.enable = false;
+	config.optimistic_scheduler.enable = false;
+	auto & node = *system.add_node (config);
+
+	// Send sends to an account we control: send -> open -> change
+	// Send2 sends to an account with public key of the open block
+	// Epoch open qualified root: (open, 0) on account with the same public key as the hash of the open block
+	// Epoch open and change have the same root!
+
+	nano::keypair key;
+	nano::keypair epoch_signer (nano::dev::genesis_key);
+	nano::state_block_builder builder;
+	auto send = builder.make_block ()
+				.account (nano::dev::genesis_key.pub)
+				.previous (nano::dev::genesis->hash ())
+				.representative (nano::dev::genesis_key.pub)
+				.balance (nano::dev::constants.genesis_amount - 1)
+				.link (key.pub)
+				.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+				.work (*system.work.generate (nano::dev::genesis->hash ()))
+				.build ();
+	auto open = builder.make_block ()
+				.account (key.pub)
+				.previous (0)
+				.representative (key.pub)
+				.balance (1)
+				.link (send->hash ())
+				.sign (key.prv, key.pub)
+				.work (*system.work.generate (key.pub))
+				.build ();
+	auto change = builder.make_block ()
+				  .account (key.pub)
+				  .previous (open->hash ())
+				  .representative (key.pub)
+				  .balance (1)
+				  .link (0)
+				  .sign (key.prv, key.pub)
+				  .work (*system.work.generate (open->hash ()))
+				  .build ();
+	auto send2 = builder.make_block ()
+				 .account (nano::dev::genesis_key.pub)
+				 .previous (send->hash ())
+				 .representative (nano::dev::genesis_key.pub)
+				 .balance (nano::dev::constants.genesis_amount - 2)
+				 .link (open->hash ())
+				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+				 .work (*system.work.generate (send->hash ()))
+				 .build ();
+	auto epoch_open = builder.make_block ()
+					  .account (change->root ().as_account ())
+					  .previous (0)
+					  .representative (0)
+					  .balance (0)
+					  .link (node.ledger.epoch_link (nano::epoch::epoch_1))
+					  .sign (epoch_signer.prv, epoch_signer.pub)
+					  .work (*system.work.generate (open->hash ()))
+					  .build ();
+
+	nano::test::process (node, { send, open, change, send2, epoch_open });
+}
