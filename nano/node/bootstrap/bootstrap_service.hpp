@@ -99,35 +99,36 @@ private:
 	/* Inspects a block that has been processed by the block processor */
 	void inspect (secure::transaction const &, nano::block_status const & result, nano::block const & block, nano::block_source);
 
-	void run_priorities ();
+	void run_priority ();
 	void run_one_priority ();
+	std::pair<nano::account, double> wait_priority ();
+	std::pair<nano::account, double> next_priority ();
+
 	void run_database ();
 	void run_one_database (bool should_throttle);
-	void run_dependencies ();
+	nano::account wait_database (bool should_throttle);
+	nano::account next_database (bool should_throttle);
+
+	void run_blocking ();
 	void run_one_blocking ();
-	void run_one_frontier ();
+	nano::block_hash wait_blocking ();
+	nano::block_hash next_blocking ();
+
 	void run_frontiers ();
-	void run_timeouts ();
-	void cleanup_and_sync ();
+	void run_one_frontier ();
+	nano::account wait_frontier ();
+
+	void run_cleanup ();
+	void cleanup ();
 
 	/* Waits for a condition to be satisfied with incremental backoff */
 	void wait (std::function<bool ()> const & predicate) const;
 
 	/* Ensure there is enough space in blockprocessor for queuing new blocks */
 	void wait_blockprocessor () const;
+
 	/* Waits for a channel that is not full */
 	std::shared_ptr<nano::transport::channel> wait_channel ();
-	/* Waits until a suitable account outside of cool down period is available */
-	std::pair<nano::account, double> next_priority ();
-	std::pair<nano::account, double> wait_priority ();
-	/* Gets the next account from the database */
-	nano::account next_database (bool should_throttle);
-	nano::account wait_database (bool should_throttle);
-	/* Waits for next available blocking block */
-	nano::block_hash next_blocking ();
-	nano::block_hash wait_blocking ();
-	/* Waits for next available frontier scan range */
-	nano::account wait_frontier ();
 
 	bool request (nano::account, size_t count, std::shared_ptr<nano::transport::channel> const &, query_source);
 	bool request_info (nano::block_hash, std::shared_ptr<nano::transport::channel> const &, query_source);
@@ -194,9 +195,8 @@ private:
 	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
 	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
 	nano::rate_limiter database_limiter;
+	// Rate limiter for frontier requests
 	nano::rate_limiter frontiers_limiter;
-
-	nano::interval sync_dependencies_interval;
 
 	bool stopped{ false };
 	mutable nano::mutex mutex;
@@ -205,7 +205,7 @@ private:
 	std::thread database_thread;
 	std::thread dependencies_thread;
 	std::thread frontiers_thread;
-	std::thread timeout_thread;
+	std::thread cleanup_thread;
 
 	nano::thread_pool workers;
 	nano::random_generator_mt rng;

@@ -106,7 +106,7 @@ std::string nano::thread_role::get_string (nano::thread_role::name role)
 		case nano::thread_role::name::bootstrap_database_scan:
 			thread_role_name_string = "Bootstrap db";
 			break;
-		case nano::thread_role::name::bootstrap_dependendy_walker:
+		case nano::thread_role::name::bootstrap_dependency_walker:
 			thread_role_name_string = "Bootstrap walkr";
 			break;
 		case nano::thread_role::name::bootstrap_frontier_scan:

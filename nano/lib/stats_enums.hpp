@@ -144,6 +144,7 @@ enum class detail
 	retry,
 	prioritized,
 	pending,
+	sync,
 
 	// processing queue
 	queue,
@@ -447,7 +448,7 @@ enum class detail
 	account_info_empty,
 	frontiers_empty,
 	loop_database,
-	loop_dependencies,
+	loop_blocking,
 	loop_frontiers,
 	loop_frontiers_processing,
 	duplicate_request,
@@ -455,6 +456,7 @@ enum class detail
 	timestamp_reset,
 	processing_frontiers,
 	frontiers_dropped,
+	sync_accounts,
 
 	prioritize,
 	prioritize_failed,
@@ -487,7 +489,7 @@ enum class detail
 	priority_overflow,
 	deprioritize,
 	deprioritize_failed,
-	sync_dependencies,
+	dependency_synced,
 
 	request_blocks,
 	request_account_info,

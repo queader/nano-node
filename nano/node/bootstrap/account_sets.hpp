@@ -61,7 +61,7 @@ namespace bootstrap
 		/**
 		 * Should be called periodically to reinsert missing dependencies into the priority set
 		 */
-		void sync_dependencies ();
+		void sync ();
 
 		/**
 		 * Sampling
