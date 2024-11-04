@@ -140,6 +140,7 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 	debug_assert (tag.type != query_type::invalid);
 	debug_assert (tag.source != query_source::invalid);
 
+	// Insert tag here always, if the message fails to send, the tag will be removed later
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		debug_assert (tags.get<tag_id> ().count (tag.id) == 0);
@@ -189,15 +190,29 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 
 	request.update_header ();
 
-	stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request, nano::stat::dir::out);
-	stats.inc (nano::stat::type::bootstrap_request, to_stat_detail (tag.type));
-
-	// TODO: There is no feedback mechanism if bandwidth limiter starts dropping our requests
-	channel->send (
+	// Send while not holding the lock
+	bool sent = channel->send (
 	request, nullptr,
 	nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type::bootstrap);
 
-	return true; // TODO: Return channel send result
+	nano::lock_guard<nano::mutex> lock{ mutex };
+
+	if (sent)
+	{
+		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request, nano::stat::dir::out);
+		stats.inc (nano::stat::type::bootstrap_request, to_stat_detail (tag.type));
+
+		scoring.sent_message (channel);
+	}
+	else
+	{
+		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request_failed, nano::stat::dir::out);
+
+		debug_assert (tags.get<tag_id> ().count (tag.id) == 1);
+		tags.get<tag_id> ().erase (tag.id);
+	}
+
+	return sent;
 }
 
 std::size_t nano::bootstrap_service::priority_size () const
@@ -430,7 +445,6 @@ std::pair<nano::account, double> nano::bootstrap_service::next_priority ()
 		return {};
 	}
 	stats.inc (nano::stat::type::bootstrap_next, nano::stat::detail::next_priority);
-	accounts.timestamp_set (account);
 	// TODO: Priority could be returned by the accounts.next_priority() call
 	return { account, accounts.priority (account) };
 }
@@ -469,7 +483,13 @@ void nano::bootstrap_service::run_one_priority ()
 	// Decide the number of blocks to pull based on the priority (higher priority means we processed more blocks for this account already)
 	size_t const min_pull_count = 2;
 	auto count = std::clamp (static_cast<size_t> (priority), min_pull_count, nano::bootstrap_server::max_blocks);
-	request (account, count, channel, query_source::priority);
+
+	bool sent = request (account, count, channel, query_source::priority);
+	if (sent)
+	{
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		accounts.timestamp_set (account);
+	}
 }
 
 void nano::bootstrap_service::run_priority ()

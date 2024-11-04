@@ -22,28 +22,21 @@ bool nano::bootstrap::peer_scoring::limit_exceeded (std::shared_ptr<nano::transp
 	return false;
 }
 
-bool nano::bootstrap::peer_scoring::try_send_message (std::shared_ptr<nano::transport::channel> const & channel)
+bool nano::bootstrap::peer_scoring::sent_message (std::shared_ptr<nano::transport::channel> const & channel)
 {
 	auto & index = scoring.get<tag_channel> ();
-	auto existing = index.find (channel.get ());
-	if (existing == index.end ())
+
+	if (auto existing = index.find (channel.get ()); existing != index.end ())
 	{
-		index.emplace (channel, 1, 1, 0);
+		[[maybe_unused]] auto success = index.modify (existing, [] (auto & score) {
+			++score.outstanding;
+			++score.request_count_total;
+		});
+		debug_assert (success);
 	}
 	else
 	{
-		if (existing->outstanding < config.channel_limit)
-		{
-			[[maybe_unused]] auto success = index.modify (existing, [] (auto & score) {
-				++score.outstanding;
-				++score.request_count_total;
-			});
-			debug_assert (success);
-		}
-		else
-		{
-			return true;
-		}
+		index.emplace (channel, 1, 1, 0);
 	}
 	return false;
 }
@@ -71,12 +64,9 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap::peer_scoring::channel
 	{
 		if (auto channel = score.shared ())
 		{
-			if (!channel->max (nano::transport::traffic_type::bootstrap))
+			if (!limit_exceeded (channel))
 			{
-				if (!try_send_message (channel))
-				{
-					return channel;
-				}
+				return channel;
 			}
 		}
 	}

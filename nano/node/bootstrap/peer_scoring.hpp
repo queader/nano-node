@@ -24,14 +24,20 @@ namespace bootstrap
 
 		// Returns true if channel limit has been exceeded
 		bool limit_exceeded (std::shared_ptr<nano::transport::channel> const & channel) const;
-		bool try_send_message (std::shared_ptr<nano::transport::channel> const & channel);
+
+		bool sent_message (std::shared_ptr<nano::transport::channel> const & channel);
 		void received_message (std::shared_ptr<nano::transport::channel> const & channel);
+
 		std::shared_ptr<nano::transport::channel> channel ();
-		[[nodiscard]] std::size_t size () const;
+
+		std::size_t size () const;
 		std::size_t available () const;
+
 		// Cleans up scores for closed channels
 		// Decays scores which become inaccurate over time due to message drops
 		void timeout (uint64_t rate);
+
+		// Synchronize channels with the network
 		void sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list);
 
 		nano::container_info container_info () const;
