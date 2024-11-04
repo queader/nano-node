@@ -26,7 +26,7 @@ public:
 	explicit channel (nano::node &);
 	virtual ~channel () = default;
 
-	void send (nano::message & message_a,
+	bool send (nano::message & message_a,
 	std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a = nullptr,
 	nano::transport::buffer_drop_policy policy_a = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic);

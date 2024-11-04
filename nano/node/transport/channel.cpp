@@ -14,7 +14,7 @@ nano::transport::channel::channel (nano::node & node_a) :
 	set_network_version (node_a.network_params.network.protocol_version);
 }
 
-void nano::transport::channel::send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::transport::buffer_drop_policy drop_policy_a, nano::transport::traffic_type traffic_type)
+bool nano::transport::channel::send (nano::message & message_a, std::function<void (boost::system::error_code const &, std::size_t)> const & callback_a, nano::transport::buffer_drop_policy drop_policy_a, nano::transport::traffic_type traffic_type)
 {
 	auto buffer = message_a.to_shared_const_buffer ();
 
@@ -41,6 +41,8 @@ void nano::transport::channel::send (nano::message & message_a, std::function<vo
 			});
 		}
 	}
+
+	return pass;
 }
 
 void nano::transport::channel::set_peering_endpoint (nano::endpoint endpoint)
