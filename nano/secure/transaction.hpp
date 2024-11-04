@@ -34,14 +34,14 @@ public:
 
 class write_transaction : public transaction
 {
+	nano::store::write_guard guard; // Guard should be released after the transaction
 	nano::store::write_transaction txn;
-	nano::store::write_guard guard;
 	std::chrono::steady_clock::time_point start;
 
 public:
 	explicit write_transaction (nano::store::write_transaction && txn, nano::store::write_guard && guard) noexcept :
-		txn{ std::move (txn) },
-		guard{ std::move (guard) }
+		guard{ std::move (guard) },
+		txn{ std::move (txn) }
 	{
 		start = std::chrono::steady_clock::now ();
 	}
