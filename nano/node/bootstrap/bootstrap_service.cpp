@@ -1123,6 +1123,7 @@ nano::container_info nano::bootstrap_service::container_info () const
 	info.add ("database_scan", database_scan.container_info ());
 	info.add ("frontiers", frontiers.container_info ());
 	info.add ("workers", workers.container_info ());
+	info.add ("peers", scoring.container_info ());
 	return info;
 }
 

@@ -12,7 +12,17 @@ nano::bootstrap::peer_scoring::peer_scoring (bootstrap_config const & config_a, 
 {
 }
 
-bool nano::bootstrap::peer_scoring::try_send_message (std::shared_ptr<nano::transport::channel> channel)
+bool nano::bootstrap::peer_scoring::limit_exceeded (std::shared_ptr<nano::transport::channel> const & channel) const
+{
+	auto & index = scoring.get<tag_channel> ();
+	if (auto existing = index.find (channel.get ()); existing != index.end ())
+	{
+		return existing->outstanding >= config.channel_limit && !channel->max (nano::transport::traffic_type::bootstrap);
+	}
+	return false;
+}
+
+bool nano::bootstrap::peer_scoring::try_send_message (std::shared_ptr<nano::transport::channel> const & channel)
 {
 	auto & index = scoring.get<tag_channel> ();
 	auto existing = index.find (channel.get ());
@@ -38,11 +48,10 @@ bool nano::bootstrap::peer_scoring::try_send_message (std::shared_ptr<nano::tran
 	return false;
 }
 
-void nano::bootstrap::peer_scoring::received_message (std::shared_ptr<nano::transport::channel> channel)
+void nano::bootstrap::peer_scoring::received_message (std::shared_ptr<nano::transport::channel> const & channel)
 {
 	auto & index = scoring.get<tag_channel> ();
-	auto existing = index.find (channel.get ());
-	if (existing != index.end ())
+	if (auto existing = index.find (channel.get ()); existing != index.end ())
 	{
 		if (existing->outstanding > 1)
 		{
@@ -79,11 +88,20 @@ std::size_t nano::bootstrap::peer_scoring::size () const
 	return scoring.size ();
 }
 
+std::size_t nano::bootstrap::peer_scoring::available () const
+{
+	return std::count_if (scoring.begin (), scoring.end (), [this] (auto const & score) {
+		if (auto channel = score.shared ())
+		{
+			return !limit_exceeded (channel);
+		}
+		return false;
+	});
+}
+
 void nano::bootstrap::peer_scoring::timeout ()
 {
-	auto & index = scoring.get<tag_channel> ();
-
-	erase_if (index, [] (auto const & score) {
+	erase_if (scoring, [] (auto const & score) {
 		if (auto channel = score.shared ())
 		{
 			if (channel->alive ())
@@ -118,6 +136,14 @@ void nano::bootstrap::peer_scoring::sync (std::deque<std::shared_ptr<nano::trans
 			}
 		}
 	}
+}
+
+nano::container_info nano::bootstrap::peer_scoring::container_info () const
+{
+	nano::container_info info;
+	info.put ("total", size ());
+	info.put ("available", available ());
+	return info;
 }
 
 /*
