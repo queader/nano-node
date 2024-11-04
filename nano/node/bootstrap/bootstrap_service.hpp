@@ -135,10 +135,10 @@ private:
 	bool request_frontiers (nano::account, std::shared_ptr<nano::transport::channel> const &, query_source);
 	bool send (std::shared_ptr<nano::transport::channel> const &, async_tag tag);
 
-	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag);
-	void process (nano::empty_payload const & response, async_tag const & tag);
+	bool process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
+	bool process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
+	bool process (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag);
+	bool process (nano::empty_payload const & response, async_tag const & tag);
 
 	void process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers);
 

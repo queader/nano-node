@@ -755,17 +755,25 @@ void nano::bootstrap_service::process (nano::asc_pull_ack const & message, std::
 	stats.inc (nano::stat::type::bootstrap_reply, to_stat_detail (tag.type));
 	stats.sample (nano::stat::sample::bootstrap_tag_duration, nano::log::milliseconds_delta (tag.timestamp), { 0, config.request_timeout.count () });
 
-	scoring.received_message (channel);
-
 	lock.unlock ();
 
 	// Process the response payload
-	std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
+	bool ok = std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
+	if (ok)
+	{
+		lock.lock ();
+		scoring.received_message (channel);
+		lock.unlock ();
+	}
+	else
+	{
+		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::invalid_response);
+	}
 
 	condition.notify_all ();
 }
 
-void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload & response, const async_tag & tag)
+bool nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload & response, const async_tag & tag)
 {
 	debug_assert (tag.type == query_type::blocks_by_hash || tag.type == query_type::blocks_by_account);
 
@@ -832,9 +840,11 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 		}
 		break;
 	}
+
+	return result != verify_result::invalid;
 }
 
-void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_payload & response, const async_tag & tag)
+bool nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_payload & response, const async_tag & tag)
 {
 	debug_assert (tag.type == query_type::account_info_by_hash);
 	debug_assert (!tag.hash.is_zero ());
@@ -842,7 +852,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_pa
 	if (response.account.is_zero ())
 	{
 		stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::account_info_empty);
-		return;
+		return true; // OK, but nothing to do
 	}
 
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::account_info);
@@ -853,9 +863,11 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::account_info_pa
 		accounts.dependency_update (tag.hash, response.account);
 		accounts.priority_set (response.account, nano::bootstrap::account_sets::priority_cutoff); // Use the lowest possible priority here
 	}
+
+	return true; // OK, no way to verify the response
 }
 
-void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_payload & response, const async_tag & tag)
+bool nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_payload & response, const async_tag & tag)
 {
 	debug_assert (tag.type == query_type::frontiers);
 	debug_assert (!tag.start.is_zero ());
@@ -863,7 +875,7 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_paylo
 	if (response.frontiers.empty ())
 	{
 		stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::frontiers_empty);
-		return;
+		return true; // OK, but nothing to do
 	}
 
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::frontiers);
@@ -905,12 +917,15 @@ void nano::bootstrap_service::process (const nano::asc_pull_ack::frontiers_paylo
 		}
 		break;
 	}
+
+	return result != verify_result::invalid;
 }
 
-void nano::bootstrap_service::process (const nano::empty_payload & response, const async_tag & tag)
+bool nano::bootstrap_service::process (const nano::empty_payload & response, const async_tag & tag)
 {
 	stats.inc (nano::stat::type::bootstrap_process, nano::stat::detail::empty);
 	debug_assert (false, "empty payload"); // Should not happen
+	return false; // Invalid
 }
 
 void nano::bootstrap_service::process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers)

@@ -453,6 +453,7 @@ enum class detail
 	loop_frontiers_processing,
 	duplicate_request,
 	invalid_response_type,
+	invalid_response,
 	timestamp_reset,
 	processing_frontiers,
 	frontiers_dropped,
