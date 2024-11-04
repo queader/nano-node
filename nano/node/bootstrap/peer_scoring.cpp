@@ -62,7 +62,7 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap::peer_scoring::channel
 	{
 		if (auto channel = score.shared ())
 		{
-			if (!channel->max ())
+			if (!channel->max (nano::transport::traffic_type::bootstrap))
 			{
 				if (!try_send_message (channel))
 				{
