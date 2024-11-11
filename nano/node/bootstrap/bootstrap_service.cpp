@@ -715,6 +715,7 @@ void nano::bootstrap_service::run_cleanup ()
 		while (!tags_by_order.empty () && should_timeout (tags_by_order.front ()))
 		{
 			stats.inc (nano::stat::type::bootstrap, nano::stat::detail::timeout);
+			stats.inc (nano::stat::type::bootstrap_timeout, to_stat_detail (tags_by_order.front ().type));
 			tags_by_order.pop_front ();
 		}
 
