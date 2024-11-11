@@ -30,7 +30,7 @@ bool nano::transport::channel::send (nano::message & message_a, std::function<vo
 
 	if (pass)
 	{
-		send_buffer (buffer, callback_a, drop_policy_a, traffic_type);
+		return send_buffer (buffer, callback_a, drop_policy_a, traffic_type);
 	}
 	else
 	{
@@ -42,7 +42,7 @@ bool nano::transport::channel::send (nano::message & message_a, std::function<vo
 		}
 	}
 
-	return pass;
+	return false;
 }
 
 void nano::transport::channel::set_peering_endpoint (nano::endpoint endpoint)
