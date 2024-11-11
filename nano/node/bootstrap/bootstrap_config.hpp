@@ -52,7 +52,7 @@ public:
 	std::size_t database_rate_limit{ 250 };
 	std::size_t frontier_rate_limit{ 8 };
 	std::size_t max_pull_count{ nano::bootstrap_server::max_blocks };
-	std::chrono::milliseconds request_timeout{ 1000 * 5 };
+	std::chrono::milliseconds request_timeout{ 1000 * 15 };
 	std::size_t throttle_size_coefficient{ 3 * 1024 };
 	std::size_t throttling_rate{ 10 };
 	std::size_t block_processor_threshold{ 1000 };
