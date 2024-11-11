@@ -71,6 +71,7 @@ enum class type
 	bootstrap_frontier_scan,
 	bootstrap_wait,
 	bootstrap_timeout,
+	bootstrap_send_result,
 	bootstrap_server,
 	bootstrap_server_request,
 	bootstrap_server_overfill,
@@ -147,6 +148,7 @@ enum class detail
 	prioritized,
 	pending,
 	sync,
+	other,
 
 	// processing queue
 	queue,
@@ -564,6 +566,12 @@ enum class detail
 	blocks_by_hash,
 	blocks_by_account,
 	account_info_by_hash,
+
+	// error codes
+	no_buffer_space,
+	timed_out,
+	host_unreachable,
+	not_supported,
 
 	_last // Must be the last enum
 };

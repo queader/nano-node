@@ -193,7 +193,9 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 
 	// Send while not holding the lock
 	bool sent = channel->send (
-	request, nullptr,
+	request, [this] (boost::system::error_code const & ec, std::size_t) {
+		stats.inc (nano::stat::type::bootstrap_send_result, to_stat_detail (ec));
+	},
 	nano::transport::buffer_drop_policy::limiter);
 
 	nano::lock_guard<nano::mutex> lock{ mutex };
