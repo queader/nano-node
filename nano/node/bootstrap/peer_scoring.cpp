@@ -57,17 +57,13 @@ void nano::bootstrap::peer_scoring::received_message (std::shared_ptr<nano::tran
 	}
 }
 
-std::shared_ptr<nano::transport::channel> nano::bootstrap::peer_scoring::channel ()
+std::shared_ptr<nano::transport::channel> nano::bootstrap::peer_scoring::channel () const
 {
-	auto & index = scoring.get<tag_outstanding> ();
-	for (auto const & score : index)
+	for (auto const & channel : channels)
 	{
-		if (auto channel = score.shared ())
+		if (!limit_exceeded (channel))
 		{
-			if (!limit_exceeded (channel))
-			{
-				return channel;
-			}
+			return channel;
 		}
 	}
 	return nullptr;
@@ -112,17 +108,7 @@ void nano::bootstrap::peer_scoring::timeout (uint64_t rate)
 
 void nano::bootstrap::peer_scoring::sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list)
 {
-	auto & index = scoring.get<tag_channel> ();
-	for (auto const & channel : list)
-	{
-		if (channel->get_network_version () >= network_constants.bootstrap_protocol_version_min)
-		{
-			if (index.find (channel.get ()) == index.end ())
-			{
-				index.emplace (channel, 1, 1, 0);
-			}
-		}
-	}
+	channels = list;
 }
 
 nano::container_info nano::bootstrap::peer_scoring::container_info () const

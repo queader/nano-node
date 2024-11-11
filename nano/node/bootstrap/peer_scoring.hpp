@@ -28,7 +28,7 @@ namespace bootstrap
 		bool sent_message (std::shared_ptr<nano::transport::channel> const & channel);
 		void received_message (std::shared_ptr<nano::transport::channel> const & channel);
 
-		std::shared_ptr<nano::transport::channel> channel ();
+		std::shared_ptr<nano::transport::channel> channel () const;
 
 		std::size_t size () const;
 		std::size_t available () const;
@@ -37,7 +37,7 @@ namespace bootstrap
 		// Decays scores which become inaccurate over time due to message drops
 		void timeout (uint64_t rate);
 
-		// Synchronize channels with the network
+		// Synchronize channels with the network, passed channels should be shuffled
 		void sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list);
 
 		nano::container_info container_info () const;
@@ -89,6 +89,8 @@ namespace bootstrap
 				mi::member<peer_score, uint64_t, &peer_score::outstanding>>>>;
 		// clang-format on
 		ordered_scoring scoring;
+
+		std::deque<std::shared_ptr<nano::transport::channel>> channels;
 	};
 }
 }
