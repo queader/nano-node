@@ -40,7 +40,7 @@ bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 {
 	if (auto socket_l = socket.lock ())
 	{
-		if (!socket_l->max (traffic_type) || (policy_a == nano::transport::buffer_drop_policy::no_socket_drop && !socket_l->full (traffic_type)))
+		if (!socket_l->full (traffic_type))
 		{
 			socket_l->async_write (
 			buffer_a, [this_s = shared_from_this (), endpoint_a = socket_l->remote_endpoint (), node = std::weak_ptr<nano::node>{ node.shared () }, callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
