@@ -147,6 +147,7 @@ enum class detail
 	prioritized,
 	pending,
 	sync,
+	other,
 
 	// processing queue
 	queue,
@@ -563,6 +564,12 @@ enum class detail
 	blocks_by_hash,
 	blocks_by_account,
 	account_info_by_hash,
+
+	// error codes
+	no_buffer_space,
+	timed_out,
+	host_unreachable,
+	not_supported,
 
 	_last // Must be the last enum
 };
