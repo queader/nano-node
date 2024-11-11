@@ -41,6 +41,14 @@ void nano::bandwidth_limiter::reset (std::size_t limit, double burst_ratio, nano
 	limiter.reset (limit, burst_ratio);
 }
 
+nano::container_info nano::bandwidth_limiter::container_info () const
+{
+	nano::container_info info;
+	info.put ("generic", limiter_generic.size ());
+	info.put ("bootstrap", limiter_bootstrap.size ());
+	return info;
+}
+
 /*
  * bandwidth_limiter_config
  */

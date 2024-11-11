@@ -1217,6 +1217,7 @@ nano::container_info nano::node::container_info () const
 	info.add ("local_block_broadcaster", local_block_broadcaster.container_info ());
 	info.add ("rep_tiers", rep_tiers.container_info ());
 	info.add ("message_processor", message_processor.container_info ());
+	info.add ("bandwidth", outbound_limiter.container_info ());
 	return info;
 }
 
