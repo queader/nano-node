@@ -17,7 +17,7 @@ bool nano::bootstrap::peer_scoring::limit_exceeded (std::shared_ptr<nano::transp
 	auto & index = scoring.get<tag_channel> ();
 	if (auto existing = index.find (channel.get ()); existing != index.end ())
 	{
-		return existing->outstanding >= config.channel_limit && !channel->max (nano::transport::traffic_type::bootstrap);
+		return existing->outstanding >= config.channel_limit && !channel->max ();
 	}
 	return false;
 }
@@ -119,10 +119,7 @@ void nano::bootstrap::peer_scoring::sync (std::deque<std::shared_ptr<nano::trans
 		{
 			if (index.find (channel.get ()) == index.end ())
 			{
-				if (!channel->max (nano::transport::traffic_type::bootstrap))
-				{
-					index.emplace (channel, 1, 1, 0);
-				}
+				index.emplace (channel, 1, 1, 0);
 			}
 		}
 	}

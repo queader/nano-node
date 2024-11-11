@@ -194,7 +194,7 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 	// Send while not holding the lock
 	bool sent = channel->send (
 	request, nullptr,
-	nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type::bootstrap);
+	nano::transport::buffer_drop_policy::limiter);
 
 	nano::lock_guard<nano::mutex> lock{ mutex };
 
