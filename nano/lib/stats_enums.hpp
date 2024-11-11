@@ -151,6 +151,7 @@ enum class detail
 	sync,
 	requeued,
 	evicted,
+	other,
 
 	// processing queue
 	queue,
@@ -578,6 +579,12 @@ enum class detail
 	rollback_missing_block,
 	rollback_skipped,
 	loop_scan,
+
+	// error codes
+	no_buffer_space,
+	timed_out,
+	host_unreachable,
+	not_supported,
 
 	_last // Must be the last enum
 };
