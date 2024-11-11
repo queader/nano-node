@@ -400,6 +400,7 @@ enum class detail
 
 	// bootstrap server
 	response,
+	response_failed,
 	write_error,
 	blocks,
 	channel_full,

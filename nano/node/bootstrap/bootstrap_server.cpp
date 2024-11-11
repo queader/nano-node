@@ -140,37 +140,11 @@ bool nano::bootstrap_server::request (nano::asc_pull_req const & message, std::s
 	return added;
 }
 
-void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> const & channel)
+bool nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared_ptr<nano::transport::channel> const & channel)
 {
-	stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response, nano::stat::dir::out);
-	stats.inc (nano::stat::type::bootstrap_server_response, to_stat_detail (response.type));
-
-	// Increase relevant stats depending on payload type
-	struct stat_visitor
-	{
-		nano::stats & stats;
-
-		void operator() (nano::empty_payload const &)
-		{
-			debug_assert (false, "missing payload");
-		}
-		void operator() (nano::asc_pull_ack::blocks_payload const & pld)
-		{
-			stats.add (nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out, pld.blocks.size ());
-		}
-		void operator() (nano::asc_pull_ack::account_info_payload const & pld)
-		{
-		}
-		void operator() (nano::asc_pull_ack::frontiers_payload const & pld)
-		{
-			stats.add (nano::stat::type::bootstrap_server, nano::stat::detail::frontiers, nano::stat::dir::out, pld.frontiers.size ());
-		}
-	};
-	std::visit (stat_visitor{ stats }, response.payload);
-
 	on_response.notify (response, channel);
 
-	channel->send (
+	bool sent = channel->send (
 	response, [this] (auto & ec, auto size) {
 		if (ec)
 		{
@@ -178,6 +152,41 @@ void nano::bootstrap_server::respond (nano::asc_pull_ack & response, std::shared
 		}
 	},
 	nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type::bootstrap);
+
+	if (sent)
+	{
+		stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response, nano::stat::dir::out);
+		stats.inc (nano::stat::type::bootstrap_server_response, to_stat_detail (response.type));
+
+		// Increase relevant stats depending on payload type
+		struct stat_visitor
+		{
+			nano::stats & stats;
+
+			void operator() (nano::empty_payload const &)
+			{
+				debug_assert (false, "missing payload");
+			}
+			void operator() (nano::asc_pull_ack::blocks_payload const & pld)
+			{
+				stats.add (nano::stat::type::bootstrap_server, nano::stat::detail::blocks, nano::stat::dir::out, pld.blocks.size ());
+			}
+			void operator() (nano::asc_pull_ack::account_info_payload const & pld)
+			{
+			}
+			void operator() (nano::asc_pull_ack::frontiers_payload const & pld)
+			{
+				stats.add (nano::stat::type::bootstrap_server, nano::stat::detail::frontiers, nano::stat::dir::out, pld.frontiers.size ());
+			}
+		};
+		std::visit (stat_visitor{ stats }, response.payload);
+	}
+	else
+	{
+		stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::response_failed, nano::stat::dir::out);
+	}
+
+	return sent;
 }
 
 void nano::bootstrap_server::run ()
@@ -223,7 +232,14 @@ void nano::bootstrap_server::run_batch (nano::unique_lock<nano::mutex> & lock)
 		if (!channel->max (nano::transport::traffic_type::bootstrap))
 		{
 			auto response = process (transaction, request);
-			respond (response, channel);
+			bool sent = respond (response, channel);
+			if (!sent)
+			{
+				// TODO: Remove this once outgoing traffic shaping is done
+				// We're hitting bandwidth limits, throttle processing of further requests
+				stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::cooldown, nano::stat::dir::out);
+				std::this_thread::sleep_for (100ms);
+			}
 		}
 		else
 		{
