@@ -48,44 +48,29 @@ public:
 	tcp_channel (nano::node &, std::shared_ptr<nano::transport::tcp_socket>);
 	~tcp_channel () override;
 
+	// Must be called after construction
 	void update_endpoints ();
 
-	using callback_t = std::function<void (boost::system::error_code const &, std::size_t)>;
+	void close () override;
 
-	// TODO: investigate clang-tidy warning about default parameters on virtual/override functions
 	bool send_buffer (nano::shared_const_buffer const &,
-	callback_t const & callback = nullptr,
+	nano::transport::channel::callback_t const & callback = nullptr,
 	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic)
 	override;
 
-	std::string to_string () const override;
+	bool max (nano::transport::traffic_type traffic_type) override;
+	bool alive () const override;
 
-	nano::endpoint get_remote_endpoint () const override
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		return remote_endpoint;
-	}
-
-	nano::endpoint get_local_endpoint () const override
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-		return local_endpoint;
-	}
+	nano::endpoint get_remote_endpoint () const override;
+	nano::endpoint get_local_endpoint () const override;
 
 	nano::transport::transport_type get_type () const override
 	{
 		return nano::transport::transport_type::tcp;
 	}
 
-	bool max (nano::transport::traffic_type traffic_type) override;
-
-	bool alive () const override
-	{
-		return socket->alive ();
-	}
-
-	void close () override;
+	std::string to_string () const override;
 
 private:
 	void start ();

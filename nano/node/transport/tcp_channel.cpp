@@ -213,7 +213,7 @@ asio::awaitable<void> nano::transport::tcp_channel::wait_bandwidth (nano::transp
 	// co_await allocate_bandwidth (type, size);
 }
 
-asio::awaitable<void> nano::transport::tcp_channel::wait_socket (traffic_type type)
+asio::awaitable<void> nano::transport::tcp_channel::wait_socket (nano::transport::traffic_type type)
 {
 	debug_assert (strand.running_in_this_thread ());
 
@@ -221,6 +221,23 @@ asio::awaitable<void> nano::transport::tcp_channel::wait_socket (traffic_type ty
 	{
 		co_await nano::async::sleep_for (100ms);
 	}
+}
+
+bool nano::transport::tcp_channel::alive () const
+{
+	return socket->alive ();
+}
+
+nano::endpoint nano::transport::tcp_channel::get_remote_endpoint () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return remote_endpoint;
+}
+
+nano::endpoint nano::transport::tcp_channel::get_local_endpoint () const
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return local_endpoint;
 }
 
 std::string nano::transport::tcp_channel::to_string () const
@@ -231,7 +248,6 @@ std::string nano::transport::tcp_channel::to_string () const
 void nano::transport::tcp_channel::operator() (nano::object_stream & obs) const
 {
 	nano::transport::channel::operator() (obs); // Write common data
-
 	obs.write ("socket", socket);
 }
 
