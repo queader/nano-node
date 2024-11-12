@@ -62,10 +62,12 @@ void nano::transport::tcp_channel::stop ()
 {
 	if (sending_task.joinable ())
 	{
+		// Ensure that we are not trying to await the task while running on the same thread / io_context
 		debug_assert (!node.io_ctx.get_executor ().running_in_this_thread ());
 		sending_task.cancel ();
 		sending_task.join ();
 	}
+	sending_condition.cancel ();
 }
 
 bool nano::transport::tcp_channel::max (nano::transport::traffic_type traffic_type)
