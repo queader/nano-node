@@ -48,9 +48,6 @@ public:
 	tcp_channel (nano::node &, std::shared_ptr<nano::transport::tcp_socket>);
 	~tcp_channel () override;
 
-	// Must be called after construction
-	void update_endpoints ();
-
 	void close () override;
 
 	bool send_buffer (nano::shared_const_buffer const &,
@@ -82,7 +79,7 @@ private:
 	asio::awaitable<void> wait_socket (traffic_type);
 
 public:
-	std::shared_ptr<nano::transport::tcp_socket> socket;
+	std::weak_ptr<nano::transport::tcp_socket> socket;
 
 private:
 	nano::endpoint remote_endpoint;

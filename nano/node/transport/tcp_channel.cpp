@@ -10,12 +10,13 @@
 
 nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a) :
 	channel (node_a),
-	socket{ std::move (socket_a) },
+	socket{ socket_a },
 	strand{ node_a.io_ctx.get_executor () },
 	sending_task{ strand },
 	sending_condition{ strand }
 {
-	release_assert (socket != nullptr);
+	remote_endpoint = socket_a->remote_endpoint ();
+	local_endpoint = socket_a->local_endpoint ();
 	start ();
 }
 
@@ -25,21 +26,14 @@ nano::transport::tcp_channel::~tcp_channel ()
 	debug_assert (!sending_task.joinable ());
 }
 
-void nano::transport::tcp_channel::update_endpoints ()
-{
-	nano::lock_guard<nano::mutex> lock{ mutex };
-
-	debug_assert (remote_endpoint == nano::endpoint{}); // Not initialized endpoint value
-	debug_assert (local_endpoint == nano::endpoint{}); // Not initialized endpoint value
-
-	remote_endpoint = socket->remote_endpoint ();
-	local_endpoint = socket->local_endpoint ();
-}
-
 void nano::transport::tcp_channel::close ()
 {
-	socket->close ();
 	stop ();
+
+	if (auto socket_l = socket.lock ())
+	{
+		socket_l->close ();
+	}
 }
 
 void nano::transport::tcp_channel::start ()
@@ -167,7 +161,18 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 	co_await wait_socket (type);
 	co_await wait_bandwidth (type, buffer.size ());
 
-	socket->async_write (
+	// TODO: Use shared_ptr to store the socket to avoid this
+	auto socket_l = socket.lock ();
+	if (!socket_l)
+	{
+		if (callback)
+		{
+			callback (boost::asio::error::operation_aborted, 0);
+		}
+		co_return;
+	}
+
+	socket_l->async_write (
 	buffer,
 	[this_w = weak_from_this (), callback] (boost::system::error_code const & ec, std::size_t size) {
 		if (auto this_l = this_w.lock ())
@@ -217,7 +222,15 @@ asio::awaitable<void> nano::transport::tcp_channel::wait_socket (nano::transport
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	while (socket->full (type))
+	auto should_wait = [this, type] () {
+		if (auto socket_l = socket.lock ())
+		{
+			return socket_l->full (type);
+		}
+		return false; // Abort if the socket is dead
+	};
+
+	while (should_wait ())
 	{
 		co_await nano::async::sleep_for (100ms);
 	}
@@ -225,7 +238,11 @@ asio::awaitable<void> nano::transport::tcp_channel::wait_socket (nano::transport
 
 bool nano::transport::tcp_channel::alive () const
 {
-	return socket->alive ();
+	if (auto socket_l = socket.lock ())
+	{
+		return socket_l->alive ();
+	}
+	return false;
 }
 
 nano::endpoint nano::transport::tcp_channel::get_remote_endpoint () const
