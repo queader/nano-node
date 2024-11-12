@@ -203,10 +203,13 @@ public:
 
 	void cancel ()
 	{
-		asio::dispatch (strand, [state_s = state] () {
+		auto fut = asio::dispatch (strand, asio::use_future ([state_s = state] () {
 			state_s->scheduled = false;
 			state_s->timer.cancel ();
-		});
+		}));
+		fut.get ();
+		debug_assert (state.use_count () == 1);
+		state.reset ();
 	}
 
 	nano::async::strand & strand;
