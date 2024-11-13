@@ -1,3 +1,4 @@
+#include <nano/lib/stacktrace.hpp>
 #include <nano/lib/stats.hpp>
 #include <nano/lib/utility.hpp>
 #include <nano/node/node.hpp>
@@ -14,6 +15,7 @@ nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<
 	strand{ node_a.io_ctx.get_executor () },
 	sending_task{ strand }
 {
+	stacktrace = nano::generate_stacktrace ();
 	remote_endpoint = socket_a->remote_endpoint ();
 	local_endpoint = socket_a->local_endpoint ();
 	start ();
@@ -33,6 +35,8 @@ void nano::transport::tcp_channel::close ()
 	{
 		socket_l->close ();
 	}
+
+	closed = true;
 }
 
 void nano::transport::tcp_channel::start ()
