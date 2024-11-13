@@ -223,12 +223,12 @@ public:
 	task (nano::async::strand & strand, Func && func) :
 		strand{ strand },
 		cancellation{ strand },
-		condition{ std::make_unique<nano::async::condition> (strand) }
+		condition{ std::make_shared<nano::async::condition> (strand) }
 	{
 		future = asio::co_spawn (
 		strand,
-		[this, func = std::forward<Func> (func)] () mutable -> asio::awaitable<value_type> {
-			co_await func (*condition);
+		[func = std::forward<Func> (func), condition_l = condition] () mutable -> asio::awaitable<value_type> {
+			co_await func (*condition_l);
 		},
 		asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
 	}
@@ -295,6 +295,6 @@ public:
 private:
 	std::future<value_type> future;
 	nano::async::cancellation cancellation;
-	std::unique_ptr<nano::async::condition> condition;
+	std::shared_ptr<nano::async::condition> condition;
 };
 }
