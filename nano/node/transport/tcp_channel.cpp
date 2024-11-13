@@ -57,6 +57,7 @@ void nano::transport::tcp_channel::start ()
 
 void nano::transport::tcp_channel::stop ()
 {
+	debug_assert (!node.io_ctx.stopped ());
 	if (sending_task.joinable ())
 	{
 		// Ensure that we are not trying to await the task while running on the same thread / io_context
@@ -129,10 +130,10 @@ bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 
 asio::awaitable<void> nano::transport::tcp_channel::run_sending (nano::async::condition & condition)
 {
-	debug_assert (strand.running_in_this_thread ());
-
 	while (!co_await nano::async::cancelled ())
 	{
+		debug_assert (strand.running_in_this_thread ());
+
 		auto next_batch = [this] () {
 			const size_t max_batch = 8; // TODO: Make this configurable
 
