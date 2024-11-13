@@ -284,7 +284,6 @@ public:
 
 	void notify ()
 	{
-		debug_assert (joinable ());
 		if (condition)
 		{
 			condition->notify ();
