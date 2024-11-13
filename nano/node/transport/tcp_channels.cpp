@@ -343,6 +343,7 @@ void nano::transport::tcp_channels::purge (std::chrono::steady_clock::time_point
 		if (!entry.channel->alive ())
 		{
 			node.logger.debug (nano::log::type::tcp_channels, "Removing dead channel: {}", entry.channel->to_string ());
+			entry.channel->close ();
 			return true; // Erase
 		}
 		return false;
