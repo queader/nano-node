@@ -73,7 +73,7 @@ private:
 	void start ();
 	void stop ();
 
-	asio::awaitable<void> run_sending ();
+	asio::awaitable<void> run_sending (nano::async::condition &);
 	asio::awaitable<void> send_one (traffic_type, tcp_channel_queue::entry_t const &);
 	asio::awaitable<void> wait_bandwidth (traffic_type, size_t size);
 	asio::awaitable<void> wait_socket (traffic_type);
@@ -87,7 +87,6 @@ private:
 
 	nano::async::strand strand;
 	nano::async::task sending_task;
-	nano::async::condition sending_condition;
 
 	mutable nano::mutex mutex;
 	tcp_channel_queue queue;

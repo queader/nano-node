@@ -12,8 +12,7 @@ nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<
 	channel (node_a),
 	socket{ socket_a },
 	strand{ node_a.io_ctx.get_executor () },
-	sending_task{ strand },
-	sending_condition{ strand }
+	sending_task{ strand }
 {
 	remote_endpoint = socket_a->remote_endpoint ();
 	local_endpoint = socket_a->local_endpoint ();
@@ -38,10 +37,10 @@ void nano::transport::tcp_channel::close ()
 
 void nano::transport::tcp_channel::start ()
 {
-	sending_task = nano::async::task (strand, [this] () -> asio::awaitable<void> {
+	sending_task = nano::async::task (strand, [this] (nano::async::condition & condition) -> asio::awaitable<void> {
 		try
 		{
-			co_await run_sending ();
+			co_await run_sending (condition);
 		}
 		catch (boost::system::system_error const & ex)
 		{
@@ -61,7 +60,6 @@ void nano::transport::tcp_channel::stop ()
 		sending_task.cancel ();
 		sending_task.join ();
 	}
-	sending_condition.cancel ();
 }
 
 bool nano::transport::tcp_channel::max (nano::transport::traffic_type traffic_type)
@@ -77,7 +75,7 @@ bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 	{
 		queue.push (traffic_type, { buffer, callback });
 		lock.unlock ();
-		sending_condition.notify ();
+		sending_task.notify ();
 		return true;
 	}
 	else
@@ -125,7 +123,7 @@ bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 	// }
 }
 
-asio::awaitable<void> nano::transport::tcp_channel::run_sending ()
+asio::awaitable<void> nano::transport::tcp_channel::run_sending (nano::async::condition & condition)
 {
 	debug_assert (strand.running_in_this_thread ());
 
@@ -147,7 +145,7 @@ asio::awaitable<void> nano::transport::tcp_channel::run_sending ()
 		}
 		else
 		{
-			co_await sending_condition.wait ();
+			co_await condition.wait ();
 		}
 	}
 }
