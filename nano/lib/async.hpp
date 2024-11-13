@@ -171,6 +171,7 @@ public:
 	void notify ()
 	{
 		// Avoid unnecessary dispatch if already scheduled
+		release_assert (state);
 		if (state->scheduled.exchange (true) == false)
 		{
 			asio::dispatch (strand, [state_s = state] () {
