@@ -36,10 +36,6 @@ void nano::transport::tcp_channels::close ()
 
 	for (auto const & entry : channels)
 	{
-		release_assert (entry.socket);
-		release_assert (entry.server);
-		release_assert (entry.channel);
-
 		entry.socket->close ();
 		entry.server->stop ();
 		entry.channel->close ();
