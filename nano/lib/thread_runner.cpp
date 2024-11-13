@@ -1,8 +1,11 @@
 #include <nano/lib/thread_runner.hpp>
 #include <nano/lib/timer.hpp>
 
+#include <future>
 #include <iostream>
 #include <thread>
+
+using namespace std::chrono_literals;
 
 /*
  * thread_runner
@@ -60,6 +63,32 @@ void nano::thread_runner::join ()
 {
 	io_guard.reset ();
 
+	auto fut = std::async (std::launch::async, [this] () {
+		auto alive = [this] () {
+			for (auto & thread : threads)
+			{
+				if (thread.joinable ())
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+
+		auto abort_threshold = std::chrono::steady_clock::now () + 5s;
+
+		while (alive () && std::chrono::steady_clock::now () < abort_threshold)
+		{
+			std::this_thread::sleep_for (std::chrono::milliseconds (10));
+		}
+
+		if (alive ())
+		{
+			logger.warn (nano::log::type::thread_runner, "Joining threads timed out, aborting");
+			abort ();
+		}
+	});
+
 	for (auto & thread : threads)
 	{
 		if (thread.joinable ())
@@ -69,7 +98,7 @@ void nano::thread_runner::join ()
 		}
 	}
 
-	threads.clear ();
+	// threads.clear ();
 
 	logger.debug (nano::log::type::thread_runner, "Stopped all threads ({})", to_string (role));
 
