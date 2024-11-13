@@ -203,8 +203,7 @@ public:
 
 	explicit task (nano::async::strand & strand) :
 		strand{ strand },
-		cancellation{ strand },
-		condition{ strand }
+		cancellation{ strand }
 	{
 	}
 
@@ -212,8 +211,7 @@ public:
 		requires async_task<Func> || async_callable<Func>
 	task (nano::async::strand & strand, Func && func) :
 		strand{ strand },
-		cancellation{ strand },
-		condition{ strand }
+		cancellation{ strand }
 	{
 		future = asio::co_spawn (
 		strand,
@@ -225,12 +223,12 @@ public:
 	task (nano::async::strand & strand, Func && func) :
 		strand{ strand },
 		cancellation{ strand },
-		condition{ strand }
+		condition{ std::make_unique<nano::async::condition> (strand) }
 	{
 		future = asio::co_spawn (
 		strand,
 		[this, func = std::forward<Func> (func)] () mutable -> asio::awaitable<value_type> {
-			co_await func (condition);
+			co_await func (*condition);
 		},
 		asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
 	}
@@ -278,13 +276,19 @@ public:
 	{
 		debug_assert (joinable ());
 		cancellation.emit ();
-		condition.cancel ();
+		if (condition)
+		{
+			condition->cancel ();
+		}
 	}
 
 	void notify ()
 	{
 		debug_assert (joinable ());
-		condition.notify ();
+		if (condition)
+		{
+			condition->notify ();
+		}
 	}
 
 	nano::async::strand & strand;
@@ -292,6 +296,6 @@ public:
 private:
 	std::future<value_type> future;
 	nano::async::cancellation cancellation;
-	nano::async::condition condition;
+	std::unique_ptr<nano::async::condition> condition;
 };
 }
