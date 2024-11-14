@@ -82,12 +82,14 @@ bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const 
 	{
 		queue.push (traffic_type, { buffer, callback });
 		lock.unlock ();
+		node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::queued, nano::stat::dir::out);
 		node.stats.inc (nano::stat::type::tcp_channel_queued, to_stat_detail (traffic_type), nano::stat::dir::out);
 		sending_task.notify ();
 		return true;
 	}
 	else
 	{
+		node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::drop, nano::stat::dir::out);
 		node.stats.inc (nano::stat::type::tcp_channel_drop, to_stat_detail (traffic_type), nano::stat::dir::out);
 	}
 	return false;
@@ -177,7 +179,8 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 		co_return;
 	}
 
-	node.stats.inc (nano::stat::type::tcp_channel_sent, to_stat_detail (type), nano::stat::dir::out);
+	node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::send, nano::stat::dir::out);
+	node.stats.inc (nano::stat::type::tcp_channel_send, to_stat_detail (type), nano::stat::dir::out);
 
 	// TODO: Use shared_ptr to this
 	socket_l->async_write (

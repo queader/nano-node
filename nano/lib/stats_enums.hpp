@@ -32,7 +32,7 @@ enum class type
 	tcp_server,
 	tcp_channel,
 	tcp_channel_queued,
-	tcp_channel_sent,
+	tcp_channel_send,
 	tcp_channel_drop,
 	tcp_channel_error,
 	tcp_channels,
@@ -153,6 +153,8 @@ enum class detail
 	pending,
 	sync,
 	other,
+	drop,
+	queued,
 
 	// processing queue
 	queue,
@@ -309,8 +311,6 @@ enum class detail
 	generic,
 
 	// tcp
-	tcp_write_drop,
-	tcp_write_no_socket_drop,
 	tcp_silent_connection_drop,
 	tcp_io_timeout_drop,
 	tcp_connect_error,
