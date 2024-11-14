@@ -109,10 +109,6 @@ public:
 				state_s->timer.cancel ();
 			});
 		}
-		// asio::dispatch (strand, [state_s = state] () {
-		// 	state_s->scheduled = false;
-		// 	state_s->timer.cancel ();
-		// });
 	}
 
 	// Spuriously wakes up
@@ -132,17 +128,6 @@ public:
 		debug_assert (!ec || ec == asio::error::operation_aborted);
 	}
 
-	// void cancel ()
-	// {
-	// 	auto fut = asio::dispatch (strand, asio::use_future ([state_s = state] () {
-	// 		state_s->scheduled = false;
-	// 		state_s->timer.cancel ();
-	// 	}));
-	// 	fut.get ();
-	// 	debug_assert (state.use_count () == 1);
-	// 	state.reset ();
-	// }
-
 	void cancel ()
 	{
 		release_assert (state);
@@ -152,7 +137,7 @@ public:
 		});
 	}
 
-	bool valid ()
+	bool valid () const
 	{
 		return state != nullptr;
 	}
