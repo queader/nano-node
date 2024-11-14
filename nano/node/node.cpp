@@ -1226,29 +1226,33 @@ nano::container_info nano::node::container_info () const
 
 nano::keypair nano::load_or_create_node_id (std::filesystem::path const & application_path)
 {
+	auto & logger = nano::default_logger ();
+
 	auto node_private_key_path = application_path / "node_id_private.key";
 	std::ifstream ifs (node_private_key_path.c_str ());
 	if (ifs.good ())
 	{
-		nano::default_logger ().info (nano::log::type::init, "Reading node id from: '{}'", node_private_key_path.string ());
-
 		std::string node_private_key;
 		ifs >> node_private_key;
-		release_assert (node_private_key.size () == 64);
+		release_assert (node_private_key.size () == 64); // TODO: Log and throw if invalid
 		nano::keypair kp = nano::keypair (node_private_key);
+
+		logger.info (nano::log::type::init, "Loaded node id: {} from: '{}'", kp.pub.to_node_id (), node_private_key_path.string ());
+
 		return kp;
 	}
 	else
 	{
-		// no node_id found, generate new one
-		nano::default_logger ().info (nano::log::type::init, "Generating a new node id, saving to: '{}'", node_private_key_path.string ());
-
+		// No node_id found, generate new one
 		nano::keypair kp;
 		std::ofstream ofs (node_private_key_path.c_str (), std::ofstream::out | std::ofstream::trunc);
 		ofs << kp.prv.to_string () << std::endl
 			<< std::flush;
 		ofs.close ();
 		release_assert (!ofs.fail ());
+
+		logger.info (nano::log::type::init, "Generated a new node id: {} and saved to: '{}'", kp.pub.to_node_id (), node_private_key_path.string ());
+
 		return kp;
 	}
 }
