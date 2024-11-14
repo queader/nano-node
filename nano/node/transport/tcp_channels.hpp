@@ -56,7 +56,7 @@ public:
 	std::optional<nano::keepalive> sample_keepalive ();
 
 	// Connection start
-	void start_tcp (nano::endpoint const &);
+	bool start_tcp (nano::endpoint const &);
 
 	nano::container_info container_info () const;
 
