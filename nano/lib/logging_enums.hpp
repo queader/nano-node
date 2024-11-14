@@ -55,6 +55,7 @@ enum class type
 	socket,
 	socket_server,
 	tcp,
+	tcp_socket,
 	tcp_server,
 	tcp_listener,
 	tcp_channels,

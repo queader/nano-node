@@ -62,6 +62,11 @@ void nano::network::start ()
 			run_reachout ();
 		});
 	}
+	else
+	{
+		node.logger.warn (nano::log::type::network, "Peer reachout is disabled");
+	}
+
 	if (config.cached_peer_reachout.count () > 0)
 	{
 		reachout_cached_thread = std::thread ([this] () {
@@ -69,10 +74,18 @@ void nano::network::start ()
 			run_reachout_cached ();
 		});
 	}
+	else
+	{
+		node.logger.warn (nano::log::type::network, "Cached peer reachout is disabled");
+	}
 
 	if (!node.flags.disable_tcp_realtime)
 	{
 		tcp_channels.start ();
+	}
+	else
+	{
+		node.logger.warn (nano::log::type::network, "Realtime TCP is disabled");
 	}
 }
 

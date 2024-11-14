@@ -61,8 +61,7 @@ void nano::transport::tcp_socket::async_connect (nano::tcp_endpoint const & endp
 
 	boost::asio::post (strand, [this_l = shared_from_this (), endpoint_a, callback = std::move (callback_a)] () {
 		this_l->raw_socket.async_connect (endpoint_a,
-		boost::asio::bind_executor (this_l->strand,
-		[this_l, callback = std::move (callback), endpoint_a] (boost::system::error_code const & ec) {
+		boost::asio::bind_executor (this_l->strand, [this_l, callback = std::move (callback), endpoint_a] (boost::system::error_code const & ec) {
 			debug_assert (this_l->strand.running_in_this_thread ());
 
 			auto node_l = this_l->node_w.lock ();
@@ -72,6 +71,7 @@ void nano::transport::tcp_socket::async_connect (nano::tcp_endpoint const & endp
 			}
 
 			this_l->remote = endpoint_a;
+
 			if (ec)
 			{
 				node_l->stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error, nano::stat::dir::in);
@@ -85,6 +85,10 @@ void nano::transport::tcp_socket::async_connect (nano::tcp_endpoint const & endp
 					boost::system::error_code ec;
 					this_l->local = this_l->raw_socket.local_endpoint (ec);
 				}
+
+				node_l->logger.debug (nano::log::type::tcp_socket, "Successfully connected to: {}, local: {}",
+				fmt::streamed (this_l->remote),
+				fmt::streamed (this_l->local));
 			}
 			callback (ec);
 		}));
@@ -316,8 +320,8 @@ void nano::transport::tcp_socket::ongoing_checkup ()
 
 		if (condition_to_disconnect)
 		{
-			node_l->logger.debug (nano::log::type::tcp_server, "Closing socket due to timeout ({})", nano::util::to_str (this_l->remote));
-
+			// TODO: Stats
+			node_l->logger.debug (nano::log::type::tcp_socket, "Socket timeout, closing: {}", fmt::streamed (this_l->remote));
 			this_l->timed_out = true;
 			this_l->close ();
 		}
@@ -393,7 +397,14 @@ void nano::transport::tcp_socket::close_internal ()
 	if (ec)
 	{
 		node_l->stats.inc (nano::stat::type::socket, nano::stat::detail::error_socket_close);
-		node_l->logger.error (nano::log::type::socket, "Failed to close socket gracefully: {} ({})", ec.message (), nano::util::to_str (remote));
+		node_l->logger.error (nano::log::type::tcp_socket, "Failed to close socket gracefully: {} ({})",
+		fmt::streamed (remote),
+		ec.message ());
+	}
+	else
+	{
+		// TODO: Stats
+		node_l->logger.debug (nano::log::type::tcp_socket, "Closed socket: {}", fmt::streamed (remote));
 	}
 }
 
