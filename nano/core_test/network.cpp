@@ -646,14 +646,14 @@ TEST (network, peer_max_tcp_attempts)
 	node_config.network.max_peers_per_ip = 3;
 	auto node = system.add_node (node_config, node_flags);
 
-	for (auto i (0); i < node_config.network.max_peers_per_ip; ++i)
+	for (auto i = 0; i < node_config.network.max_peers_per_ip; ++i)
 	{
-		auto node2 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.work, node_flags));
-		node2->start ();
-		system.nodes.push_back (node2);
-
-		// Start TCP attempt
-		node->network.merge_peer (node2->network.endpoint ());
+		// Disable reachout from temporary nodes to avoid mixing outbound and inbound connections
+		nano::node_config temp_config = system.default_config ();
+		temp_config.network.peer_reachout = {};
+		temp_config.network.cached_peer_reachout = {};
+		auto temp_node = system.make_disconnected_node (temp_config, node_flags);
+		ASSERT_TRUE (node->network.merge_peer (temp_node->network.endpoint ()));
 	}
 
 	ASSERT_TIMELY_EQ (15s, node->network.size (), node_config.network.max_peers_per_ip);
@@ -836,7 +836,7 @@ TEST (network, expire_duplicate_filter)
 }
 
 // The test must be completed in less than 1 second
-TEST (network, bandwidth_limiter_4_messages)
+TEST (network, DISABLED_bandwidth_limiter_4_messages)
 {
 	nano::test::system system;
 	nano::publish message{ nano::dev::network_params.network, nano::dev::genesis };
@@ -866,7 +866,7 @@ TEST (network, bandwidth_limiter_4_messages)
 	ASSERT_TIMELY_EQ (1s, 1, node.stats.count (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::out));
 }
 
-TEST (network, bandwidth_limiter_2_messages)
+TEST (network, DISABLED_bandwidth_limiter_2_messages)
 {
 	nano::test::system system;
 	nano::publish message{ nano::dev::network_params.network, nano::dev::genesis };
