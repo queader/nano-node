@@ -18,16 +18,20 @@ std::size_t nano::network::confirm_ack_hashes_max{ 255 };
  * network
  */
 
-nano::network::network (nano::node & node, uint16_t port) :
-	config{ node.config.network },
-	node{ node },
+nano::network::network (nano::node & node_a, uint16_t port_a) :
+	config{ node_a.config.network },
+	node{ node_a },
 	id{ nano::network_constants::active_network },
 	syn_cookies{ node.config.network.max_peers_per_ip, node.logger },
 	resolver{ node.io_ctx },
 	filter{ node.config.network.duplicate_filter_size, node.config.network.duplicate_filter_cutoff },
 	tcp_channels{ node },
-	port{ port }
+	port{ port_a }
 {
+	node.observers.channel_connected.add ([this] (std::shared_ptr<nano::transport::channel> const & channel) {
+		node.stats.inc (nano::stat::type::network, nano::stat::detail::connected);
+		node.logger.debug (nano::log::type::network, "Connected to: {}", channel->to_string ());
+	});
 }
 
 nano::network::~network ()
@@ -331,14 +335,21 @@ void nano::network::merge_peers (std::array<nano::endpoint, 8> const & peers_a)
 	}
 }
 
-void nano::network::merge_peer (nano::endpoint const & peer_a)
+bool nano::network::merge_peer (nano::endpoint const & peer)
 {
-	if (track_reachout (peer_a))
+	if (track_reachout (peer))
 	{
 		node.stats.inc (nano::stat::type::network, nano::stat::detail::merge_peer);
-
-		tcp_channels.start_tcp (peer_a);
+		node.logger.debug (nano::log::type::network, "Initiating peer merge: {}", fmt::streamed (peer));
+		bool started = tcp_channels.start_tcp (peer);
+		if (!started)
+		{
+			node.stats.inc (nano::stat::type::tcp, nano::stat::detail::merge_peer_failed);
+			node.logger.debug (nano::log::type::network, "Peer merge failed: {}", fmt::streamed (peer));
+		}
+		return started;
 	}
+	return false; // Not initiated
 }
 
 bool nano::network::not_a_peer (nano::endpoint const & endpoint_a, bool allow_local_peers)

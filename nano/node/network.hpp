@@ -101,8 +101,8 @@ public:
 	// Flood block to a random selection of peers
 	void flood_block (std::shared_ptr<nano::block> const &, nano::transport::buffer_drop_policy const = nano::transport::buffer_drop_policy::limiter);
 	void flood_block_many (std::deque<std::shared_ptr<nano::block>>, std::function<void ()> = nullptr, unsigned = broadcast_interval_ms);
-	void merge_peers (std::array<nano::endpoint, 8> const &);
-	void merge_peer (nano::endpoint const &);
+	void merge_peers (std::array<nano::endpoint, 8> const & ips);
+	bool merge_peer (nano::endpoint const & ip);
 	void send_keepalive (std::shared_ptr<nano::transport::channel> const &);
 	void send_keepalive_self (std::shared_ptr<nano::transport::channel> const &);
 	std::shared_ptr<nano::transport::channel> find_node_id (nano::account const &);

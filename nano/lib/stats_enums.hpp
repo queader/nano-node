@@ -305,8 +305,10 @@ enum class detail
 	loop_reachout,
 	loop_reachout_cached,
 	merge_peer,
+	merge_peer_failed,
 	reachout_live,
 	reachout_cached,
+	connected,
 
 	// traffic
 	generic,

@@ -411,9 +411,9 @@ void nano::transport::tcp_channels::list (std::deque<std::shared_ptr<nano::trans
 	// clang-format on
 }
 
-void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint)
+bool nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint)
 {
-	node.tcp_listener.connect (endpoint.address (), endpoint.port ());
+	return node.tcp_listener.connect (endpoint.address (), endpoint.port ());
 }
 
 nano::container_info nano::transport::tcp_channels::container_info () const

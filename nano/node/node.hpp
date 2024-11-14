@@ -138,6 +138,7 @@ public:
 	boost::latch node_initialized_latch;
 	nano::network_params & network_params;
 	nano::stats stats;
+	nano::node_observers observers;
 	std::unique_ptr<nano::thread_pool> workers_impl;
 	nano::thread_pool & workers;
 	std::unique_ptr<nano::thread_pool> bootstrap_workers_impl;
@@ -165,7 +166,6 @@ public:
 	std::unique_ptr<nano::transport::tcp_listener> tcp_listener_impl;
 	nano::transport::tcp_listener & tcp_listener;
 	std::filesystem::path application_path;
-	nano::node_observers observers;
 	std::unique_ptr<nano::port_mapping> port_mapping_impl;
 	nano::port_mapping & port_mapping;
 	std::unique_ptr<nano::block_processor> block_processor_impl;

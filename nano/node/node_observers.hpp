@@ -2,20 +2,9 @@
 
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/utility.hpp>
+#include <nano/node/fwd.hpp>
 #include <nano/node/transport/transport.hpp>
 #include <nano/node/vote_with_weight_info.hpp>
-
-namespace nano
-{
-enum class vote_source;
-class election_status;
-class telemetry;
-enum class vote_code;
-}
-namespace nano::transport
-{
-class channel;
-}
 
 namespace nano
 {
