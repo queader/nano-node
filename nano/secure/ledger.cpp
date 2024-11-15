@@ -936,7 +936,7 @@ std::string nano::ledger::block_text (nano::block_hash const & hash_a)
 	return result;
 }
 
-std::pair<nano::block_hash, nano::block_hash> nano::ledger::hash_root_random (secure::transaction const & transaction_a) const
+std::pair<nano::block_hash, nano::root> nano::ledger::hash_root_random (secure::transaction const & transaction_a) const
 {
 	nano::block_hash hash (0);
 	nano::root root (0);
@@ -962,7 +962,7 @@ std::pair<nano::block_hash, nano::block_hash> nano::ledger::hash_root_random (se
 			root = block->root ();
 		}
 	}
-	return std::make_pair (hash, root.as_block_hash ());
+	return std::make_pair (hash, root);
 }
 
 // Vote weight of an account

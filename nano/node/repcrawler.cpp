@@ -269,13 +269,13 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 	return { random_peers.begin (), random_peers.end () };
 }
 
-auto nano::rep_crawler::prepare_query_target () -> std::optional<hash_root_t>
+auto nano::rep_crawler::prepare_query_target () const -> std::optional<hash_root_t>
 {
 	constexpr int max_attempts = 4;
 
 	auto transaction = node.ledger.tx_begin_read ();
 
-	std::optional<std::pair<nano::block_hash, nano::block_hash>> hash_root;
+	std::optional<std::pair<nano::block_hash, nano::root>> hash_root;
 
 	// Randomly select a block from ledger to request votes for
 	for (auto i = 0; i < max_attempts && !hash_root; ++i)
@@ -289,20 +289,10 @@ auto nano::rep_crawler::prepare_query_target () -> std::optional<hash_root_t>
 		}
 	}
 
-	if (!hash_root)
+	// Special case for dev network where number of blocks might be very low: if we can't find a block to query, just pick genesis
+	if (node.network_params.network.is_dev_network () && !hash_root)
 	{
-		return std::nullopt;
-	}
-
-	// Don't send same block multiple times in tests
-	if (node.network_params.network.is_dev_network ())
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-
-		for (auto i = 0; queries.get<tag_hash> ().count (hash_root->first) != 0 && i < max_attempts; ++i)
-		{
-			hash_root = node.ledger.hash_root_random (transaction);
-		}
+		hash_root = std::make_pair (node.network_params.ledger.genesis->hash (), node.network_params.ledger.genesis->root ());
 	}
 
 	return hash_root;
