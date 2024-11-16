@@ -936,33 +936,25 @@ std::string nano::ledger::block_text (nano::block_hash const & hash_a)
 	return result;
 }
 
-std::pair<nano::block_hash, nano::root> nano::ledger::hash_root_random (secure::transaction const & transaction_a) const
+std::deque<std::shared_ptr<nano::block>> nano::ledger::random_blocks (secure::transaction const & transaction, size_t count) const
 {
-	nano::block_hash hash (0);
-	nano::root root (0);
-	if (!pruning)
+	std::deque<std::shared_ptr<nano::block>> result;
+
+	auto const starting_hash = nano::random_pool::generate<nano::block_hash> ();
+
+	// It is more efficient to choose a random starting point and pick a few sequential blocks from there
+	auto it = store.block.begin (transaction, starting_hash);
+	auto const end = store.block.end (transaction);
+	while (result.size () < count)
 	{
-		auto block (store.block.random (transaction_a));
-		hash = block->hash ();
-		root = block->root ();
-	}
-	else
-	{
-		uint64_t count (cache.block_count);
-		auto region = nano::random_pool::generate_word64 (0, count - 1);
-		// Pruned cache cannot guarantee that pruned blocks are already commited
-		if (region < cache.pruned_count)
+		if (it != end)
 		{
-			hash = store.pruned.random (transaction_a);
+			result.push_back (it->second.block);
 		}
-		if (hash.is_zero ())
-		{
-			auto block (store.block.random (transaction_a));
-			hash = block->hash ();
-			root = block->root ();
-		}
+		++it; // Store iterators wrap around when reaching the end
 	}
-	return std::make_pair (hash, root);
+
+	return result;
 }
 
 // Vote weight of an account

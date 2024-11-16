@@ -5351,7 +5351,7 @@ TEST (ledger, pruning_safe_functions)
 	ASSERT_EQ (nano::dev::genesis_key.pub, ledger.any.block_account (transaction, send2->hash ()).value ());
 }
 
-TEST (ledger, hash_root_random)
+TEST (ledger, random_blocks)
 {
 	nano::logger logger;
 	auto store = nano::make_store (logger, nano::unique_path (), nano::dev::constants);
@@ -5394,23 +5394,46 @@ TEST (ledger, hash_root_random)
 	ASSERT_TRUE (store->pruned.exists (transaction, send1->hash ()));
 	ASSERT_TRUE (ledger.any.block_exists (transaction, nano::dev::genesis->hash ()));
 	ASSERT_TRUE (ledger.any.block_exists (transaction, send2->hash ()));
-	// Test random block including pruned
-	bool done (false);
-	auto iteration (0);
-	while (!done)
+	// Prunned block will not be included in the random selection because it's not in the blocks set
 	{
-		++iteration;
-		auto root_hash (ledger.hash_root_random (transaction));
-		done = (root_hash.first == send1->hash ()) && (root_hash.second.is_zero ());
-		ASSERT_LE (iteration, 1000);
+		bool done = false;
+		size_t iteration = 0;
+		while (!done && iteration < 42)
+		{
+			++iteration;
+			auto blocks = ledger.random_blocks (transaction, 10);
+			ASSERT_EQ (blocks.size (), 10); // Random blocks should repeat if the ledger is smaller than the requested count
+			auto first = blocks.front ();
+			done = (first->hash () == send1->hash ());
+		}
+		ASSERT_FALSE (done);
 	}
-	done = false;
-	while (!done)
+	// Genesis and send2 should be included in the random selection
 	{
-		++iteration;
-		auto root_hash (ledger.hash_root_random (transaction));
-		done = (root_hash.first == send2->hash ()) && (root_hash.second == send2->root ().as_block_hash ());
-		ASSERT_LE (iteration, 1000);
+		bool done = false;
+		size_t iteration = 0;
+		while (!done)
+		{
+			++iteration;
+			auto blocks = ledger.random_blocks (transaction, 1);
+			ASSERT_EQ (blocks.size (), 1);
+			auto first = blocks.front ();
+			done = (first->hash () == send2->hash ());
+			ASSERT_LE (iteration, 1000);
+		}
+	}
+	{
+		bool done = false;
+		size_t iteration = 0;
+		while (!done)
+		{
+			++iteration;
+			auto blocks = ledger.random_blocks (transaction, 1);
+			ASSERT_EQ (blocks.size (), 1);
+			auto first = blocks.front ();
+			done = (first->hash () == nano::dev::genesis->hash ());
+			ASSERT_LE (iteration, 1000);
+		}
 	}
 }
 
