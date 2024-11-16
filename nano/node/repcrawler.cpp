@@ -269,43 +269,22 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 	return { random_peers.begin (), random_peers.end () };
 }
 
-auto nano::rep_crawler::prepare_query_target () -> std::optional<hash_root_t>
+auto nano::rep_crawler::prepare_query_target () const -> std::optional<hash_root_t>
 {
-	constexpr int max_attempts = 4;
+	constexpr int max_attempts = 10;
 
 	auto transaction = node.ledger.tx_begin_read ();
 
-	std::optional<std::pair<nano::block_hash, nano::block_hash>> hash_root;
-
-	// Randomly select a block from ledger to request votes for
-	for (auto i = 0; i < max_attempts && !hash_root; ++i)
+	auto random_blocks = node.ledger.random_blocks (transaction, max_attempts);
+	for (auto const & block : random_blocks)
 	{
-		hash_root = node.ledger.hash_root_random (transaction);
-
-		// Rebroadcasted votes for recently confirmed blocks might confuse the rep crawler
-		if (active.recently_confirmed.exists (hash_root->first))
+		if (!active.recently_confirmed.exists (block->hash ()))
 		{
-			hash_root = std::nullopt;
+			return std::make_pair (block->hash (), block->root ());
 		}
 	}
 
-	if (!hash_root)
-	{
-		return std::nullopt;
-	}
-
-	// Don't send same block multiple times in tests
-	if (node.network_params.network.is_dev_network ())
-	{
-		nano::lock_guard<nano::mutex> lock{ mutex };
-
-		for (auto i = 0; queries.get<tag_hash> ().count (hash_root->first) != 0 && i < max_attempts; ++i)
-		{
-			hash_root = node.ledger.hash_root_random (transaction);
-		}
-	}
-
-	return hash_root;
+	return std::nullopt;
 }
 
 bool nano::rep_crawler::track_rep_request (hash_root_t hash_root, std::shared_ptr<nano::transport::channel> const & channel)

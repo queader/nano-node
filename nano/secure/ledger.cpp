@@ -936,33 +936,25 @@ std::string nano::ledger::block_text (nano::block_hash const & hash_a)
 	return result;
 }
 
-std::pair<nano::block_hash, nano::block_hash> nano::ledger::hash_root_random (secure::transaction const & transaction_a) const
+std::deque<std::shared_ptr<nano::block>> nano::ledger::random_blocks (secure::transaction const & transaction, size_t count) const
 {
-	nano::block_hash hash (0);
-	nano::root root (0);
-	if (!pruning)
+	std::deque<std::shared_ptr<nano::block>> result;
+
+	auto const starting_hash = nano::random_pool::generate<nano::block_hash> ();
+
+	// It is more efficient to choose a random starting point and pick a few sequential blocks from there
+	auto it = store.block.begin (transaction, starting_hash);
+	auto const end = store.block.end (transaction);
+	while (result.size () < count)
 	{
-		auto block (store.block.random (transaction_a));
-		hash = block->hash ();
-		root = block->root ();
-	}
-	else
-	{
-		uint64_t count (cache.block_count);
-		auto region = nano::random_pool::generate_word64 (0, count - 1);
-		// Pruned cache cannot guarantee that pruned blocks are already commited
-		if (region < cache.pruned_count)
+		if (it != end)
 		{
-			hash = store.pruned.random (transaction_a);
+			result.push_back (it->second.block);
 		}
-		if (hash.is_zero ())
-		{
-			auto block (store.block.random (transaction_a));
-			hash = block->hash ();
-			root = block->root ();
-		}
+		++it; // Store iterators wrap around when reaching the end
 	}
-	return std::make_pair (hash, root.as_block_hash ());
+
+	return result;
 }
 
 // Vote weight of an account
@@ -1284,7 +1276,7 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (std::filesystem::path const & data_p
 
 	if (std::filesystem::exists (rockdb_data_path))
 	{
-		logger.error (nano::log::type::ledger, "Existing RocksDb folder found in '{}'. Please remove it and try again.", rockdb_data_path.string ());
+		logger.error (nano::log::type::ledger, "Existing RocksDB folder found in '{}'. Please remove it and try again.", rockdb_data_path.string ());
 		return true;
 	}
 
@@ -1431,7 +1423,8 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (std::filesystem::path const & data_p
 		logger.info (nano::log::type::ledger, "{} entries converted ({}%)", count.load (), table_size > 0 ? count.load () * 100 / table_size : 100);
 
 		logger.info (nano::log::type::ledger, "Finalizing migration...");
-		auto lmdb_transaction (store.tx_begin_read ());
+
+		auto lmdb_transaction (tx_begin_read ());
 		auto version = store.version.get (lmdb_transaction);
 		auto rocksdb_transaction (rocksdb_store->tx_begin_write ());
 		rocksdb_store->version.put (rocksdb_transaction, version);
@@ -1455,21 +1448,26 @@ bool nano::ledger::migrate_lmdb_to_rocksdb (std::filesystem::path const & data_p
 		error |= store.version.get (lmdb_transaction) != rocksdb_store->version.get (rocksdb_transaction);
 
 		// For large tables a random key is used instead and makes sure it exists
-		auto random_block (store.block.random (lmdb_transaction));
-		error |= rocksdb_store->block.get (rocksdb_transaction, random_block->hash ()) == nullptr;
-
-		auto account = random_block->account ();
-		nano::account_info account_info;
-		error |= rocksdb_store->account.get (rocksdb_transaction, account, account_info);
-
-		// If confirmation height exists in the lmdb ledger for this account it should exist in the rocksdb ledger
-		nano::confirmation_height_info confirmation_height_info{};
-		if (!store.confirmation_height.get (lmdb_transaction, account, confirmation_height_info))
+		auto blocks = random_blocks (lmdb_transaction, 42);
+		release_assert (!blocks.empty ());
+		for (auto const & block : blocks)
 		{
-			error |= rocksdb_store->confirmation_height.get (rocksdb_transaction, account, confirmation_height_info);
+			auto const account = block->account ();
+
+			error |= rocksdb_store->block.get (rocksdb_transaction, block->hash ()) == nullptr;
+
+			nano::account_info account_info;
+			error |= rocksdb_store->account.get (rocksdb_transaction, account, account_info);
+
+			// If confirmation height exists in the lmdb ledger for this account it should exist in the rocksdb ledger
+			nano::confirmation_height_info confirmation_height_info{};
+			if (!store.confirmation_height.get (lmdb_transaction, account, confirmation_height_info))
+			{
+				error |= rocksdb_store->confirmation_height.get (rocksdb_transaction, account, confirmation_height_info);
+			}
 		}
 
-		logger.info (nano::log::type::ledger, "Migration completed. Make sure to enable RocksDb in the config file under [node.rocksdb]");
+		logger.info (nano::log::type::ledger, "Migration completed. Make sure to enable RocksDB in the config file under [node.rocksdb]");
 		logger.info (nano::log::type::ledger, "After confirming correct node operation, the data.ldb file can be deleted if no longer required");
 	}
 	else
