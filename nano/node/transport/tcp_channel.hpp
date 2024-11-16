@@ -50,12 +50,6 @@ public:
 
 	void close () override;
 
-	bool send_buffer (nano::shared_const_buffer const &,
-	nano::transport::channel::callback_t const & callback = nullptr,
-	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
-	nano::transport::traffic_type = nano::transport::traffic_type::generic)
-	override;
-
 	bool max (nano::transport::traffic_type traffic_type) override;
 	bool alive () const override;
 
@@ -68,6 +62,13 @@ public:
 	}
 
 	std::string to_string () const override;
+
+protected:
+	bool send_buffer (nano::shared_const_buffer const &,
+	nano::transport::channel::callback_t const & callback = nullptr,
+	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
+	nano::transport::traffic_type = nano::transport::traffic_type::generic)
+	override;
 
 private:
 	void start ();
