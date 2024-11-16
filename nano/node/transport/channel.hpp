@@ -35,15 +35,6 @@ public:
 	nano::transport::buffer_drop_policy policy = nano::transport::buffer_drop_policy::limiter,
 	nano::transport::traffic_type = nano::transport::traffic_type::generic);
 
-	///	Implements the actual send operation
-	/// @returns true if the message was sent (or queued to be sent), false if it was immediately dropped
-	// TODO: Make this private, do not allow external direct calls
-	virtual bool send_buffer (nano::shared_const_buffer const &,
-	callback_t const & callback = nullptr,
-	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
-	nano::transport::traffic_type = nano::transport::traffic_type::generic)
-	= 0;
-
 	virtual void close () = 0;
 
 	virtual nano::endpoint get_remote_endpoint () const = 0;
@@ -130,6 +121,13 @@ public:
 	void set_peering_endpoint (nano::endpoint endpoint);
 
 	std::shared_ptr<nano::node> owner () const;
+
+protected:
+	virtual bool send_buffer (nano::shared_const_buffer const &,
+	callback_t const & callback = nullptr,
+	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
+	nano::transport::traffic_type = nano::transport::traffic_type::generic)
+	= 0;
 
 protected:
 	nano::node & node;

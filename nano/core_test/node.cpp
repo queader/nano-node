@@ -1004,14 +1004,9 @@ TEST (node, fork_no_vote_quorum)
 	ASSERT_FALSE (system.wallet (1)->store.fetch (transaction, key1, key3));
 	auto vote = std::make_shared<nano::vote> (key1, key3, 0, 0, std::vector<nano::block_hash>{ send2->hash () });
 	nano::confirm_ack confirm{ nano::dev::network_params.network, vote };
-	std::vector<uint8_t> buffer;
-	{
-		nano::vectorstream stream (buffer);
-		confirm.serialize (stream);
-	}
 	auto channel = node2.network.find_node_id (node3.node_id.pub);
 	ASSERT_NE (nullptr, channel);
-	channel->send_buffer (nano::shared_const_buffer (std::move (buffer)));
+	channel->send (confirm);
 	ASSERT_TIMELY (10s, node3.stats.count (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::in) >= 3);
 	ASSERT_EQ (node1.latest (nano::dev::genesis_key.pub), send1->hash ());
 	ASSERT_EQ (node2.latest (nano::dev::genesis_key.pub), send1->hash ());
