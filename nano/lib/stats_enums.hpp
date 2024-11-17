@@ -47,7 +47,7 @@ enum class type
 	confirmation_height,
 	confirmation_observer,
 	confirming_set,
-	drop,
+	drop, // TODO: Rename to message_drop
 	aggregator,
 	requests,
 	request_aggregator,
@@ -80,6 +80,7 @@ enum class type
 	bootstrap_server_request,
 	bootstrap_server_overfill,
 	bootstrap_server_response,
+	bootstrap_server_send,
 	active,
 	active_elections,
 	active_elections_started,
@@ -98,6 +99,7 @@ enum class type
 	optimistic_scheduler,
 	handshake,
 	rep_crawler,
+	rep_crawler_send,
 	local_block_broadcaster,
 	rep_tiers,
 	syn_cookies,
@@ -312,8 +314,18 @@ enum class detail
 	reachout_cached,
 	connected,
 
-	// traffic
+	// traffic type
 	generic,
+	bootstrap_server,
+	bootstrap_requests,
+	block_broadcast,
+	block_broadcast_initial,
+	block_broadcast_rpc,
+	confirmation_requests,
+	vote_rebroadcast,
+	vote_reply,
+	rep_crawler,
+	telemetry,
 
 	// tcp
 	tcp_silent_connection_drop,

@@ -26,13 +26,6 @@ nano::request_aggregator::request_aggregator (request_aggregator_config const & 
 	generator (generator_a),
 	final_generator (final_generator_a)
 {
-	generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
-		this->reply_action (vote_a, channel_a);
-	});
-	final_generator.set_reply_action ([this] (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) {
-		this->reply_action (vote_a, channel_a);
-	});
-
 	queue.max_size_query = [this] (auto const & origin) {
 		return config.max_queue;
 	};
@@ -159,7 +152,7 @@ void nano::request_aggregator::run_batch (nano::unique_lock<nano::mutex> & lock)
 
 		transaction.refresh_if_needed ();
 
-		if (!channel->max ())
+		if (!channel->max (nano::transport::traffic_type::vote_reply))
 		{
 			process (transaction, request, channel);
 		}
@@ -190,12 +183,6 @@ void nano::request_aggregator::process (nano::secure::transaction const & transa
 		auto const generated = final_generator.generate (remaining.remaining_final, channel);
 		stats.add (nano::stat::type::requests, nano::stat::detail::requests_cannot_vote, stat::dir::in, remaining.remaining_final.size () - generated);
 	}
-}
-
-void nano::request_aggregator::reply_action (std::shared_ptr<nano::vote> const & vote_a, std::shared_ptr<nano::transport::channel> const & channel_a) const
-{
-	nano::confirm_ack confirm{ network_constants, vote_a };
-	channel_a->send (confirm);
 }
 
 void nano::request_aggregator::erase_duplicates (std::vector<std::pair<nano::block_hash, nano::root>> & requests_a) const

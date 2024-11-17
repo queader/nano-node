@@ -75,62 +75,24 @@ bool nano::transport::tcp_channel::max (nano::transport::traffic_type traffic_ty
 	return queue.max (traffic_type);
 }
 
-bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const & buffer, std::function<void (boost::system::error_code const &, std::size_t)> const & callback, nano::transport::buffer_drop_policy policy, nano::transport::traffic_type traffic_type)
+bool nano::transport::tcp_channel::send_buffer (nano::shared_const_buffer const & buffer, nano::transport::traffic_type type, nano::transport::channel::callback_t callback)
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	if (!queue.max (traffic_type) || (policy == buffer_drop_policy::no_socket_drop && !queue.full (traffic_type)))
+	if (!queue.full (type))
 	{
-		queue.push (traffic_type, { buffer, callback });
+		queue.push (type, { buffer, callback });
 		lock.unlock ();
 		node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::queued, nano::stat::dir::out);
-		node.stats.inc (nano::stat::type::tcp_channel_queued, to_stat_detail (traffic_type), nano::stat::dir::out);
+		node.stats.inc (nano::stat::type::tcp_channel_queued, to_stat_detail (type), nano::stat::dir::out);
 		sending_task.notify ();
 		return true;
 	}
 	else
 	{
 		node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::drop, nano::stat::dir::out);
-		node.stats.inc (nano::stat::type::tcp_channel_drop, to_stat_detail (traffic_type), nano::stat::dir::out);
+		node.stats.inc (nano::stat::type::tcp_channel_drop, to_stat_detail (type), nano::stat::dir::out);
 	}
 	return false;
-
-	// if (!socket->max (traffic_type) || (policy_a == nano::transport::buffer_drop_policy::no_socket_drop && !socket->full (traffic_type)))
-	// {
-	// 	socket->async_write (
-	// 	buffer_a, [this_s = shared_from_this (), endpoint_a = socket->remote_endpoint (), node = std::weak_ptr<nano::node>{ node.shared () }, callback_a] (boost::system::error_code const & ec, std::size_t size_a) {
-	// 		if (auto node_l = node.lock ())
-	// 		{
-	// 			if (!ec)
-	// 			{
-	// 				this_s->set_last_packet_sent (std::chrono::steady_clock::now ());
-	// 			}
-	// 			if (ec == boost::system::errc::host_unreachable)
-	// 			{
-	// 				node_l->stats.inc (nano::stat::type::error, nano::stat::detail::unreachable_host, nano::stat::dir::out);
-	// 			}
-	// 			if (callback_a)
-	// 			{
-	// 				callback_a (ec, size_a);
-	// 			}
-	// 		}
-	// 	},
-	// 	traffic_type);
-	// }
-	// else
-	// {
-	// 	if (policy_a == nano::transport::buffer_drop_policy::no_socket_drop)
-	// 	{
-	// 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_no_socket_drop, nano::stat::dir::out);
-	// 	}
-	// 	else
-	// 	{
-	// 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_write_drop, nano::stat::dir::out);
-	// 	}
-	// 	if (callback_a)
-	// 	{
-	// 		callback_a (boost::system::errc::make_error_code (boost::system::errc::no_buffer_space), 0);
-	// 	}
-	// }
 }
 
 asio::awaitable<void> nano::transport::tcp_channel::run_sending (nano::async::condition & condition)
@@ -228,10 +190,10 @@ asio::awaitable<void> nano::transport::tcp_channel::wait_socket (nano::transport
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	auto should_wait = [this, type] () {
+	auto should_wait = [this] () {
 		if (auto socket_l = socket.lock ())
 		{
-			return socket_l->full (type);
+			return socket_l->full ();
 		}
 		return false; // Abort if the socket is dead
 	};
@@ -374,14 +336,6 @@ auto nano::transport::tcp_channel_queue::next_batch (size_t max_count) -> batch_
 
 size_t nano::transport::tcp_channel_queue::priority (traffic_type type) const
 {
-	switch (type)
-	{
-		case traffic_type::generic:
-			return 1;
-		case traffic_type::bootstrap:
-			return 1;
-	}
-	debug_assert (false);
 	return 1;
 }
 

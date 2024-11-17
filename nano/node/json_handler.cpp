@@ -3632,7 +3632,7 @@ void nano::json_handler::republish ()
 				}
 				hash = node.ledger.any.block_successor (transaction, hash).value_or (0);
 			}
-			node.network.flood_block_many (std::move (republish_bundle), nullptr, 25);
+			node.network.flood_block_many (std::move (republish_bundle), nano::transport::traffic_type::block_broadcast_rpc, 25ms);
 			response_l.put ("success", ""); // obsolete
 			response_l.add_child ("blocks", blocks);
 		}
@@ -4867,7 +4867,7 @@ void nano::json_handler::wallet_republish ()
 				blocks.push_back (std::make_pair ("", entry));
 			}
 		}
-		node.network.flood_block_many (std::move (republish_bundle), nullptr, 25);
+		node.network.flood_block_many (std::move (republish_bundle), nano::transport::traffic_type::keepalive, 25ms);
 		response_l.add_child ("blocks", blocks);
 	}
 	response_errors ();

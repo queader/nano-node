@@ -140,7 +140,7 @@ void nano::transport::tcp_socket::async_read (std::shared_ptr<std::vector<uint8_
 	}
 }
 
-void nano::transport::tcp_socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a, nano::transport::traffic_type traffic_type)
+void nano::transport::tcp_socket::async_write (nano::shared_const_buffer const & buffer_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a)
 {
 	auto node_l = node_w.lock ();
 	if (!node_l)
@@ -159,7 +159,7 @@ void nano::transport::tcp_socket::async_write (nano::shared_const_buffer const &
 		return;
 	}
 
-	bool queued = send_queue.insert (buffer_a, callback_a, traffic_type);
+	bool queued = send_queue.insert (buffer_a, callback_a, traffic_type::generic);
 	if (!queued)
 	{
 		if (callback_a)
@@ -234,14 +234,14 @@ void nano::transport::tcp_socket::write_queued_messages ()
 	}));
 }
 
-bool nano::transport::tcp_socket::max (nano::transport::traffic_type traffic_type) const
+bool nano::transport::tcp_socket::max () const
 {
-	return send_queue.size (traffic_type) >= max_queue_size;
+	return send_queue.size (traffic_type::generic) >= max_queue_size;
 }
 
-bool nano::transport::tcp_socket::full (nano::transport::traffic_type traffic_type) const
+bool nano::transport::tcp_socket::full () const
 {
-	return send_queue.size (traffic_type) >= 2 * max_queue_size;
+	return send_queue.size (traffic_type::generic) >= 2 * max_queue_size;
 }
 
 /** Call set_timeout with default_timeout as parameter */
@@ -465,10 +465,6 @@ auto nano::transport::socket_queue::pop () -> std::optional<result_t>
 
 	// TODO: This is a very basic prioritization, implement something more advanced and configurable
 	if (auto item = try_pop (nano::transport::traffic_type::generic))
-	{
-		return item;
-	}
-	if (auto item = try_pop (nano::transport::traffic_type::bootstrap))
 	{
 		return item;
 	}

@@ -323,7 +323,7 @@ TEST (rep_crawler, ignore_rebroadcasted)
 
 	auto tick = [&] () {
 		nano::confirm_ack msg{ nano::dev::network_params.network, vote, /* rebroadcasted */ true };
-		channel2to1->send (msg, nullptr, nano::transport::buffer_drop_policy::no_socket_drop);
+		channel2to1->send (msg, nano::transport::traffic_type::test);
 		return false;
 	};
 

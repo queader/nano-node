@@ -473,7 +473,7 @@ TEST (node, confirm_locked)
 				 .sign (nano::keypair ().prv, 0)
 				 .work (0)
 				 .build ();
-	system.nodes[0]->network.flood_block (block);
+	system.nodes[0]->network.flood_block (block, nano::transport::traffic_type::test);
 }
 
 TEST (node_config, random_rep)
@@ -1007,7 +1007,7 @@ TEST (node, fork_no_vote_quorum)
 	nano::confirm_ack confirm{ nano::dev::network_params.network, vote };
 	auto channel = node2.network.find_node_id (node3.node_id.pub);
 	ASSERT_NE (nullptr, channel);
-	channel->send (confirm);
+	channel->send (confirm, nano::transport::traffic_type::test);
 	ASSERT_TIMELY (10s, node3.stats.count (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::in) >= 3);
 	ASSERT_EQ (node1.latest (nano::dev::genesis_key.pub), send1->hash ());
 	ASSERT_EQ (node2.latest (nano::dev::genesis_key.pub), send1->hash ());

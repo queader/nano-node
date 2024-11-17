@@ -300,7 +300,7 @@ TEST (node, fork_storm)
 			auto open_result (node_i->process (open));
 			ASSERT_EQ (nano::block_status::progress, open_result);
 			auto transaction (node_i->store.tx_begin_read ());
-			node_i->network.flood_block (open);
+			node_i->network.flood_block (open, nano::transport::traffic_type::test);
 		}
 	}
 	auto again (true);

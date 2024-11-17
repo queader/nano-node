@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/node/fwd.hpp>
+#include <nano/node/transport/traffic_type.hpp>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/member.hpp>
@@ -19,6 +20,9 @@ namespace bootstrap
 	// Container for tracking and scoring peers with respect to bootstrapping
 	class peer_scoring
 	{
+	public:
+		static nano::transport::traffic_type constexpr traffic_type = nano::transport::traffic_type::bootstrap_requests;
+
 	public:
 		peer_scoring (bootstrap_config const &, nano::network_constants const &);
 

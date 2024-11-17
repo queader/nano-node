@@ -50,11 +50,7 @@ namespace transport
 			}
 
 		protected:
-			bool send_buffer (
-			nano::shared_const_buffer const &,
-			std::function<void (boost::system::error_code const &, std::size_t)> const & = nullptr,
-			nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
-			nano::transport::traffic_type = nano::transport::traffic_type::generic) override;
+			bool send_buffer (nano::shared_const_buffer const &, nano::transport::traffic_type, nano::transport::channel::callback_t) override;
 
 		private:
 			nano::endpoint endpoint;
