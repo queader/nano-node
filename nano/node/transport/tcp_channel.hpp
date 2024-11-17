@@ -72,8 +72,6 @@ private:
 
 	asio::awaitable<void> run_sending (nano::async::condition &);
 	asio::awaitable<void> send_one (traffic_type, tcp_channel_queue::entry_t const &);
-	asio::awaitable<void> wait_bandwidth (traffic_type, size_t size);
-	asio::awaitable<void> wait_socket (traffic_type);
 
 public:
 	std::shared_ptr<nano::transport::tcp_socket> socket;
@@ -87,7 +85,6 @@ private:
 
 	mutable nano::mutex mutex;
 	tcp_channel_queue queue;
-
 	std::atomic<size_t> allocated_bandwidth{ 0 };
 
 	// Debugging
