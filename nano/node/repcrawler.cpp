@@ -246,7 +246,7 @@ std::vector<std::shared_ptr<nano::transport::channel>> nano::rep_crawler::prepar
 	// Crawl more aggressively if we lack sufficient total peer weight.
 	auto const required_peer_count = sufficient_weight ? conservative_count : aggressive_count;
 
-	auto random_peers = node.network.random_set (required_peer_count, 0, /* include channels with ephemeral remote ports */ true);
+	auto random_peers = node.network.random_set (required_peer_count);
 
 	auto should_query = [&, this] (std::shared_ptr<nano::transport::channel> const & channel) {
 		if (auto rep = reps.get<tag_channel> ().find (channel); rep != reps.get<tag_channel> ().end ())
@@ -325,8 +325,6 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 
 	for (const auto & channel : target_channels)
 	{
-		debug_assert (channel != nullptr);
-
 		bool tracked = track_rep_request (hash_root, channel);
 		if (tracked)
 		{
@@ -336,15 +334,9 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 			auto const & [hash, root] = hash_root;
 			nano::confirm_req req{ network_constants, hash, root };
 
-			channel->send (
-			req,
-			[this] (auto & ec, auto size) {
-				if (ec)
-				{
-					stats.inc (nano::stat::type::rep_crawler, nano::stat::detail::write_error, nano::stat::dir::out);
-				}
-			},
-			nano::transport::buffer_drop_policy::no_socket_drop);
+			channel->send (req, nano::transport::traffic_type::rep_crawler, [this] (auto & ec, auto size) {
+				stats.inc (nano::stat::type::rep_crawler_send, to_stat_detail (ec), nano::stat::dir::out);
+			});
 		}
 		else
 		{

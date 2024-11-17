@@ -172,12 +172,6 @@ std::size_t nano::vote_generator::generate (std::vector<std::shared_ptr<nano::bl
 	return result;
 }
 
-void nano::vote_generator::set_reply_action (std::function<void (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &)> action_a)
-{
-	release_assert (!reply_action);
-	reply_action = action_a;
-}
-
 void nano::vote_generator::broadcast (nano::unique_lock<nano::mutex> & lock_a)
 {
 	debug_assert (lock_a.owns_lock ());
@@ -217,6 +211,10 @@ void nano::vote_generator::broadcast (nano::unique_lock<nano::mutex> & lock_a)
 
 void nano::vote_generator::reply (nano::unique_lock<nano::mutex> & lock_a, request_t && request_a)
 {
+	if (request_a.second->max (nano::transport::traffic_type::vote_reply))
+	{
+		return;
+	}
 	lock_a.unlock ();
 	auto i (request_a.first.cbegin ());
 	auto n (request_a.first.cend ());
@@ -245,9 +243,11 @@ void nano::vote_generator::reply (nano::unique_lock<nano::mutex> & lock_a, reque
 		if (!hashes.empty ())
 		{
 			stats.add (nano::stat::type::requests, nano::stat::detail::requests_generated_hashes, stat::dir::in, hashes.size ());
-			vote (hashes, roots, [this, &channel = request_a.second] (std::shared_ptr<nano::vote> const & vote_a) {
-				this->reply_action (vote_a, channel);
-				this->stats.inc (nano::stat::type::requests, nano::stat::detail::requests_generated_votes, stat::dir::in);
+
+			vote (hashes, roots, [this, channel = request_a.second] (std::shared_ptr<nano::vote> const & vote_a) {
+				nano::confirm_ack confirm{ config.network_params.network, vote_a };
+				channel->send (confirm, nano::transport::traffic_type::vote_reply);
+				stats.inc (nano::stat::type::requests, nano::stat::detail::requests_generated_votes, stat::dir::in);
 			});
 		}
 	}

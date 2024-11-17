@@ -192,12 +192,7 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 	stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request, nano::stat::dir::out);
 	stats.inc (nano::stat::type::bootstrap_request, to_stat_detail (tag.type));
 
-	// TODO: There is no feedback mechanism if bandwidth limiter starts dropping our requests
-	channel->send (
-	request, nullptr,
-	nano::transport::buffer_drop_policy::limiter, nano::transport::traffic_type::bootstrap);
-
-	return true; // TODO: Return channel send result
+	return channel->send (request, nano::transport::traffic_type::bootstrap_requests);
 }
 
 std::size_t nano::bootstrap_service::priority_size () const

@@ -195,7 +195,7 @@ TEST (network, send_discarded_publish)
 				 .build ();
 	{
 		auto transaction = node1.ledger.tx_begin_read ();
-		node1.network.flood_block (block);
+		node1.network.flood_block (block, nano::transport::traffic_type::test);
 		ASSERT_EQ (nano::dev::genesis->hash (), node1.ledger.any.account_head (transaction, nano::dev::genesis_key.pub));
 		ASSERT_EQ (nano::dev::genesis->hash (), node2.latest (nano::dev::genesis_key.pub));
 	}
@@ -221,7 +221,7 @@ TEST (network, send_invalid_publish)
 				 .build ();
 	{
 		auto transaction = node1.ledger.tx_begin_read ();
-		node1.network.flood_block (block);
+		node1.network.flood_block (block, nano::transport::traffic_type::test);
 		ASSERT_EQ (nano::dev::genesis->hash (), node1.ledger.any.account_head (transaction, nano::dev::genesis_key.pub));
 		ASSERT_EQ (nano::dev::genesis->hash (), node2.latest (nano::dev::genesis_key.pub));
 	}
@@ -306,7 +306,7 @@ TEST (network, send_insufficient_work)
 	nano::publish publish1{ nano::dev::network_params.network, block1 };
 	auto tcp_channel (node1.network.tcp_channels.find_node_id (node2.get_node_id ()));
 	ASSERT_NE (nullptr, tcp_channel);
-	tcp_channel->send (publish1, [] (boost::system::error_code const & ec, size_t size) {});
+	tcp_channel->send (publish1, nano::transport::traffic_type::test);
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work) != 0);
 	ASSERT_EQ (1, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
@@ -320,7 +320,7 @@ TEST (network, send_insufficient_work)
 				  .work (system.work_generate_limited (block1->hash (), node1.network_params.work.epoch_2_receive, node1.network_params.work.epoch_1 - 1))
 				  .build ();
 	nano::publish publish2{ nano::dev::network_params.network, block2 };
-	tcp_channel->send (publish2, [] (boost::system::error_code const & ec, size_t size) {});
+	tcp_channel->send (publish2, nano::transport::traffic_type::test);
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work) != 1);
 	ASSERT_EQ (2, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
 	// Legacy block work epoch_1
@@ -333,7 +333,7 @@ TEST (network, send_insufficient_work)
 				  .work (*system.work.generate (block2->hash (), node1.network_params.work.epoch_2))
 				  .build ();
 	nano::publish publish3{ nano::dev::network_params.network, block3 };
-	tcp_channel->send (publish3, [] (boost::system::error_code const & ec, size_t size) {});
+	tcp_channel->send (publish3, nano::transport::traffic_type::test);
 	ASSERT_EQ (0, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in));
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in) != 0);
 	ASSERT_EQ (1, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in));
@@ -349,7 +349,7 @@ TEST (network, send_insufficient_work)
 				  .work (system.work_generate_limited (block1->hash (), node1.network_params.work.epoch_2_receive, node1.network_params.work.epoch_1 - 1))
 				  .build ();
 	nano::publish publish4{ nano::dev::network_params.network, block4 };
-	tcp_channel->send (publish4, [] (boost::system::error_code const & ec, size_t size) {});
+	tcp_channel->send (publish4, nano::transport::traffic_type::test);
 	ASSERT_TIMELY (10s, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in) != 0);
 	ASSERT_EQ (1, node2.stats.count (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in));
 	ASSERT_EQ (2, node2.stats.count (nano::stat::type::error, nano::stat::detail::insufficient_work));
@@ -616,7 +616,7 @@ TEST (tcp_listener, tcp_listener_timeout_node_id_handshake)
 	auto channel = std::make_shared<nano::transport::tcp_channel> (*node0, socket);
 	socket->async_connect (node0->tcp_listener.endpoint (), [&node_id_handshake, channel] (boost::system::error_code const & ec) {
 		ASSERT_FALSE (ec);
-		channel->send (node_id_handshake, [] (boost::system::error_code const & ec, size_t size_a) {
+		channel->send (node_id_handshake, nano::transport::traffic_type::test, [] (boost::system::error_code const & ec, size_t size_a) {
 			ASSERT_FALSE (ec);
 		});
 	});
@@ -716,9 +716,9 @@ TEST (network, duplicate_detection)
 	ASSERT_NE (nullptr, tcp_channel);
 
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish_message));
-	tcp_channel->send (publish);
+	tcp_channel->send (publish, nano::transport::traffic_type::test);
 	ASSERT_ALWAYS_EQ (100ms, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish_message), 0);
-	tcp_channel->send (publish);
+	tcp_channel->send (publish, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (2s, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_publish_message), 1);
 }
 
@@ -765,9 +765,9 @@ TEST (network, duplicate_vote_detection)
 	ASSERT_NE (nullptr, tcp_channel);
 
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message));
-	tcp_channel->send (message);
+	tcp_channel->send (message, nano::transport::traffic_type::test);
 	ASSERT_ALWAYS_EQ (100ms, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message), 0);
-	tcp_channel->send (message);
+	tcp_channel->send (message, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (2s, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message), 1);
 }
 
@@ -795,12 +795,12 @@ TEST (network, duplicate_revert_vote)
 	ASSERT_NE (nullptr, tcp_channel);
 
 	// First vote should be processed
-	tcp_channel->send (message1);
+	tcp_channel->send (message1, nano::transport::traffic_type::test);
 	ASSERT_ALWAYS_EQ (100ms, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message), 0);
 	ASSERT_TIMELY (5s, node1.network.filter.check (bytes1.data (), bytes1.size ()));
 
 	// Second vote should get dropped from processor queue
-	tcp_channel->send (message2);
+	tcp_channel->send (message2, nano::transport::traffic_type::test);
 	ASSERT_ALWAYS_EQ (100ms, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message), 0);
 	// And the filter should not have it
 	WAIT (500ms); // Give the node time to process the vote
@@ -825,9 +825,9 @@ TEST (network, expire_duplicate_filter)
 
 	// Send a vote
 	ASSERT_EQ (0, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message));
-	tcp_channel->send (message);
+	tcp_channel->send (message, nano::transport::traffic_type::test);
 	ASSERT_ALWAYS_EQ (100ms, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message), 0);
-	tcp_channel->send (message);
+	tcp_channel->send (message, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (2s, node1.stats.count (nano::stat::type::filter, nano::stat::detail::duplicate_confirm_ack_message), 1);
 
 	// The filter should expire the vote after some time
@@ -851,18 +851,18 @@ TEST (network, DISABLED_bandwidth_limiter_4_messages)
 	// Send droppable messages
 	for (auto i = 0; i < message_limit; i += 2) // number of channels
 	{
-		channel1.send (message);
-		channel2.send (message);
+		channel1.send (message, nano::transport::traffic_type::test);
+		channel2.send (message, nano::transport::traffic_type::test);
 	}
 	// Only sent messages below limit, so we don't expect any drops
 	ASSERT_TIMELY_EQ (1s, 0, node.stats.count (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::out));
 
 	// Send droppable message; drop stats should increase by one now
-	channel1.send (message);
+	channel1.send (message, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (1s, 1, node.stats.count (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::out));
 
 	// Send non-droppable message, i.e. drop stats should not increase
-	channel2.send (message, nullptr, nano::transport::buffer_drop_policy::no_limiter_drop);
+	channel2.send (message, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (1s, 1, node.stats.count (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::out));
 }
 
@@ -879,10 +879,10 @@ TEST (network, DISABLED_bandwidth_limiter_2_messages)
 	nano::transport::inproc::channel channel1{ node, node };
 	nano::transport::inproc::channel channel2{ node, node };
 	// change the bandwidth settings, 2 packets will be dropped
-	channel1.send (message);
-	channel2.send (message);
-	channel1.send (message);
-	channel2.send (message);
+	channel1.send (message, nano::transport::traffic_type::test);
+	channel2.send (message, nano::transport::traffic_type::test);
+	channel1.send (message, nano::transport::traffic_type::test);
+	channel2.send (message, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (1s, 2, node.stats.count (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::out));
 }
 
@@ -899,10 +899,10 @@ TEST (network, bandwidth_limiter_with_burst)
 	nano::transport::inproc::channel channel1{ node, node };
 	nano::transport::inproc::channel channel2{ node, node };
 	// change the bandwidth settings, no packet will be dropped
-	channel1.send (message);
-	channel2.send (message);
-	channel1.send (message);
-	channel2.send (message);
+	channel1.send (message, nano::transport::traffic_type::test);
+	channel2.send (message, nano::transport::traffic_type::test);
+	channel1.send (message, nano::transport::traffic_type::test);
+	channel2.send (message, nano::transport::traffic_type::test);
 	ASSERT_TIMELY_EQ (1s, 0, node.stats.count (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::out));
 }
 
@@ -1046,7 +1046,7 @@ TEST (network, filter_invalid_network_bytes)
 	// send a keepalive, from node2 to node1, with the wrong network bytes
 	nano::keepalive keepalive{ nano::dev::network_params.network };
 	const_cast<nano::networks &> (keepalive.header.network) = nano::networks::invalid;
-	channel->send (keepalive);
+	channel->send (keepalive, nano::transport::traffic_type::test);
 
 	ASSERT_TIMELY_EQ (5s, 1, node1.stats.count (nano::stat::type::error, nano::stat::detail::invalid_network));
 }
@@ -1065,7 +1065,7 @@ TEST (network, filter_invalid_version_using)
 	// send a keepalive, from node2 to node1, with the wrong version_using
 	nano::keepalive keepalive{ nano::dev::network_params.network };
 	const_cast<uint8_t &> (keepalive.header.version_using) = nano::dev::network_params.network.protocol_version_min - 1;
-	channel->send (keepalive);
+	channel->send (keepalive, nano::transport::traffic_type::test);
 
 	ASSERT_TIMELY_EQ (5s, 1, node1.stats.count (nano::stat::type::error, nano::stat::detail::outdated_version));
 }

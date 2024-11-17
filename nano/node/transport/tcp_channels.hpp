@@ -41,17 +41,17 @@ public:
 	std::size_t size () const;
 	std::shared_ptr<nano::transport::tcp_channel> find_channel (nano::tcp_endpoint const &) const;
 	void random_fill (std::array<nano::endpoint, 8> &) const;
-	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t, uint8_t = 0, bool = false) const;
 	std::shared_ptr<nano::transport::tcp_channel> find_node_id (nano::account const &);
 	// Get the next peer for attempting a tcp connection
 	nano::tcp_endpoint bootstrap_peer ();
-	bool max_ip_connections (nano::tcp_endpoint const & endpoint_a);
-	bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
-	bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint_a);
+	bool max_ip_connections (nano::tcp_endpoint const & endpoint);
+	bool max_subnetwork_connections (nano::tcp_endpoint const & endpoint);
+	bool max_ip_or_subnetwork_connections (nano::tcp_endpoint const & endpoint);
 	// Should we reach out to this endpoint with a keepalive message? If yes, register a new reachout attempt
 	bool track_reachout (nano::endpoint const &);
 	void purge (std::chrono::steady_clock::time_point cutoff_deadline);
-	void list (std::deque<std::shared_ptr<nano::transport::channel>> &, uint8_t = 0, bool = true);
+	std::deque<std::shared_ptr<nano::transport::channel>> list (uint8_t minimum_version = 0) const;
+	std::unordered_set<std::shared_ptr<nano::transport::channel>> random_set (std::size_t max_count, uint8_t minimum_version = 0) const;
 	void keepalive ();
 	std::optional<nano::keepalive> sample_keepalive ();
 

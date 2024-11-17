@@ -30,10 +30,7 @@ public:
 	virtual ~channel () = default;
 
 	/// @returns true if the message was sent (or queued to be sent), false if it was immediately dropped
-	bool send (nano::message const &,
-	callback_t const & callback = nullptr,
-	nano::transport::buffer_drop_policy policy = nano::transport::buffer_drop_policy::limiter,
-	nano::transport::traffic_type = nano::transport::traffic_type::generic);
+	bool send (nano::message const &, nano::transport::traffic_type, callback_t = nullptr);
 
 	virtual void close () = 0;
 
@@ -43,7 +40,7 @@ public:
 	virtual std::string to_string () const = 0;
 	virtual nano::transport::transport_type get_type () const = 0;
 
-	virtual bool max (nano::transport::traffic_type = nano::transport::traffic_type::generic)
+	virtual bool max (nano::transport::traffic_type)
 	{
 		return false;
 	}
@@ -123,11 +120,7 @@ public:
 	std::shared_ptr<nano::node> owner () const;
 
 protected:
-	virtual bool send_buffer (nano::shared_const_buffer const &,
-	callback_t const & callback = nullptr,
-	nano::transport::buffer_drop_policy = nano::transport::buffer_drop_policy::limiter,
-	nano::transport::traffic_type = nano::transport::traffic_type::generic)
-	= 0;
+	virtual bool send_buffer (nano::shared_const_buffer const &, nano::transport::traffic_type, callback_t) = 0;
 
 protected:
 	nano::node & node;

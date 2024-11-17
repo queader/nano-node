@@ -97,8 +97,7 @@ public:
 
 	void async_write (
 	nano::shared_const_buffer const &,
-	std::function<void (boost::system::error_code const &, std::size_t)> callback = {},
-	traffic_type = traffic_type::generic);
+	std::function<void (boost::system::error_code const &, std::size_t)> callback = nullptr);
 
 	boost::asio::ip::tcp::endpoint remote_endpoint () const;
 	boost::asio::ip::tcp::endpoint local_endpoint () const;
@@ -110,8 +109,8 @@ public:
 	std::chrono::seconds get_default_timeout_value () const;
 	void set_timeout (std::chrono::seconds);
 
-	bool max (nano::transport::traffic_type = traffic_type::generic) const;
-	bool full (nano::transport::traffic_type = traffic_type::generic) const;
+	bool max () const;
+	bool full () const;
 
 	nano::transport::socket_type type () const
 	{

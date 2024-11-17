@@ -17,16 +17,11 @@ nano::rate_limiter & nano::bandwidth_limiter::select_limiter (nano::transport::t
 {
 	switch (type)
 	{
-		case nano::transport::traffic_type::bootstrap:
+		case nano::transport::traffic_type::bootstrap_server:
 			return limiter_bootstrap;
-		case nano::transport::traffic_type::generic:
-			return limiter_generic;
-			break;
 		default:
-			debug_assert (false, "missing traffic type");
-			break;
+			return limiter_generic;
 	}
-	return limiter_generic;
 }
 
 bool nano::bandwidth_limiter::should_pass (std::size_t buffer_size, nano::transport::traffic_type type)

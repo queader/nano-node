@@ -7,13 +7,22 @@
 
 namespace nano::transport
 {
-/**
- * Used for message prioritization and bandwidth limits
- */
 enum class traffic_type
 {
 	generic,
-	bootstrap, // Ascending bootstrap (asc_pull_ack, asc_pull_req) traffic
+	bootstrap_server,
+	bootstrap_requests,
+	block_broadcast,
+	block_broadcast_initial,
+	block_broadcast_rpc,
+	confirmation_requests,
+	keepalive,
+	vote,
+	vote_rebroadcast,
+	vote_reply,
+	rep_crawler,
+	telemetry,
+	test,
 };
 
 std::string_view to_string (traffic_type);

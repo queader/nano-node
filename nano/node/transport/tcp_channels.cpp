@@ -151,7 +151,7 @@ std::shared_ptr<nano::transport::tcp_channel> nano::transport::tcp_channels::fin
 	return result;
 }
 
-std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::transport::tcp_channels::random_set (std::size_t count_a, uint8_t min_version, bool include_temporary_channels_a) const
+std::unordered_set<std::shared_ptr<nano::transport::channel>> nano::transport::tcp_channels::random_set (std::size_t count_a, uint8_t min_version) const
 {
 	std::unordered_set<std::shared_ptr<nano::transport::channel>> result;
 	result.reserve (count_a);
@@ -378,7 +378,7 @@ void nano::transport::tcp_channels::keepalive ()
 
 	for (auto & channel : to_wakeup)
 	{
-		channel->send (message);
+		channel->send (message, nano::transport::traffic_type::keepalive);
 	}
 }
 
@@ -402,14 +402,19 @@ std::optional<nano::keepalive> nano::transport::tcp_channels::sample_keepalive (
 	return std::nullopt;
 }
 
-void nano::transport::tcp_channels::list (std::deque<std::shared_ptr<nano::transport::channel>> & deque_a, uint8_t minimum_version_a, bool include_temporary_channels_a)
+std::deque<std::shared_ptr<nano::transport::channel>> nano::transport::tcp_channels::list (uint8_t minimum_version) const
 {
 	nano::lock_guard<nano::mutex> lock{ mutex };
-	// clang-format off
-	nano::transform_if (channels.get<random_access_tag> ().begin (), channels.get<random_access_tag> ().end (), std::back_inserter (deque_a),
-		[include_temporary_channels_a, minimum_version_a](auto & channel_a) { return channel_a.channel->get_network_version () >= minimum_version_a; },
-		[](auto const & channel) { return channel.channel; });
-	// clang-format on
+
+	std::deque<std::shared_ptr<nano::transport::channel>> result;
+	for (auto const & entry : channels)
+	{
+		if (entry.channel->get_network_version () >= minimum_version)
+		{
+			result.push_back (entry.channel);
+		}
+	}
+	return result;
 }
 
 bool nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint)
