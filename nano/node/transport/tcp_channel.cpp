@@ -152,12 +152,13 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 	node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::send, nano::stat::dir::out);
 	node.stats.inc (nano::stat::type::tcp_channel_send, to_stat_detail (type), nano::stat::dir::out);
 
-	socket->async_write (buffer, [this_w = weak_from_this (), callback] (boost::system::error_code const & ec, std::size_t size) {
+	socket->async_write (buffer, [this_w = weak_from_this (), callback, type] (boost::system::error_code const & ec, std::size_t size) {
 		if (auto this_l = this_w.lock ())
 		{
 			this_l->node.stats.inc (nano::stat::type::tcp_channel_error, nano::to_stat_detail (ec), nano::stat::dir::out);
 			if (!ec)
 			{
+				this_l->node.stats.add (nano::stat::type::traffic_tcp_type, to_stat_detail (type), nano::stat::dir::out, size);
 				this_l->set_last_packet_sent (std::chrono::steady_clock::now ());
 			}
 		}
