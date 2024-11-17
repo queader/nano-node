@@ -296,7 +296,14 @@ auto nano::transport::tcp_channel_queue::next_batch (size_t max_count) -> batch_
 
 size_t nano::transport::tcp_channel_queue::priority (traffic_type type) const
 {
-	return 1;
+	switch (type)
+	{
+		case traffic_type::block_broadcast:
+		case traffic_type::vote_rebroadcast:
+			return 1;
+		default:
+			return 4;
+	}
 }
 
 void nano::transport::tcp_channel_queue::seek_next ()
