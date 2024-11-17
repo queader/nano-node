@@ -41,7 +41,7 @@ enum class name
 	telemetry,
 	bootstrap,
 	bootstrap_database_scan,
-	bootstrap_dependendy_walker,
+	bootstrap_dependency_walker,
 	bootstrap_frontier_scan,
 	bootstrap_cleanup,
 	bootstrap_worker,

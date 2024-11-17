@@ -23,14 +23,23 @@ namespace bootstrap
 		peer_scoring (bootstrap_config const &, nano::network_constants const &);
 
 		// Returns true if channel limit has been exceeded
-		bool try_send_message (std::shared_ptr<nano::transport::channel> channel);
-		void received_message (std::shared_ptr<nano::transport::channel> channel);
+		bool limit_exceeded (std::shared_ptr<nano::transport::channel> const & channel) const;
+		bool try_send_message (std::shared_ptr<nano::transport::channel> const & channel);
+		void received_message (std::shared_ptr<nano::transport::channel> const & channel);
+
 		std::shared_ptr<nano::transport::channel> channel ();
-		[[nodiscard]] std::size_t size () const;
+
+		// Synchronize channels with the network, passed channels should be shuffled
+		void sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list);
+
 		// Cleans up scores for closed channels
 		// Decays scores which become inaccurate over time due to message drops
 		void timeout ();
-		void sync (std::deque<std::shared_ptr<nano::transport::channel>> const & list);
+
+		std::size_t size () const;
+		std::size_t available () const;
+
+		nano::container_info container_info () const;
 
 	private:
 		bootstrap_config const & config;
@@ -71,14 +80,16 @@ namespace bootstrap
 		// Indexes scores by the number of outstanding requests in ascending order
 		class tag_outstanding {};
 
-		using scoring_t = boost::multi_index_container<peer_score,
+		using ordered_scoring = boost::multi_index_container<peer_score,
 		mi::indexed_by<
 			mi::hashed_unique<mi::tag<tag_channel>,
 				mi::member<peer_score, nano::transport::channel *, &peer_score::channel_ptr>>,
 			mi::ordered_non_unique<mi::tag<tag_outstanding>,
 				mi::member<peer_score, uint64_t, &peer_score::outstanding>>>>;
 		// clang-format on
-		scoring_t scoring;
+		ordered_scoring scoring;
+
+		std::deque<std::shared_ptr<nano::transport::channel>> channels;
 	};
 }
 }

@@ -24,6 +24,14 @@ namespace bootstrap
 	/** This class tracks accounts various account sets which are shared among the multiple bootstrap threads */
 	class account_sets
 	{
+	public: // Constants
+		static double constexpr priority_initial = 2.0;
+		static double constexpr priority_increase = 2.0;
+		static double constexpr priority_divide = 2.0;
+		static double constexpr priority_max = 128.0;
+		static double constexpr priority_cutoff = 0.15;
+		static unsigned constexpr max_fails = 3;
+
 	public:
 		account_sets (account_sets_config const &, nano::stats &);
 
@@ -38,7 +46,7 @@ namespace bootstrap
 		 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
 		 */
 		void priority_down (nano::account const & account);
-		void priority_set (nano::account const & account);
+		void priority_set (nano::account const & account, double priority = priority_initial);
 
 		void block (nano::account const & account, nano::block_hash const & dependency);
 		void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
@@ -86,27 +94,17 @@ namespace bootstrap
 		{
 			nano::account account;
 			double priority;
-
-			id_t id{ generate_id () }; // Uniformly distributed, used for random querying
+			unsigned fails{ 0 };
 			std::chrono::steady_clock::time_point timestamp{};
+			id_t id{ generate_id () }; // Uniformly distributed, used for random querying
 		};
 
 		struct blocking_entry
 		{
-			priority_entry original_entry;
+			nano::account account;
 			nano::block_hash dependency;
 			nano::account dependency_account{ 0 };
-
 			id_t id{ generate_id () }; // Uniformly distributed, used for random querying
-
-			nano::account account () const
-			{
-				return original_entry.account;
-			}
-			double priority () const
-			{
-				return original_entry.priority;
-			}
 		};
 
 		// clang-format off
@@ -135,7 +133,7 @@ namespace bootstrap
 		mi::indexed_by<
 			mi::sequenced<mi::tag<tag_sequenced>>,
 			mi::ordered_unique<mi::tag<tag_account>,
-				mi::const_mem_fun<blocking_entry, nano::account, &blocking_entry::account>>,
+				mi::member<blocking_entry, nano::account, &blocking_entry::account>>,
 			mi::ordered_non_unique<mi::tag<tag_dependency>,
 				mi::member<blocking_entry, nano::block_hash, &blocking_entry::dependency>>,
 			mi::ordered_non_unique<mi::tag<tag_dependency_account>,
@@ -147,13 +145,6 @@ namespace bootstrap
 
 		ordered_priorities priorities;
 		ordered_blocking blocking;
-
-	public: // Constants
-		static double constexpr priority_initial = 2.0;
-		static double constexpr priority_increase = 2.0;
-		static double constexpr priority_divide = 2.0;
-		static double constexpr priority_max = 128.0;
-		static double constexpr priority_cutoff = 0.15;
 
 	public:
 		using info_t = std::tuple<decltype (blocking), decltype (priorities)>; // <blocking, priorities>

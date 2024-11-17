@@ -76,7 +76,7 @@ public: // Tag
 		invalid,
 		priority,
 		database,
-		blocking,
+		dependencies,
 		frontiers,
 	};
 
@@ -104,9 +104,9 @@ private:
 	void run_database ();
 	void run_one_database (bool should_throttle);
 	void run_dependencies ();
-	void run_one_blocking ();
-	void run_one_frontier ();
+	void run_one_dependency ();
 	void run_frontiers ();
+	void run_one_frontier ();
 	void run_timeouts ();
 	void cleanup_and_sync ();
 
@@ -134,10 +134,10 @@ private:
 	bool request_frontiers (nano::account, std::shared_ptr<nano::transport::channel> const &, query_source);
 	bool send (std::shared_ptr<nano::transport::channel> const &, async_tag tag);
 
-	void process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
-	void process (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag);
-	void process (nano::empty_payload const & response, async_tag const & tag);
+	bool process (nano::asc_pull_ack::blocks_payload const & response, async_tag const & tag);
+	bool process (nano::asc_pull_ack::account_info_payload const & response, async_tag const & tag);
+	bool process (nano::asc_pull_ack::frontiers_payload const & response, async_tag const & tag);
+	bool process (nano::empty_payload const & response, async_tag const & tag);
 
 	void process_frontiers (std::deque<std::pair<nano::account, nano::block_hash>> const & frontiers);
 
@@ -194,6 +194,7 @@ private:
 	// Requests for accounts from database have much lower hitrate and could introduce strain on the network
 	// A separate (lower) limiter ensures that we always reserve resources for querying accounts from priority queue
 	nano::rate_limiter database_limiter;
+	// Rate limiter for frontier requests
 	nano::rate_limiter frontiers_limiter;
 
 	nano::interval sync_dependencies_interval;
@@ -205,7 +206,7 @@ private:
 	std::thread database_thread;
 	std::thread dependencies_thread;
 	std::thread frontiers_thread;
-	std::thread timeout_thread;
+	std::thread cleanup_thread;
 
 	nano::thread_pool workers;
 	nano::random_generator_mt rng;
