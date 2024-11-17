@@ -67,10 +67,10 @@ class tcp_socket final : public std::enable_shared_from_this<tcp_socket>
 	friend class tcp_listener;
 
 public:
-	static std::size_t constexpr default_max_queue_size = 128;
+	static size_t constexpr queue_size = 16;
 
 public:
-	explicit tcp_socket (nano::node &, nano::transport::socket_endpoint = socket_endpoint::client, std::size_t max_queue_size = default_max_queue_size);
+	explicit tcp_socket (nano::node &, nano::transport::socket_endpoint = socket_endpoint::client);
 
 	// TODO: Accepting remote/local endpoints as a parameter is unnecessary, but is needed for now to keep compatibility with the legacy code
 	tcp_socket (
@@ -78,8 +78,7 @@ public:
 	boost::asio::ip::tcp::socket,
 	boost::asio::ip::tcp::endpoint remote_endpoint,
 	boost::asio::ip::tcp::endpoint local_endpoint,
-	nano::transport::socket_endpoint = socket_endpoint::server,
-	std::size_t max_queue_size = default_max_queue_size);
+	nano::transport::socket_endpoint = socket_endpoint::server);
 
 	~tcp_socket ();
 
@@ -198,9 +197,6 @@ protected:
 private:
 	socket_endpoint const endpoint_type_m;
 	std::atomic<socket_type> type_m{ socket_type::undefined };
-
-public:
-	std::size_t const max_queue_size;
 
 public: // Logging
 	virtual void operator() (nano::object_stream &) const;

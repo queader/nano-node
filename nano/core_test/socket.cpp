@@ -360,10 +360,10 @@ TEST (socket, drop_policy)
 
 	// We're going to write twice the queue size + 1, and the server isn't reading
 	// The total number of drops should thus be 1 (the socket allows doubling the queue size for no_socket_drop)
-	func (nano::transport::tcp_socket::default_max_queue_size * 2 + 1);
+	func (nano::transport::tcp_socket::queue_size * 2 + 1);
 	ASSERT_EQ (1, failed_writes);
 
-	func (nano::transport::tcp_socket::default_max_queue_size + 1);
+	func (nano::transport::tcp_socket::queue_size + 1);
 	ASSERT_EQ (0, failed_writes);
 }
 
@@ -585,7 +585,7 @@ TEST (socket_timeout, write)
 	// create a client socket and send lots of data to fill the socket queue on the local and remote side
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
-	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client, 1024 * 64); // socket with a max queue size much larger than OS buffers
+	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client); // socket with a max queue size much larger than OS buffers
 	std::atomic<bool> done = false;
 	boost::system::error_code ec;
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
@@ -699,7 +699,7 @@ TEST (socket_timeout, write_overlapped)
 	// create a client socket and send lots of data to fill the socket queue on the local and remote side
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
-	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client, 1024 * 64); // socket with a max queue size much larger than OS buffers
+	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client); // socket with a max queue size much larger than OS buffers
 	std::atomic<bool> done = false;
 	boost::system::error_code ec;
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
