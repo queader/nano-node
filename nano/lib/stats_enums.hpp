@@ -35,6 +35,7 @@ enum class type
 	tcp_channel_send,
 	tcp_channel_drop,
 	tcp_channel_error,
+	tcp_channel_wait,
 	tcp_channels,
 	tcp_channels_rejected,
 	tcp_channels_purge,
@@ -348,6 +349,10 @@ enum class detail
 	connect_success,
 	attempt_timeout,
 	not_a_peer,
+
+	// tcp_channel
+	wait_socket,
+	wait_bandwidth,
 
 	// tcp_channels
 	channel_accepted,

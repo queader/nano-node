@@ -121,16 +121,38 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 	debug_assert (strand.running_in_this_thread ());
 
 	auto const & [buffer, callback] = item;
+	auto const size = buffer.size ();
 
-	co_await wait_socket (type);
-	co_await wait_bandwidth (type, buffer.size ());
+	// Wait for socket
+	while (socket->full ())
+	{
+		node.stats.inc (nano::stat::type::tcp_channel_wait, nano::stat::detail::wait_socket, nano::stat::dir::out);
+		co_await nano::async::sleep_for (100ms);
+	}
+
+	// Wait for bandwidth
+	// This is somewhat inefficient
+	// The performance impact *should* be mitigated by the fact that we allocate it in larger chunks, so this happens relatively infrequently
+	const size_t bandwidth_chunk = 128 * 1024; // TODO: Make this configurable
+	while (allocated_bandwidth < size)
+	{
+		// TODO: Consider implementing a subsribe/notification mechanism for bandwidth allocation
+		if (node.outbound_limiter.should_pass (bandwidth_chunk, type)) // Allocate bandwidth in larger chunks
+		{
+			allocated_bandwidth += bandwidth_chunk;
+		}
+		else
+		{
+			node.stats.inc (nano::stat::type::tcp_channel_wait, nano::stat::detail::wait_bandwidth, nano::stat::dir::out);
+			co_await nano::async::sleep_for (100ms);
+		}
+	}
+	allocated_bandwidth -= size;
 
 	node.stats.inc (nano::stat::type::tcp_channel, nano::stat::detail::send, nano::stat::dir::out);
 	node.stats.inc (nano::stat::type::tcp_channel_send, to_stat_detail (type), nano::stat::dir::out);
 
-	socket->async_write (
-	buffer,
-	[this_w = weak_from_this (), callback] (boost::system::error_code const & ec, std::size_t size) {
+	socket->async_write (buffer, [this_w = weak_from_this (), callback] (boost::system::error_code const & ec, std::size_t size) {
 		if (auto this_l = this_w.lock ())
 		{
 			this_l->node.stats.inc (nano::stat::type::tcp_channel_error, nano::to_stat_detail (ec), nano::stat::dir::out);
@@ -144,38 +166,6 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 			callback (ec, size);
 		}
 	});
-}
-
-asio::awaitable<void> nano::transport::tcp_channel::wait_bandwidth (nano::transport::traffic_type type, size_t size)
-{
-	debug_assert (strand.running_in_this_thread ());
-
-	auto allocate_bandwidth = [this] (auto type, auto size) -> asio::awaitable<size_t> {
-		// TODO: Consider implementing a subsribe/notification mechanism for bandwidth allocation
-		while (!node.outbound_limiter.should_pass (size, type))
-		{
-			co_await nano::async::sleep_for (100ms);
-		}
-		co_return size;
-	};
-
-	// This is somewhat inefficient
-	// The performance impact *should* be mitigated by the fact that we allocate it in larger chunks, so this happens relatively infrequently
-	const size_t bandwidth_chunk = 128 * 1024; // TODO: Make this configurable
-	while (allocated_bandwidth < size)
-	{
-		allocated_bandwidth += co_await allocate_bandwidth (type, bandwidth_chunk);
-	}
-	allocated_bandwidth -= size;
-}
-
-asio::awaitable<void> nano::transport::tcp_channel::wait_socket (nano::transport::traffic_type type)
-{
-	debug_assert (strand.running_in_this_thread ());
-	while (socket->full ())
-	{
-		co_await nano::async::sleep_for (100ms);
-	}
 }
 
 bool nano::transport::tcp_channel::alive () const
