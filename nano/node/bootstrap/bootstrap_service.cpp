@@ -153,6 +153,8 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 	{
 		nano::lock_guard<nano::mutex> lock{ mutex };
 		debug_assert (tags.get<tag_id> ().count (tag.id) == 0);
+		// Give extra time for the request to be processed by the channel
+		tag.cutoff = std::chrono::steady_clock::now () + config.request_timeout * 4;
 		tags.get<tag_id> ().insert (tag);
 	}
 
@@ -202,7 +204,25 @@ bool nano::bootstrap_service::send (std::shared_ptr<nano::transport::channel> co
 	stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request, nano::stat::dir::out);
 	stats.inc (nano::stat::type::bootstrap_request, to_stat_detail (tag.type));
 
-	return channel->send (request, nano::transport::traffic_type::bootstrap_requests);
+	return channel->send (request, nano::transport::traffic_type::bootstrap_requests, [this, id = tag.id] (auto const & ec, auto size) {
+		nano::lock_guard<nano::mutex> lock{ mutex };
+		if (auto it = tags.get<tag_id> ().find (id); it != tags.get<tag_id> ().end ())
+		{
+			if (!ec)
+			{
+				stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request_success, nano::stat::dir::out);
+				tags.get<tag_id> ().modify (it, [&] (auto & tag) {
+					// After the request has been sent, the peer has a limited time to respond
+					tag.cutoff = std::chrono::steady_clock::now () + config.request_timeout;
+				});
+			}
+			else
+			{
+				stats.inc (nano::stat::type::bootstrap, nano::stat::detail::request_failed, nano::stat::dir::out);
+				tags.get<tag_id> ().erase (it);
+			}
+		}
+	});
 }
 
 std::size_t nano::bootstrap_service::priority_size () const
@@ -669,9 +689,9 @@ void nano::bootstrap_service::cleanup_and_sync ()
 
 	throttle.resize (compute_throttle_size ());
 
-	auto const cutoff = std::chrono::steady_clock::now () - config.request_timeout;
-	auto should_timeout = [cutoff] (async_tag const & tag) {
-		return tag.timestamp < cutoff;
+	auto const now = std::chrono::steady_clock::now ();
+	auto should_timeout = [&] (async_tag const & tag) {
+		return tag.cutoff < now;
 	};
 
 	auto & tags_by_order = tags.get<tag_sequenced> ();
