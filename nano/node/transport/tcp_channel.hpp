@@ -76,7 +76,7 @@ private:
 	asio::awaitable<void> wait_socket (traffic_type);
 
 public:
-	std::weak_ptr<nano::transport::tcp_socket> socket;
+	std::shared_ptr<nano::transport::tcp_socket> socket;
 
 private:
 	nano::endpoint remote_endpoint;
