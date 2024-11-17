@@ -127,7 +127,7 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 	while (socket->full ())
 	{
 		node.stats.inc (nano::stat::type::tcp_channel_wait, nano::stat::detail::wait_socket, nano::stat::dir::out);
-		co_await nano::async::sleep_for (100ms);
+		co_await nano::async::sleep_for (100ms); // TODO: Exponential backoff
 	}
 
 	// Wait for bandwidth
@@ -144,7 +144,7 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 		else
 		{
 			node.stats.inc (nano::stat::type::tcp_channel_wait, nano::stat::detail::wait_bandwidth, nano::stat::dir::out);
-			co_await nano::async::sleep_for (100ms);
+			co_await nano::async::sleep_for (100ms); // TODO: Exponential backoff
 		}
 	}
 	allocated_bandwidth -= size;

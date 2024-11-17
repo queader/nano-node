@@ -18,13 +18,13 @@
  * socket
  */
 
-nano::transport::tcp_socket::tcp_socket (nano::node & node_a, nano::transport::socket_endpoint endpoint_type_a, std::size_t max_queue_size_a) :
-	tcp_socket{ node_a, boost::asio::ip::tcp::socket{ node_a.io_ctx }, {}, {}, endpoint_type_a, max_queue_size_a }
+nano::transport::tcp_socket::tcp_socket (nano::node & node_a, nano::transport::socket_endpoint endpoint_type_a) :
+	tcp_socket{ node_a, boost::asio::ip::tcp::socket{ node_a.io_ctx }, {}, {}, endpoint_type_a }
 {
 }
 
-nano::transport::tcp_socket::tcp_socket (nano::node & node_a, boost::asio::ip::tcp::socket raw_socket_a, boost::asio::ip::tcp::endpoint remote_endpoint_a, boost::asio::ip::tcp::endpoint local_endpoint_a, nano::transport::socket_endpoint endpoint_type_a, std::size_t max_queue_size_a) :
-	send_queue{ max_queue_size_a },
+nano::transport::tcp_socket::tcp_socket (nano::node & node_a, boost::asio::ip::tcp::socket raw_socket_a, boost::asio::ip::tcp::endpoint remote_endpoint_a, boost::asio::ip::tcp::endpoint local_endpoint_a, nano::transport::socket_endpoint endpoint_type_a) :
+	send_queue{ queue_size },
 	node_w{ node_a.shared () },
 	strand{ node_a.io_ctx.get_executor () },
 	raw_socket{ std::move (raw_socket_a) },
@@ -35,8 +35,7 @@ nano::transport::tcp_socket::tcp_socket (nano::node & node_a, boost::asio::ip::t
 	last_completion_time_or_init{ nano::seconds_since_epoch () },
 	last_receive_time_or_init{ nano::seconds_since_epoch () },
 	default_timeout{ node_a.config.tcp_io_timeout },
-	silent_connection_tolerance_time{ node_a.network_params.network.silent_connection_tolerance_time },
-	max_queue_size{ max_queue_size_a }
+	silent_connection_tolerance_time{ node_a.network_params.network.silent_connection_tolerance_time }
 {
 }
 
@@ -236,12 +235,12 @@ void nano::transport::tcp_socket::write_queued_messages ()
 
 bool nano::transport::tcp_socket::max () const
 {
-	return send_queue.size (traffic_type::generic) >= max_queue_size;
+	return send_queue.size (traffic_type::generic) >= queue_size;
 }
 
 bool nano::transport::tcp_socket::full () const
 {
-	return send_queue.size (traffic_type::generic) >= 2 * max_queue_size;
+	return send_queue.size (traffic_type::generic) >= 2 * queue_size;
 }
 
 /** Call set_timeout with default_timeout as parameter */
