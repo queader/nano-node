@@ -71,6 +71,7 @@ private:
 	void start ();
 	void stop ();
 
+	asio::awaitable<void> start_sending (nano::async::condition &);
 	asio::awaitable<void> run_sending (nano::async::condition &);
 	asio::awaitable<void> send_one (traffic_type, tcp_channel_queue::entry_t const &);
 
