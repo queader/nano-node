@@ -147,6 +147,7 @@ enum class detail
 	pending,
 	requeued,
 	evicted,
+	rate_limited,
 
 	// processing queue
 	queue,
