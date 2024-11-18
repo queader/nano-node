@@ -162,15 +162,15 @@ concept async_task = std::same_as<T, asio::awaitable<void>>;
 
 // Concept for callables that return an awaitable
 template <typename T>
-concept async_callable = requires (T t) {
+concept async_factory = requires (T t) {
 	{
 		t ()
 	} -> std::same_as<asio::awaitable<void>>;
 };
 
-// Concept for tasks that take a condition and return an awaitable
+// Concept for callables that take a condition and return an awaitable
 template <typename T>
-concept async_callable_with_condition = requires (T t, condition & c) {
+concept async_factory_with_condition = requires (T t, condition & c) {
 	{
 		t (c)
 	} -> std::same_as<asio::awaitable<void>>;
@@ -192,8 +192,7 @@ public:
 	{
 	}
 
-	template <typename Func>
-		requires async_task<Func> || async_callable<Func>
+	template <async_task Func>
 	task (nano::async::strand & strand, Func && func) :
 		strand{ strand },
 		cancellation{ strand }
@@ -204,7 +203,18 @@ public:
 		asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
 	}
 
-	template <async_callable_with_condition Func>
+	template <async_factory Func>
+	task (nano::async::strand & strand, Func && func) :
+		strand{ strand },
+		cancellation{ strand }
+	{
+		future = asio::co_spawn (
+		strand,
+		func (),
+		asio::bind_cancellation_slot (cancellation.slot (), asio::use_future));
+	}
+
+	template <async_factory_with_condition Func>
 	task (nano::async::strand & strand, Func && func) :
 		strand{ strand },
 		cancellation{ strand },
