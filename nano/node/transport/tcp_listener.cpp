@@ -66,40 +66,43 @@ void nano::transport::tcp_listener::start ()
 		throw;
 	}
 
-	task = nano::async::task (strand, [this] () -> asio::awaitable<void> {
-		try
-		{
-			logger.debug (nano::log::type::tcp_listener, "Starting acceptor");
-
-			try
-			{
-				co_await run ();
-			}
-			catch (boost::system::system_error const & ex)
-			{
-				// Operation aborted is expected when cancelling the acceptor
-				debug_assert (ex.code () == asio::error::operation_aborted);
-			}
-			debug_assert (strand.running_in_this_thread ());
-
-			logger.debug (nano::log::type::tcp_listener, "Stopped acceptor");
-		}
-		catch (std::exception const & ex)
-		{
-			logger.critical (nano::log::type::tcp_listener, "Error: {}", ex.what ());
-			release_assert (false); // Unexpected error
-		}
-		catch (...)
-		{
-			logger.critical (nano::log::type::tcp_listener, "Unknown error");
-			release_assert (false); // Unexpected error
-		}
-	});
+	task = nano::async::task (strand, start_impl ());
 
 	cleanup_thread = std::thread ([this] {
 		nano::thread_role::set (nano::thread_role::name::tcp_listener);
 		run_cleanup ();
 	});
+}
+
+asio::awaitable<void> nano::transport::tcp_listener::start_impl ()
+{
+	try
+	{
+		logger.debug (nano::log::type::tcp_listener, "Starting acceptor");
+
+		try
+		{
+			co_await run ();
+		}
+		catch (boost::system::system_error const & ex)
+		{
+			// Operation aborted is expected when cancelling the acceptor
+			debug_assert (ex.code () == asio::error::operation_aborted);
+		}
+		debug_assert (strand.running_in_this_thread ());
+
+		logger.debug (nano::log::type::tcp_listener, "Stopped acceptor");
+	}
+	catch (std::exception const & ex)
+	{
+		logger.critical (nano::log::type::tcp_listener, "Error: {}", ex.what ());
+		release_assert (false); // Unexpected error
+	}
+	catch (...)
+	{
+		logger.critical (nano::log::type::tcp_listener, "Unknown error");
+		release_assert (false); // Unexpected error
+	}
 }
 
 void nano::transport::tcp_listener::stop ()

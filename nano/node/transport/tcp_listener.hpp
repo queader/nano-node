@@ -95,6 +95,7 @@ private: // Dependencies
 	nano::logger & logger;
 
 private:
+	asio::awaitable<void> start_impl ();
 	asio::awaitable<void> run ();
 	asio::awaitable<void> wait_available_slots () const;
 
