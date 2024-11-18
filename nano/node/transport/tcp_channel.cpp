@@ -235,7 +235,7 @@ bool nano::transport::tcp_channel_queue::max (traffic_type type) const
 
 bool nano::transport::tcp_channel_queue::full (traffic_type type) const
 {
-	return size (type) >= max_size * 2;
+	return size (type) >= full_size;
 }
 
 void nano::transport::tcp_channel_queue::push (traffic_type type, entry_t entry)
