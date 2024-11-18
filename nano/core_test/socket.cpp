@@ -564,6 +564,9 @@ TEST (socket_timeout, read)
 
 TEST (socket_timeout, write)
 {
+	std::atomic<bool> done = false;
+	std::atomic<boost::system::error_code> ec;
+
 	// create one node and set timeout to 1 second
 	nano::test::system system (1);
 	std::shared_ptr<nano::node> node = system.nodes[0];
@@ -586,8 +589,7 @@ TEST (socket_timeout, write)
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client); // socket with a max queue size much larger than OS buffers
-	std::atomic<bool> done = false;
-	boost::system::error_code ec;
+
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
@@ -597,8 +599,8 @@ TEST (socket_timeout, write)
 			socket->async_write (nano::shared_const_buffer{ buffer }, [&ec, &done] (boost::system::error_code const & ec_a, size_t size_a) {
 				if (ec_a)
 				{
-					ec = ec_a;
 					done = true;
+					ec = ec_a;
 				}
 			});
 		}
@@ -606,7 +608,7 @@ TEST (socket_timeout, write)
 
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY_EQ (10s, done, true);
-	ASSERT_TRUE (ec);
+	ASSERT_TRUE (ec.load ());
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
 
 	// check that the socket was closed due to tcp_io_timeout timeout
@@ -673,6 +675,9 @@ TEST (socket_timeout, read_overlapped)
 
 TEST (socket_timeout, write_overlapped)
 {
+	std::atomic<bool> done = false;
+	std::atomic<boost::system::error_code> ec;
+
 	// create one node and set timeout to 1 second
 	nano::test::system system (1);
 	std::shared_ptr<nano::node> node = system.nodes[0];
@@ -700,8 +705,6 @@ TEST (socket_timeout, write_overlapped)
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client); // socket with a max queue size much larger than OS buffers
-	std::atomic<bool> done = false;
-	boost::system::error_code ec;
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
@@ -715,8 +718,8 @@ TEST (socket_timeout, write_overlapped)
 			socket->async_write (nano::shared_const_buffer{ buffer2 }, [&ec, &done] (boost::system::error_code const & ec_a, size_t size_a) {
 				if (ec_a)
 				{
-					ec = ec_a;
 					done = true;
+					ec = ec_a;
 				}
 			});
 		}
@@ -724,7 +727,7 @@ TEST (socket_timeout, write_overlapped)
 
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY_EQ (10s, done, true);
-	ASSERT_TRUE (ec);
+	ASSERT_TRUE (ec.load ());
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
 
 	// check that the socket was closed due to tcp_io_timeout timeout
