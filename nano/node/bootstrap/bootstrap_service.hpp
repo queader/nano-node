@@ -118,8 +118,8 @@ private:
 	/* Waits for a channel that is not full */
 	std::shared_ptr<nano::transport::channel> wait_channel ();
 	/* Waits until a suitable account outside of cool down period is available */
-	std::pair<nano::account, double> next_priority ();
-	std::pair<nano::account, double> wait_priority ();
+	nano::bootstrap::account_sets::priority_result next_priority ();
+	nano::bootstrap::account_sets::priority_result wait_priority ();
 	/* Gets the next account from the database */
 	nano::account next_database (bool should_throttle);
 	nano::account wait_database (bool should_throttle);
