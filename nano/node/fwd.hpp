@@ -29,6 +29,8 @@ class recently_cemented_cache;
 class recently_confirmed_cache;
 class rep_crawler;
 class rep_tiers;
+class telemetry;
+class unchecked_map;
 class stats;
 class vote_cache;
 enum class vote_code;

@@ -36,6 +36,11 @@ public:
 	/** Maximum number of dependent blocks to be stored in memory during processing */
 	size_t max_blocks{ 128 * 1024 };
 	size_t max_queued_notifications{ 8 };
+
+	/** Maximum number of failed blocks to wait for requeuing */
+	size_t max_deferred{ 16 * 1024 };
+	/** Max age of deferred blocks before they are dropped */
+	std::chrono::seconds deferred_age_cutoff{ 15min };
 };
 
 /**
@@ -47,7 +52,7 @@ class confirming_set final
 	friend class confirmation_height_pruned_source_Test;
 
 public:
-	confirming_set (confirming_set_config const &, nano::ledger &, nano::stats &, nano::logger &);
+	confirming_set (confirming_set_config const &, nano::ledger &, nano::block_processor &, nano::stats &, nano::logger &);
 	~confirming_set ();
 
 	void start ();
@@ -71,12 +76,14 @@ public: // Events
 
 	nano::observer_set<std::deque<context> const &> batch_cemented;
 	nano::observer_set<std::deque<nano::block_hash> const &> already_cemented;
+	nano::observer_set<nano::block_hash> cementing_failed;
 
 	nano::observer_set<std::shared_ptr<nano::block>> cemented_observers;
 
 private: // Dependencies
 	confirming_set_config const & config;
 	nano::ledger & ledger;
+	nano::block_processor & block_processor;
 	nano::stats & stats;
 	nano::logger & logger;
 
@@ -85,11 +92,13 @@ private:
 	{
 		nano::block_hash hash;
 		std::shared_ptr<nano::election> election;
+		std::chrono::steady_clock::time_point timestamp{ std::chrono::steady_clock::now () };
 	};
 
 	void run ();
 	void run_batch (std::unique_lock<std::mutex> &);
 	std::deque<entry> next_batch (size_t max_count);
+	void cleanup (std::unique_lock<std::mutex> &);
 
 private:
 	// clang-format off
@@ -104,7 +113,11 @@ private:
 	>>;
 	// clang-format on
 
+	// Blocks that are ready to be cemented
 	ordered_entries set;
+	// Blocks that could not be cemented immediately (e.g. waiting for rollbacks to complete)
+	ordered_entries deferred;
+	// Blocks that are being cemented in the current batch
 	std::unordered_set<nano::block_hash> current;
 
 	std::atomic<bool> stopped{ false };
