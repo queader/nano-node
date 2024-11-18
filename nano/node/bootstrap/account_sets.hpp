@@ -63,10 +63,17 @@ namespace bootstrap
 		 */
 		void sync_dependencies ();
 
+		struct priority_result
+		{
+			nano::account account;
+			double priority;
+			unsigned fails;
+		};
+
 		/**
 		 * Sampling
 		 */
-		nano::account next_priority (std::function<bool (nano::account const &)> const & filter);
+		priority_result next_priority (std::function<bool (nano::account const &)> const & filter);
 		nano::block_hash next_blocking (std::function<bool (nano::block_hash const &)> const & filter);
 
 		bool blocked (nano::account const & account) const;

@@ -220,7 +220,7 @@ void nano::bootstrap::account_sets::trim_overflow ()
 	}
 }
 
-nano::account nano::bootstrap::account_sets::next_priority (std::function<bool (nano::account const &)> const & filter)
+auto nano::bootstrap::account_sets::next_priority (std::function<bool (nano::account const &)> const & filter) -> priority_result
 {
 	if (priorities.empty ())
 	{
@@ -239,10 +239,14 @@ nano::account nano::bootstrap::account_sets::next_priority (std::function<bool (
 		{
 			continue;
 		}
-		return entry.account;
+		return {
+			.account = entry.account,
+			.priority = entry.priority,
+			.fails = entry.fails
+		};
 	}
 
-	return { 0 };
+	return {};
 }
 
 nano::block_hash nano::bootstrap::account_sets::next_blocking (std::function<bool (nano::block_hash const &)> const & filter)
