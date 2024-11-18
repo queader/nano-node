@@ -25,7 +25,7 @@ nano::transport::tcp_channel::tcp_channel (nano::node & node_a, std::shared_ptr<
 nano::transport::tcp_channel::~tcp_channel ()
 {
 	close ();
-	debug_assert (!sending_task.joinable ());
+	release_assert (!sending_task.joinable ());
 }
 
 void nano::transport::tcp_channel::close ()
@@ -37,18 +37,24 @@ void nano::transport::tcp_channel::close ()
 
 void nano::transport::tcp_channel::start ()
 {
-	sending_task = nano::async::task (strand, [this] (nano::async::condition & condition) -> asio::awaitable<void> {
-		try
-		{
-			co_await run_sending (condition);
-		}
-		catch (boost::system::system_error const & ex)
-		{
-			// Operation aborted is expected when cancelling the acceptor
-			debug_assert (ex.code () == asio::error::operation_aborted);
-		}
-		debug_assert (strand.running_in_this_thread ());
+	sending_task = nano::async::task (strand, [this] (nano::async::condition & condition) {
+		return start_sending (condition); // This is not a coroutine, but a corotuine factory
 	});
+}
+
+asio::awaitable<void> nano::transport::tcp_channel::start_sending (nano::async::condition & condition)
+{
+	debug_assert (strand.running_in_this_thread ());
+	try
+	{
+		co_await run_sending (condition);
+	}
+	catch (boost::system::system_error const & ex)
+	{
+		// Operation aborted is expected when cancelling the acceptor
+		debug_assert (ex.code () == asio::error::operation_aborted);
+	}
+	debug_assert (strand.running_in_this_thread ());
 }
 
 void nano::transport::tcp_channel::stop ()
