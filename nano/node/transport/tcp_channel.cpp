@@ -51,8 +51,7 @@ asio::awaitable<void> nano::transport::tcp_channel::start_sending (nano::async::
 	}
 	catch (boost::system::system_error const & ex)
 	{
-		// Operation aborted is expected when cancelling the acceptor
-		debug_assert (ex.code () == asio::error::operation_aborted);
+		debug_assert (!socket->alive ());
 	}
 	catch (...)
 	{
@@ -174,6 +173,8 @@ asio::awaitable<void> nano::transport::tcp_channel::send_one (traffic_type type,
 	{
 		callback (ec, size_written);
 	}
+
+	throw_if_error (ec);
 }
 
 bool nano::transport::tcp_channel::alive () const

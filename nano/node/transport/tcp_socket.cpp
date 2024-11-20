@@ -51,30 +51,55 @@ nano::transport::tcp_socket::~tcp_socket ()
 
 void nano::transport::tcp_socket::close ()
 {
+	stop ();
+	close_blocking ();
+}
+
+void nano::transport::tcp_socket::close_async ()
+{
+	// Node context must be running to gracefully stop async tasks
+	debug_assert (!node.io_ctx.stopped ());
+
+	if (closing.exchange (true)) // Avoid closing the socket multiple times
+	{
+		return;
+	}
+
+	asio::post (strand, [this, /* lifetime guard */ this_s = shared_from_this ()] () {
+		close_impl ();
+	});
+}
+
+void nano::transport::tcp_socket::close_blocking ()
+{
+	if (closed) // Avoid closing the socket multiple times
+	{
+		return;
+	}
+
 	// Node context must be running to gracefully stop async tasks
 	debug_assert (!node.io_ctx.stopped ());
 	// Ensure that we are not trying to await the task while running on the same thread / io_context
 	debug_assert (!node.io_ctx.get_executor ().running_in_this_thread ());
 
-	stop ();
-
 	// Dispatch close raw socket to the strand, wait synchronously for the operation to complete
-	auto fut = asio::post (strand, asio::use_future ([this] () {
-		close_raw ();
+	auto fut = asio::dispatch (strand, asio::use_future ([this] () {
+		close_impl ();
 	}));
-	fut.wait ();
+	fut.wait (); // Blocking call
 }
 
-void nano::transport::tcp_socket::close_raw ()
+void nano::transport::tcp_socket::close_impl ()
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	if (closed.exchange (true)) // Avoid closing the socket multiple times
+	if (closed) // Avoid closing the socket multiple times
 	{
 		return;
 	}
 
 	boost::system::error_code ec;
+	raw_socket.shutdown (asio::ip::tcp::socket::shutdown_both, ec); // Best effort, ignore errors
 	raw_socket.close (ec); // Best effort, ignore errors
 	if (!ec)
 	{
@@ -86,7 +111,19 @@ void nano::transport::tcp_socket::close_raw ()
 		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::close_error);
 		node.logger.error (nano::log::type::tcp_socket, "Closed socket, ungracefully: {} ({})", fmt::streamed (remote_endpoint), ec);
 	}
+
+	closed = true;
 }
+
+// void nano::transport::tcp_socket::join ()
+// {
+// 	// Node context must be running to gracefully stop async tasks
+// 	debug_assert (!node.io_ctx.stopped ());
+// 	// Ensure that we are not trying to await the task while running on the same thread / io_context
+// 	debug_assert (!node.io_ctx.get_executor ().running_in_this_thread ());
+//
+// 	stop ();
+// }
 
 void nano::transport::tcp_socket::start ()
 {
@@ -110,7 +147,12 @@ void nano::transport::tcp_socket::stop ()
 
 bool nano::transport::tcp_socket::alive () const
 {
-	return !closed;
+	return !closed && !closing;
+}
+
+bool nano::transport::tcp_socket::has_connected () const
+{
+	return connected;
 }
 
 bool nano::transport::tcp_socket::has_timed_out () const
@@ -133,12 +175,12 @@ asio::awaitable<void> nano::transport::tcp_socket::ongoing_checkup ()
 				fmt::streamed (remote_endpoint),
 				timed_out.load ());
 
-				close_raw ();
-				debug_assert (closed);
-
-				break;
+				close_impl ();
 			}
-			co_await nano::async::sleep_for (node.network_params.network.is_dev_network () ? 1s : 5s);
+			else
+			{
+				co_await nano::async::sleep_for (node.network_params.network.is_dev_network () ? 1s : 5s);
+			}
 		}
 	}
 	catch (boost::system::system_error const & ex)
@@ -221,7 +263,7 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 		node.logger.debug (nano::log::type::tcp_socket, "Failed to connect to: {} ({})", fmt::streamed (endpoint), ec);
 
 		error = true;
-		close_raw ();
+		close_impl ();
 	}
 	co_return result;
 }
@@ -264,7 +306,7 @@ auto nano::transport::tcp_socket::co_read_impl (nano::shared_buffer buffer, size
 		node.logger.debug (nano::log::type::tcp_socket, "Error reading from: {} ({})", fmt::streamed (remote_endpoint), ec);
 
 		error = true;
-		close_raw ();
+		close_impl ();
 	}
 	co_return result;
 }
@@ -305,7 +347,7 @@ auto nano::transport::tcp_socket::co_write_impl (nano::shared_buffer buffer, siz
 		node.logger.debug (nano::log::type::tcp_socket, "Error writing to: {} ({})", fmt::streamed (remote_endpoint), ec);
 
 		error = true;
-		close_raw ();
+		close_impl ();
 	}
 	co_return result;
 }

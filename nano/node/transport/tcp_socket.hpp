@@ -36,6 +36,7 @@ public:
 	~tcp_socket ();
 
 	void close ();
+	void close_async ();
 
 	nano::endpoint get_remote_endpoint () const;
 	nano::endpoint get_local_endpoint () const;
@@ -91,7 +92,8 @@ private:
 	void start ();
 	void stop ();
 
-	void close_raw ();
+	void close_impl ();
+	void close_blocking ();
 
 	asio::awaitable<void> ongoing_checkup ();
 	bool checkup ();
@@ -110,6 +112,7 @@ private:
 	nano::endpoint local_endpoint;
 
 	std::atomic<bool> connected{ false };
+	std::atomic<bool> closing{ false };
 	std::atomic<bool> closed{ false };
 	std::atomic<bool> error{ false };
 	std::atomic<bool> timed_out{ false };

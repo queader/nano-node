@@ -62,7 +62,7 @@ void nano::transport::tcp_server::stop ()
 {
 	if (!stopped.exchange (true))
 	{
-		socket->close ();
+		socket->close_async ();
 	}
 }
 
@@ -553,7 +553,7 @@ void nano::transport::tcp_server::timeout ()
 	{
 		node->logger.debug (nano::log::type::tcp_server, "Closing TCP server due to timeout ({})", fmt::streamed (remote_endpoint));
 
-		socket->close ();
+		socket->close_async ();
 	}
 }
 
