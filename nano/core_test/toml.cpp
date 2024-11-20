@@ -306,7 +306,6 @@ TEST (toml_config, daemon_config_deserialize_defaults)
 	ASSERT_EQ (conf.node.receive_minimum, defaults.node.receive_minimum);
 	ASSERT_EQ (conf.node.signature_checker_threads, defaults.node.signature_checker_threads);
 	ASSERT_EQ (conf.node.tcp_incoming_connections_max, defaults.node.tcp_incoming_connections_max);
-	ASSERT_EQ (conf.node.tcp_io_timeout, defaults.node.tcp_io_timeout);
 	ASSERT_EQ (conf.node.unchecked_cutoff_time, defaults.node.unchecked_cutoff_time);
 	ASSERT_EQ (conf.node.use_memory_pools, defaults.node.use_memory_pools);
 	ASSERT_EQ (conf.node.vote_generator_delay, defaults.node.vote_generator_delay);
@@ -711,7 +710,6 @@ TEST (toml_config, daemon_config_deserialize_no_defaults)
 	ASSERT_NE (conf.node.receive_minimum, defaults.node.receive_minimum);
 	ASSERT_NE (conf.node.signature_checker_threads, defaults.node.signature_checker_threads);
 	ASSERT_NE (conf.node.tcp_incoming_connections_max, defaults.node.tcp_incoming_connections_max);
-	ASSERT_NE (conf.node.tcp_io_timeout, defaults.node.tcp_io_timeout);
 	ASSERT_NE (conf.node.unchecked_cutoff_time, defaults.node.unchecked_cutoff_time);
 	ASSERT_NE (conf.node.use_memory_pools, defaults.node.use_memory_pools);
 	ASSERT_NE (conf.node.vote_generator_delay, defaults.node.vote_generator_delay);
