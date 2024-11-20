@@ -122,7 +122,7 @@ TEST (account_sets, priority_up_down)
 	sets.priority_up (account);
 	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
 	sets.priority_down (account);
-	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
+	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial / nano::bootstrap::account_sets::priority_divide);
 }
 
 TEST (account_sets, priority_down_empty)
