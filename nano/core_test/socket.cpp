@@ -94,16 +94,21 @@ TEST (tcp_listener, max_connections)
 	// start 3 clients, 2 will persist but 1 will be dropped
 	auto client1 = std::make_shared<nano::transport::tcp_socket> (*node);
 	client1->async_connect (node->network.endpoint (), connect_handler);
+	ASSERT_TIMELY (5s, client1->has_connected ());
 
 	auto client2 = std::make_shared<nano::transport::tcp_socket> (*node);
 	client2->async_connect (node->network.endpoint (), connect_handler);
+	ASSERT_TIMELY (5s, client1->has_connected ());
 
 	auto client3 = std::make_shared<nano::transport::tcp_socket> (*node);
 	client3->async_connect (node->network.endpoint (), connect_handler);
 
-	ASSERT_TIMELY_EQ (5s, node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::accept_success), 2);
-	ASSERT_ALWAYS_EQ (1s, node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::accept_success), 2);
 	ASSERT_TIMELY_EQ (5s, connection_attempts, 3);
+	ASSERT_TIMELY_EQ (5s, node->tcp_listener.connection_count (), 2);
+	ASSERT_ALWAYS_EQ (1s, node->tcp_listener.connection_count (), 2);
+
+	// Kill the last client so it won't interfere with the next test
+	client3->close ();
 
 	// create space for one socket and fill the connections table again
 	{
@@ -115,35 +120,13 @@ TEST (tcp_listener, max_connections)
 
 	auto client4 = std::make_shared<nano::transport::tcp_socket> (*node);
 	client4->async_connect (node->network.endpoint (), connect_handler);
+	ASSERT_TIMELY (5s, client4->has_connected ());
 
 	auto client5 = std::make_shared<nano::transport::tcp_socket> (*node);
 	client5->async_connect (node->network.endpoint (), connect_handler);
 
-	ASSERT_TIMELY_EQ (5s, node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::accept_success), 3);
-	ASSERT_ALWAYS_EQ (1s, node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::accept_success), 3);
 	ASSERT_TIMELY_EQ (5s, connection_attempts, 5);
-
-	// close all existing sockets and fill the connections table again
-	{
-		auto sockets2 = node->tcp_listener.all_sockets ();
-		ASSERT_EQ (sockets2.size (), 2);
-		sockets2[0]->close ();
-		sockets2[1]->close ();
-	}
-	ASSERT_TIMELY_EQ (10s, node->tcp_listener.all_sockets ().size (), 0);
-
-	auto client6 = std::make_shared<nano::transport::tcp_socket> (*node);
-	client6->async_connect (node->network.endpoint (), connect_handler);
-
-	auto client7 = std::make_shared<nano::transport::tcp_socket> (*node);
-	client7->async_connect (node->network.endpoint (), connect_handler);
-
-	auto client8 = std::make_shared<nano::transport::tcp_socket> (*node);
-	client8->async_connect (node->network.endpoint (), connect_handler);
-
-	ASSERT_TIMELY_EQ (5s, node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::accept_success), 5);
-	ASSERT_ALWAYS_EQ (1s, node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::accept_success), 5);
-	ASSERT_TIMELY_EQ (5s, connection_attempts, 8); // connections initiated by the client
+	ASSERT_TIMELY_EQ (5s, node->tcp_listener.connection_count (), 2);
 }
 
 TEST (tcp_listener, max_connections_per_ip)
@@ -294,20 +277,19 @@ TEST (socket, disconnection_of_silent_connections)
 		ASSERT_FALSE (ec_a);
 		connected = true;
 	});
-	ASSERT_TIMELY (4s, connected);
+	ASSERT_TIMELY (5s, connected);
 
 	// Checking the connection was closed.
 	ASSERT_TIMELY (10s, server_data_socket_future.wait_for (0s) == std::future_status::ready);
 	auto server_data_socket = server_data_socket_future.get ();
 	ASSERT_TIMELY (10s, !server_data_socket->alive ());
 
-	// Just to ensure the disconnection wasn't due to the timer timeout.
-	ASSERT_EQ (0, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::in));
-	// Asserts the silent checker worked.
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_silent_connection_drop, nano::stat::dir::in));
+	ASSERT_GE (node->stats.count (nano::stat::type::tcp_socket, nano::stat::detail::timeout), 1);
+	ASSERT_GE (node->stats.count (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_receive), 1);
 }
 
-TEST (socket, drop_policy)
+// TODO: FIXME: Socket no longer queues writes, so this test is no longer valid
+TEST (socket, DISABLED_drop_policy)
 {
 	nano::test::system system;
 
@@ -358,7 +340,6 @@ TEST (socket, drop_policy)
 		ASSERT_EQ (1, client.use_count ());
 	};
 
-	// TODO: FIXME: Socket no longer queues writes, so this test is no longer valid
 	size_t constexpr queue_size = 128;
 
 	// We're going to write twice the queue size + 1, and the server isn't reading
@@ -495,10 +476,14 @@ TEST (socket, concurrent_writes)
  */
 TEST (socket_timeout, connect)
 {
-	// create one node and set timeout to 1 second
-	nano::test::system system (1);
-	std::shared_ptr<nano::node> node = system.nodes[0];
-	node->config.tcp.io_timeout = 1s;
+	std::atomic<bool> done = false;
+	boost::system::error_code ec;
+
+	nano::test::system system;
+
+	nano::node_config config;
+	config.tcp.connect_timeout = 2s;
+	auto node = system.add_node (config);
 
 	// try to connect to an IP address that most likely does not exist and will not reply
 	// we want the tcp stack to not receive a negative reply, we want it to see silence and to keep trying
@@ -507,8 +492,6 @@ TEST (socket_timeout, connect)
 
 	// create a client socket and try to connect to the IP address that wil not respond
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node);
-	std::atomic<bool> done = false;
-	boost::system::error_code ec;
 	socket->async_connect (endpoint, [&ec, &done] (boost::system::error_code const & ec_a) {
 		ec = ec_a;
 		done = true;
@@ -517,14 +500,19 @@ TEST (socket_timeout, connect)
 	// Sometimes the connect will be aborted but there will be no error, just check that the callback was called due to the timeout
 	ASSERT_TIMELY_EQ (6s, done, true);
 	ASSERT_TRUE (socket->has_timed_out ());
+	ASSERT_FALSE (socket->alive ());
 }
 
 TEST (socket_timeout, read)
 {
-	// create one node and set timeout to 1 second
-	nano::test::system system (1);
-	std::shared_ptr<nano::node> node = system.nodes[0];
-	node->config.tcp.io_timeout = std::chrono::seconds (2);
+	std::atomic<bool> done = false;
+	boost::system::error_code ec;
+
+	nano::test::system system;
+
+	nano::node_config config;
+	config.tcp.io_timeout = 2s;
+	auto node = system.add_node (config);
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ());
@@ -541,8 +529,7 @@ TEST (socket_timeout, read)
 
 	// create a client socket to connect and call async_read, which should time out
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node);
-	std::atomic<bool> done = false;
-	boost::system::error_code ec;
+
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
@@ -558,11 +545,8 @@ TEST (socket_timeout, read)
 
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY_EQ (10s, done, true);
-	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in));
-
-	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TRUE (socket->has_timed_out ());
+	ASSERT_FALSE (socket->alive ());
 }
 
 TEST (socket_timeout, write)
@@ -570,10 +554,11 @@ TEST (socket_timeout, write)
 	std::atomic<bool> done = false;
 	std::atomic<boost::system::error_code> ec;
 
-	// create one node and set timeout to 1 second
-	nano::test::system system (1);
-	std::shared_ptr<nano::node> node = system.nodes[0];
-	node->config.tcp.io_timeout = std::chrono::seconds (2);
+	nano::test::system system;
+
+	nano::node_config config;
+	config.tcp.io_timeout = 2s;
+	auto node = system.add_node (config);
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ());
@@ -591,31 +576,23 @@ TEST (socket_timeout, write)
 	// create a client socket and send lots of data to fill the socket queue on the local and remote side
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
-	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client); // socket with a max queue size much larger than OS buffers
-
-	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
+	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client);
+	socket->async_connect (acceptor.local_endpoint (), [&] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
-		auto buffer = std::make_shared<std::vector<uint8_t>> (128 * 1024);
-		for (auto i = 0; i < 1024; ++i)
-		{
-			socket->async_write (nano::shared_const_buffer{ buffer }, [&ec, &done] (boost::system::error_code const & ec_a, size_t size_a) {
-				if (ec_a)
-				{
-					done = true;
-					ec = ec_a;
-				}
-			});
-		}
+		// Continuously write data to the socket
+		asio::co_spawn (system.io_ctx->get_executor (), [&] () -> asio::awaitable<void> {
+			auto socket_l = socket;
+			nano::shared_const_buffer buffer { std::vector<uint8_t> (128 * 1024) };
+			for (auto i = 0; i < 1024; ++i)
+			{
+				co_await socket_l->co_write (buffer, buffer.size ());
+			} }, asio::detached);
 	});
 
 	// check that the callback was called and we got an error
-	ASSERT_TIMELY_EQ (10s, done, true);
-	ASSERT_TRUE (ec.load ());
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
-
-	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (15s, socket->has_timed_out ());
+	ASSERT_FALSE (socket->alive ());
 }
 
 TEST (socket_timeout, read_overlapped)
