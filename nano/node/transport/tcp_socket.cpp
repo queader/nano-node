@@ -41,6 +41,7 @@ nano::transport::tcp_socket::tcp_socket (nano::node & node_a, asio::ip::tcp::soc
 	endpoint_type_m{ endpoint_type_a },
 	connected{ true }
 {
+	last_send = last_receive = time_connected = std::chrono::steady_clock::now ();
 	start ();
 }
 
@@ -261,6 +262,7 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 		remote_endpoint = raw_socket.remote_endpoint (ec_ignored);
 
 		connected = true; // Mark as connected
+		last_send = last_receive = time_connected = std::chrono::steady_clock::now ();
 
 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_success);
 		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::connect_success);
@@ -388,6 +390,16 @@ nano::endpoint nano::transport::tcp_socket::get_local_endpoint () const
 {
 	// Using cached value to avoid calling tcp_socket.local_endpoint() which may be invalid (throw) after closing the socket
 	return local_endpoint;
+}
+
+std::chrono::steady_clock::time_point nano::transport::tcp_socket::get_time_created () const
+{
+	return time_created;
+}
+
+std::chrono::steady_clock::time_point nano::transport::tcp_socket::get_time_connected () const
+{
+	return time_connected;
 }
 
 void nano::transport::tcp_socket::operator() (nano::object_stream & obs) const
