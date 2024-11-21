@@ -42,6 +42,9 @@ public:
 	bool has_connected () const;
 	bool has_timed_out () const;
 
+	std::chrono::steady_clock::time_point get_time_created () const;
+	std::chrono::steady_clock::time_point get_time_connected () const;
+
 public:
 	asio::awaitable<std::tuple<boost::system::error_code>> co_connect (nano::endpoint const & endpoint);
 	asio::awaitable<std::tuple<boost::system::error_code, size_t>> co_read (nano::shared_buffer, size_t size);
@@ -98,8 +101,11 @@ private:
 	std::atomic<bool> error{ false };
 	std::atomic<bool> timed_out{ false };
 
-	std::atomic<std::chrono::steady_clock::time_point> last_receive{ std::chrono::steady_clock::now () };
-	std::atomic<std::chrono::steady_clock::time_point> last_send{ std::chrono::steady_clock::now () };
+	std::atomic<std::chrono::steady_clock::time_point> last_receive{};
+	std::atomic<std::chrono::steady_clock::time_point> last_send{};
+
+	std::chrono::steady_clock::time_point const time_created{ std::chrono::steady_clock::now () };
+	std::atomic<std::chrono::steady_clock::time_point> time_connected{};
 
 	// Guard against simultaenous conflicting async operations
 	std::atomic<bool> connect_in_progress{ false };

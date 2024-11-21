@@ -366,6 +366,7 @@ enum class detail
 	connect_rejected,
 	connect_success,
 	attempt_timeout,
+	handshake_timeout,
 	not_a_peer,
 
 	// tcp_channel
