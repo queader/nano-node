@@ -237,11 +237,10 @@ auto nano::transport::tcp_socket::co_connect (nano::endpoint const & endpoint) -
 // TODO: This is only used in tests, remove it, this creates untracked socket
 auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoint) -> asio::awaitable<std::tuple<boost::system::error_code>>
 {
-	auto this_l = shared_from_this (); // Lifetime guard
-
 	debug_assert (strand.running_in_this_thread ());
 	debug_assert (endpoint_type () == socket_endpoint::client);
 	debug_assert (!raw_socket.is_open ());
+	release_assert (connect_in_progress.exchange (true) == false);
 
 	auto result = co_await raw_socket.async_connect (endpoint, asio::as_tuple (asio::use_awaitable));
 	auto const & [ec] = result;
@@ -265,6 +264,7 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 		error = true;
 		close_impl ();
 	}
+	release_assert (connect_in_progress.exchange (false) == true);
 	co_return result;
 }
 
@@ -288,10 +288,9 @@ auto nano::transport::tcp_socket::co_read (nano::shared_buffer buffer, size_t ta
 
 auto nano::transport::tcp_socket::co_read_impl (nano::shared_buffer buffer, size_t target_size) -> asio::awaitable<std::tuple<boost::system::error_code, size_t>>
 {
-	auto this_l = shared_from_this (); // Lifetime guard
-
 	debug_assert (strand.running_in_this_thread ());
 	release_assert (target_size <= buffer->size (), "read buffer size mismatch");
+	release_assert (read_in_progress.exchange (true) == false);
 
 	auto result = co_await asio::async_read (raw_socket, asio::buffer (buffer->data (), target_size), asio::as_tuple (asio::use_awaitable));
 	auto const & [ec, size_read] = result;
@@ -308,6 +307,7 @@ auto nano::transport::tcp_socket::co_read_impl (nano::shared_buffer buffer, size
 		error = true;
 		close_impl ();
 	}
+	release_assert (read_in_progress.exchange (false) == true);
 	co_return result;
 }
 
@@ -329,10 +329,9 @@ auto nano::transport::tcp_socket::co_write (nano::shared_buffer buffer, size_t t
 
 auto nano::transport::tcp_socket::co_write_impl (nano::shared_buffer buffer, size_t target_size) -> asio::awaitable<std::tuple<boost::system::error_code, size_t>>
 {
-	auto this_l = shared_from_this (); // Lifetime guard
-
 	debug_assert (strand.running_in_this_thread ());
 	release_assert (target_size <= buffer->size (), "write buffer size mismatch");
+	release_assert (write_in_progress.exchange (true) == false);
 
 	auto result = co_await asio::async_write (raw_socket, asio::buffer (buffer->data (), target_size), asio::as_tuple (asio::use_awaitable));
 	auto const & [ec, size_written] = result;
@@ -349,6 +348,7 @@ auto nano::transport::tcp_socket::co_write_impl (nano::shared_buffer buffer, siz
 		error = true;
 		close_impl ();
 	}
+	release_assert (write_in_progress.exchange (false) == true);
 	co_return result;
 }
 

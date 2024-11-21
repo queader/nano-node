@@ -126,6 +126,11 @@ private:
 	std::chrono::steady_clock::time_point const time_created{ std::chrono::steady_clock::now () };
 	std::atomic<std::chrono::steady_clock::time_point> time_connected{};
 
+	// Guard against simultaenous conflicting async operations
+	std::atomic<bool> connect_in_progress{ false };
+	std::atomic<bool> read_in_progress{ false };
+	std::atomic<bool> write_in_progress{ false };
+
 private:
 	// boost::asio::strand<boost::asio::io_context::executor_type> strand;
 
