@@ -27,6 +27,7 @@ nano::transport::tcp_socket::tcp_socket (nano::node & node_a, nano::transport::s
 	raw_socket{ strand },
 	endpoint_type_m{ endpoint_type_a }
 {
+	start ();
 }
 
 nano::transport::tcp_socket::tcp_socket (nano::node & node_a, asio::ip::tcp::socket raw_socket_a, nano::transport::socket_endpoint endpoint_type_a) :
@@ -164,7 +165,7 @@ asio::awaitable<void> nano::transport::tcp_socket::ongoing_checkup ()
 	debug_assert (strand.running_in_this_thread ());
 	try
 	{
-		while (!co_await nano::async::cancelled () && !closed)
+		while (!co_await nano::async::cancelled () && alive ())
 		{
 			bool healthy = checkup ();
 			if (!healthy)
@@ -199,12 +200,6 @@ std::chrono::milliseconds nano::transport::tcp_socket::timeout_tolerance () cons
 bool nano::transport::tcp_socket::checkup ()
 {
 	debug_assert (strand.running_in_this_thread ());
-
-	if (!raw_socket.is_open ())
-	{
-		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::already_closed);
-		return false; // Bad
-	}
 
 	auto const now = std::chrono::steady_clock::now ();
 	auto const tolerance = timeout_tolerance ();
@@ -257,8 +252,6 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 		node.logger.debug (nano::log::type::tcp_socket, "Successfully connected to: {} from local: {}",
 		fmt::streamed (remote_endpoint),
 		fmt::streamed (local_endpoint));
-
-		start ();
 	}
 	else
 	{
