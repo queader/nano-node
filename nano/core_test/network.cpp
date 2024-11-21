@@ -584,7 +584,7 @@ TEST (tcp_listener, tcp_node_id_handshake)
 // Test disabled because it's failing intermittently.
 // PR in which it got disabled: https://github.com/nanocurrency/nano-node/pull/3611
 // Issue for investigating it: https://github.com/nanocurrency/nano-node/issues/3615
-TEST (tcp_listener, DISABLED_tcp_listener_timeout_empty)
+TEST (tcp_listener, DISABLED_timeout_empty)
 {
 	nano::test::system system (1);
 	auto node0 (system.nodes[0]);
@@ -604,31 +604,29 @@ TEST (tcp_listener, DISABLED_tcp_listener_timeout_empty)
 	}
 }
 
-TEST (tcp_listener, tcp_listener_timeout_node_id_handshake)
+TEST (tcp_listener, timeout_node_id_handshake)
 {
-	nano::test::system system (1);
-	auto node0 (system.nodes[0]);
-	auto socket (std::make_shared<nano::transport::tcp_socket> (*node0));
-	auto cookie (node0->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (node0->tcp_listener.endpoint ())));
+	nano::test::system system;
+	nano::node_config node_config;
+	node_config.tcp.handshake_timeout = 3s;
+	auto node = system.add_node (node_config);
+	auto socket (std::make_shared<nano::transport::tcp_socket> (*node));
+	auto cookie (node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (node->tcp_listener.endpoint ())));
 	ASSERT_TRUE (cookie);
 	nano::node_id_handshake::query_payload query{ *cookie };
 	nano::node_id_handshake node_id_handshake{ nano::dev::network_params.network, query };
-	auto channel = std::make_shared<nano::transport::tcp_channel> (*node0, socket);
-	socket->async_connect (node0->tcp_listener.endpoint (), [&node_id_handshake, channel] (boost::system::error_code const & ec) {
+	auto channel = std::make_shared<nano::transport::tcp_channel> (*node, socket);
+	socket->async_connect (node->tcp_listener.endpoint (), [&node_id_handshake, channel] (boost::system::error_code const & ec) {
 		ASSERT_FALSE (ec);
 		channel->send (node_id_handshake, nano::transport::traffic_type::test, [] (boost::system::error_code const & ec, size_t size_a) {
 			ASSERT_FALSE (ec);
 		});
 	});
-	ASSERT_TIMELY (5s, node0->stats.count (nano::stat::type::tcp_server, nano::stat::detail::node_id_handshake) != 0);
-	ASSERT_EQ (node0->tcp_listener.connection_count (), 1);
-	bool disconnected (false);
-	system.deadline_set (std::chrono::seconds (20));
-	while (!disconnected)
-	{
-		disconnected = node0->tcp_listener.connection_count () == 0;
-		ASSERT_NO_ERROR (system.poll ());
-	}
+	ASSERT_TIMELY (5s, node->stats.count (nano::stat::type::tcp_server, nano::stat::detail::node_id_handshake, nano::stat::dir::in) != 0);
+	ASSERT_EQ (node->tcp_listener.connection_count (), 1);
+	// The socket will never complete the handshake
+	ASSERT_TIMELY_EQ (6s, node->tcp_listener.connection_count (), 0);
+	ASSERT_EQ (node->stats.count (nano::stat::type::tcp_listener, nano::stat::detail::handshake_timeout), 1);
 }
 
 // Test disabled because it's failing repeatedly for Windows + LMDB.

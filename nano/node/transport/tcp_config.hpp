@@ -27,6 +27,7 @@ public:
 	size_t max_attempts{ 60 };
 	size_t max_attempts_per_ip{ 1 };
 	std::chrono::seconds connect_timeout{ 60 };
+	std::chrono::seconds handshake_timeout{ 30 };
 	std::chrono::seconds io_timeout{ 30 };
 };
 }
