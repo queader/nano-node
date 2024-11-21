@@ -271,11 +271,11 @@ void nano::transport::tcp_socket::async_connect (nano::endpoint const & endpoint
 {
 	debug_assert (callback);
 	debug_assert (endpoint_type () == socket_endpoint::client);
-	auto adapter = [] (auto && coro, auto callback) -> asio::awaitable<void> {
-		auto [ec] = co_await std::move (coro);
+	asio::co_spawn (strand, co_connect_impl (endpoint), [callback, /* lifetime guard */ this_s = shared_from_this ()] (std::exception_ptr const & ex, auto const & result) {
+		release_assert (!ex);
+		auto const & [ec] = result;
 		callback (ec);
-	};
-	asio::co_spawn (strand, adapter (co_connect_impl (endpoint), std::move (callback)), asio::detached);
+	});
 }
 
 auto nano::transport::tcp_socket::co_read (nano::shared_buffer buffer, size_t target_size) -> asio::awaitable<std::tuple<boost::system::error_code, size_t>>
@@ -312,11 +312,11 @@ auto nano::transport::tcp_socket::co_read_impl (nano::shared_buffer buffer, size
 void nano::transport::tcp_socket::async_read (nano::shared_buffer buffer, size_t size, std::function<void (boost::system::error_code const &, size_t)> callback)
 {
 	debug_assert (callback);
-	auto adapter = [] (auto && coro, auto callback) -> asio::awaitable<void> {
-		auto [ec, size] = co_await std::move (coro);
+	asio::co_spawn (strand, co_read_impl (buffer, size), [callback, /* lifetime guard */ this_s = shared_from_this ()] (std::exception_ptr const & ex, auto const & result) {
+		release_assert (!ex);
+		auto const & [ec, size] = result;
 		callback (ec, size);
-	};
-	asio::co_spawn (strand, adapter (co_read_impl (std::move (buffer), size), std::move (callback)), asio::detached);
+	});
 }
 
 auto nano::transport::tcp_socket::co_write (nano::shared_buffer buffer, size_t target_size) -> asio::awaitable<std::tuple<boost::system::error_code, size_t>>
@@ -353,12 +353,11 @@ auto nano::transport::tcp_socket::co_write_impl (nano::shared_buffer buffer, siz
 void nano::transport::tcp_socket::async_write (nano::shared_buffer buffer, std::function<void (boost::system::error_code const &, size_t)> callback)
 {
 	debug_assert (callback);
-	auto adapter = [] (auto && coro, auto callback) -> asio::awaitable<void> {
-		auto [ec, size] = co_await std::move (coro);
+	asio::co_spawn (strand, co_write_impl (buffer, buffer->size ()), [callback, /* lifetime guard */ this_s = shared_from_this ()] (std::exception_ptr const & ex, auto const & result) {
+		release_assert (!ex);
+		auto const & [ec, size] = result;
 		callback (ec, size);
-	};
-	auto size = buffer->size ();
-	asio::co_spawn (strand, adapter (co_write_impl (std::move (buffer), size), std::move (callback)), asio::detached);
+	});
 }
 
 // void nano::transport::tcp_socket::close ()
