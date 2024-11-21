@@ -32,7 +32,7 @@ class tcp_socket final : public std::enable_shared_from_this<tcp_socket>
 public:
 	explicit tcp_socket (nano::node &, nano::transport::socket_endpoint = socket_endpoint::client);
 
-	tcp_socket (nano::node &, asio::ip::tcp::socket, nano::transport::socket_endpoint);
+	tcp_socket (nano::node &, asio::ip::tcp::socket, nano::transport::socket_endpoint = socket_endpoint::server);
 	~tcp_socket ();
 
 	void close ();
