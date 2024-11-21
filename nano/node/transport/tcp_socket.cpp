@@ -93,7 +93,7 @@ void nano::transport::tcp_socket::close_impl ()
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	if (closed) // Avoid closing the socket multiple times
+	if (closed.exchange (true)) // Avoid closing the socket multiple times
 	{
 		return;
 	}
@@ -111,8 +111,6 @@ void nano::transport::tcp_socket::close_impl ()
 		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::close_error);
 		node.logger.error (nano::log::type::tcp_socket, "Closed socket, ungracefully: {} ({})", fmt::streamed (remote_endpoint), ec);
 	}
-
-	closed = true;
 }
 
 // void nano::transport::tcp_socket::join ()
