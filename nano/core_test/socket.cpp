@@ -288,7 +288,8 @@ TEST (socket, disconnection_of_silent_connections)
 	ASSERT_GE (node->stats.count (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_receive), 1);
 }
 
-TEST (socket, drop_policy)
+// TODO: FIXME: Socket no longer queues writes, so this test is no longer valid
+TEST (socket, DISABLED_drop_policy)
 {
 	nano::test::system system;
 
@@ -339,7 +340,6 @@ TEST (socket, drop_policy)
 		ASSERT_EQ (1, client.use_count ());
 	};
 
-	// TODO: FIXME: Socket no longer queues writes, so this test is no longer valid
 	size_t constexpr queue_size = 128;
 
 	// We're going to write twice the queue size + 1, and the server isn't reading
@@ -351,6 +351,7 @@ TEST (socket, drop_policy)
 	ASSERT_EQ (0, failed_writes);
 }
 
+// TODO: Test concurrent reads too
 // This is abusing the socket class, should be detected and crash at runtime
 TEST (socket_DeathTest, concurrent_writes)
 {
@@ -479,10 +480,14 @@ TEST (socket_DeathTest, concurrent_writes)
  */
 TEST (socket_timeout, connect)
 {
-	// create one node and set timeout to 1 second
-	nano::test::system system (1);
-	std::shared_ptr<nano::node> node = system.nodes[0];
-	node->config.tcp.io_timeout = 1s;
+	std::atomic<bool> done = false;
+	boost::system::error_code ec;
+
+	nano::test::system system;
+
+	nano::node_config config;
+	config.tcp.connect_timeout = 1s;
+	auto node = system.add_node (config);
 
 	// try to connect to an IP address that most likely does not exist and will not reply
 	// we want the tcp stack to not receive a negative reply, we want it to see silence and to keep trying
@@ -491,8 +496,6 @@ TEST (socket_timeout, connect)
 
 	// create a client socket and try to connect to the IP address that wil not respond
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node);
-	std::atomic<bool> done = false;
-	boost::system::error_code ec;
 	socket->async_connect (endpoint, [&ec, &done] (boost::system::error_code const & ec_a) {
 		ec = ec_a;
 		done = true;
@@ -505,10 +508,14 @@ TEST (socket_timeout, connect)
 
 TEST (socket_timeout, read)
 {
-	// create one node and set timeout to 1 second
-	nano::test::system system (1);
-	std::shared_ptr<nano::node> node = system.nodes[0];
-	node->config.tcp.io_timeout = std::chrono::seconds (2);
+	std::atomic<bool> done = false;
+	boost::system::error_code ec;
+
+	nano::test::system system;
+
+	nano::node_config config;
+	config.tcp.io_timeout = 1s;
+	auto node = system.add_node (config);
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ());
@@ -525,8 +532,7 @@ TEST (socket_timeout, read)
 
 	// create a client socket to connect and call async_read, which should time out
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node);
-	std::atomic<bool> done = false;
-	boost::system::error_code ec;
+
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
@@ -554,10 +560,11 @@ TEST (socket_timeout, write)
 	std::atomic<bool> done = false;
 	std::atomic<boost::system::error_code> ec;
 
-	// create one node and set timeout to 1 second
-	nano::test::system system (1);
-	std::shared_ptr<nano::node> node = system.nodes[0];
-	node->config.tcp.io_timeout = std::chrono::seconds (2);
+	nano::test::system system;
+
+	nano::node_config config;
+	config.tcp.io_timeout = 1s;
+	auto node = system.add_node (config);
 
 	// create a server socket
 	boost::asio::ip::tcp::endpoint endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ());
@@ -575,8 +582,7 @@ TEST (socket_timeout, write)
 	// create a client socket and send lots of data to fill the socket queue on the local and remote side
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
-	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client); // socket with a max queue size much larger than OS buffers
-
+	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client);
 	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
