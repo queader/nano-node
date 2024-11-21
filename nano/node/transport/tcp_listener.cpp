@@ -164,33 +164,39 @@ void nano::transport::tcp_listener::run_cleanup ()
 	{
 		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::cleanup);
 
-		cleanup ();
 		timeout ();
+		cleanup (lock);
+		debug_assert (lock.owns_lock ());
 
 		condition.wait_for (lock, 1s, [this] () { return stopped.load (); });
 	}
 }
 
-void nano::transport::tcp_listener::cleanup ()
+void nano::transport::tcp_listener::cleanup (nano::unique_lock<nano::mutex> & lock)
 {
+	debug_assert (lock.owns_lock ());
 	debug_assert (!mutex.try_lock ());
-
-	// Erase dead connections
-	erase_if (connections, [this] (auto const & connection) {
-		if (!connection.socket->alive ())
-		{
-			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::erase_dead);
-			logger.debug (nano::log::type::tcp_listener, "Evicting dead connection: {}", fmt::streamed (connection.endpoint));
-			connection.socket->close ();
-			return true;
-		}
-		return false;
-	});
 
 	// Erase completed attempts
 	erase_if (attempts, [this] (auto const & attempt) {
 		return attempt.task.ready ();
 	});
+
+	// Erase dead connections
+	auto erased = nano::erase_if (connections, [this] (auto const & connection) {
+		return !connection.socket->alive ();
+	});
+
+	lock.unlock ();
+
+	for (auto const & connection : erased)
+	{
+		stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::erase_dead);
+		logger.debug (nano::log::type::tcp_listener, "Evicting dead connection: {}", fmt::streamed (connection.endpoint));
+		connection.socket->close ();
+	}
+
+	lock.lock ();
 }
 
 void nano::transport::tcp_listener::timeout ()
@@ -204,7 +210,7 @@ void nano::transport::tcp_listener::timeout ()
 	{
 		if (!attempt.task.ready () && attempt.start < cutoff)
 		{
-			attempt.task.cancel ();
+			attempt.task.cancel (); // Cancel is non-blocking and will return immediately, safe to call under lock
 
 			stats.inc (nano::stat::type::tcp_listener, nano::stat::detail::attempt_timeout);
 			logger.debug (nano::log::type::tcp_listener, "Connection attempt timed out: {} (started {}s ago)",

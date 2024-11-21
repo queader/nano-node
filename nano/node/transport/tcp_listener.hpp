@@ -100,7 +100,7 @@ private:
 	asio::awaitable<void> wait_available_slots () const;
 
 	void run_cleanup ();
-	void cleanup ();
+	void cleanup (nano::unique_lock<nano::mutex> &);
 	void timeout ();
 
 	enum class accept_result
