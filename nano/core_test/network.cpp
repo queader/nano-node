@@ -1167,7 +1167,7 @@ TEST (network, purge_dead_channel)
 	auto channel = channels.front ();
 	ASSERT_TRUE (channel);
 
-	auto sockets = node1.tcp_listener.sockets ();
+	auto sockets = node1.tcp_listener.all_sockets ();
 	ASSERT_EQ (sockets.size (), 1);
 	auto socket = sockets.front ();
 	ASSERT_TRUE (socket);
@@ -1217,7 +1217,7 @@ TEST (network, purge_dead_channel_remote)
 	auto channel = channels.front ();
 	ASSERT_TRUE (channel);
 
-	auto sockets = node1.tcp_listener.sockets ();
+	auto sockets = node1.tcp_listener.all_sockets ();
 	ASSERT_EQ (sockets.size (), 1);
 	auto socket = sockets.front ();
 	ASSERT_TRUE (socket);
