@@ -341,6 +341,7 @@ enum class detail
 	already_closed,
 	timeout_receive,
 	timeout_send,
+	timeout_connect,
 
 	// tcp_listener
 	accept_success,

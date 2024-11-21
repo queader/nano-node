@@ -191,33 +191,48 @@ asio::awaitable<void> nano::transport::tcp_socket::ongoing_checkup ()
 	debug_assert (strand.running_in_this_thread ());
 }
 
-std::chrono::milliseconds nano::transport::tcp_socket::timeout_tolerance () const
-{
-	// Allow a little bit more leeway for connecting sockets
-	return connected ? node.config.tcp.io_timeout : node.config.tcp.connect_timeout;
-}
-
 bool nano::transport::tcp_socket::checkup ()
 {
 	debug_assert (strand.running_in_this_thread ());
 
 	auto const now = std::chrono::steady_clock::now ();
-	auto const tolerance = timeout_tolerance ();
-	auto const cutoff = now - tolerance;
 
-	if (last_receive.load () < cutoff)
+	if (connected)
 	{
-		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::timeout);
-		node.stats.inc (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_receive);
-		timed_out = true;
-		return false; // Bad
+		if (!raw_socket.is_open ())
+		{
+			node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::already_closed);
+			return false; // Bad
+		}
+
+		auto const cutoff = now - node.config.tcp.io_timeout;
+
+		if (last_receive.load () < cutoff)
+		{
+			node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::timeout);
+			node.stats.inc (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_receive);
+			timed_out = true;
+			return false; // Bad
+		}
+		if (last_send.load () < cutoff)
+		{
+			node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::timeout);
+			node.stats.inc (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_send);
+			timed_out = true;
+			return false; // Bad
+		}
 	}
-	if (last_send.load () < cutoff)
+	else
 	{
-		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::timeout);
-		node.stats.inc (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_send);
-		timed_out = true;
-		return false; // Bad
+		auto const cutoff = now - node.config.tcp.connect_timeout;
+
+		if (time_created < cutoff)
+		{
+			node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::timeout);
+			node.stats.inc (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_connect);
+			timed_out = true;
+			return false; // Bad
+		}
 	}
 
 	return true; // Healthy

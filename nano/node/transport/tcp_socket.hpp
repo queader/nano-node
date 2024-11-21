@@ -101,8 +101,6 @@ private:
 	asio::awaitable<void> ongoing_checkup ();
 	bool checkup ();
 
-	std::chrono::milliseconds timeout_tolerance () const;
-
 private:
 	std::weak_ptr<nano::node> node_w;
 	nano::node & node;
