@@ -51,7 +51,8 @@ asio::awaitable<void> nano::transport::tcp_channel::start_sending (nano::async::
 	}
 	catch (boost::system::system_error const & ex)
 	{
-		debug_assert (!socket->alive ());
+		// Operation aborted is expected when cancelling the task
+		debug_assert (ex.code () == asio::error::operation_aborted || !socket->alive ());
 	}
 	catch (...)
 	{
