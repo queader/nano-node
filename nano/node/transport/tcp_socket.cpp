@@ -246,12 +246,17 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 	auto const & [ec] = result;
 	if (!ec)
 	{
+		local_endpoint = raw_socket.local_endpoint ();
+		remote_endpoint = raw_socket.remote_endpoint ();
+
 		connected = true; // Mark as connected
 		last_send = last_receive = time_connected = std::chrono::steady_clock::now ();
 
 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_success);
 		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::connect_success);
-		node.logger.debug (nano::log::type::tcp_socket, "Successfully connected to: {}", fmt::streamed (endpoint));
+		node.logger.debug (nano::log::type::tcp_socket, "Successfully connected to: {} from local: {}",
+		fmt::streamed (remote_endpoint),
+		fmt::streamed (local_endpoint));
 
 		start ();
 	}
@@ -259,7 +264,10 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 	{
 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_connect_error);
 		node.stats.inc (nano::stat::type::tcp_socket, nano::stat::detail::connect_error);
-		node.logger.debug (nano::log::type::tcp_socket, "Failed to connect to: {} ({})", fmt::streamed (endpoint), ec);
+		node.logger.debug (nano::log::type::tcp_socket, "Failed to connect to: {} ({})",
+		fmt::streamed (endpoint),
+		fmt::streamed (local_endpoint),
+		ec);
 
 		error = true;
 		close_impl ();
