@@ -256,8 +256,10 @@ auto nano::transport::tcp_socket::co_connect_impl (nano::endpoint const & endpoi
 	auto const & [ec] = result;
 	if (!ec)
 	{
-		local_endpoint = raw_socket.local_endpoint ();
-		remote_endpoint = raw_socket.remote_endpoint ();
+		// Best effort to get the endpoints
+		boost::system::error_code ec_ignored;
+		local_endpoint = raw_socket.local_endpoint (ec_ignored);
+		remote_endpoint = raw_socket.remote_endpoint (ec_ignored);
 
 		connected = true; // Mark as connected
 		last_send = last_receive = time_connected = std::chrono::steady_clock::now ();
