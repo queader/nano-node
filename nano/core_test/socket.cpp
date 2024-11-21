@@ -370,9 +370,8 @@ TEST (socket, drop_policy)
 	ASSERT_EQ (0, failed_writes);
 }
 
-// This is abusing the socket class, it's interfering with the normal node lifetimes and as a result deadlocks
-// TEST (socket, DISABLED_concurrent_writes)
-TEST (socket, concurrent_writes)
+// This is abusing the socket class, should be detected and crash at runtime
+TEST (socket_DeathTest, concurrent_writes)
 {
 	nano::test::system system;
 
@@ -459,26 +458,30 @@ TEST (socket, concurrent_writes)
 	ASSERT_TIMELY_EQ (10s, completed_connections, client_count);
 
 	// Execute overlapping writes from multiple threads
-	auto client (clients[0]);
-	std::vector<std::thread> client_threads;
-	for (int i = 0; i < client_count; i++)
-	{
-		client_threads.emplace_back ([&client, &message_count] () {
-			for (int i = 0; i < message_count; i++)
-			{
-				std::vector<uint8_t> buff;
-				buff.push_back ('A' + i);
-				client->async_write (nano::shared_const_buffer (std::move (buff)));
-			}
-		});
-	}
+	auto abuse = [&] () {
+		auto client (clients[0]);
+		std::vector<std::thread> client_threads;
+		for (int i = 0; i < client_count; i++)
+		{
+			client_threads.emplace_back ([&client, &message_count] () {
+				for (int i = 0; i < message_count; i++)
+				{
+					std::vector<uint8_t> buff;
+					buff.push_back ('A' + i);
+					client->async_write (nano::shared_const_buffer (std::move (buff)));
+				}
+			});
+		}
 
-	ASSERT_TIMELY_EQ (10s, completed_reads, total_message_count);
+		ASSERT_TIMELY_EQ (10s, completed_reads, total_message_count);
 
-	for (auto & t : client_threads)
-	{
-		t.join ();
-	}
+		for (auto & t : client_threads)
+		{
+			t.join ();
+		}
+	};
+
+	ASSERT_DEATH (abuse (), "");
 }
 
 /**
