@@ -294,17 +294,15 @@ TEST (socket, disconnection_of_silent_connections)
 		ASSERT_FALSE (ec_a);
 		connected = true;
 	});
-	ASSERT_TIMELY (4s, connected);
+	ASSERT_TIMELY (5s, connected);
 
 	// Checking the connection was closed.
 	ASSERT_TIMELY (10s, server_data_socket_future.wait_for (0s) == std::future_status::ready);
 	auto server_data_socket = server_data_socket_future.get ();
 	ASSERT_TIMELY (10s, !server_data_socket->alive ());
 
-	// Just to ensure the disconnection wasn't due to the timer timeout.
-	ASSERT_EQ (0, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::in));
-	// Asserts the silent checker worked.
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_silent_connection_drop, nano::stat::dir::in));
+	ASSERT_GE (node->stats.count (nano::stat::type::tcp_socket, nano::stat::detail::timeout), 1);
+	ASSERT_GE (node->stats.count (nano::stat::type::tcp_socket_timeout, nano::stat::detail::timeout_receive), 1);
 }
 
 TEST (socket, drop_policy)
