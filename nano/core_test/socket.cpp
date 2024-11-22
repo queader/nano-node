@@ -466,29 +466,22 @@ TEST (socket_timeout, write)
 	// eventually, the all tcp queues should fill up and async_write will not be able to progress
 	// and the timeout should kick in and close the socket, which will cause the async_write to return an error
 	auto socket = std::make_shared<nano::transport::tcp_socket> (*node, nano::transport::socket_endpoint::client);
-	socket->async_connect (acceptor.local_endpoint (), [&socket, &ec, &done] (boost::system::error_code const & ec_a) {
+	socket->async_connect (acceptor.local_endpoint (), [&] (boost::system::error_code const & ec_a) {
 		EXPECT_FALSE (ec_a);
 
-		auto buffer = std::make_shared<std::vector<uint8_t>> (128 * 1024);
-		for (auto i = 0; i < 1024; ++i)
-		{
-			socket->async_write (nano::shared_const_buffer{ buffer }, [&ec, &done] (boost::system::error_code const & ec_a, size_t size_a) {
-				if (ec_a)
-				{
-					done = true;
-					ec = ec_a;
-				}
-			});
-		}
+		// Continuously write data to the socket
+		asio::co_spawn (system.io_ctx->get_executor (), [&] () -> asio::awaitable<void> {
+			auto socket_l = socket;
+			nano::shared_const_buffer buffer { std::vector<uint8_t> (128 * 1024) };
+			for (auto i = 0; i < 1024; ++i)
+			{
+				co_await socket_l->co_write (buffer, buffer.size ());
+			} }, asio::detached);
 	});
 
 	// check that the callback was called and we got an error
-	ASSERT_TIMELY_EQ (10s, done, true);
-	ASSERT_TRUE (ec.load ());
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_write_error, nano::stat::dir::in));
-
-	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TIMELY (10s, socket->has_timed_out ());
+	ASSERT_FALSE (socket->alive ());
 }
 
 TEST (socket_timeout, read_overlapped)
