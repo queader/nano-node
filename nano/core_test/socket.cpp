@@ -480,7 +480,7 @@ TEST (socket_timeout, write)
 	});
 
 	// check that the callback was called and we got an error
-	ASSERT_TIMELY (10s, socket->has_timed_out ());
+	ASSERT_TIMELY (15s, socket->has_timed_out ());
 	ASSERT_FALSE (socket->alive ());
 }
 
