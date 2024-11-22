@@ -486,7 +486,7 @@ TEST (socket_timeout, connect)
 	nano::test::system system;
 
 	nano::node_config config;
-	config.tcp.connect_timeout = 1s;
+	config.tcp.connect_timeout = 2s;
 	auto node = system.add_node (config);
 
 	// try to connect to an IP address that most likely does not exist and will not reply
