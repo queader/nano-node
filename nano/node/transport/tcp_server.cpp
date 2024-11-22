@@ -10,12 +10,13 @@
  * tcp_server
  */
 
-nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::tcp_socket> socket_a, std::shared_ptr<nano::node> node_a, bool allow_bootstrap_a) :
+nano::transport::tcp_server::tcp_server (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a, bool allow_bootstrap_a) :
 	socket{ socket_a },
+	node_w{ node_a.shared () },
 	node{ node_a },
 	allow_bootstrap{ allow_bootstrap_a },
 	message_deserializer{
-		std::make_shared<nano::transport::message_deserializer> (node_a->network_params.network, node_a->network.filter, node_a->block_uniquer, node_a->vote_uniquer,
+		std::make_shared<nano::transport::message_deserializer> (node.network_params.network, node.network.filter, node.block_uniquer, node.vote_uniquer,
 		[socket_l = socket] (std::shared_ptr<std::vector<uint8_t>> const & data_a, size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a) {
 			debug_assert (socket_l != nullptr);
 			socket_l->async_read (data_a, size_a, callback_a);
@@ -27,7 +28,7 @@ nano::transport::tcp_server::tcp_server (std::shared_ptr<nano::transport::tcp_so
 
 nano::transport::tcp_server::~tcp_server ()
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -47,7 +48,7 @@ void nano::transport::tcp_server::start ()
 		debug_assert (remote_endpoint.port () != 0);
 	}
 
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -74,7 +75,7 @@ void nano::transport::tcp_server::receive_message ()
 	}
 
 	message_deserializer->read ([this_l = shared_from_this ()] (boost::system::error_code ec, std::unique_ptr<nano::message> message) {
-		auto node = this_l->node.lock ();
+		auto node = this_l->node_w.lock ();
 		if (!node)
 		{
 			return;
@@ -99,7 +100,7 @@ void nano::transport::tcp_server::receive_message ()
 
 void nano::transport::tcp_server::received_message (std::unique_ptr<nano::message> message)
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -162,7 +163,7 @@ void nano::transport::tcp_server::received_message (std::unique_ptr<nano::messag
 
 auto nano::transport::tcp_server::process_message (std::unique_ptr<nano::message> message) -> process_result
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return process_result::abort;
@@ -251,7 +252,7 @@ auto nano::transport::tcp_server::process_message (std::unique_ptr<nano::message
 
 void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message> message)
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -267,7 +268,7 @@ void nano::transport::tcp_server::queue_realtime (std::unique_ptr<nano::message>
 
 auto nano::transport::tcp_server::process_handshake (nano::node_id_handshake const & message) -> handshake_status
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return handshake_status::abort;
@@ -339,7 +340,7 @@ auto nano::transport::tcp_server::process_handshake (nano::node_id_handshake con
 
 void nano::transport::tcp_server::initiate_handshake ()
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -352,7 +353,7 @@ void nano::transport::tcp_server::initiate_handshake ()
 
 	auto shared_const_buffer = message.to_shared_const_buffer ();
 	socket->async_write (shared_const_buffer, [this_l = shared_from_this ()] (boost::system::error_code const & ec, std::size_t size_a) {
-		auto node = this_l->node.lock ();
+		auto node = this_l->node_w.lock ();
 		if (!node)
 		{
 			return;
@@ -375,7 +376,7 @@ void nano::transport::tcp_server::initiate_handshake ()
 
 void nano::transport::tcp_server::send_handshake_response (nano::node_id_handshake::query_payload const & query, bool v2)
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -389,7 +390,7 @@ void nano::transport::tcp_server::send_handshake_response (nano::node_id_handsha
 
 	auto shared_const_buffer = handshake_response.to_shared_const_buffer ();
 	socket->async_write (shared_const_buffer, [this_l = shared_from_this ()] (boost::system::error_code const & ec, std::size_t size_a) {
-		auto node = this_l->node.lock ();
+		auto node = this_l->node_w.lock ();
 		if (!node)
 		{
 			return;
@@ -471,7 +472,7 @@ void nano::transport::tcp_server::realtime_message_visitor::frontier_req (const 
 
 void nano::transport::tcp_server::realtime_message_visitor::telemetry_req (const nano::telemetry_req & message)
 {
-	auto node = server.node.lock ();
+	auto node = server.node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -544,7 +545,7 @@ void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const
 //  and since we only ever store tcp_server as weak_ptr, socket timeout will automatically trigger tcp_server cleanup
 void nano::transport::tcp_server::timeout ()
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return;
@@ -576,7 +577,7 @@ std::optional<nano::keepalive> nano::transport::tcp_server::pop_last_keepalive (
 
 bool nano::transport::tcp_server::to_bootstrap_connection ()
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return false;
@@ -607,7 +608,7 @@ bool nano::transport::tcp_server::to_bootstrap_connection ()
 
 bool nano::transport::tcp_server::to_realtime_connection (nano::account const & node_id)
 {
-	auto node = this->node.lock ();
+	auto node = this->node_w.lock ();
 	if (!node)
 	{
 		return false;

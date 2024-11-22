@@ -1,26 +1,19 @@
 #pragma once
 
 #include <nano/node/endpoint.hpp>
+#include <nano/node/fwd.hpp>
 #include <nano/node/messages.hpp>
 #include <nano/node/transport/fwd.hpp>
 #include <nano/node/transport/tcp_socket.hpp>
 
 #include <atomic>
 
-namespace nano
-{
-class message;
-}
-
 namespace nano::transport
 {
-class message_deserializer;
-class tcp_server;
-
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
-	tcp_server (std::shared_ptr<nano::transport::tcp_socket>, std::shared_ptr<nano::node>, bool allow_bootstrap = true);
+	tcp_server (nano::node &, std::shared_ptr<nano::transport::tcp_socket>, bool allow_bootstrap = true);
 	~tcp_server ();
 
 	void start ();
@@ -32,13 +25,16 @@ public:
 	std::optional<nano::keepalive> pop_last_keepalive ();
 
 	std::shared_ptr<nano::transport::tcp_socket> const socket;
-	std::weak_ptr<nano::node> const node;
 	nano::mutex mutex;
 	std::atomic<bool> stopped{ false };
 	std::atomic<bool> handshake_received{ false };
 	// Remote endpoint used to remove response channel even after socket closing
 	nano::tcp_endpoint remote_endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	std::chrono::steady_clock::time_point last_telemetry_req{};
+
+private:
+	std::weak_ptr<nano::node> node_w;
+	nano::node & node;
 
 private:
 	enum class process_result
