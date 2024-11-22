@@ -484,7 +484,8 @@ TEST (socket_timeout, write)
 	ASSERT_FALSE (socket->alive ());
 }
 
-TEST (socket_timeout, read_overlapped)
+// FIXME: This is using the socket in a wrong way, overlapping async ops are not allowed
+TEST (socket_timeout, DISABLED_read_overlapped)
 {
 	// create one node and set timeout to 1 second
 	nano::test::system system (1);
@@ -542,7 +543,8 @@ TEST (socket_timeout, read_overlapped)
 	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
 }
 
-TEST (socket_timeout, write_overlapped)
+// FIXME: This is using the socket in a wrong way, overlapping async ops are not allowed
+TEST (socket_timeout, DISABLED_write_overlapped)
 {
 	std::atomic<bool> done = false;
 	std::atomic<boost::system::error_code> ec;
