@@ -6,6 +6,7 @@
 #include <nano/node/endpoint.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/transport/common.hpp>
+#include <nano/node/transport/tcp_config.hpp>
 
 #include <boost/asio.hpp>
 #include <boost/multi_index/hashed_index.hpp>
@@ -24,29 +25,6 @@ namespace asio = boost::asio;
 
 namespace nano::transport
 {
-class tcp_config
-{
-public:
-	explicit tcp_config (nano::network_constants const & network)
-	{
-		if (network.is_dev_network ())
-		{
-			max_inbound_connections = 128;
-			max_outbound_connections = 128;
-			max_attempts = 128;
-			max_attempts_per_ip = 128;
-			connect_timeout = std::chrono::seconds{ 5 };
-		}
-	}
-
-public:
-	size_t max_inbound_connections{ 2048 };
-	size_t max_outbound_connections{ 2048 };
-	size_t max_attempts{ 60 };
-	size_t max_attempts_per_ip{ 1 };
-	std::chrono::seconds connect_timeout{ 60 };
-};
-
 /**
  * Server side portion of tcp sessions. Listens for new socket connections and spawns tcp_server objects when connected.
  */
