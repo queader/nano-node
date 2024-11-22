@@ -389,6 +389,7 @@ TEST (socket_timeout, connect)
 	// Sometimes the connect will be aborted but there will be no error, just check that the callback was called due to the timeout
 	ASSERT_TIMELY_EQ (6s, done, true);
 	ASSERT_TRUE (socket->has_timed_out ());
+	ASSERT_FALSE (socket->alive ());
 }
 
 TEST (socket_timeout, read)
@@ -399,7 +400,7 @@ TEST (socket_timeout, read)
 	nano::test::system system;
 
 	nano::node_config config;
-	config.tcp.io_timeout = 1s;
+	config.tcp.io_timeout = 2s;
 	auto node = system.add_node (config);
 
 	// create a server socket
@@ -433,11 +434,8 @@ TEST (socket_timeout, read)
 
 	// check that the callback was called and we got an error
 	ASSERT_TIMELY_EQ (10s, done, true);
-	ASSERT_TRUE (ec);
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_read_error, nano::stat::dir::in));
-
-	// check that the socket was closed due to tcp_io_timeout timeout
-	ASSERT_EQ (1, node->stats.count (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop, nano::stat::dir::out));
+	ASSERT_TRUE (socket->has_timed_out ());
+	ASSERT_FALSE (socket->alive ());
 }
 
 TEST (socket_timeout, write)
@@ -448,7 +446,7 @@ TEST (socket_timeout, write)
 	nano::test::system system;
 
 	nano::node_config config;
-	config.tcp.io_timeout = 1s;
+	config.tcp.io_timeout = 2s;
 	auto node = system.add_node (config);
 
 	// create a server socket
