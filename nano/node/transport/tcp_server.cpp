@@ -11,61 +11,125 @@
  */
 
 nano::transport::tcp_server::tcp_server (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a, bool allow_bootstrap_a) :
-	socket{ socket_a },
 	node_w{ node_a.shared () },
 	node{ node_a },
-	allow_bootstrap{ allow_bootstrap_a },
-	message_deserializer{
-		std::make_shared<nano::transport::message_deserializer> (node.network_params.network, node.network.filter, node.block_uniquer, node.vote_uniquer,
-		[socket_l = socket] (std::shared_ptr<std::vector<uint8_t>> const & data_a, size_t size_a, std::function<void (boost::system::error_code const &, std::size_t)> callback_a) {
-			debug_assert (socket_l != nullptr);
-			socket_l->async_read (data_a, size_a, callback_a);
-		})
-	}
+	socket{ socket_a },
+	strand{ node_a.io_ctx.get_executor () },
+	task{ strand }
 {
-	debug_assert (socket != nullptr);
+	start ();
 }
 
 nano::transport::tcp_server::~tcp_server ()
 {
-	auto node = this->node_w.lock ();
-	if (!node)
-	{
-		return;
-	}
+	close ();
+	release_assert (task.ready ());
+}
 
-	node->logger.debug (nano::log::type::tcp_server, "Exiting server: {}", fmt::streamed (remote_endpoint));
-
+void nano::transport::tcp_server::close ()
+{
 	stop ();
+	socket->close ();
+	closed = true;
 }
 
 void nano::transport::tcp_server::start ()
 {
-	// Set remote_endpoint
-	if (remote_endpoint.port () == 0)
-	{
-		remote_endpoint = socket->get_remote_endpoint ();
-		debug_assert (remote_endpoint.port () != 0);
-	}
-
-	auto node = this->node_w.lock ();
-	if (!node)
-	{
-		return;
-	}
-
-	node->logger.debug (nano::log::type::tcp_server, "Starting server: {}", fmt::streamed (remote_endpoint));
-
-	receive_message ();
+	task = nano::async::task (strand, start_impl ());
 }
 
 void nano::transport::tcp_server::stop ()
 {
-	if (!stopped.exchange (true))
+	if (task.ongoing ())
 	{
-		socket->close_async ();
+		// Node context must be running to gracefully stop async tasks
+		debug_assert (!node.io_ctx.stopped ());
+		// Ensure that we are not trying to await the task while running on the same thread / io_context
+		debug_assert (!node.io_ctx.get_executor ().running_in_this_thread ());
+
+		task.cancel ();
+		task.join ();
 	}
 }
+
+asio::awaitable<void> nano::transport::tcp_server::start_impl ()
+{
+	debug_assert (strand.running_in_this_thread ());
+	try
+	{
+		co_await do_handshake ();
+		co_await run_receiving ();
+	}
+	catch (boost::system::system_error const & ex)
+	{
+		// Operation aborted is expected when cancelling the task
+		debug_assert (ex.code () == asio::error::operation_aborted || !socket->alive ());
+	}
+	catch (...)
+	{
+		release_assert (false, "unexpected exception");
+	}
+	debug_assert (strand.running_in_this_thread ());
+}
+
+asio::awaitable<void> nano::transport::tcp_server::do_handshake ()
+{
+	debug_assert (strand.running_in_this_thread ());
+
+	auto message = co_await receive_one ();
+	if (!message)
+	{
+		return;
+	}
+
+	handshake_message_visitor handshake_visitor{ *this };
+	message->visit (handshake_visitor);
+
+	switch (handshake_visitor.result)
+	{
+		case handshake_status::abort:
+		{
+			node.stats.inc (nano::stat::type::tcp_server, nano::stat::detail::handshake_abort);
+			node.logger.debug (nano::log::type::tcp_server, "Aborting handshake: {} ({})",
+			to_string (message->type ()),
+			fmt::streamed (socket->get_remote_endpoint ()));
+
+			stop ();
+		}
+		break;
+		case handshake_status::handshake:
+		{
+			// Continue handshake
+		}
+		break;
+		case handshake_status::realtime:
+		{
+			queue_realtime (std::move (message));
+		}
+		break;
+	}
+}
+
+asio::awaitable<void> nano::transport::tcp_server::run_receiving ()
+{
+	while (!co_await nano::async::cancelled () && alive ())
+	{
+		debug_assert (strand.running_in_this_thread ());
+
+		auto message = co_await receive_one ();
+
+		co_await nano::async::sleep_for (node.network_params.network.is_dev_network () ? 1s : 5s);
+	}
+}
+
+asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::receive_one ()
+{
+	debug_assert (strand.running_in_this_thread ());
+
+
+}
+
+/////
 
 void nano::transport::tcp_server::receive_message ()
 {
@@ -541,38 +605,14 @@ void nano::transport::tcp_server::bootstrap_message_visitor::frontier_req (const
  *
  */
 
-// TODO: We could periodically call this (from a dedicated timeout thread for eg.) but socket already handles timeouts,
-//  and since we only ever store tcp_server as weak_ptr, socket timeout will automatically trigger tcp_server cleanup
-void nano::transport::tcp_server::timeout ()
-{
-	auto node = this->node_w.lock ();
-	if (!node)
-	{
-		return;
-	}
-	if (socket->has_timed_out ())
-	{
-		node->logger.debug (nano::log::type::tcp_server, "Closing TCP server due to timeout ({})", fmt::streamed (remote_endpoint));
-
-		socket->close_async ();
-	}
-}
-
 void nano::transport::tcp_server::set_last_keepalive (nano::keepalive const & message)
 {
-	std::lock_guard<nano::mutex> lock{ mutex };
-	if (!last_keepalive)
-	{
-		last_keepalive = message;
-	}
+	last_keepalive = message;
 }
 
 std::optional<nano::keepalive> nano::transport::tcp_server::pop_last_keepalive ()
 {
-	std::lock_guard<nano::mutex> lock{ mutex };
-	auto result = last_keepalive;
-	last_keepalive = std::nullopt;
-	return result;
+	return last_keepalive.exchange (std::nullopt);
 }
 
 bool nano::transport::tcp_server::to_bootstrap_connection ()
