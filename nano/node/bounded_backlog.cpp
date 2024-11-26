@@ -228,7 +228,7 @@ void nano::bounded_backlog::run ()
 				lock.unlock ();
 
 				stats.add (nano::stat::type::bounded_backlog, nano::stat::detail::gathered_targets, targets.size ());
-				auto processed = perform_rollbacks (targets);
+				auto processed = perform_rollbacks (targets, target_count);
 
 				lock.lock ();
 
@@ -285,7 +285,7 @@ bool nano::bounded_backlog::should_rollback (nano::block_hash const & hash) cons
 	return true;
 }
 
-std::deque<nano::block_hash> nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> const & targets)
+std::deque<nano::block_hash> nano::bounded_backlog::perform_rollbacks (std::deque<nano::block_hash> const & targets, size_t max_rollbacks)
 {
 	stats.inc (nano::stat::type::bounded_backlog, nano::stat::detail::performing_rollbacks);
 
@@ -320,6 +320,12 @@ std::deque<nano::block_hash> nano::bounded_backlog::perform_rollbacks (std::dequ
 				// TODO: Calling block_processor's event here is not ideal, but duplicating these events is even worse
 				block_processor.rolled_back.notify (rollback_list, root);
 			});
+
+			// Return early if we reached the maximum number of rollbacks
+			if (processed.size () >= max_rollbacks)
+			{
+				break;
+			}
 		}
 		else
 		{

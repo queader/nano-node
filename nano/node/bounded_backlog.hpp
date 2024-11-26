@@ -135,7 +135,7 @@ private:
 	std::deque<nano::block_hash> gather_targets (size_t max_count) const;
 	bool should_rollback (nano::block_hash const &) const;
 
-	std::deque<nano::block_hash> perform_rollbacks (std::deque<nano::block_hash> const & targets);
+	std::deque<nano::block_hash> perform_rollbacks (std::deque<nano::block_hash> const & targets, size_t max_rollbacks);
 
 	void run_scan ();
 
