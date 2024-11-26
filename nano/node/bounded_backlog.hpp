@@ -17,6 +17,8 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 
+#include <unordered_map>
+
 namespace mi = boost::multi_index;
 
 namespace nano
@@ -87,7 +89,7 @@ private:
 	ordered_blocks blocks;
 
 	// Keep track of the size of the backlog in number of unconfirmed blocks per bucket
-	std::map<nano::bucket_index, size_t> size_by_bucket;
+	std::unordered_map<nano::bucket_index, size_t> size_by_bucket;
 };
 
 class bounded_backlog_config
