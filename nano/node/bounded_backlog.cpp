@@ -485,11 +485,9 @@ std::deque<nano::block_hash> nano::backlog_index::next (nano::block_hash last, s
 	auto it = blocks.get<tag_hash_ordered> ().upper_bound (last);
 	auto end = blocks.get<tag_hash_ordered> ().end ();
 
-	while (it != end && results.size () < count)
+	for (; it != end && results.size () < count; ++it)
 	{
 		results.push_back (it->hash);
-		last = it->hash;
-		it = blocks.get<tag_hash_ordered> ().upper_bound (last);
 	}
 	return results;
 }
