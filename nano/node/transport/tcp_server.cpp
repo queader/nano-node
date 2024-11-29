@@ -127,24 +127,13 @@ asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::rec
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	node.stats.inc (nano::stat::type::tcp_server, nano::stat::detail::read, nano::stat::dir::in);
+	node.stats.inc (nano::stat::type::tcp_server, nano::stat::detail::read_header, nano::stat::dir::in);
 	node.stats.inc (nano::stat::type::tcp_server_read, nano::stat::detail::header, nano::stat::dir::in);
-
-	auto [ec, size_read] = co_await socket->co_read (buffer, nano::message_header::size);
-	debug_assert (ec || size_read == nano::message_header::size);
-	debug_assert (strand.running_in_this_thread ());
-
-	if (ec)
-	{
-		node.stats.inc (nano::stat::type::tcp_server_error, nano::to_stat_detail (ec), nano::stat::dir::in);
-		throw boost::system::system_error (ec);
-	}
 
 	bool error = false;
 
-	release_assert (size_read == nano::message_header::size);
-	nano::bufferstream stream{ buffer->data (), size_read };
-	nano::message_header header{ error, stream }; // TODO: Use throwing constructors
+	auto header_stream = co_await read_socket (nano::message_header::size);
+	nano::message_header header{ error, header_stream }; // TODO: Use throwing constructors
 
 	if (error)
 	{
@@ -154,19 +143,29 @@ asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::rec
 
 	auto const payload_size = header.payload_length_bytes ();
 
-	auto [ec_payload, size_read_payload] = co_await socket->co_read (buffer, payload_size);
-	debug_assert (ec_payload || size_read_payload == payload_size);
+	node.stats.inc (nano::stat::type::tcp_server, nano::stat::detail::read_payload, nano::stat::dir::in);
+	node.stats.inc (nano::stat::type::tcp_server_read, to_stat_detail (header.type ()), nano::stat::dir::in);
+
+	auto payload_stream = co_await read_socket (payload_size);
+	auto message = nano::deserialize_message (payload_stream, header);
+}
+
+asio::awaitable<nano::bufferstream> nano::transport::tcp_server::read_socket (size_t size)
+{
 	debug_assert (strand.running_in_this_thread ());
 
-	if (ec_payload)
+	auto [ec, size_read] = co_await socket->co_read (buffer, size);
+	debug_assert (ec || size_read == size);
+	debug_assert (strand.running_in_this_thread ());
+
+	if (ec)
 	{
-		node.stats.inc (nano::stat::type::tcp_server_error, nano::to_stat_detail (ec_payload), nano::stat::dir::in);
-		throw boost::system::system_error (ec_payload);
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::to_stat_detail (ec), nano::stat::dir::in);
+		throw boost::system::system_error (ec);
 	}
 
-	release_assert (size_read_payload == payload_size);
-	nano::bufferstream stream_payload{ buffer->data (), size_read_payload };
-	auto message = nano::deserialize_message (stream_payload, header);
+	release_assert (size_read == size);
+	co_return nano::bufferstream{ buffer->data (), size_read };
 }
 
 /////

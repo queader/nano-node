@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nano/lib/stream.hpp>
 #include <nano/node/endpoint.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/messages.hpp>
@@ -44,6 +45,7 @@ private:
 	asio::awaitable<void> do_handshake ();
 	asio::awaitable<void> run_receiving ();
 	asio::awaitable<std::unique_ptr<nano::message>> receive_one ();
+	asio::awaitable<nano::bufferstream> read_socket (size_t size);
 
 private:
 	std::weak_ptr<nano::node> node_w;

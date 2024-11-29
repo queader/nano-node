@@ -385,6 +385,8 @@ enum class detail
 	outdated,
 
 	// tcp_server
+	read_header,
+	read_payload,
 	handshake,
 	handshake_abort,
 	handshake_error,
