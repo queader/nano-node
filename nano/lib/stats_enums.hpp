@@ -29,9 +29,11 @@ enum class type
 	http_callback,
 	ipc,
 	tcp,
-	tcp_server,
 	tcp_socket,
 	tcp_socket_timeout,
+	tcp_server,
+	tcp_server_read,
+	tcp_server_error,
 	tcp_channel,
 	tcp_channel_queued,
 	tcp_channel_send,
@@ -167,6 +169,7 @@ enum class detail
 	drop,
 	queued,
 	close,
+	read,
 
 	// processing queue
 	queue,
@@ -222,9 +225,10 @@ enum class detail
 	forced,
 	election,
 
-	// message specific
+	// message types
 	not_a_type,
 	invalid,
+	header,
 	keepalive,
 	publish,
 	confirm_req,
