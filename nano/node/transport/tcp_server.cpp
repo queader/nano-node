@@ -10,12 +10,13 @@
  * tcp_server
  */
 
-nano::transport::tcp_server::tcp_server (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a, bool allow_bootstrap_a) :
+nano::transport::tcp_server::tcp_server (nano::node & node_a, std::shared_ptr<nano::transport::tcp_socket> socket_a) :
 	node_w{ node_a.shared () },
 	node{ node_a },
 	socket{ socket_a },
 	strand{ node_a.io_ctx.get_executor () },
-	task{ strand }
+	task{ strand },
+	buffer{ std::make_shared<std::vector<uint8_t>> (max_buffer_size) }
 {
 	start ();
 }
@@ -126,7 +127,46 @@ asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::rec
 {
 	debug_assert (strand.running_in_this_thread ());
 
+	node.stats.inc (nano::stat::type::tcp_server, nano::stat::detail::read, nano::stat::dir::in);
+	node.stats.inc (nano::stat::type::tcp_server_read, nano::stat::detail::header, nano::stat::dir::in);
 
+	auto [ec, size_read] = co_await socket->co_read (buffer, nano::message_header::size);
+	debug_assert (ec || size_read == nano::message_header::size);
+	debug_assert (strand.running_in_this_thread ());
+
+	if (ec)
+	{
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::to_stat_detail (ec), nano::stat::dir::in);
+		throw boost::system::system_error (ec);
+	}
+
+	bool error = false;
+
+	release_assert (size_read == nano::message_header::size);
+	nano::bufferstream stream{ buffer->data (), size_read };
+	nano::message_header header{ error, stream }; // TODO: Use throwing constructors
+
+	if (error)
+	{
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_header, nano::stat::dir::in);
+		throw std::runtime_error ("tcp_server::error deserializing message header");
+	}
+
+	auto const payload_size = header.payload_length_bytes ();
+
+	auto [ec_payload, size_read_payload] = co_await socket->co_read (buffer, payload_size);
+	debug_assert (ec_payload || size_read_payload == payload_size);
+	debug_assert (strand.running_in_this_thread ());
+
+	if (ec_payload)
+	{
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::to_stat_detail (ec_payload), nano::stat::dir::in);
+		throw boost::system::system_error (ec_payload);
+	}
+
+	release_assert (size_read_payload == payload_size);
+	nano::bufferstream stream_payload{ buffer->data (), size_read_payload };
+	auto message = nano::deserialize_message (stream_payload, header);
 }
 
 /////

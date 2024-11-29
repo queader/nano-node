@@ -13,7 +13,7 @@ namespace nano::transport
 class tcp_server final : public std::enable_shared_from_this<tcp_server>
 {
 public:
-	tcp_server (nano::node &, std::shared_ptr<nano::transport::tcp_socket>, bool allow_bootstrap = true);
+	tcp_server (nano::node &, std::shared_ptr<nano::transport::tcp_socket>);
 	~tcp_server ();
 
 	void close ();
@@ -54,6 +54,9 @@ private:
 
 	nano::async::strand strand;
 	nano::async::task task;
+
+	nano::shared_buffer buffer;
+	static size_t constexpr max_buffer_size = 64 * 1024; // 64 KB
 
 	std::atomic<std::optional<nano::keepalive>> last_keepalive;
 
