@@ -77,7 +77,7 @@ asio::awaitable<void> nano::transport::tcp_server::do_handshake ()
 {
 	debug_assert (strand.running_in_this_thread ());
 
-	auto message = co_await receive_one ();
+	auto message = co_await receive_message ();
 	if (!message)
 	{
 		return;
@@ -117,13 +117,13 @@ asio::awaitable<void> nano::transport::tcp_server::run_receiving ()
 	{
 		debug_assert (strand.running_in_this_thread ());
 
-		auto message = co_await receive_one ();
+		auto message = co_await receive_message ();
 
 		co_await nano::async::sleep_for (node.network_params.network.is_dev_network () ? 1s : 5s);
 	}
 }
 
-asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::receive_one ()
+asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::receive_message ()
 {
 	debug_assert (strand.running_in_this_thread ());
 
@@ -139,6 +139,16 @@ asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::rec
 	{
 		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_header, nano::stat::dir::in);
 		throw std::runtime_error ("tcp_server::error deserializing message header");
+	}
+	if (!header.is_valid_message_type ())
+	{
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_message_type, nano::stat::dir::in);
+		throw std::runtime_error ("tcp_server::invalid message type");
+	}
+	if (header.network != node.network_params.network)
+	{
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_network, nano::stat::dir::in);
+		throw std::runtime_error ("tcp_server::invalid network");
 	}
 
 	auto const payload_size = header.payload_length_bytes ();

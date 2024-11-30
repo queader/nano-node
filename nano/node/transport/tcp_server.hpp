@@ -44,7 +44,7 @@ private:
 	asio::awaitable<void> start_impl ();
 	asio::awaitable<void> do_handshake ();
 	asio::awaitable<void> run_receiving ();
-	asio::awaitable<std::unique_ptr<nano::message>> receive_one ();
+	asio::awaitable<std::unique_ptr<nano::message>> receive_message ();
 	asio::awaitable<nano::bufferstream> read_socket (size_t size);
 
 private:
