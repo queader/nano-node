@@ -4,6 +4,7 @@
 #include <nano/lib/fwd.hpp>
 
 #include <chrono>
+#include <string_view>
 
 namespace nano
 {
@@ -235,11 +236,22 @@ public:
 		return error;
 	}
 
-	char const * get_current_network_as_string ()
+	std::string_view get_current_network_as_string () const
 	{
-		return is_live_network () ? "live" : is_beta_network () ? "beta"
-		: is_test_network ()                                    ? "test"
-																: "dev";
+		switch (current_network)
+		{
+			case nano::networks::nano_live_network:
+				return "live";
+			case nano::networks::nano_beta_network:
+				return "beta";
+			case nano::networks::nano_dev_network:
+				return "dev";
+			case nano::networks::nano_test_network:
+				return "test";
+			case networks::invalid:
+				break;
+		}
+		release_assert (false, "invalid network");
 	}
 
 	bool is_live_network () const

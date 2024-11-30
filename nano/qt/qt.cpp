@@ -14,6 +14,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include <fmt/format.h>
+
 namespace
 {
 void show_line_error (QLineEdit & line)
@@ -75,12 +77,14 @@ nano_qt::self_pane::self_pane (nano_qt::wallet & wallet_a, nano::account const &
 	wallet (wallet_a)
 {
 	your_account_label->setStyleSheet ("font-weight: bold;");
-	std::string network = wallet.node.network_params.network.get_current_network_as_string ();
+
+	// Capitalize the first letter
+	std::string network{ wallet.node.network_params.network.get_current_network_as_string () };
 	if (!network.empty ())
 	{
 		network[0] = std::toupper (network[0]);
 	}
-	version = new QLabel (boost::str (boost::format ("%1% %2% network") % NANO_VERSION_STRING % network).c_str ());
+	version = new QLabel (fmt::format ("{} {} network", NANO_VERSION_STRING, network).c_str ());
 
 	self_layout->addWidget (your_account_label);
 	self_layout->addStretch ();

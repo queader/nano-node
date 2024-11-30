@@ -192,7 +192,7 @@ public:
 							throw std::runtime_error (std::string ("RPC is configured to spawn a new process however the file cannot be found at: ") + config.rpc.child_process.rpc_path);
 						}
 
-						auto network = node->network_params.network.get_current_network_as_string ();
+						std::string network{ node->network_params.network.get_current_network_as_string () };
 						rpc_process = std::make_unique<boost::process::child> (config.rpc.child_process.rpc_path, "--daemon", "--data_path", data_path.string (), "--network", network);
 					}
 				}
