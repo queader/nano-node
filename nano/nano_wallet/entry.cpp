@@ -281,7 +281,7 @@ int main (int argc, char * const * argv)
 			auto err (nano::network_constants::set_active_network (network->second.as<std::string> ()));
 			if (err)
 			{
-				daemon.show_error (nano::network_constants::active_network_err_msg);
+				daemon.show_error ("Invalid network. Valid values are live, test, beta and dev.");
 				std::exit (1);
 			}
 		}
