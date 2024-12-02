@@ -80,7 +80,7 @@ asio::awaitable<void> nano::transport::tcp_server::do_handshake ()
 	auto message = co_await receive_message ();
 	if (!message)
 	{
-		return;
+		throw std::runtime_error ("tcp_server::do_handshake: initial message is null");
 	}
 
 	handshake_message_visitor handshake_visitor{ *this };
@@ -138,17 +138,22 @@ asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::rec
 	if (error)
 	{
 		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_header, nano::stat::dir::in);
-		throw std::runtime_error ("tcp_server::error deserializing message header");
+		throw std::runtime_error ("tcp_server::receive_message error deserializing message header");
 	}
 	if (!header.is_valid_message_type ())
 	{
 		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_message_type, nano::stat::dir::in);
-		throw std::runtime_error ("tcp_server::invalid message type");
+		throw std::runtime_error ("tcp_server::receive_message invalid message type");
 	}
-	if (header.network != node.network_params.network)
+	if (header.network != node.config.network_params.network.current_network)
 	{
 		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::invalid_network, nano::stat::dir::in);
-		throw std::runtime_error ("tcp_server::invalid network");
+		throw std::runtime_error ("tcp_server::receive_message invalid network");
+	}
+	if (header.version_using < node.config.network_params.network.protocol_version_min)
+	{
+		node.stats.inc (nano::stat::type::tcp_server_error, nano::stat::detail::outdated_version, nano::stat::dir::in);
+		throw std::runtime_error ("tcp_server::receive_message outdated protocol version");
 	}
 
 	auto const payload_size = header.payload_length_bytes ();
@@ -156,7 +161,7 @@ asio::awaitable<std::unique_ptr<nano::message>> nano::transport::tcp_server::rec
 	node.stats.inc (nano::stat::type::tcp_server, nano::stat::detail::read_payload, nano::stat::dir::in);
 	node.stats.inc (nano::stat::type::tcp_server_read, to_stat_detail (header.type ()), nano::stat::dir::in);
 
-	auto payload_stream = co_await read_socket (payload_size);
+	auto payload_stream = payload_size > 0 ? co_await read_socket (payload_size) : nano::bufferstream{ nullptr, 0 };
 	auto message = nano::deserialize_message (payload_stream, header);
 }
 
