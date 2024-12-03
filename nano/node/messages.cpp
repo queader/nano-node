@@ -1982,6 +1982,198 @@ void nano::asc_pull_ack::frontiers_payload::operator() (nano::object_stream & ob
  *
  */
 
+auto nano::deserialize_message (nano::stream & stream, nano::message_header const & header, nano::network_filter * network_filter, nano::block_uniquer * block_uniquer, nano::vote_uniquer * vote_uniquer) -> deserialize_message_result
+{
+	using result_t = deserialize_message_result;
+
+	switch (header.type)
+	{
+		case nano::message_type::keepalive:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::keepalive> (error, stream, header);
+			if (!error && at_end (stream))
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_keepalive_message;
+		}
+		case nano::message_type::publish:
+		{
+			if (network_filter)
+			{
+				// Early filtering to not waste time deserializing duplicates
+				auto current_position = stream.offset ();
+				auto remaining_size = stream.size () - current_position;
+
+				nano::uint128_t digest;
+				if (network_filter->apply (static_cast<uint8_t const *> (stream.data ()) + current_position, remaining_size, &digest))
+				{
+					return deserialize_message_error::duplicate_publish_message;
+				}
+
+				bool error = false;
+				auto message = std::make_unique<nano::publish> (error, stream, header, digest, block_uniquer);
+				if (!error && at_end (stream))
+				{
+					if (message->block && !network_constants.work.validate_entry (*message->block))
+					{
+						return message;
+					}
+					return deserialize_message_error::insufficient_work;
+				}
+			}
+			else
+			{
+				bool error = false;
+				auto message = std::make_unique<nano::publish> (error, stream, header, 0, block_uniquer);
+				if (!error && at_end (stream))
+				{
+					if (message->block && !network_constants.work.validate_entry (*message->block))
+					{
+						return message;
+					}
+					return deserialize_message_error::insufficient_work;
+				}
+			}
+			return deserialize_message_error::invalid_publish_message;
+		}
+		case nano::message_type::confirm_req:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::confirm_req> (error, stream, header);
+			if (!error && at_end (stream))
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_confirm_req_message;
+		}
+		case nano::message_type::confirm_ack:
+		{
+			if (network_filter)
+			{
+				// Early filtering to not waste time deserializing duplicates
+				auto current_position = stream.offset ();
+				auto remaining_size = stream.size () - current_position;
+
+				nano::uint128_t digest;
+				if (network_filter->apply (static_cast<uint8_t const *> (stream.data ()) + current_position, remaining_size, &digest))
+				{
+					return deserialize_message_error::duplicate_confirm_ack_message;
+				}
+
+				bool error = false;
+				auto message = std::make_unique<nano::confirm_ack> (error, stream, header, digest, vote_uniquer);
+				if (!error && at_end (stream))
+				{
+					return message;
+				}
+			}
+			else
+			{
+				bool error = false;
+				auto message = std::make_unique<nano::confirm_ack> (error, stream, header, 0, vote_uniquer);
+				if (!error && at_end (stream))
+				{
+					return message;
+				}
+			}
+			return deserialize_message_error::invalid_confirm_ack_message;
+		}
+		case nano::message_type::node_id_handshake:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::node_id_handshake> (error, stream, header);
+			if (!error && at_end (stream))
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_node_id_handshake_message;
+		}
+		case nano::message_type::telemetry_req:
+		{
+			// Message does not use stream payload (header only)
+			return std::make_unique<nano::telemetry_req> (header);
+		}
+		case nano::message_type::telemetry_ack:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::telemetry_ack> (error, stream, header);
+			// Intentionally not checking if at the end of stream, because these messages support backwards/forwards compatibility
+			if (!error)
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_telemetry_ack_message;
+		}
+		case nano::message_type::bulk_pull:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::bulk_pull> (error, stream, header);
+			if (!error && at_end (stream))
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_bulk_pull_message;
+		}
+		case nano::message_type::bulk_pull_account:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::bulk_pull_account> (error, stream, header);
+			if (!error && at_end (stream))
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_bulk_pull_account_message;
+		}
+		case nano::message_type::bulk_push:
+		{
+			// Message does not use stream payload (header only)
+			return std::make_unique<nano::bulk_push> (header);
+		}
+		case nano::message_type::frontier_req:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::frontier_req> (error, stream, header);
+			if (!error && at_end (stream))
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_frontier_req_message;
+		}
+		case nano::message_type::asc_pull_req:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::asc_pull_req> (error, stream, header);
+			// Intentionally not checking if at the end of stream, because these messages support backwards/forwards compatibility
+			if (!error)
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_asc_pull_req_message;
+		}
+		case nano::message_type::asc_pull_ack:
+		{
+			bool error = false;
+			auto message = std::make_unique<nano::asc_pull_ack> (error, stream, header);
+			// Intentionally not checking if at the end of stream, because these messages support backwards/forwards compatibility
+			if (!error)
+			{
+				return message;
+			}
+			return deserialize_message_error::invalid_asc_pull_ack_message;
+		}
+		default:
+		{
+			return deserialize_message_error::invalid_message_type;
+		}
+	}
+}
+
+/*
+ *
+ */
+
 std::string_view nano::to_string (nano::message_type type)
 {
 	return nano::enum_util::name (type);

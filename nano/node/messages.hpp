@@ -810,4 +810,31 @@ public:
 	}
 	virtual void default_handler (nano::message const &){};
 };
+
+enum class deserialize_message_error
+{
+	success,
+	insufficient_work,
+	invalid_header,
+	invalid_message_type,
+	invalid_keepalive_message,
+	invalid_publish_message,
+	invalid_confirm_req_message,
+	invalid_confirm_ack_message,
+	invalid_node_id_handshake_message,
+	invalid_telemetry_req_message,
+	invalid_telemetry_ack_message,
+	invalid_bulk_pull_message,
+	invalid_bulk_pull_account_message,
+	invalid_frontier_req_message,
+	invalid_asc_pull_req_message,
+	invalid_asc_pull_ack_message,
+	invalid_network,
+	outdated_version,
+	duplicate_publish_message,
+	duplicate_confirm_ack_message,
+};
+
+using deserialize_message_result = std::variant<std::unique_ptr<nano::message>, nano::deserialize_message_error>;
+deserialize_message_result deserialize_message (nano::stream &, nano::message_header const &, nano::network_filter * = nullptr, nano::block_uniquer * = nullptr, nano::vote_uniquer * = nullptr);
 }
