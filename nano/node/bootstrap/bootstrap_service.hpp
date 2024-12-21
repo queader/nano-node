@@ -30,15 +30,13 @@ namespace nano
 class bootstrap_service
 {
 public:
-	bootstrap_service (nano::node_config const &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &, nano::logger &);
+	bootstrap_service (nano::node_config const &, nano::node_observers &, nano::block_processor &, nano::ledger &, nano::network &, nano::stats &, nano::logger &);
 	~bootstrap_service ();
 
 	void start ();
 	void stop ();
 
-	/**
-	 * Process `asc_pull_ack` message coming from network
-	 */
+	/** Process messages coming from network */
 	void process (nano::asc_pull_ack const & message, std::shared_ptr<nano::transport::channel> const &);
 
 	std::size_t blocked_size () const;
@@ -52,12 +50,10 @@ public:
 
 	nano::bootstrap::account_sets::info_t info () const;
 
-public: // Events
-	nano::observer_set<nano::account> account_done;
-
 private: // Dependencies
 	bootstrap_config const & config;
 	nano::network_constants const & network_constants;
+	nano::node_observers & observers;
 	nano::block_processor & block_processor;
 	nano::ledger & ledger;
 	nano::network & network;

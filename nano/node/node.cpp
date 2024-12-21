@@ -164,7 +164,7 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	backlog{ *backlog_impl },
 	bootstrap_server_impl{ std::make_unique<nano::bootstrap_server> (config.bootstrap_server, store, ledger, network_params.network, stats) },
 	bootstrap_server{ *bootstrap_server_impl },
-	bootstrap_impl{ std::make_unique<nano::bootstrap_service> (config, block_processor, ledger, network, stats, logger) },
+	bootstrap_impl{ std::make_unique<nano::bootstrap_service> (config, observers, block_processor, ledger, network, stats, logger) },
 	bootstrap{ *bootstrap_impl },
 	websocket{ config.websocket_config, observers, wallets, ledger, io_ctx, logger },
 	epoch_upgrader{ *this, ledger, store, network_params, logger },

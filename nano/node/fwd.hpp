@@ -18,6 +18,7 @@ class bootstrap_server;
 class bootstrap_service;
 class confirming_set;
 class election;
+class election_status;
 class local_block_broadcaster;
 class local_vote_history;
 class logger;

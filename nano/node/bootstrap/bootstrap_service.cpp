@@ -7,6 +7,7 @@
 #include <nano/node/bootstrap/bootstrap_service.hpp>
 #include <nano/node/bootstrap/crawlers.hpp>
 #include <nano/node/network.hpp>
+#include <nano/node/node_observers.hpp>
 #include <nano/node/nodeconfig.hpp>
 #include <nano/node/transport/transport.hpp>
 #include <nano/secure/common.hpp>
@@ -18,9 +19,10 @@
 
 using namespace std::chrono_literals;
 
-nano::bootstrap_service::bootstrap_service (nano::node_config const & node_config_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stats & stat_a, nano::logger & logger_a) :
+nano::bootstrap_service::bootstrap_service (nano::node_config const & node_config_a, nano::node_observers & observers_a, nano::block_processor & block_processor_a, nano::ledger & ledger_a, nano::network & network_a, nano::stats & stat_a, nano::logger & logger_a) :
 	config{ node_config_a.bootstrap },
 	network_constants{ node_config_a.network_params.network },
+	observers{ observers_a },
 	block_processor{ block_processor_a },
 	ledger{ ledger_a },
 	network{ network_a },
@@ -299,7 +301,7 @@ void nano::bootstrap_service::inspect (secure::transaction const & tx, nano::blo
 					bool blocked = accounts.block (account, source_hash);
 					if (blocked)
 					{
-						account_done.notify (account);
+						observers.account_bootstrapped.notify (account);
 					}
 				}
 			}
@@ -865,7 +867,7 @@ bool nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 				bool erased = accounts.priority_down (tag.account);
 				if (erased)
 				{
-					account_done.notify (tag.account);
+					observers.account_bootstrapped.notify (tag.account);
 				}
 
 				accounts.timestamp_reset (tag.account);
