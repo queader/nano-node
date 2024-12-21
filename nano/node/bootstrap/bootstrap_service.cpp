@@ -296,7 +296,11 @@ void nano::bootstrap_service::inspect (secure::transaction const & tx, nano::blo
 				if (!account.is_zero () && !source_hash.is_zero ())
 				{
 					// Mark account as blocked because it is missing the source block
-					accounts.block (account, source_hash);
+					bool blocked = accounts.block (account, source_hash);
+					if (blocked)
+					{
+						account_done.notify (account);
+					}
 				}
 			}
 		}
@@ -858,7 +862,12 @@ bool nano::bootstrap_service::process (const nano::asc_pull_ack::blocks_payload 
 			{
 				nano::lock_guard<nano::mutex> lock{ mutex };
 
-				accounts.priority_down (tag.account);
+				bool erased = accounts.priority_down (tag.account);
+				if (erased)
+				{
+					account_done.notify (tag.account);
+				}
+
 				accounts.timestamp_reset (tag.account);
 
 				if (tag.source == query_source::database)

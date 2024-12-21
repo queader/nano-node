@@ -52,6 +52,9 @@ public:
 
 	nano::bootstrap::account_sets::info_t info () const;
 
+public: // Events
+	nano::observer_set<nano::account> account_done;
+
 private: // Dependencies
 	bootstrap_config const & config;
 	nano::network_constants const & network_constants;
