@@ -44,15 +44,12 @@ class optimistic final
 	struct entry;
 
 public:
-	optimistic (optimistic_config const &, nano::node &, nano::ledger &, nano::active_elections &, nano::network_constants const & network_constants, nano::stats &);
+	optimistic (optimistic_config const &, nano::node &, nano::node_observers &, nano::ledger &, nano::active_elections &, nano::network_constants const &, nano::stats &);
 	~optimistic ();
 
 	void start ();
 	void stop ();
 
-	/**
-	 * Called from backlog population to process accounts with unconfirmed blocks
-	 */
 	bool activate (nano::account const &, nano::account_info const &, nano::confirmation_height_info const &);
 
 	/**
@@ -72,6 +69,7 @@ private:
 private: // Dependencies
 	optimistic_config const & config;
 	nano::node & node;
+	nano::node_observers & observers;
 	nano::ledger & ledger;
 	nano::active_elections & active;
 	nano::network_constants const & network_constants;
@@ -97,7 +95,8 @@ private:
 	// clang-format on
 
 	/** Accounts eligible for optimistic scheduling */
-	ordered_candidates candidates;
+	ordered_candidates random_candidates;
+	ordered_candidates priority_candidates;
 
 	bool stopped{ false };
 	nano::condition_variable condition;

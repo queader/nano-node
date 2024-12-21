@@ -9,14 +9,27 @@
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/secure/ledger_set_confirmed.hpp>
 
-nano::scheduler::optimistic::optimistic (optimistic_config const & config_a, nano::node & node_a, nano::ledger & ledger_a, nano::active_elections & active_a, nano::network_constants const & network_constants_a, nano::stats & stats_a) :
+nano::scheduler::optimistic::optimistic (optimistic_config const & config_a, nano::node & node_a, nano::node_observers & observers_a, nano::ledger & ledger_a, nano::active_elections & active_a, nano::network_constants const & network_constants_a, nano::stats & stats_a) :
 	config{ config_a },
 	node{ node_a },
+	observers{ observers_a },
 	ledger{ ledger_a },
 	active{ active_a },
 	network_constants{ network_constants_a },
 	stats{ stats_a }
 {
+	observers.account_bootstrapped.add ([this] (nano::account const & account) {
+		auto transaction = ledger.tx_begin_read ();
+		if (auto account_info = ledger.any.account_get (transaction, account))
+		{
+			nano::confirmation_height_info conf_info;
+			ledger.store.confirmation_height.get (transaction, account, conf_info);
+			if (activate_predicate (*account_info, conf_info))
+			{
+				activate (account, *account_info, conf_info);
+			}
+		}
+	});
 }
 
 nano::scheduler::optimistic::~optimistic ()
