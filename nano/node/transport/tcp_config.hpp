@@ -23,6 +23,9 @@ public:
 	}
 
 public:
+	// TODO: Serialize/deserialize
+
+public:
 	size_t max_inbound_connections{ 2048 };
 	size_t max_outbound_connections{ 2048 };
 	size_t max_attempts{ 60 };

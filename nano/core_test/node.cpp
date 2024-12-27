@@ -2603,7 +2603,7 @@ TEST (node, bidirectional_tcp)
 	node_config.backlog_scan.enable = false;
 	auto node1 = system.add_node (node_config, node_flags);
 	node_config.peering_port = system.get_available_port ();
-	node_config.tcp_incoming_connections_max = 0; // Disable incoming TCP connections for node 2
+	node_config.tcp.max_inbound_connections = 0; // Disable incoming TCP connections for node 2
 	auto node2 = system.add_node (node_config, node_flags);
 	// Check network connections
 	ASSERT_EQ (1, node1->network.size ());

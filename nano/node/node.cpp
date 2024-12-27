@@ -607,7 +607,7 @@ void nano::node::start ()
 	}
 
 	bool tcp_enabled = false;
-	if (config.tcp_incoming_connections_max > 0 && !(flags.disable_bootstrap_listener && flags.disable_tcp_realtime))
+	if (!(flags.disable_bootstrap_listener && flags.disable_tcp_realtime))
 	{
 		tcp_listener.start ();
 		tcp_enabled = true;
