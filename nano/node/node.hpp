@@ -154,6 +154,8 @@ public:
 	nano::unchecked_map unchecked;
 	std::unique_ptr<nano::wallets_store> wallets_store_impl;
 	nano::wallets_store & wallets_store;
+	std::unique_ptr<nano::ledger_notifications> ledger_notifications_impl;
+	nano::ledger_notifications & ledger_notifications;
 	std::unique_ptr<nano::ledger> ledger_impl;
 	nano::ledger & ledger;
 	std::unique_ptr<nano::bandwidth_limiter> outbound_limiter_impl;

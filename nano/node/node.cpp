@@ -20,6 +20,7 @@
 #include <nano/node/daemonconfig.hpp>
 #include <nano/node/election_status.hpp>
 #include <nano/node/endpoint.hpp>
+#include <nano/node/ledger_notifications.hpp>
 #include <nano/node/local_block_broadcaster.hpp>
 #include <nano/node/local_vote_history.hpp>
 #include <nano/node/make_store.hpp>
@@ -104,6 +105,8 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	unchecked{ config.max_unchecked_blocks, stats, flags.disable_block_processor_unchecked_deletion },
 	wallets_store_impl (std::make_unique<nano::mdb_wallets_store> (application_path_a / "wallets.ldb", config_a.lmdb_config)),
 	wallets_store (*wallets_store_impl),
+	ledger_notifications_impl{ std::make_unique<nano::ledger_notifications> (config, stats, logger) },
+	ledger_notifications{ *ledger_notifications_impl },
 	ledger_impl{ std::make_unique<nano::ledger> (store, stats, network_params.ledger, flags_a.generate_cache, config_a.representative_vote_weight_minimum.number ()) },
 	ledger{ *ledger_impl },
 	outbound_limiter_impl{ std::make_unique<nano::bandwidth_limiter> (config) },
@@ -128,13 +131,13 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	application_path (application_path_a),
 	port_mapping_impl{ std::make_unique<nano::port_mapping> (*this) },
 	port_mapping{ *port_mapping_impl },
-	block_processor_impl{ std::make_unique<nano::block_processor> (config, ledger, unchecked, stats, logger) },
+	block_processor_impl{ std::make_unique<nano::block_processor> (config, ledger, ledger_notifications, unchecked, stats, logger) },
 	block_processor{ *block_processor_impl },
-	confirming_set_impl{ std::make_unique<nano::confirming_set> (config.confirming_set, ledger, block_processor, stats, logger) },
+	confirming_set_impl{ std::make_unique<nano::confirming_set> (config.confirming_set, ledger, ledger_notifications, stats, logger) },
 	confirming_set{ *confirming_set_impl },
 	bucketing_impl{ std::make_unique<nano::bucketing> () },
 	bucketing{ *bucketing_impl },
-	active_impl{ std::make_unique<nano::active_elections> (*this, confirming_set, block_processor) },
+	active_impl{ std::make_unique<nano::active_elections> (*this, ledger_notifications, confirming_set) },
 	active{ *active_impl },
 	rep_crawler (config.rep_crawler, *this),
 	rep_tiers{ ledger, network_params, online_reps, stats, logger },
@@ -155,22 +158,22 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 	generator{ *generator_impl },
 	final_generator_impl{ std::make_unique<nano::vote_generator> (config, *this, ledger, wallets, vote_processor, history, network, stats, logger, /* final */ true) },
 	final_generator{ *final_generator_impl },
-	scheduler_impl{ std::make_unique<nano::scheduler::component> (config, *this, ledger, bucketing, block_processor, active, online_reps, vote_cache, confirming_set, stats, logger) },
+	scheduler_impl{ std::make_unique<nano::scheduler::component> (config, *this, ledger, ledger_notifications, bucketing, active, online_reps, vote_cache, confirming_set, stats, logger) },
 	scheduler{ *scheduler_impl },
 	aggregator_impl{ std::make_unique<nano::request_aggregator> (config.request_aggregator, *this, stats, generator, final_generator, history, ledger, wallets, vote_router) },
 	aggregator{ *aggregator_impl },
 	wallets (wallets_store.init_error (), *this),
 	backlog_scan_impl{ std::make_unique<nano::backlog_scan> (config.backlog_scan, ledger, stats) },
 	backlog_scan{ *backlog_scan_impl },
-	backlog_impl{ std::make_unique<nano::bounded_backlog> (config, *this, ledger, bucketing, backlog_scan, block_processor, confirming_set, stats, logger) },
+	backlog_impl{ std::make_unique<nano::bounded_backlog> (config, *this, ledger, ledger_notifications, bucketing, backlog_scan, block_processor, confirming_set, stats, logger) },
 	backlog{ *backlog_impl },
 	bootstrap_server_impl{ std::make_unique<nano::bootstrap_server> (config.bootstrap_server, store, ledger, network_params.network, stats) },
 	bootstrap_server{ *bootstrap_server_impl },
-	bootstrap_impl{ std::make_unique<nano::bootstrap_service> (config, block_processor, ledger, network, stats, logger) },
+	bootstrap_impl{ std::make_unique<nano::bootstrap_service> (config, ledger, ledger_notifications, block_processor, network, stats, logger) },
 	bootstrap{ *bootstrap_impl },
 	websocket{ config.websocket_config, observers, wallets, ledger, io_ctx, logger },
 	epoch_upgrader{ *this, ledger, store, network_params, logger },
-	local_block_broadcaster_impl{ std::make_unique<nano::local_block_broadcaster> (config.local_block_broadcaster, *this, block_processor, network, confirming_set, stats, logger, !flags.disable_block_processor_republishing) },
+	local_block_broadcaster_impl{ std::make_unique<nano::local_block_broadcaster> (config.local_block_broadcaster, *this, ledger_notifications, network, confirming_set, stats, logger, !flags.disable_block_processor_republishing) },
 	local_block_broadcaster{ *local_block_broadcaster_impl },
 	process_live_dispatcher{ ledger, scheduler.priority, vote_cache, websocket },
 	peer_history_impl{ std::make_unique<nano::peer_history> (config.peer_history, store, network, logger, stats) },
@@ -218,8 +221,22 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 		active.recently_confirmed.erase (hash);
 	});
 
+	ledger_notifications.batch_processed.add ([this] (auto const & batch) {
+		auto const transaction = ledger.tx_begin_read ();
+		for (auto const & [result, context] : batch)
+		{
+			if (result == nano::block_status::progress)
+			{
+				if (websocket.server && websocket.server->any_subscriber (nano::websocket::topic::new_unconfirmed_block))
+				{
+					websocket.server->broadcast (nano::websocket::message_builder ().new_block_arrived (*context.block));
+				}
+			}
+		}
+	});
+
 	// Do some cleanup of rolled back blocks
-	block_processor.rolled_back.add ([this] (auto const & blocks, auto const & rollback_root) {
+	ledger_notifications.rolled_back.add ([this] (auto const & blocks, auto const & rollback_root) {
 		for (auto const & block : blocks)
 		{
 			history.erase (block->root ());
@@ -642,6 +659,7 @@ void nano::node::start ()
 	rep_tiers.start ();
 	vote_processor.start ();
 	vote_cache_processor.start ();
+	ledger_notifications.start ();
 	block_processor.start ();
 	active.start ();
 	generator.start ();
@@ -697,6 +715,7 @@ void nano::node::stop ()
 	generator.stop ();
 	final_generator.stop ();
 	confirming_set.stop ();
+	ledger_notifications.stop ();
 	telemetry.stop ();
 	websocket.stop ();
 	bootstrap_server.stop ();
