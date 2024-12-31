@@ -105,7 +105,9 @@ add_library(
   version.cpp
   versioning.cpp
   write_queue.hpp
-  write_queue.cpp)
+  write_queue.cpp
+  writers.hpp
+  writers.cpp)
 
 target_link_libraries(
   nano_store

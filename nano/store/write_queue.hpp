@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/lib/locks.hpp>
+#include <nano/store/writers.hpp>
 
 #include <condition_variable>
 #include <deque>
@@ -8,20 +9,6 @@
 
 namespace nano::store
 {
-/** Distinct areas write locking is done, order is irrelevant */
-enum class writer
-{
-	generic,
-	node,
-	block_processor,
-	confirmation_height,
-	pruning,
-	voting_final,
-	bounded_backlog,
-	online_weight,
-	testing // Used in tests to emulate a write lock
-};
-
 class write_queue;
 
 class write_guard final
@@ -80,4 +67,4 @@ private:
 
 	std::function<void ()> guard_finish_callback;
 };
-} // namespace nano::store
+}
