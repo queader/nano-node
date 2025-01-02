@@ -29,6 +29,7 @@
 #include <nano/node/online_reps.hpp>
 #include <nano/node/peer_history.hpp>
 #include <nano/node/portmapping.hpp>
+#include <nano/node/process_live_dispatcher.hpp>
 #include <nano/node/request_aggregator.hpp>
 #include <nano/node/scheduler/component.hpp>
 #include <nano/node/scheduler/hinted.hpp>
