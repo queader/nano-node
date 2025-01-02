@@ -9,6 +9,7 @@
 #include <nano/lib/work.hpp>
 #include <nano/node/endpoint.hpp>
 #include <nano/node/make_store.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>

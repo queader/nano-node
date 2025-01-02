@@ -15,7 +15,6 @@
 #include <nano/node/rep_tiers.hpp>
 #include <nano/node/repcrawler.hpp>
 #include <nano/node/transport/tcp_server.hpp>
-#include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_cache.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/websocket.hpp>

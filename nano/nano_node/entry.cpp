@@ -17,6 +17,7 @@
 #include <nano/node/node.hpp>
 #include <nano/node/online_reps.hpp>
 #include <nano/node/transport/inproc.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_any.hpp>
 #include <nano/secure/vote.hpp>
@@ -33,6 +34,7 @@
 #define NOMINMAX
 #endif
 #endif
+
 #include <boost/stacktrace.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>

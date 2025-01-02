@@ -16,6 +16,7 @@
 #include <nano/node/transport/fake.hpp>
 #include <nano/node/transport/inproc.hpp>
 #include <nano/node/transport/tcp_listener.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_generator.hpp>
 #include <nano/node/vote_router.hpp>
 #include <nano/secure/ledger.hpp>

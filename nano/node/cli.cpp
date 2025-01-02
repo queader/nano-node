@@ -7,6 +7,7 @@
 #include <nano/node/endpoint.hpp>
 #include <nano/node/inactive_node.hpp>
 #include <nano/node/node.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/secure/ledger.hpp>
 
 #include <boost/format.hpp>

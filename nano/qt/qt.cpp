@@ -2,6 +2,7 @@
 #include <nano/lib/config.hpp>
 #include <nano/lib/stats_sinks.hpp>
 #include <nano/node/election_status.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_with_weight_info.hpp>
 #include <nano/qt/qt.hpp>
 #include <nano/secure/ledger.hpp>

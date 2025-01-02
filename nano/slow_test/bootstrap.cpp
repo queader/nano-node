@@ -5,6 +5,7 @@
 #include <nano/node/ipc/ipc_server.hpp>
 #include <nano/node/json_handler.hpp>
 #include <nano/node/transport/transport.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/rpc/rpc.hpp>
 #include <nano/rpc/rpc_request_processor.hpp>
 #include <nano/secure/ledger.hpp>

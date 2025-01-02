@@ -38,6 +38,7 @@
 #include <nano/node/scheduler/priority.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/transport/tcp_listener.hpp>
+#include <nano/node/unchecked_map.hpp>
 #include <nano/node/vote_generator.hpp>
 #include <nano/node/vote_processor.hpp>
 #include <nano/node/vote_router.hpp>
