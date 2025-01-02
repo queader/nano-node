@@ -38,8 +38,6 @@ class telemetry;
 class unchecked_map;
 class stats;
 class vote_cache;
-enum class vote_code;
-enum class vote_source;
 class vote_generator;
 class vote_processor;
 class vote_router;
@@ -50,6 +48,7 @@ enum class block_source;
 enum class election_behavior;
 enum class election_state;
 enum class vote_code;
+enum class vote_source;
 }
 
 namespace nano::scheduler

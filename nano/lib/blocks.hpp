@@ -6,17 +6,13 @@
 #include <nano/lib/fwd.hpp>
 #include <nano/lib/numbers.hpp>
 #include <nano/lib/optional_ptr.hpp>
+#include <nano/lib/uniquer.hpp>
 
 #include <boost/property_tree/ptree_fwd.hpp>
 
 #include <optional>
 
 typedef struct blake2b_state__ blake2b_state;
-
-namespace nano
-{
-using block_uniquer = uniquer<nano::uint256_union, nano::block>;
-}
 
 namespace nano
 {
@@ -413,6 +409,8 @@ public:
 	virtual void state_block (nano::state_block &) = 0;
 	virtual ~mutable_block_visitor () = default;
 };
+
+using block_uniquer = nano::uniquer<nano::uint256_union, nano::block>;
 
 std::shared_ptr<nano::block> deserialize_block (nano::stream &);
 std::shared_ptr<nano::block> deserialize_block (nano::stream &, nano::block_type, nano::block_uniquer * = nullptr);

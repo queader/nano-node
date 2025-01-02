@@ -2,6 +2,7 @@
 
 #include <nano/boost/asio/ip/tcp.hpp>
 #include <nano/lib/asio.hpp>
+#include <nano/lib/blocks.hpp>
 #include <nano/lib/config.hpp>
 #include <nano/lib/errors.hpp>
 #include <nano/lib/fwd.hpp>
@@ -14,6 +15,7 @@
 #include <nano/node/endpoint.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/fwd.hpp>
+#include <nano/secure/vote.hpp>
 
 #include <bitset>
 #include <cstdint>
@@ -21,12 +23,6 @@
 #include <string>
 #include <variant>
 #include <vector>
-
-namespace nano
-{
-using block_uniquer = uniquer<nano::uint256_union, nano::block>;
-using vote_uniquer = uniquer<nano::block_hash, nano::vote>;
-}
 
 namespace nano
 {

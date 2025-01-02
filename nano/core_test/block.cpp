@@ -1,4 +1,3 @@
-#include <nano/lib/block_uniquer.hpp>
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/stream.hpp>
 #include <nano/lib/work_version.hpp>
