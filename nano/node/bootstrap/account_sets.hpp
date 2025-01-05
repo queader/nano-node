@@ -63,7 +63,6 @@ public:
 	void priority_up (nano::account const & account);
 	/**
 	 * Decreases account priority
-	 * Current implementation divides priority by 2.0f and saturates down to 1.0f.
 	 */
 	void priority_down (nano::account const & account);
 	void priority_set (nano::account const & account, double priority = priority_initial);
@@ -83,6 +82,11 @@ public:
 	 * Should be called periodically to reinsert missing dependencies into the priority set
 	 */
 	void sync_dependencies ();
+
+	/**
+	 * Should be called periodically to erase old entries from the blocking set
+	 */
+	nano::account decay_blocking (nano::account const & last, size_t count);
 
 	struct priority_result
 	{

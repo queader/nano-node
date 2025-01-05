@@ -718,6 +718,7 @@ void nano::bootstrap_service::cleanup_and_sync ()
 		return tag.cutoff < now;
 	};
 
+	// Erase timed out requests
 	auto & tags_by_order = tags.get<tag_sequenced> ();
 	while (!tags_by_order.empty () && should_timeout (tags_by_order.front ()))
 	{
@@ -727,11 +728,17 @@ void nano::bootstrap_service::cleanup_and_sync ()
 		tags_by_order.pop_front ();
 	}
 
+	// Reinsert known dependencies into the priority set
 	if (sync_dependencies_interval.elapsed (60s))
 	{
 		stats.inc (nano::stat::type::bootstrap, nano::stat::detail::sync_dependencies);
 		accounts.sync_dependencies ();
 	}
+
+	// Decay blocking set
+	size_t constexpr batch_size = 500;
+
+	accounts.decay_blocking (batch_size);
 }
 
 void nano::bootstrap_service::run_timeouts ()
