@@ -14,6 +14,7 @@
 #include <boost/multi_index_container.hpp>
 
 #include <chrono>
+#include <deque>
 #include <random>
 
 namespace mi = boost::multi_index;
@@ -90,11 +91,16 @@ public:
 		unsigned fails;
 	};
 
-	/**
+	/*
 	 * Sampling
 	 */
+
+	// Sample priority accounts in priority order
 	priority_result next_priority (std::function<bool (nano::account const &)> const & filter);
+	// Sample blocked accounts with unknown dependencies
 	nano::block_hash next_unknown_blocking (std::function<bool (nano::block_hash const &)> const & filter);
+	// Sample blocked accounts in account number order
+	std::deque<blocking_entry> next_blocking (nano::account last, size_t count) const;
 
 	bool blocked (nano::account const & account) const;
 	bool prioritized (nano::account const & account) const;

@@ -271,6 +271,21 @@ nano::block_hash nano::bootstrap::account_sets::next_unknown_blocking (std::func
 	return { 0 };
 }
 
+auto nano::bootstrap::account_sets::next_blocking (nano::account last, size_t count) const -> std::deque<blocking_entry>
+{
+	std::deque<blocking_entry> results;
+
+	auto it = blocking.get<tag_account> ().upper_bound (last);
+	auto end = blocking.get<tag_account> ().end ();
+
+	for (; it != end && results.size () < count; ++it)
+	{
+		results.push_back (*it);
+	}
+
+	return results;
+}
+
 void nano::bootstrap::account_sets::sync_dependencies ()
 {
 	stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::sync_dependencies);
