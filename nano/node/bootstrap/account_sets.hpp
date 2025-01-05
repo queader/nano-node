@@ -13,6 +13,7 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
 
+#include <chrono>
 #include <random>
 
 namespace mi = boost::multi_index;
@@ -103,7 +104,7 @@ private:
 		nano::account account;
 		double priority;
 		unsigned fails{ 0 };
-		std::chrono::steady_clock::time_point timestamp{};
+		std::chrono::steady_clock::time_point timestamp{}; // Use for cooldown, set to current time when this account is sampled
 		id_t id{ generate_id () }; // Uniformly distributed, used for random querying
 	};
 
@@ -111,7 +112,9 @@ private:
 	{
 		nano::account account;
 		nano::block_hash dependency;
-		nano::account dependency_account{ 0 };
+		nano::block_hash frontier; // The frontier of blocked account at the time of insertion
+		nano::account dependency_account{ 0 }; // Account that contains the dependency block, set via a background depenency walker
+		std::chrono::steady_clock::time_point timestamp{ std::chrono::steady_clock::now () };
 		id_t id{ generate_id () }; // Uniformly distributed, used for random querying
 	};
 
