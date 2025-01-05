@@ -16,7 +16,8 @@ nano::bootstrap_server::bootstrap_server (bootstrap_server_config const & config
 	store{ store_a },
 	ledger{ ledger_a },
 	network_constants{ network_constants_a },
-	stats{ stats_a }
+	stats{ stats_a },
+	limiter{ config.limiter, /* allow bursts */ 3.0 } // TODO: Limiter bucket capacity should be at least equal to the batch size, currently it's not configurable
 {
 	queue.max_size_query = [this] (auto const & origin) {
 		return config.max_queue;
@@ -181,6 +182,22 @@ void nano::bootstrap_server::run ()
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped)
 	{
+		condition.wait (lock, [this] () {
+			return stopped || !queue.empty ();
+		});
+
+		// Rate limit the processing
+		while (!stopped && !limiter.should_pass (config.batch_size))
+		{
+			stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::cooldown);
+			condition.wait_for (lock, 100ms);
+		}
+
+		if (stopped)
+		{
+			return;
+		}
+
 		if (!queue.empty ())
 		{
 			stats.inc (nano::stat::type::bootstrap_server, nano::stat::detail::loop);
@@ -189,10 +206,6 @@ void nano::bootstrap_server::run ()
 			debug_assert (!lock.owns_lock ());
 
 			lock.lock ();
-		}
-		else
-		{
-			condition.wait (lock, [this] () { return stopped || !queue.empty (); });
 		}
 	}
 }
@@ -429,6 +442,7 @@ nano::error nano::bootstrap_server_config::serialize (nano::tomlconfig & toml) c
 	toml.put ("max_queue", max_queue, "Maximum number of queued requests per peer. \ntype:uint64");
 	toml.put ("threads", threads, "Number of threads to process requests. \ntype:uint64");
 	toml.put ("batch_size", batch_size, "Maximum number of requests to process in a single batch. \ntype:uint64");
+	toml.put ("limiter", limiter, "Rate limit for processing requests. Use 0 for unlimited. \ntype:uint64");
 
 	return toml.get_error ();
 }
@@ -438,6 +452,7 @@ nano::error nano::bootstrap_server_config::deserialize (nano::tomlconfig & toml)
 	toml.get ("max_queue", max_queue);
 	toml.get ("threads", threads);
 	toml.get ("batch_size", batch_size);
+	toml.get ("limiter", limiter);
 
 	return toml.get_error ();
 }

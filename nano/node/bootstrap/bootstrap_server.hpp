@@ -2,6 +2,7 @@
 
 #include <nano/lib/locks.hpp>
 #include <nano/lib/observer_set.hpp>
+#include <nano/lib/rate_limiting.hpp>
 #include <nano/node/fair_queue.hpp>
 #include <nano/node/fwd.hpp>
 #include <nano/node/messages.hpp>
@@ -24,6 +25,7 @@ public:
 	size_t max_queue{ 16 };
 	size_t threads{ 1 };
 	size_t batch_size{ 64 };
+	size_t limiter{ 500 };
 };
 
 /**
@@ -91,6 +93,7 @@ private: // Dependencies
 
 private:
 	nano::fair_queue<request_t, nano::no_value> queue;
+	nano::rate_limiter limiter;
 
 	std::atomic<bool> stopped{ false };
 	nano::condition_variable condition;
