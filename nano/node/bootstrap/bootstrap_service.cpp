@@ -325,7 +325,7 @@ void nano::bootstrap_service::inspect (secure::transaction const & tx, nano::blo
 				if (!account.is_zero () && !source_hash.is_zero ())
 				{
 					// Mark account as blocked because it is missing the source block
-					accounts.block (account, source_hash);
+					accounts.block (account, source_hash, block.previous ());
 				}
 			}
 		}
