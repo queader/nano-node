@@ -104,7 +104,7 @@ void nano::bootstrap::account_sets::priority_set (nano::account const & account,
 	}
 }
 
-void nano::bootstrap::account_sets::block (nano::account const & account, nano::block_hash const & dependency)
+void nano::bootstrap::account_sets::block (nano::account const & account, nano::block_hash const & dependency, nano::block_hash const & account_frontier)
 {
 	debug_assert (!account.is_zero ());
 
@@ -115,7 +115,7 @@ void nano::bootstrap::account_sets::block (nano::account const & account, nano::
 		stats.inc (nano::stat::type::bootstrap_account_sets, nano::stat::detail::block);
 
 		debug_assert (blocking.get<tag_account> ().count (account) == 0);
-		blocking.get<tag_account> ().insert ({ account, dependency });
+		blocking.get<tag_account> ().insert ({ account, dependency, account_frontier });
 		trim_overflow ();
 	}
 	else
@@ -249,7 +249,7 @@ auto nano::bootstrap::account_sets::next_priority (std::function<bool (nano::acc
 	return {};
 }
 
-nano::block_hash nano::bootstrap::account_sets::next_blocking (std::function<bool (nano::block_hash const &)> const & filter)
+nano::block_hash nano::bootstrap::account_sets::next_unknown_blocking (std::function<bool (nano::block_hash const &)> const & filter)
 {
 	if (blocking.empty ())
 	{

@@ -32,6 +32,26 @@ public: // Constants
 	static unsigned constexpr max_fails = 3;
 
 public:
+	struct priority_entry
+	{
+		nano::account account;
+		double priority;
+		unsigned fails{ 0 };
+		std::chrono::steady_clock::time_point timestamp{}; // Use for cooldown, set to current time when this account is sampled
+		id_t id{ generate_id () }; // Uniformly distributed, used for random querying
+	};
+
+	struct blocking_entry
+	{
+		nano::account account;
+		nano::block_hash dependency;
+		nano::block_hash frontier; // The frontier of blocked account at the time of insertion
+		nano::account dependency_account{ 0 }; // Account that contains the dependency block, set via a background depenency walker
+		std::chrono::steady_clock::time_point timestamp{ std::chrono::steady_clock::now () };
+		id_t id{ generate_id () }; // Uniformly distributed, used for random querying
+	};
+
+public:
 	account_sets (account_sets_config const &, nano::stats &);
 
 	/**
@@ -47,7 +67,7 @@ public:
 	void priority_down (nano::account const & account);
 	void priority_set (nano::account const & account, double priority = priority_initial);
 
-	void block (nano::account const & account, nano::block_hash const & dependency);
+	void block (nano::account const & account, nano::block_hash const & dependency, nano::block_hash const & account_frontier);
 	void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
 
 	void timestamp_set (nano::account const & account);
@@ -74,7 +94,7 @@ public:
 	 * Sampling
 	 */
 	priority_result next_priority (std::function<bool (nano::account const &)> const & filter);
-	nano::block_hash next_blocking (std::function<bool (nano::block_hash const &)> const & filter);
+	nano::block_hash next_unknown_blocking (std::function<bool (nano::block_hash const &)> const & filter);
 
 	bool blocked (nano::account const & account) const;
 	bool prioritized (nano::account const & account) const;
@@ -97,25 +117,6 @@ private:
 	void trim_overflow ();
 
 private:
-	struct priority_entry
-	{
-		nano::account account;
-		double priority;
-		unsigned fails{ 0 };
-		std::chrono::steady_clock::time_point timestamp{}; // Use for cooldown, set to current time when this account is sampled
-		id_t id{ generate_id () }; // Uniformly distributed, used for random querying
-	};
-
-	struct blocking_entry
-	{
-		nano::account account;
-		nano::block_hash dependency;
-		nano::block_hash frontier; // The frontier of blocked account at the time of insertion
-		nano::account dependency_account{ 0 }; // Account that contains the dependency block, set via a background depenency walker
-		std::chrono::steady_clock::time_point timestamp{ std::chrono::steady_clock::now () };
-		id_t id{ generate_id () }; // Uniformly distributed, used for random querying
-	};
-
 	// clang-format off
 	class tag_sequenced {};
 	class tag_account {};

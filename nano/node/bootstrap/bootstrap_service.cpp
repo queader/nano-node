@@ -308,7 +308,7 @@ void nano::bootstrap_service::inspect (secure::transaction const & tx, nano::blo
 				if (!account.is_zero () && !source_hash.is_zero ())
 				{
 					// Mark account as blocked because it is missing the source block
-					accounts.block (account, source_hash);
+					accounts.block (account, source_hash, block.previous ());
 				}
 			}
 		}
@@ -454,7 +454,7 @@ nano::block_hash nano::bootstrap_service::next_blocking ()
 {
 	debug_assert (!mutex.try_lock ());
 
-	auto blocking = accounts.next_blocking ([this] (nano::block_hash const & hash) {
+	auto blocking = accounts.next_unknown_blocking ([this] (nano::block_hash const & hash) {
 		return count_tags (hash, query_source::dependencies) == 0;
 	});
 	if (blocking.is_zero ())
