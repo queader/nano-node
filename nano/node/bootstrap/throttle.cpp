@@ -8,6 +8,12 @@ nano::bootstrap::throttle::throttle (std::size_t size) :
 	debug_assert (size > 0);
 }
 
+void nano::bootstrap::throttle::reset ()
+{
+	successes_m = samples.size ();
+	std::fill (samples.begin (), samples.end (), true);
+}
+
 bool nano::bootstrap::throttle::throttled () const
 {
 	return successes_m == 0;

@@ -19,6 +19,17 @@ nano::bootstrap::database_scan::database_scan (nano::ledger & ledger_a) :
 {
 }
 
+void nano::bootstrap::database_scan::reset ()
+{
+	queue.clear ();
+
+	account_scanner.next = nano::account{ 0 };
+	account_scanner.completed = 0;
+
+	pending_scanner.next = nano::account{ 0 };
+	pending_scanner.completed = 0;
+}
+
 nano::account nano::bootstrap::database_scan::next (std::function<bool (nano::account const &)> const & filter)
 {
 	if (queue.empty ())

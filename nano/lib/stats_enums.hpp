@@ -166,6 +166,7 @@ enum class detail
 	other,
 	drop,
 	queued,
+	reset,
 
 	// processing queue
 	queue,

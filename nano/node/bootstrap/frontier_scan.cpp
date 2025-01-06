@@ -23,6 +23,16 @@ nano::bootstrap::frontier_scan::frontier_scan (frontier_scan_config const & conf
 	release_assert (!heads.empty ());
 }
 
+void nano::bootstrap::frontier_scan::reset ()
+{
+	for (auto it = heads.begin (); it != heads.end (); ++it)
+	{
+		heads.modify (it, [] (frontier_head & head) {
+			head.reset ();
+		});
+	}
+}
+
 nano::account nano::bootstrap::frontier_scan::next ()
 {
 	auto const cutoff = std::chrono::steady_clock::now () - config.cooldown;

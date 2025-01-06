@@ -12,6 +12,11 @@ nano::bootstrap::peer_scoring::peer_scoring (bootstrap_config const & config_a, 
 {
 }
 
+void nano::bootstrap::peer_scoring::reset ()
+{
+	scoring.clear ();
+}
+
 bool nano::bootstrap::peer_scoring::limit_exceeded (std::shared_ptr<nano::transport::channel> const & channel) const
 {
 	auto & index = scoring.get<tag_channel> ();

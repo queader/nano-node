@@ -39,6 +39,8 @@ public:
 	// Indicates if a full ledger iteration has taken place e.g. warmed up
 	bool warmed_up () const;
 
+	void reset ();
+
 	nano::container_info container_info () const;
 
 private: // Dependencies

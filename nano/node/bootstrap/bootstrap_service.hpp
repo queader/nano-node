@@ -37,9 +37,14 @@ public:
 	void stop ();
 
 	/**
-	 * Process `asc_pull_ack` message coming from network
+	 * Process bootstrap messages coming from the network
 	 */
 	void process (nano::asc_pull_ack const & message, std::shared_ptr<nano::transport::channel> const &);
+
+	/**
+	 * Clears priority and blocking accounts state
+	 */
+	void reset ();
 
 	std::size_t blocked_size () const;
 	std::size_t priority_size () const;
