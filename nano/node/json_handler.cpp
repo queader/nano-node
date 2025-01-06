@@ -4821,7 +4821,7 @@ void nano::json_handler::wallet_representative_set ()
 				for (auto & account : accounts)
 				{
 					wallet->change_async (
-					account, representative, [] (std::shared_ptr<nano::block> const &) {}, 0, false);
+					account, representative, [] (std::shared_ptr<nano::block> const &) { }, 0, false);
 				}
 			}
 		}
@@ -5166,7 +5166,7 @@ void nano::json_handler::debug_bootstrap_priority_info ()
 	{
 		auto [blocking, priorities] = node.bootstrap.info ();
 
-		// priorities
+		// Priorities
 		{
 			boost::property_tree::ptree response_priorities;
 			for (auto const & entry : priorities)
@@ -5174,19 +5174,31 @@ void nano::json_handler::debug_bootstrap_priority_info ()
 				const auto account = entry.account;
 				const auto priority = entry.priority;
 
-				response_priorities.put (account.to_account (), priority);
+				boost::property_tree::ptree entry_l;
+				entry_l.put ("account", account.to_account ());
+				entry_l.put ("priority", priority);
+
+				response_priorities.push_back (std::make_pair ("", entry_l));
 			}
 			response_l.add_child ("priorities", response_priorities);
 		}
-		// blocking
+		// Blocking
 		{
 			boost::property_tree::ptree response_blocking;
 			for (auto const & entry : blocking)
 			{
 				const auto account = entry.account;
 				const auto dependency = entry.dependency;
+				const auto priority = entry.dependency_account;
+				const auto frontier = entry.frontier;
 
-				response_blocking.put (account.to_account (), dependency.to_string ());
+				boost::property_tree::ptree entry_l;
+				entry_l.put ("account", account.to_account ());
+				entry_l.put ("dependency", dependency.to_string ());
+				entry_l.put ("priority", priority.to_account ());
+				entry_l.put ("frontier", frontier.to_string ());
+
+				response_blocking.push_back (std::make_pair ("", entry_l));
 			}
 			response_l.add_child ("blocking", response_blocking);
 		}
