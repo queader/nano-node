@@ -56,7 +56,7 @@ TEST (account_sets, block)
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	sets.priority_up (account);
-	sets.block (account, random_hash ());
+	sets.block (account, random_hash (), 0);
 	ASSERT_TRUE (sets.blocked (account));
 }
 
@@ -69,7 +69,7 @@ TEST (account_sets, unblock)
 	nano::bootstrap::account_sets sets{ config, system.stats };
 	auto hash = random_hash ();
 	sets.priority_up (account);
-	sets.block (account, hash);
+	sets.block (account, hash, 7);
 	ASSERT_TRUE (sets.blocked (account));
 	sets.unblock (account, hash);
 	ASSERT_FALSE (sets.blocked (account));
@@ -92,7 +92,7 @@ TEST (account_sets, priority_blocked)
 	nano::account account{ 1 };
 	nano::account_sets_config config;
 	nano::bootstrap::account_sets sets{ config, system.stats };
-	sets.block (account, random_hash ());
+	sets.block (account, random_hash (), 0);
 	ASSERT_EQ (0.0, sets.priority (account));
 }
 
@@ -106,7 +106,7 @@ TEST (account_sets, priority_unblock)
 	sets.priority_up (account);
 	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
 	auto hash = random_hash ();
-	sets.block (account, hash);
+	sets.block (account, hash, 7);
 	ASSERT_EQ (0.0, sets.priority (account));
 	sets.unblock (account, hash);
 	ASSERT_EQ (sets.priority (account), nano::bootstrap::account_sets::priority_initial);
