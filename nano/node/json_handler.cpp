@@ -5194,6 +5194,13 @@ void nano::json_handler::debug_bootstrap_priority_info ()
 	response_errors ();
 }
 
+void nano::json_handler::bootstrap_reset ()
+{
+	node.bootstrap.reset ();
+	response_l.put ("success", "");
+	response_errors ();
+}
+
 void nano::inprocess_rpc_handler::process_request (std::string const &, std::string const & body_a, std::function<void (std::string const &)> response_a)
 {
 	// Note that if the rpc action is async, the shared_ptr<json_handler> lifetime will be extended by the action handler
@@ -5360,6 +5367,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("work_peers_clear", &nano::json_handler::work_peers_clear);
 	no_arg_funcs.emplace ("populate_backlog", &nano::json_handler::populate_backlog);
 	no_arg_funcs.emplace ("debug_bootstrap_priority_info", &nano::json_handler::debug_bootstrap_priority_info);
+	no_arg_funcs.emplace ("bootstrap_reset", &nano::json_handler::bootstrap_reset);
 	return no_arg_funcs;
 }
 

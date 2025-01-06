@@ -572,3 +572,5 @@ TEST (bootstrap, frontier_scan_cannot_prioritize)
 		return node1.bootstrap.prioritized (block->account ());
 	}));
 }
+
+// TODO: Test bootstrap.reset ()

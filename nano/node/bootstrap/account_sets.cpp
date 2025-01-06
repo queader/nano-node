@@ -19,6 +19,12 @@ nano::bootstrap::account_sets::account_sets (nano::account_sets_config const & c
 {
 }
 
+void nano::bootstrap::account_sets::reset ()
+{
+	priorities.clear ();
+	blocking.clear ();
+}
+
 void nano::bootstrap::account_sets::priority_up (nano::account const & account)
 {
 	if (account.is_zero ())

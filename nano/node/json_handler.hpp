@@ -71,6 +71,7 @@ public:
 	void confirmation_info ();
 	void confirmation_quorum ();
 	void debug_bootstrap_priority_info ();
+	void bootstrap_reset ();
 	void database_txn_tracker ();
 	void delegators ();
 	void delegators_count ();

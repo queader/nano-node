@@ -33,6 +33,8 @@ public: // Constants
 public:
 	account_sets (account_sets_config const &, nano::stats &);
 
+	void reset ();
+
 	/**
 	 * If an account is not blocked, increase its priority.
 	 * If the account does not exist in priority set and is not blocked, inserts a new entry.

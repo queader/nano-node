@@ -31,6 +31,8 @@ public:
 	nano::account next ();
 	bool process (nano::account start, std::deque<std::pair<nano::account, nano::block_hash>> const & response);
 
+	void reset ();
+
 	nano::container_info container_info () const;
 
 private: // Dependencies
@@ -64,6 +66,16 @@ private:
 		nano::account index () const
 		{
 			return start;
+		}
+
+		void reset ()
+		{
+			next = start;
+			candidates.clear ();
+			requests = 0;
+			completed = 0;
+			timestamp = {};
+			processed = 0;
 		}
 	};
 

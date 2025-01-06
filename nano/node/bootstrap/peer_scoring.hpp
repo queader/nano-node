@@ -24,6 +24,8 @@ public:
 public:
 	peer_scoring (bootstrap_config const &, nano::network_constants const &);
 
+	void reset ();
+
 	// Returns true if channel limit has been exceeded
 	bool limit_exceeded (std::shared_ptr<nano::transport::channel> const & channel) const;
 	bool try_send_message (std::shared_ptr<nano::transport::channel> const & channel);
@@ -52,10 +54,12 @@ private:
 	{
 	public:
 		explicit peer_score (std::shared_ptr<nano::transport::channel> const &, uint64_t, uint64_t, uint64_t);
+
 		std::weak_ptr<nano::transport::channel> channel;
 		// std::weak_ptr does not provide ordering so the naked pointer is also tracked and used for ordering channels
 		// This pointer may be invalid if the channel has been destroyed
 		nano::transport::channel * channel_ptr;
+
 		// Acquire reference to the shared channel object if it is still valid
 		[[nodiscard]] std::shared_ptr<nano::transport::channel> shared () const
 		{
@@ -66,10 +70,12 @@ private:
 			}
 			return result;
 		}
+
 		void decay ()
 		{
 			outstanding = outstanding > 0 ? outstanding - 1 : 0;
 		}
+
 		// Number of outstanding requests to a peer
 		uint64_t outstanding{ 0 };
 		uint64_t request_count_total{ 0 };
