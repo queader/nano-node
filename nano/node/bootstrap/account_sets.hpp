@@ -48,6 +48,7 @@ public:
 	 */
 	void priority_down (nano::account const & account);
 	void priority_set (nano::account const & account, double priority = priority_initial);
+	void priority_erase (nano::account const & account);
 
 	void block (nano::account const & account, nano::block_hash const & dependency, nano::block_hash const & account_frontier);
 	void unblock (nano::account const & account, std::optional<nano::block_hash> const & hash = std::nullopt);
