@@ -5166,29 +5166,32 @@ void nano::json_handler::debug_bootstrap_priority_info ()
 	{
 		auto [blocking, priorities] = node.bootstrap.info ();
 
-		// priorities
+		// Priorities
 		{
-			boost::property_tree::ptree response_priorities;
+			boost::property_tree::ptree response_l;
 			for (auto const & entry : priorities)
 			{
-				const auto account = entry.account;
-				const auto priority = entry.priority;
+				boost::property_tree::ptree entry_l;
+				entry_l.put ("account", entry.account.to_account ());
+				entry_l.put ("priority", entry.priority);
 
-				response_priorities.put (account.to_account (), priority);
+				response_l.push_back (std::make_pair ("", entry_l));
 			}
-			response_l.add_child ("priorities", response_priorities);
+			response_l.add_child ("priorities", response_l);
 		}
-		// blocking
+		// Blocking
 		{
-			boost::property_tree::ptree response_blocking;
+			boost::property_tree::ptree response_l;
 			for (auto const & entry : blocking)
 			{
-				const auto account = entry.account;
-				const auto dependency = entry.dependency;
+				boost::property_tree::ptree entry_l;
+				entry_l.put ("account", entry.account.to_account ());
+				entry_l.put ("dependency", entry.dependency.to_string ());
+				entry_l.put ("dependency_account", entry.dependency_account.to_account ());
 
-				response_blocking.put (account.to_account (), dependency.to_string ());
+				response_l.push_back (std::make_pair ("", entry_l));
 			}
-			response_l.add_child ("blocking", response_blocking);
+			response_l.add_child ("blocking", response_l);
 		}
 	}
 	response_errors ();
