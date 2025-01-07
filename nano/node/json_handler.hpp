@@ -70,7 +70,7 @@ public:
 	void confirmation_history ();
 	void confirmation_info ();
 	void confirmation_quorum ();
-	void debug_bootstrap_priority_info ();
+	void bootstrap_priorities ();
 	void bootstrap_reset ();
 	void database_txn_tracker ();
 	void delegators ();

@@ -5160,7 +5160,7 @@ void nano::json_handler::populate_backlog ()
 	response_errors ();
 }
 
-void nano::json_handler::debug_bootstrap_priority_info ()
+void nano::json_handler::bootstrap_priorities ()
 {
 	if (!ec)
 	{
@@ -5369,7 +5369,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("work_peers", &nano::json_handler::work_peers);
 	no_arg_funcs.emplace ("work_peers_clear", &nano::json_handler::work_peers_clear);
 	no_arg_funcs.emplace ("populate_backlog", &nano::json_handler::populate_backlog);
-	no_arg_funcs.emplace ("debug_bootstrap_priority_info", &nano::json_handler::debug_bootstrap_priority_info);
+	no_arg_funcs.emplace ("bootstrap_priorities", &nano::json_handler::bootstrap_priorities);
 	no_arg_funcs.emplace ("bootstrap_reset", &nano::json_handler::bootstrap_reset);
 	return no_arg_funcs;
 }
