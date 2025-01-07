@@ -6876,3 +6876,111 @@ TEST (rpc, election_statistics)
 	ASSERT_LT (response.get<int> ("max_election_age"), 5000);
 	ASSERT_LT (response.get<int> ("average_election_age"), 5000);
 }
+
+TEST (rpc, bootstrap_priorities)
+{
+	nano::test::system system;
+
+	// Test configuration
+	int const chain_count = 5;
+	int const blocks_per_chain = 2;
+
+	nano::node_config config;
+	config.bootstrap.rate_limit = 10; // Add request limits to slow down bootstrap
+
+	// Start server node
+	auto & node_server = *system.add_node (config);
+
+	// Create multiple chains of blocks
+	auto chains = nano::test::setup_chains (system, node_server, chain_count, blocks_per_chain);
+
+	int const total_blocks = node_server.block_count ();
+	int const halfway_blocks = total_blocks / 2;
+
+	// Start client node to observe bootstrap
+	auto node = add_ipc_enabled_node (system);
+	auto const rpc_ctx = add_rpc (system, node);
+
+	// Wait until bootstrap has started and processed some blocks but not all
+	// Target approximately halfway through
+	ASSERT_TIMELY (15s, node->block_count () >= halfway_blocks);
+
+	boost::property_tree::ptree request;
+	request.put ("action", "bootstrap_priorities");
+	auto response = wait_response (system, rpc_ctx, request);
+
+	ASSERT_TRUE (response.get_child_optional ("priorities"));
+	ASSERT_TRUE (response.get_child_optional ("blocking"));
+	ASSERT_FALSE (response.get_child_optional ("priorities").value ().empty ());
+}
+
+TEST (rpc, bootstrap_reset)
+{
+	nano::test::system system;
+
+	// Test configuration
+	int const chain_count = 5;
+	int const blocks_per_chain = 2;
+
+	nano::node_config config;
+	config.bootstrap.rate_limit = 10; // Add request limits to slow down bootstrap
+
+	// Start server node
+	auto & node_server = *system.add_node (config);
+
+	// Create multiple chains of blocks
+	auto chains = nano::test::setup_chains (system, node_server, chain_count, blocks_per_chain);
+
+	int const total_blocks = node_server.block_count ();
+	int const halfway_blocks = total_blocks / 2;
+
+	// Start client node to observe bootstrap
+	auto node = add_ipc_enabled_node (system);
+	auto const rpc_ctx = add_rpc (system, node);
+
+	// Wait until bootstrap has started and processed some blocks but not all
+	// Target approximately halfway through
+	ASSERT_TIMELY (15s, node->block_count () >= halfway_blocks);
+
+	boost::property_tree::ptree request;
+	request.put ("action", "bootstrap_reset");
+	auto response = wait_response (system, rpc_ctx, request);
+
+	ASSERT_TRUE (response.get<std::string> ("success").empty ());
+}
+
+TEST (rpc, bootstrap_status)
+{
+	nano::test::system system;
+
+	// Test configuration
+	int const chain_count = 5;
+	int const blocks_per_chain = 2;
+
+	nano::node_config config;
+	config.bootstrap.rate_limit = 10; // Add request limits to slow down bootstrap
+
+	// Start server node
+	auto & node_server = *system.add_node (config);
+
+	// Create multiple chains of blocks
+	auto chains = nano::test::setup_chains (system, node_server, chain_count, blocks_per_chain);
+
+	int const total_blocks = node_server.block_count ();
+	int const halfway_blocks = total_blocks / 2;
+
+	// Start client node to observe bootstrap
+	auto node = add_ipc_enabled_node (system);
+	auto const rpc_ctx = add_rpc (system, node);
+
+	// Wait until bootstrap has started and processed some blocks but not all
+	// Target approximately halfway through
+	ASSERT_TIMELY (15s, node->block_count () >= halfway_blocks);
+
+	boost::property_tree::ptree request;
+	request.put ("action", "bootstrap_status");
+	auto response = wait_response (system, rpc_ctx, request);
+
+	ASSERT_GT (response.get<int> ("priorities"), 0);
+	ASSERT_EQ (response.get<int> ("blocking"), 0);
+}

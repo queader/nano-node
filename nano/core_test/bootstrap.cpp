@@ -270,18 +270,12 @@ TEST (bootstrap, trace_base)
 					.sign (key.prv, key.pub)
 					.work (*system.work.generate (key.pub))
 					.build ();
-	//	std::cerr << "Genesis key: " << nano::dev::genesis_key.pub.to_account () << std::endl;
-	//	std::cerr << "Key: " << key.pub.to_account () << std::endl;
-	//	std::cerr << "Genesis: " << nano::dev::genesis->hash ().to_string () << std::endl;
-	//	std::cerr << "send1: " << send1->hash ().to_string () << std::endl;
-	//	std::cerr << "receive1: " << receive1->hash ().to_string () << std::endl;
 	auto & node1 = *system.add_node ();
-	//	std::cerr << "--------------- Start ---------------\n";
+
 	ASSERT_EQ (nano::block_status::progress, node0.process (send1));
 	ASSERT_EQ (nano::block_status::progress, node0.process (receive1));
+
 	ASSERT_EQ (node1.ledger.any.receivable_end (), node1.ledger.any.receivable_upper_bound (node1.ledger.tx_begin_read (), key.pub, 0));
-	//	std::cerr << "node0: " << node0.network.endpoint () << std::endl;
-	//	std::cerr << "node1: " << node1.network.endpoint () << std::endl;
 	ASSERT_TIMELY (10s, node1.block (receive1->hash ()) != nullptr);
 }
 
@@ -573,4 +567,48 @@ TEST (bootstrap, frontier_scan_cannot_prioritize)
 	}));
 }
 
-// TODO: Test bootstrap.reset ()
+/*
+ * Tests that bootstrap.reset() properly recovers when called during an ongoing bootstrap
+ * This mimics node restart behaviour so this also ensures that the bootstrap is able to recover from a node restart
+ */
+TEST (bootstrap, reset)
+{
+	nano::test::system system;
+
+	// Test configuration
+	int const chain_count = 10;
+	int const blocks_per_chain = 5;
+
+	nano::node_config config;
+	// Disable election activation
+	config.backlog_scan.enable = false;
+	config.priority_scheduler.enable = false;
+	config.optimistic_scheduler.enable = false;
+	config.hinted_scheduler.enable = false;
+	// Add request limits to slow down bootstrap
+	config.bootstrap.rate_limit = 30;
+
+	// Start server node
+	auto & node_server = *system.add_node (config);
+
+	// Create multiple chains of blocks
+	auto chains = nano::test::setup_chains (system, node_server, chain_count, blocks_per_chain);
+
+	int const total_blocks = node_server.block_count ();
+	int const halfway_blocks = total_blocks / 2;
+
+	// Start client node and begin bootstrap
+	auto & node_client = *system.add_node (config);
+	ASSERT_LE (node_client.block_count (), halfway_blocks); // Should not be synced yet
+
+	// Wait until bootstrap has started and processed some blocks but not all
+	// Target approximately halfway through
+	ASSERT_TIMELY (15s, node_client.block_count () >= halfway_blocks);
+	ASSERT_LT (node_client.block_count (), total_blocks);
+
+	// Reset bootstrap halfway through the process
+	node_client.bootstrap.reset ();
+
+	// Bootstrap should automatically restart and eventually sync all blocks
+	ASSERT_TIMELY_EQ (30s, node_client.block_count (), total_blocks);
+}

@@ -1105,6 +1105,16 @@ void nano::node::bootstrap_block (const nano::block_hash & hash)
 	}
 }
 
+uint64_t nano::node::block_count () const
+{
+	return ledger.block_count ();
+}
+
+uint64_t nano::node::cemented_count () const
+{
+	return ledger.cemented_count ();
+}
+
 nano::account nano::node::get_node_id () const
 {
 	return node_id.pub;
