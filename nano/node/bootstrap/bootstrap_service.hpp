@@ -53,9 +53,16 @@ public:
 	bool prioritized (nano::account const &) const;
 	bool blocked (nano::account const &) const;
 
-	nano::container_info container_info () const;
-
 	nano::bootstrap::account_sets::info_t info () const;
+
+	struct status_result
+	{
+		size_t priorities;
+		size_t blocking;
+	};
+	status_result status () const;
+
+	nano::container_info container_info () const;
 
 private: // Dependencies
 	bootstrap_config const & config;

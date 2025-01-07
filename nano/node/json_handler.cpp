@@ -1843,7 +1843,12 @@ void nano::json_handler::bootstrap_lazy ()
  */
 void nano::json_handler::bootstrap_status ()
 {
-	// TODO: Bootstrap status for ascending bootstrap
+	auto status = node.bootstrap.status ();
+
+	// Only summary information
+	response_l.put ("priorities", status.priorities);
+	response_l.put ("blocking", status.blocking);
+
 	response_errors ();
 }
 

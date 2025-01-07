@@ -1164,6 +1164,15 @@ auto nano::bootstrap_service::info () const -> nano::bootstrap::account_sets::in
 	return accounts.info ();
 }
 
+auto nano::bootstrap_service::status () const -> status_result
+{
+	nano::lock_guard<nano::mutex> lock{ mutex };
+	return {
+		.priorities = accounts.priority_size (),
+		.blocking = accounts.blocked_size (),
+	};
+}
+
 std::size_t nano::bootstrap_service::compute_throttle_size () const
 {
 	auto ledger_size = ledger.account_count ();
