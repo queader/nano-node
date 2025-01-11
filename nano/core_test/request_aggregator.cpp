@@ -9,11 +9,15 @@
 #include <nano/node/transport/inproc.hpp>
 #include <nano/secure/ledger.hpp>
 #include <nano/secure/ledger_set_confirmed.hpp>
+#include <nano/secure/vote.hpp>
 #include <nano/test_common/network.hpp>
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
 
 #include <gtest/gtest.h>
+
+#include <atomic>
+#include <chrono>
 
 using namespace std::chrono_literals;
 
@@ -277,15 +281,15 @@ TEST (request_aggregator, split)
 	{
 		nano::block_builder builder;
 		blocks.push_back (builder
-						  .state ()
-						  .account (nano::dev::genesis_key.pub)
-						  .previous (previous)
-						  .representative (nano::dev::genesis_key.pub)
-						  .balance (nano::dev::constants.genesis_amount - (i + 1))
-						  .link (nano::dev::genesis_key.pub)
-						  .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
-						  .work (*system.work.generate (previous))
-						  .build ());
+		.state ()
+		.account (nano::dev::genesis_key.pub)
+		.previous (previous)
+		.representative (nano::dev::genesis_key.pub)
+		.balance (nano::dev::constants.genesis_amount - (i + 1))
+		.link (nano::dev::genesis_key.pub)
+		.sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+		.work (*system.work.generate (previous))
+		.build ());
 		auto const & block = blocks.back ();
 		previous = block->hash ();
 		ASSERT_EQ (nano::block_status::progress, node.ledger.process (node.ledger.tx_begin_write (), block));
@@ -449,4 +453,65 @@ TEST (request_aggregator, cannot_vote)
 	ASSERT_TIMELY_EQ (3s, 1, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes));
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_unknown));
 	ASSERT_TIMELY (3s, 1 <= node.stats.count (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::out));
+}
+
+/*
+ * Request for a forked open block should return vote for the correct fork alternative
+ */
+TEST (request_aggregator, forked_open)
+{
+	nano::test::system system;
+	auto & node = *system.add_node ();
+
+	// Setup two forks of the open block
+	nano::keypair key;
+	nano::block_builder builder;
+	auto send0 = builder.send ()
+				 .previous (nano::dev::genesis->hash ())
+				 .destination (key.pub)
+				 .balance (nano::dev::constants.genesis_amount - 500)
+				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
+				 .work (*system.work.generate (nano::dev::genesis->hash ()))
+				 .build ();
+	auto open0 = builder.open ()
+				 .source (send0->hash ())
+				 .representative (1)
+				 .account (key.pub)
+				 .sign (key.prv, key.pub)
+				 .work (*system.work.generate (key.pub))
+				 .build ();
+	auto open1 = builder.open ()
+				 .source (send0->hash ())
+				 .representative (2)
+				 .account (key.pub)
+				 .sign (key.prv, key.pub)
+				 .work (*system.work.generate (key.pub))
+				 .build ();
+
+	nano::test::process (node, { send0, open0 });
+	nano::test::confirm (node, { open0 });
+
+	std::atomic<bool> done{ false };
+
+	auto channel = nano::test::test_channel (node);
+	channel->queued.add ([&] (nano::message const & message, nano::transport::traffic_type const & type) {
+		struct visitor : public nano::message_visitor
+		{
+			bool result{ false };
+
+			void confirm_ack (nano::confirm_ack const & msg) override
+			{
+				EXPECT_EQ (msg.vote->size (), 1);
+
+				result = true;
+			}
+		};
+
+		visitor visitor;
+		message.visit (visitor);
+		done = visitor.result;
+	});
+
+	// Request vote for the wrong fork
+	std::vector<std::pair<nano::block_hash, nano::root>> request{ { open1->hash (), open1->root () } };
 }
