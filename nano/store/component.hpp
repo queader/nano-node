@@ -77,10 +77,8 @@ namespace store
 		virtual void rebuild_db (write_transaction const & transaction_a) = 0;
 
 		/** Not applicable to all sub-classes */
-		virtual void serialize_mdb_tracker (::boost::property_tree::ptree &, std::chrono::milliseconds, std::chrono::milliseconds){};
+		virtual void serialize_mdb_tracker (::boost::property_tree::ptree &, std::chrono::milliseconds, std::chrono::milliseconds) { };
 		virtual void serialize_memory_stats (::boost::property_tree::ptree &) = 0;
-
-		virtual bool init_error () const = 0;
 
 		/** Start read-write transaction */
 		virtual write_transaction tx_begin_write () = 0;
@@ -90,5 +88,8 @@ namespace store
 
 		virtual std::string vendor_get () const = 0;
 	};
+
+	void throw_if_error (bool error, std::string message);
+	[[noreturn]] void throw_error (std::string message);
 } // namespace store
 } // namespace nano

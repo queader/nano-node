@@ -264,7 +264,6 @@ class wallets_store
 {
 public:
 	virtual ~wallets_store () = default;
-	virtual bool init_error () const = 0;
 };
 
 class mdb_wallets_store final : public wallets_store
@@ -272,7 +271,6 @@ class mdb_wallets_store final : public wallets_store
 public:
 	mdb_wallets_store (std::filesystem::path const &, nano::lmdb_config const & lmdb_config_a = nano::lmdb_config{});
 	nano::store::lmdb::env environment;
-	bool init_error () const override;
 	bool error{ false };
 };
 }

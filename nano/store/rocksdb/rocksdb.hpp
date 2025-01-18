@@ -85,8 +85,6 @@ public:
 
 	unsigned max_block_write_batch_num () const override;
 
-	bool init_error () const override;
-
 	std::string error_string (int status) const override;
 
 private:

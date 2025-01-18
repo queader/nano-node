@@ -80,7 +80,6 @@ public:
 	bool block_confirmed_or_being_confirmed (nano::block_hash const &);
 
 	bool online () const;
-	bool init_error () const;
 	std::pair<uint64_t, std::unordered_map<nano::account, nano::uint128_t>> get_bootstrap_weights () const;
 	/*
 	 * Attempts to bootstrap block. This is the best effort, there is no guarantee that the block will be bootstrapped.

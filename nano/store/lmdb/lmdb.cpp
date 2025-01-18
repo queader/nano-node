@@ -43,72 +43,66 @@ nano::store::lmdb::component::component (nano::logger & logger_a, std::filesyste
 	version_store{ *this },
 	rep_weight_store{ *this },
 	logger{ logger_a },
-	env (error, path_a, nano::store::lmdb::env::options::make ().set_config (lmdb_config_a).set_use_no_mem_init (true)),
+	env{ path_a, nano::store::lmdb::env::options::make ().set_config (lmdb_config_a).set_use_no_mem_init (true) },
 	mdb_txn_tracker (logger_a, txn_tracking_config_a, block_processor_batch_max_time_a),
 	txn_tracking_enabled (txn_tracking_config_a.enable)
 {
-	if (!error)
+	debug_assert (path_a.filename () == "data.ldb");
+
+	auto is_fully_upgraded (false);
+	auto is_fresh_db (false);
 	{
-		debug_assert (path_a.filename () == "data.ldb");
-
-		auto is_fully_upgraded (false);
-		auto is_fresh_db (false);
+		auto transaction (tx_begin_read ());
+		auto err = mdb_dbi_open (env.tx (transaction), "meta", 0, &version_store.meta_handle);
+		is_fresh_db = err != MDB_SUCCESS;
+		if (err == MDB_SUCCESS)
 		{
-			auto transaction (tx_begin_read ());
-			auto err = mdb_dbi_open (env.tx (transaction), "meta", 0, &version_store.meta_handle);
-			is_fresh_db = err != MDB_SUCCESS;
-			if (err == MDB_SUCCESS)
+			is_fully_upgraded = (version.get (transaction) == version_current);
+			mdb_dbi_close (env, version_store.meta_handle);
+		}
+	}
+
+	// Only open a write lock when upgrades are needed. This is because CLI commands
+	// open inactive nodes which can otherwise be locked here if there is a long write
+	// (can be a few minutes with the --fast_bootstrap flag for instance)
+	if (!is_fully_upgraded)
+	{
+		if (!is_fresh_db)
+		{
+			logger.info (nano::log::type::lmdb, "Upgrade in progress...");
+
+			if (backup_before_upgrade_a)
 			{
-				is_fully_upgraded = (version.get (transaction) == version_current);
-				mdb_dbi_close (env, version_store.meta_handle);
+				create_backup_file (env, path_a, logger);
 			}
 		}
-
-		// Only open a write lock when upgrades are needed. This is because CLI commands
-		// open inactive nodes which can otherwise be locked here if there is a long write
-		// (can be a few minutes with the --fast_bootstrap flag for instance)
-		if (!is_fully_upgraded)
+		auto needs_vacuuming = false;
 		{
-			if (!is_fresh_db)
-			{
-				logger.info (nano::log::type::lmdb, "Upgrade in progress...");
+			auto transaction (tx_begin_write ());
+			open_databases (transaction, MDB_CREATE);
+			do_upgrades (transaction, constants, needs_vacuuming);
+		}
 
-				if (backup_before_upgrade_a)
-				{
-					create_backup_file (env, path_a, logger);
-				}
+		if (needs_vacuuming)
+		{
+			logger.info (nano::log::type::lmdb, "Ledger vaccum in progress...");
+
+			auto vacuum_success = vacuum_after_upgrade (path_a, lmdb_config_a);
+			if (vacuum_success)
+			{
+				logger.info (nano::log::type::lmdb, "Ledger vacuum completed");
 			}
-			auto needs_vacuuming = false;
+			else
 			{
-				auto transaction (tx_begin_write ());
-				open_databases (error, transaction, MDB_CREATE);
-				if (!error)
-				{
-					error |= do_upgrades (transaction, constants, needs_vacuuming);
-				}
-			}
-
-			if (needs_vacuuming)
-			{
-				logger.info (nano::log::type::lmdb, "Ledger vaccum in progress...");
-
-				auto vacuum_success = vacuum_after_upgrade (path_a, lmdb_config_a);
-				if (vacuum_success)
-				{
-					logger.info (nano::log::type::lmdb, "Ledger vacuum completed");
-				}
-				else
-				{
-					logger.error (nano::log::type::lmdb, "Ledger vaccum failed");
-					logger.error (nano::log::type::lmdb, "(Optional) Please ensure enough disk space is available for a copy of the database and try to vacuum after shutting down the node");
-				}
+				logger.error (nano::log::type::lmdb, "Ledger vaccum failed");
+				logger.error (nano::log::type::lmdb, "(Optional) Please ensure enough disk space is available for a copy of the database and try to vacuum after shutting down the node");
 			}
 		}
-		else
-		{
-			auto transaction (tx_begin_read ());
-			open_databases (error, transaction, 0);
-		}
+	}
+	else
+	{
+		auto transaction (tx_begin_read ());
+		open_databases (transaction, 0);
 	}
 }
 
@@ -193,30 +187,32 @@ nano::store::lmdb::txn_callbacks nano::store::lmdb::component::create_txn_callba
 	return mdb_txn_callbacks;
 }
 
-void nano::store::lmdb::component::open_databases (bool & error_a, store::transaction const & transaction_a, unsigned flags)
+void nano::store::lmdb::component::open_databases (store::transaction const & transaction_a, unsigned flags)
 {
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "online_weight", flags, &online_weight_store.online_weight_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "meta", flags, &version_store.meta_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "peers", flags, &peer_store.peers_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "pruned", flags, &pruned_store.pruned_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "confirmation_height", flags, &confirmation_height_store.confirmation_height_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "accounts", flags, &account_store.accounts_v0_handle) != 0;
+	bool error = false;
+	error |= mdb_dbi_open (env.tx (transaction_a), "online_weight", flags, &online_weight_store.online_weight_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "meta", flags, &version_store.meta_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "peers", flags, &peer_store.peers_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "pruned", flags, &pruned_store.pruned_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "confirmation_height", flags, &confirmation_height_store.confirmation_height_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "accounts", flags, &account_store.accounts_v0_handle) != 0;
 	account_store.accounts_handle = account_store.accounts_v0_handle;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "pending", flags, &pending_store.pending_v0_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "pending", flags, &pending_store.pending_v0_handle) != 0;
 	pending_store.pending_handle = pending_store.pending_v0_handle;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "final_votes", flags, &final_vote_store.final_votes_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "blocks", MDB_CREATE, &block_store.blocks_handle) != 0;
-	error_a |= mdb_dbi_open (env.tx (transaction_a), "rep_weights", flags, &rep_weight_store.rep_weights_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "final_votes", flags, &final_vote_store.final_votes_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "blocks", MDB_CREATE, &block_store.blocks_handle) != 0;
+	error |= mdb_dbi_open (env.tx (transaction_a), "rep_weights", flags, &rep_weight_store.rep_weights_handle) != 0;
+
+	throw_if_error (error, "failed to open LMDB tables");
 }
 
-bool nano::store::lmdb::component::do_upgrades (store::write_transaction & transaction, nano::ledger_constants & constants, bool & needs_vacuuming)
+void nano::store::lmdb::component::do_upgrades (store::write_transaction & transaction, nano::ledger_constants & constants, bool & needs_vacuuming)
 {
-	auto error (false);
 	auto version_l = version.get (transaction);
 	if (version_l < version_minimum)
 	{
 		logger.critical (nano::log::type::lmdb, "The version of the ledger ({}) is lower than the minimum ({}) which is supported for upgrades. Either upgrade a node first or delete the ledger.", version_l, version_minimum);
-		return true;
+		throw_error ("mismatched ledger version");
 	}
 	switch (version_l)
 	{
@@ -233,10 +229,9 @@ bool nano::store::lmdb::component::do_upgrades (store::write_transaction & trans
 			break;
 		default:
 			logger.critical (nano::log::type::lmdb, "The version of the ledger ({}) is too high for this node", version_l);
-			error = true;
+			throw_error ("too high ledger version");
 			break;
 	}
-	return error;
 }
 
 void nano::store::lmdb::component::upgrade_v21_to_v22 (store::write_transaction & transaction)
@@ -497,11 +492,6 @@ void nano::store::lmdb::component::rebuild_db (store::write_transaction const & 
 		release_assert (count (transaction_a, pending_store.pending_handle) == count (transaction_a, temp));
 		mdb_drop (env.tx (transaction_a), temp, 1);
 	}
-}
-
-bool nano::store::lmdb::component::init_error () const
-{
-	return error;
 }
 
 nano::store::lmdb::component::upgrade_counters::upgrade_counters (uint64_t count_before_v0, uint64_t count_before_v1) :

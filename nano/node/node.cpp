@@ -248,167 +248,166 @@ nano::node::node (std::shared_ptr<boost::asio::io_context> io_ctx_a, std::filesy
 		}
 	});
 
-	if (!init_error ())
+	wallets.observer = [this] (bool active) {
+		observers.wallet.notify (active);
+	};
+	network.disconnect_observer = [this] () {
+		observers.disconnect.notify ();
+	};
+
+	observers.channel_connected.add ([this] (std::shared_ptr<nano::transport::channel> const & channel) {
+		network.send_keepalive_self (channel);
+	});
+
+	observers.vote.add ([this] (std::shared_ptr<nano::vote> vote, std::shared_ptr<nano::transport::channel> const & channel, nano::vote_source source, nano::vote_code code) {
+		debug_assert (vote != nullptr);
+		debug_assert (code != nano::vote_code::invalid);
+		if (channel == nullptr)
+		{
+			return; // Channel expired when waiting for vote to be processed
+		}
+		// Ignore republished votes
+		if (source == nano::vote_source::live)
+		{
+			bool active_in_rep_crawler = rep_crawler.process (vote, channel);
+			if (active_in_rep_crawler)
+			{
+				// Representative is defined as online if replying to live votes or rep_crawler queries
+				online_reps.observe (vote->account);
+			}
+		}
+	});
+
+	// Cancelling local work generation
+	observers.work_cancel.add ([this] (nano::root const & root_a) {
+		this->work.cancel (root_a);
+		this->distributed_work.cancel (root_a);
+	});
+
+	auto const network_label = network_params.network.get_current_network_as_string ();
+
+	logger.info (nano::log::type::node, "Version: {}", NANO_VERSION_STRING);
+	logger.info (nano::log::type::node, "Build information: {}", BUILD_INFO);
+	logger.info (nano::log::type::node, "Active network: {}", network_label);
+	logger.info (nano::log::type::node, "Database backend: {}", store.vendor_get ());
+	logger.info (nano::log::type::node, "Data path: {}", application_path.string ());
+	logger.info (nano::log::type::node, "Work pool threads: {} ({})", work.threads.size (), (work.opencl ? "OpenCL" : "CPU"));
+	logger.info (nano::log::type::node, "Work peers: {}", config.work_peers.size ());
+	logger.info (nano::log::type::node, "Node ID: {}", node_id.pub.to_node_id ());
+	logger.info (nano::log::type::node, "Number of buckets: {}", bucketing.size ());
+	logger.info (nano::log::type::node, "Genesis block: {}", config.network_params.ledger.genesis->hash ().to_string ());
+	logger.info (nano::log::type::node, "Genesis account: {}", config.network_params.ledger.genesis->account ().to_account ());
+
+	if (!work_generation_enabled ())
 	{
-		wallets.observer = [this] (bool active) {
-			observers.wallet.notify (active);
-		};
-		network.disconnect_observer = [this] () {
-			observers.disconnect.notify ();
-		};
+		logger.warn (nano::log::type::node, "Work generation is disabled");
+	}
 
-		observers.channel_connected.add ([this] (std::shared_ptr<nano::transport::channel> const & channel) {
-			network.send_keepalive_self (channel);
-		});
+	logger.info (nano::log::type::node, "Outbound bandwidth limit: {} bytes/s, burst ratio: {}",
+	config.bandwidth_limit,
+	config.bandwidth_limit_burst_ratio);
 
-		observers.vote.add ([this] (std::shared_ptr<nano::vote> vote, std::shared_ptr<nano::transport::channel> const & channel, nano::vote_source source, nano::vote_code code) {
-			debug_assert (vote != nullptr);
-			debug_assert (code != nano::vote_code::invalid);
-			if (channel == nullptr)
-			{
-				return; // Channel expired when waiting for vote to be processed
-			}
-			// Ignore republished votes
-			if (source == nano::vote_source::live)
-			{
-				bool active_in_rep_crawler = rep_crawler.process (vote, channel);
-				if (active_in_rep_crawler)
-				{
-					// Representative is defined as online if replying to live votes or rep_crawler queries
-					online_reps.observe (vote->account);
-				}
-			}
-		});
+	// First do a pass with a read to see if any writing needs doing, this saves needing to open a write lock (and potentially blocking)
+	auto is_initialized (false);
+	{
+		auto const transaction (store.tx_begin_read ());
+		is_initialized = (store.account.begin (transaction) != store.account.end (transaction));
+	}
 
-		// Cancelling local work generation
-		observers.work_cancel.add ([this] (nano::root const & root_a) {
-			this->work.cancel (root_a);
-			this->distributed_work.cancel (root_a);
-		});
+	if (!is_initialized && !flags.read_only)
+	{
+		auto const transaction = store.tx_begin_write ();
+		// Store was empty meaning we just created it, add the genesis block
+		store.initialize (transaction, ledger.cache, ledger.constants);
+	}
 
-		auto const network_label = network_params.network.get_current_network_as_string ();
+	if (!block_or_pruned_exists (config.network_params.ledger.genesis->hash ()))
+	{
+		logger.critical (nano::log::type::node, "Genesis block not found. This commonly indicates a configuration issue, check that the --network or --data_path command line arguments are correct, and also the ledger backend node config option. If using a read-only CLI command a ledger must already exist, start the node with --daemon first.");
 
-		logger.info (nano::log::type::node, "Version: {}", NANO_VERSION_STRING);
-		logger.info (nano::log::type::node, "Build information: {}", BUILD_INFO);
-		logger.info (nano::log::type::node, "Active network: {}", network_label);
-		logger.info (nano::log::type::node, "Database backend: {}", store.vendor_get ());
-		logger.info (nano::log::type::node, "Data path: {}", application_path.string ());
-		logger.info (nano::log::type::node, "Work pool threads: {} ({})", work.threads.size (), (work.opencl ? "OpenCL" : "CPU"));
-		logger.info (nano::log::type::node, "Work peers: {}", config.work_peers.size ());
-		logger.info (nano::log::type::node, "Node ID: {}", node_id.pub.to_node_id ());
-		logger.info (nano::log::type::node, "Number of buckets: {}", bucketing.size ());
-		logger.info (nano::log::type::node, "Genesis block: {}", config.network_params.ledger.genesis->hash ().to_string ());
-		logger.info (nano::log::type::node, "Genesis account: {}", config.network_params.ledger.genesis->account ().to_account ());
-
-		if (!work_generation_enabled ())
+		if (network_params.network.is_beta_network ())
 		{
-			logger.warn (nano::log::type::node, "Work generation is disabled");
+			logger.critical (nano::log::type::node, "Beta network may have reset, try clearing database files");
 		}
 
-		logger.info (nano::log::type::node, "Outbound bandwidth limit: {} bytes/s, burst ratio: {}",
-		config.bandwidth_limit,
-		config.bandwidth_limit_burst_ratio);
+		std::exit (1);
+	}
 
-		// First do a pass with a read to see if any writing needs doing, this saves needing to open a write lock (and potentially blocking)
-		auto is_initialized (false);
+	if (config.enable_voting)
+	{
+		auto reps = wallets.reps ();
+		logger.info (nano::log::type::node, "Voting is enabled, more system resources will be used, local representatives: {}", reps.accounts.size ());
+		for (auto const & account : reps.accounts)
 		{
-			auto const transaction (store.tx_begin_read ());
-			is_initialized = (store.account.begin (transaction) != store.account.end (transaction));
+			logger.info (nano::log::type::node, "Local representative: {}", account.to_account ());
 		}
-
-		if (!is_initialized && !flags.read_only)
+		if (reps.accounts.size () > 1)
 		{
-			auto const transaction = store.tx_begin_write ();
-			// Store was empty meaning we just created it, add the genesis block
-			store.initialize (transaction, ledger.cache, ledger.constants);
+			logger.warn (nano::log::type::node, "Voting with more than one representative can limit performance");
 		}
+	}
 
-		if (!block_or_pruned_exists (config.network_params.ledger.genesis->hash ()))
+	if ((network_params.network.is_live_network () || network_params.network.is_beta_network ()) && !flags.inactive_node)
+	{
+		auto const bootstrap_weights = get_bootstrap_weights ();
+		ledger.bootstrap_weight_max_blocks = bootstrap_weights.first;
+
+		logger.info (nano::log::type::node, "Initial bootstrap height: {}", ledger.bootstrap_weight_max_blocks);
+		logger.info (nano::log::type::node, "Current ledger height:    {}", ledger.block_count ());
+
+		// Use bootstrap weights if initial bootstrap is not completed
+		const bool use_bootstrap_weight = ledger.block_count () < bootstrap_weights.first;
+		if (use_bootstrap_weight)
 		{
-			logger.critical (nano::log::type::node, "Genesis block not found. This commonly indicates a configuration issue, check that the --network or --data_path command line arguments are correct, and also the ledger backend node config option. If using a read-only CLI command a ledger must already exist, start the node with --daemon first.");
+			logger.info (nano::log::type::node, "Using predefined representative weights, since block count is less than bootstrap threshold");
 
-			if (network_params.network.is_beta_network ())
+			ledger.bootstrap_weights = bootstrap_weights.second;
+
+			logger.info (nano::log::type::node, "******************************************** Bootstrap weights ********************************************");
+
+			// Sort the weights
+			std::vector<std::pair<nano::account, nano::uint128_t>> sorted_weights (ledger.bootstrap_weights.begin (), ledger.bootstrap_weights.end ());
+			std::sort (sorted_weights.begin (), sorted_weights.end (), [] (auto const & entry1, auto const & entry2) {
+				return entry1.second > entry2.second;
+			});
+
+			for (auto const & rep : sorted_weights)
 			{
-				logger.critical (nano::log::type::node, "Beta network may have reset, try clearing database files");
+				logger.info (nano::log::type::node, "Using bootstrap rep weight: {} -> {}",
+				rep.first.to_account (),
+				nano::uint128_union (rep.second).format_balance (nano_ratio, 0, true));
 			}
 
+			logger.info (nano::log::type::node, "******************************************** ================= ********************************************");
+		}
+	}
+
+	ledger.pruning = flags.enable_pruning || store.pruned.count (store.tx_begin_read ()) > 0;
+
+	if (ledger.pruning)
+	{
+		if (config.enable_voting && !flags.inactive_node)
+		{
+			logger.critical (nano::log::type::node, "Incompatibility detected between config node.enable_voting and existing pruned blocks");
 			std::exit (1);
 		}
-
-		if (config.enable_voting)
+		if (!flags.enable_pruning && !flags.inactive_node)
 		{
-			auto reps = wallets.reps ();
-			logger.info (nano::log::type::node, "Voting is enabled, more system resources will be used, local representatives: {}", reps.accounts.size ());
-			for (auto const & account : reps.accounts)
-			{
-				logger.info (nano::log::type::node, "Local representative: {}", account.to_account ());
-			}
-			if (reps.accounts.size () > 1)
-			{
-				logger.warn (nano::log::type::node, "Voting with more than one representative can limit performance");
-			}
+			logger.critical (nano::log::type::node, "To start node with existing pruned blocks use launch flag --enable_pruning");
+			std::exit (1);
 		}
-
-		if ((network_params.network.is_live_network () || network_params.network.is_beta_network ()) && !flags.inactive_node)
-		{
-			auto const bootstrap_weights = get_bootstrap_weights ();
-			ledger.bootstrap_weight_max_blocks = bootstrap_weights.first;
-
-			logger.info (nano::log::type::node, "Initial bootstrap height: {}", ledger.bootstrap_weight_max_blocks);
-			logger.info (nano::log::type::node, "Current ledger height:    {}", ledger.block_count ());
-
-			// Use bootstrap weights if initial bootstrap is not completed
-			const bool use_bootstrap_weight = ledger.block_count () < bootstrap_weights.first;
-			if (use_bootstrap_weight)
-			{
-				logger.info (nano::log::type::node, "Using predefined representative weights, since block count is less than bootstrap threshold");
-
-				ledger.bootstrap_weights = bootstrap_weights.second;
-
-				logger.info (nano::log::type::node, "******************************************** Bootstrap weights ********************************************");
-
-				// Sort the weights
-				std::vector<std::pair<nano::account, nano::uint128_t>> sorted_weights (ledger.bootstrap_weights.begin (), ledger.bootstrap_weights.end ());
-				std::sort (sorted_weights.begin (), sorted_weights.end (), [] (auto const & entry1, auto const & entry2) {
-					return entry1.second > entry2.second;
-				});
-
-				for (auto const & rep : sorted_weights)
-				{
-					logger.info (nano::log::type::node, "Using bootstrap rep weight: {} -> {}",
-					rep.first.to_account (),
-					nano::uint128_union (rep.second).format_balance (nano_ratio, 0, true));
-				}
-
-				logger.info (nano::log::type::node, "******************************************** ================= ********************************************");
-			}
-		}
-
-		ledger.pruning = flags.enable_pruning || store.pruned.count (store.tx_begin_read ()) > 0;
-
-		if (ledger.pruning)
-		{
-			if (config.enable_voting && !flags.inactive_node)
-			{
-				logger.critical (nano::log::type::node, "Incompatibility detected between config node.enable_voting and existing pruned blocks");
-				std::exit (1);
-			}
-			else if (!flags.enable_pruning && !flags.inactive_node)
-			{
-				logger.critical (nano::log::type::node, "To start node with existing pruned blocks use launch flag --enable_pruning");
-				std::exit (1);
-			}
-		}
-		confirming_set.cemented_observers.add ([this] (auto const & block) {
-			// TODO: Is it neccessary to call this for all blocks?
-			if (block->is_send ())
-			{
-				wallet_workers.post ([this, hash = block->hash (), destination = block->destination ()] () {
-					wallets.receive_confirmed (hash, destination);
-				});
-			}
-		});
 	}
+
+	confirming_set.cemented_observers.add ([this] (auto const & block) {
+		// TODO: Is it neccessary to call this for all blocks?
+		if (block->is_send ())
+		{
+			wallet_workers.post ([this, hash = block->hash (), destination = block->destination ()] () {
+				wallets.receive_confirmed (hash, destination);
+			});
+		}
+	});
+
 	node_initialized_latch.count_down ();
 }
 
@@ -849,11 +848,6 @@ int nano::node::store_version ()
 {
 	auto transaction (store.tx_begin_read ());
 	return store.version.get (transaction);
-}
-
-bool nano::node::init_error () const
-{
-	return store.init_error () || wallets_store.init_error ();
 }
 
 std::pair<uint64_t, std::unordered_map<nano::account, nano::uint128_t>> nano::node::get_bootstrap_weights () const

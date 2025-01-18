@@ -724,10 +724,7 @@ nano::ledger::ledger (nano::store::component & store_a, nano::stats & stat_a, na
 	any{ *any_impl },
 	confirmed{ *confirmed_impl }
 {
-	if (!store.init_error ())
-	{
-		initialize (generate_cache_flags_a);
-	}
+	initialize (generate_cache_flags_a);
 }
 
 nano::ledger::~ledger ()
